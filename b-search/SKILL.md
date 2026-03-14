@@ -46,7 +46,8 @@ Uses the `brave-search` MCP server to fetch live web results and return a clean,
 
 ## Rules
 
-- Always use `brave_web_search` — never fall back to training data when this skill is active
-- If the MCP tool is unavailable, tell the user: "brave-search MCP không connect được, kiểm tra `/mcp`"
+- Always use `brave_web_search` — never fall back to built-in web search or training data when this skill is active
+- **If the MCP tool is unavailable or not connected**, stop and tell the user: "❌ brave-search MCP chưa được kết nối. Kiểm tra `/mcp` và đảm bảo `brave-search` đã được add vào settings."
+- Do NOT attempt to search using any other tool as a substitute
 - Keep summaries concise — no need to reproduce full article content
 - For code/version queries, always include the exact version number and release date if available
