@@ -24,7 +24,7 @@ git clone git@github-personal.com:dhoabao/b-agent-skills.git ~/.b-agent-skills &
 ### Sync / update skills (everyday use)
 
 ```bash
-~/.b-agent-skills/sync.sh
+bash ~/.b-agent-skills/sync.sh
 ```
 
 This will:
@@ -51,6 +51,6 @@ This will:
 
 | Problem | Fix |
 |---|---|
-| `Permission denied (publickey)` | SSH key not added to GitHub — run `ssh-add ~/.ssh/id_rsa` |
+| `Permission denied (publickey)` | SSH key not configured for GitHub — check your SSH setup manually |
 | Skill not showing in Claude Code | Check folder has `SKILL.md` with valid `name` + `description` frontmatter |
 | Symlink broken | Re-run `sync.sh` to refresh |
