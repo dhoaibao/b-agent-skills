@@ -1,4 +1,4 @@
-# b-skills
+# b-agent-skills
 
 A personal skill suite for Claude Code, organized into two groups:
 
