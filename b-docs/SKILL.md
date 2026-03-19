@@ -38,6 +38,8 @@ If context7 is unavailable:
 
 ### Step 1 — Identify library and topic
 
+First, use `Glob` to find `package.json`, `pyproject.toml`, or `requirements.txt` in the project root. If found, read it and extract the version of the requested library. Use this version when calling `get-library-docs`. If the file is not found or version parsing fails (e.g. `workspace:*`, missing entry), continue without version constraint — do not block on this.
+
 Extract from the user's request:
 - **Library name**: e.g. `sendgrid`, `bullmq`, `@aws-sdk/client-ses`
 - **Topic / feature**: the specific API area needed, e.g. `send email`, `webhook verification`, `retry configuration`, `job scheduling`

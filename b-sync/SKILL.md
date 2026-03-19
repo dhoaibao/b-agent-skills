@@ -49,6 +49,16 @@ This will:
 3. Commit and push
 4. Run `~/.b-agent-skills/sync.sh` on any machine to pick it up
 
+## Verify after sync
+
+After running `sync.sh`, verify installed skills are valid:
+
+```bash
+grep -rL 'name:' ~/.claude/skills/*/SKILL.md 2>/dev/null
+```
+
+Any file printed by this command is missing the `name:` frontmatter field — check and fix that skill's SKILL.md before using it.
+
 ## Troubleshooting
 
 | Problem | Fix |

@@ -30,14 +30,19 @@ b-debug is for code that is broken. If there's an error message → use b-debug 
 ## Tools required
 
 From `jcodemunch` MCP server:
-- `index_repo` / `index_folder` — index the codebase before querying
+- `index_folder` — index a local codebase before querying (`index_repo` for GitHub repos)
 - `get_repo_outline` — overview of all modules, files, and top-level symbols
 - `get_file_outline` — functions, classes, and exports per file
 - `get_dependency_graph` — module coupling and circular dependency detection
 - `search_symbols` — find duplicate or similarly-named functions across files
 
-If jcodemunch is unavailable: read files manually, reason about structure inline.
-Note the limitation — manual reading may miss cross-file dependencies.
+From `sequential-thinking` MCP server *(optional)*:
+- `sequentialthinking` — structured prioritization of findings to produce an ordered action list
+
+From `brave-search` MCP server *(optional)*:
+- `brave_web_search` — look up refactoring solutions for named anti-patterns found during analysis
+
+If jcodemunch is unavailable: Use `Glob` to map file structure and identify all relevant files. Use `Grep` to find symbol usages, duplicate function names, and repeated patterns across files. Use `Read` for file-level inspection. Note limitation: cross-file dependency tracking will be incomplete without jcodemunch — flag this in the report.
 
 ---
 
@@ -60,8 +65,9 @@ concern matters most — analyzing everything produces noise.
 
 Use `jcodemunch` to map the target code in this order:
 
-1. `index_repo` (or `index_folder` for a subdirectory) — index the codebase first
-2. `get_repo_outline` — overview of all modules, files, and top-level symbols
+1. **Index first** — call `index_folder` with the absolute path to the project root (e.g. `/home/user/my-project`). Use `use_ai_summaries: false` for speed. Note the `repo` identifier returned in the response (format: `local/[name]-[hash]`) — you must pass this as `repo` to every subsequent jcodemunch call.
+   - If `file_count` returns 0 or `symbol_count` is 0, jcodemunch does not support this file type (e.g. Markdown, config-only repos) → switch to the Glob/Grep fallback immediately.
+2. `get_repo_outline` (repo: the identifier from step 1) — overview of all modules, files, and top-level symbols
 3. `get_file_outline` — inspect each relevant file for functions, classes, and exports
 4. `get_dependency_graph` — map module coupling; look for circular deps and tight coupling
 5. `search_symbols` — find duplicate or similarly-named functions across files
@@ -100,6 +106,8 @@ With the structure mapped, evaluate:
 - Magic numbers or hardcoded values that should be constants
 - Dead code — functions defined but never called
 
+For any High finding that involves a named anti-pattern (e.g., circular dependency, god class, N+1 query, DB query in controller) → call `brave_web_search` with `'{pattern name} refactoring solution'`. Use the result to make the concrete suggestion in Step 4 more specific than a generic recommendation.
+
 ---
 
 ### Step 4 — Produce findings
@@ -114,6 +122,8 @@ For each finding:
 - State exactly what was found and where (file, function, line range if relevant)
 - Explain why it's a problem — not just "this is bad"
 - Suggest a concrete improvement — not just "refactor this"
+
+After grouping findings by severity, call `sequentialthinking` with the question: "Given these findings, if the team can address only 3 issues this sprint, which 3 have the highest ROI and in what order?" Use the result to produce an **Ordered action list** at the top of the Recommended Next Steps section.
 
 ---
 

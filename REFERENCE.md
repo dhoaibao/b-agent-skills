@@ -81,8 +81,10 @@ relevant results, falls back to `firecrawl_search` which returns full content di
 
 Deep code analysis using jcodemunch — maps structure, measures complexity, identifies
 duplicate logic, and produces severity-ranked findings with concrete suggestions.
-Uses `index_repo` → `get_repo_outline` → `get_file_outline` → `get_dependency_graph`
-→ `search_symbols` in sequence to build a complete structural picture.
+Indexes the codebase first via `index_folder`, then runs `get_repo_outline` →
+`get_file_outline` → `get_dependency_graph` → `search_symbols`. For High findings
+that match a named anti-pattern, calls `brave_web_search` for a concrete refactoring
+suggestion. Uses `sequentialthinking` to produce a sprint-prioritized action list.
 Does not fix anything; produces findings only.
 
 **Good triggers:**
@@ -103,12 +105,13 @@ Use b-debug when something is broken.
 
 ### b-debug
 
-Systematic, hypothesis-driven bug tracing. Maps the full execution path with jcodemunch
-(`get_context_bundle` → `find_references` → `get_blast_radius` → `get_symbol`),
-forms ranked hypotheses with sequential-thinking, confirms root cause, then fixes.
-For library-related errors, searches for known issues via `brave_web_search` and
-invokes `b-docs` to verify correct API behavior before verifying hypotheses.
-Never patches before root cause is confirmed.
+Systematic, hypothesis-driven bug tracing. Indexes the codebase first via
+`index_folder`, then maps the full execution path with jcodemunch (`get_context_bundle`
+→ `find_references` → `get_blast_radius` → `get_symbol`), forms ranked hypotheses
+with sequential-thinking, confirms root cause, then fixes. For library-related errors,
+searches for known issues via `brave_web_search`, scrapes top 1–2 relevant GitHub
+issue/SO pages via `firecrawl_scrape`, and invokes `b-docs` to verify correct API
+behavior before verifying hypotheses. Never patches before root cause is confirmed.
 
 **Good triggers:**
 ```
@@ -227,21 +230,26 @@ When in doubt, call the skill by name.
 
 ```
 b-plan ──── modify existing code ────────► jcodemunch (scan structure first)
-       ──── flags unknowns ──────────────► b-docs     (library API needed)
+       ──── flags unknowns ──────────────► b-docs     (library API needed, resolved inline)
                                          ► b-research  (decision needed)
 
 b-debug ─── trace execution path ────────► jcodemunch (get_context_bundle → find_references → get_blast_radius → get_symbol)
         ─── library error detected ──────► brave-search (lookup known issues)
+                                         ► firecrawl   (scrape top 1–2 relevant issue/SO pages, optional)
                                          ► b-docs      (verify API behavior)
 
 b-analyze ── findings need refactor ──────► b-plan    (sequence it safely)
+          ── named anti-pattern found ────► brave-search (refactoring solution lookup, optional)
+          ── prioritize sprint items ─────► sequential-thinking (ordered ROI action list, optional)
+
+b-research ── sources conflict ───────────► sequential-thinking (structured conflict resolution, optional)
 
 b-quick-search ── factual query ──────────► brave_summarizer (parallel, AI-synthesized answer)
 
 b-feature ── orchestrates all ────────────► b-plan
                                           ► b-analyze  (understand existing)
                                           ► b-docs     (gather API)
-                                          ► b-research (gather knowledge)
+                                          ► b-research (gather knowledge, required if unknowns contain compare/evaluate/?)
                                           ► implement
                                           ► b-analyze  (self-review)
 ```

@@ -31,7 +31,7 @@ implementation begins.
 
 If sequential-thinking is unavailable: reason through the plan inline step by step,
 making the thinking explicit in the response. Do not skip planning — just do it without the tool.
-If jcodemunch is unavailable on a modify-existing task: read key files manually before Step 2.
+If jcodemunch is unavailable, or `index_folder` returns `file_count = 0`: use Glob/Read to inspect key files manually before Step 2.
 
 ---
 
@@ -56,6 +56,7 @@ Run if: task modifies or extends existing code.
 Skip if: pure greenfield with no existing modules.
 
 Use jcodemunch to scan the relevant area before decomposing:
+- First call `index_folder` with the absolute project root path. Use `use_ai_summaries: false`. Note the `repo` identifier from the response and pass it to all subsequent calls.
 - `get_repo_outline` — understand overall structure, file layout, module boundaries
 - `get_file_outline` — inspect the specific files the plan will touch
 
@@ -88,6 +89,8 @@ Flag anything that needs to be resolved before or during execution:
 - **Research needed**: tool or approach comparison → mark as `b-research` call
 - **Decisions needed**: choices that depend on user preference or business logic
 - **Assumptions**: things the plan assumes to be true — state them explicitly
+
+If any "Docs needed" unknown involves a specific library behavior that will affect plan decisions (e.g., "does BullMQ support X?", "what's the retry API for Axios?") → resolve it now by calling `b-docs` inline, before writing the plan file. Append the finding as a note under the unknown: `→ Confirmed: [finding]`. Do not defer verifiable library assumptions to Session 2.
 
 An unresolved unknown is a risk. Surface it now, not halfway through implementation.
 

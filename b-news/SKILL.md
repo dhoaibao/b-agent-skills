@@ -58,6 +58,8 @@ Search 5: "developer tools programming"
   over generic tech blogs — but do not discard good stories from other sources
 - Collect: headline, URL, 1-sentence snippet per story
 
+After collecting results: if total unique stories across all 5 searches is fewer than 10 → retry searches 1 and 2 (`AI machine learning`, `security vulnerability breach`) with `freshness: "pw"` (past week). Mark any stories from this retry with `(earlier this week)` in the output.
+
 ### Step 2 — Deduplicate and categorize
 
 From all collected results (~25 stories), filter and group:

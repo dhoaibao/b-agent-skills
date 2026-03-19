@@ -52,6 +52,7 @@ Call `brave_web_search` with:
 - English queries unless the topic is Vietnamese-specific
 
 If the first query returns no useful results, retry once with a rephrased query.
+Rephrasing tips: add the current year, replace ambiguous words with specific technical terms (e.g. "fix" → "patch", "tool" → the exact product name), add the full product/company name, or remove generic qualifiers like "best" or "how to".
 If the retry also fails → tell the user the search returned no relevant results
 and suggest they try b-research for a deeper lookup.
 

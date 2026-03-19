@@ -29,6 +29,7 @@ then synthesize into a comprehensive report with citations.
 - `firecrawl_scrape` — from `firecrawl` MCP server
 - `firecrawl_search` — from `firecrawl` MCP server *(optional, fallback search with full content)*
 - `resolve-library-id` + `get-library-docs` — from `context7` MCP server *(optional, for library/framework topics)*
+- `sequentialthinking` — from `sequential-thinking` MCP server *(optional, for resolving conflicting source recommendations)*
 
 If brave-search or firecrawl is unavailable, stop and tell the user:
 - brave-search missing: "❌ brave-search MCP is not connected. Please check `/mcp`."
@@ -90,7 +91,8 @@ Use `resolve-library-id` to find the correct Context7 library ID, then `get-libr
 
 - Read all sources (Context7 output + scraped content) carefully
 - Answer the user's specific question based on actual content — not training data
-- If sources conflict, note the disagreement explicitly
+- If 2 or more sources recommend conflicting approaches for the same decision point (e.g., Source A: "use approach X", Source B: "use approach Y") → call `sequentialthinking` with: "Source A says [X] because [reason]. Source B says [Y] because [reason]. Given the user's context of [task], which approach is more applicable and why?" Include the structured reasoning in a "⚖️ Conflicting findings" subsection of the report.
+- If sources conflict on minor details only, note the disagreement inline without calling sequentialthinking
 - Produce a structured report (see output format below)
 
 ---

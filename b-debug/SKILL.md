@@ -36,7 +36,10 @@ From `sequential-thinking` MCP server:
 From `brave-search` MCP server *(optional)*:
 - `brave_web_search` — look up known library errors, GitHub issues, changelogs
 
-If jcodemunch is unavailable: read relevant files manually, proceed with Steps 2–4.
+From `firecrawl` MCP server *(optional)*:
+- `firecrawl_scrape` — scrape full content of relevant GitHub issue pages, Stack Overflow answers, or changelogs found via web search
+
+If jcodemunch is unavailable, or `index_folder` returns `file_count = 0`: use Glob/Grep/Read to map files manually, proceed with Steps 2.1–2.4.
 If sequential-thinking is unavailable: reason through hypotheses inline, document steps explicitly in response.
 
 ---
@@ -62,6 +65,7 @@ or "recent changes" is often the fastest path to root cause.
 
 Use `jcodemunch` to trace the execution path in this order:
 
+0. **Index first** — call `index_folder` with the absolute path to the project root. Use `use_ai_summaries: false` for speed. Note the `repo` identifier from the response (format: `local/[name]-[hash]`) — pass this as `repo` to every subsequent jcodemunch call. If `file_count` is 0, jcodemunch can't parse this codebase → use Glob/Grep to map files manually instead.
 1. `get_context_bundle` on the entry point (route handler, CLI command, event listener) — get full context of the starting point
 2. `find_references` on the relevant function — trace all callers and callees across files
 3. `get_blast_radius` on the suspected module — understand what depends on it
@@ -96,6 +100,7 @@ Present the ranked hypotheses to the user briefly before investigating.
 
 **Library error shortcut**: If the error message or stack trace references a specific library or framework:
 - Use `brave_web_search` with the exact error message in quotes to find known issues, GitHub issues, or changelog entries
+- If results include a GitHub issue page, Stack Overflow answer, or changelog URL that looks relevant → call `firecrawl_scrape` on the top 1–2 most relevant URLs before verifying hypotheses. Use `formats: ["markdown"]`. Cap at 2 URLs. If the page returns empty content, skip and proceed with snippets only.
 - If results point to an API misuse, invoke `b-docs` to verify the correct behavior for that library version
 - Do this before verifying hypotheses — it may eliminate wrong hypotheses immediately and save significant time
 

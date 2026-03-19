@@ -43,6 +43,19 @@ If a required MCP is missing, note it and skip that step — do not abort the en
 
 ---
 
+## Step 0 — Preflight
+
+Check MCP availability before starting (run `/mcp` to verify connected servers). Required MCPs per phase:
+- Phase 1 (b-plan): sequential-thinking
+- Phase 2 (b-analyze): jcodemunch
+- Phase 3a (b-docs): context7
+- Phase 3b (b-research): brave-search + firecrawl
+- Phase 5 (b-analyze): jcodemunch
+
+If a required MCP is unavailable, log it in the plan file header as `⚠️ [MCP] unavailable — Phase [N] will be skipped`. Do not abort — continue with available phases.
+
+---
+
 ## Two-session model
 
 b-feature runs across **two sessions** to keep planning context separate from
@@ -93,6 +106,8 @@ Append a `## Docs` section to the plan file with key API notes.
 
 **3b — `b-research`** *(if plan flagged an open tool/approach decision)*
 Research open questions. Append a `## Research` section to the plan file.
+
+Phase 3b is **required** (not optional) if the plan's Unknowns or Dependencies section contains any of: `compare`, `decide between`, `which library`, `evaluate`, `best approach for`, or any item ending with `?`. If these keywords appear, run b-research — do not skip.
 
 Both can run in the same phase. 3a is far more common.
 
