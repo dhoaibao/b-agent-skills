@@ -41,6 +41,8 @@ This skill orchestrates the full b-skill suite. All must be available:
 
 If a required MCP is missing, note it and skip that step — do not abort the entire pipeline.
 
+Graceful degradation: ⚠️ Partial — if a required MCP is unavailable, the corresponding phase is logged as skipped in the plan file (see Step 0 Preflight). The pipeline continues with available phases.
+
 ---
 
 ## Step 0 — Preflight
@@ -65,6 +67,8 @@ execution context. Session 1 produces a plan file. Session 2 executes it.
 Session 1: PLAN → UNDERSTAND → GATHER → write .claude/b-plans/[slug].md
 Session 2: read plan file → IMPLEMENT → REVIEW
 ```
+
+**Before detecting session type**: use `Glob` to check if `.claude/b-plans/*.md` contains any existing plan files relevant to this task (matching keywords in the task name). If a relevant plan file exists: show the file path to the user and ask: 'A plan for this task already exists at `[path]`. Continue from this plan (Session 2), or start fresh (Session 1)?' Wait for user response before proceeding. If no relevant plan exists: apply the session detection logic below.
 
 Detect which session you are in:
 - **No plan file referenced** → Session 1 (planning mode)
@@ -107,7 +111,7 @@ Append a `## Docs` section to the plan file with key API notes.
 **3b — `b-research`** *(if plan flagged an open tool/approach decision)*
 Research open questions. Append a `## Research` section to the plan file.
 
-Phase 3b is **required** (not optional) if the plan's Unknowns or Dependencies section contains any of: `compare`, `decide between`, `which library`, `evaluate`, `best approach for`, or any item ending with `?`. If these keywords appear, run b-research — do not skip.
+Phase 3b is **required** (not optional) if the plan's Unknowns or Dependencies section contains any of: `compare`, `decide between`, `which library`, `evaluate`, `best approach for`, or any item ending with `?`. If these keywords appear, run b-research — do not skip — apply this rule only for architecture or tool selection decisions, not for trivial implementation choices (e.g. 'decide between `map` and `forEach`' does NOT trigger b-research).
 
 Both can run in the same phase. 3a is far more common.
 

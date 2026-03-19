@@ -40,6 +40,8 @@ If unavailable: stop and tell the user:
 "❌ brave-search MCP is not connected. Please check `/mcp`."
 Do NOT substitute with any other search tool or training data.
 
+Graceful degradation: ❌ Not possible — this skill requires live web data. If the MCP is unavailable, stop and tell the user.
+
 ---
 
 ## Steps
@@ -91,7 +93,7 @@ just answer directly with one source citation inline.
 
 ## Rules
 
-- One search call only — this is a quick lookup, not a research session
+- Maximum 2 search calls — one primary, one retry if needed. This is still a quick lookup, not a full research session.
 - Never use training data as the answer — always search first
 - Never substitute another tool if brave-search is unavailable
 - Keep answers concise — no need to reproduce full article content

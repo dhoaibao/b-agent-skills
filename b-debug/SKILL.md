@@ -42,6 +42,8 @@ From `firecrawl` MCP server *(optional)*:
 If jcodemunch is unavailable, or `index_folder` returns `file_count = 0`: use Glob/Grep/Read to map files manually, proceed with Steps 2.1–2.4.
 If sequential-thinking is unavailable: reason through hypotheses inline, document steps explicitly in response.
 
+Graceful degradation: ✅ Possible — if jcodemunch unavailable, use Glob/Grep/Read for file analysis. Quality is reduced but the skill remains functional.
+
 ---
 
 ## Steps
@@ -151,7 +153,7 @@ After applying the fix:
 - Expected: ...
 - Actual: ...
 
-**Code path** *(from jcodemunch)*
+**Code path** *(from [jcodemunch / manual analysis])*
 [Entry point] → [Layer 1] → [Layer 2] → [Failure point]
 Note any silent catch blocks or unexpected stops in the path.
 

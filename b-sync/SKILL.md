@@ -14,6 +14,12 @@ Syncs Claude skills from the public `b-agent-skills` GitHub repo to `~/.claude/s
 - Updating = `git pull` → symlinks stay valid automatically
 - Stale symlinks (skills removed from repo) are cleaned up automatically on each sync
 
+## Tools required
+
+- `Bash` tool — to run `git` and `sync.sh` commands (built-in, always available)
+
+Graceful degradation: ✅ Not applicable — b-sync requires only Bash/git, no MCP server needed.
+
 ## Commands
 
 ### Bootstrap a new machine (first time only)
@@ -21,6 +27,8 @@ Syncs Claude skills from the public `b-agent-skills` GitHub repo to `~/.claude/s
 ```bash
 git clone https://github.com/dhoaibao/b-agent-skills.git ~/.b-agent-skills && bash ~/.b-agent-skills/sync.sh
 ```
+
+If you have forked this repo, replace the URL above with your own fork's HTTPS URL.
 
 ### Sync / update skills (everyday use)
 
@@ -48,6 +56,61 @@ This will:
 2. Add `my-skill/SKILL.md` with proper frontmatter
 3. Commit and push
 4. Run `~/.b-agent-skills/sync.sh` on any machine to pick it up
+
+## Steps
+
+### Step 1 — Detect mode
+
+Run: `[ -d ~/.b-agent-skills/.git ] && echo "UPDATE" || echo "BOOTSTRAP"`
+
+- If `UPDATE`: tell the user "Updating existing b-skills install..."
+- If `BOOTSTRAP`: tell the user "Bootstrapping b-skills on this machine..."
+
+### Step 2 — Snapshot current state
+
+Run: `ls ~/.claude/skills/ 2>/dev/null || echo "(none)"`
+
+Save this output as the "before" skill list — used in Step 5 to diff what changed.
+
+### Step 3 — Run sync
+
+Use the Bash tool to run the appropriate command based on Step 1:
+
+- **BOOTSTRAP**: `git clone https://github.com/dhoaibao/b-agent-skills.git ~/.b-agent-skills && bash ~/.b-agent-skills/sync.sh`
+- **UPDATE**: `bash ~/.b-agent-skills/sync.sh`
+
+Output the script's stdout — it contains live progress messages (🔄 Updating, 🔗 Syncing, ✅ per skill).
+
+### Step 4 — Verify symlinks
+
+Run both checks:
+
+```bash
+ls -la ~/.claude/skills/ | grep "^l"
+grep -rL 'name:' ~/.claude/skills/*/SKILL.md 2>/dev/null
+```
+
+- First command lists all active symlinks — confirms sync worked
+- Second command flags any skills missing required `name:` frontmatter
+- If any skill is flagged → tell the user which skill has broken frontmatter
+
+### Step 5 — Report changes
+
+Compare the before list (Step 2) vs current `ls ~/.claude/skills/`:
+
+- **Added**: names in current but not in before
+- **Removed**: names in before but not in current
+- **Total installed**: count of current skills
+
+Print summary:
+
+```
+✅ Sync complete. [N] skills installed.
+  Added:   [list or 'none']
+  Removed: [list or 'none']
+```
+
+---
 
 ## Verify after sync
 

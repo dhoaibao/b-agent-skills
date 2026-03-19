@@ -33,6 +33,8 @@ If sequential-thinking is unavailable: reason through the plan inline step by st
 making the thinking explicit in the response. Do not skip planning — just do it without the tool.
 If jcodemunch is unavailable, or `index_folder` returns `file_count = 0`: use Glob/Read to inspect key files manually before Step 2.
 
+Graceful degradation: ✅ Possible — if jcodemunch unavailable, use Glob/Read to inspect key files. If sequential-thinking unavailable, reason inline. Quality is reduced but the skill remains functional.
+
 ---
 
 ## Steps
@@ -116,6 +118,8 @@ Open a new session and run:
   execute plan from .claude/b-plans/[task-slug].md
 ```
 
+Note: 'new session' means running `claude` in a new terminal, or using `/clear` in the current terminal to reset context.
+
 **Exception — simple tasks (≤4 steps, single file):** skip the file, plan and execute
 inline in the same session. Not worth the overhead.
 
@@ -166,6 +170,7 @@ When a new session opens with `execute plan from .claude/b-plans/[file].md`:
 1. Read the plan file
 2. Execute steps in order, checking off each `- [ ]` → `- [x]` as it completes
 3. Re-evaluate remaining steps if something unexpected happens mid-execution
+3.5. **If a step fails**: (a) document the failure in the plan file by changing `- [ ]` to `- [❌] Step N — [brief failure reason]`; (b) evaluate whether subsequent steps that depend on this step are now blocked; (c) if any blocking dependency exists, pause and inform the user before continuing. Do not silently skip failed steps.
 4. Update the file with final status when done
 
 ---

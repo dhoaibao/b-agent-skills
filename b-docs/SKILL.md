@@ -32,6 +32,8 @@ If context7 is unavailable:
 - Tell the user: "❌ context7 MCP is not connected. Please check `/mcp`."
 - Do NOT fall back to training data for API details — offer to use `b-research` to scrape official docs instead.
 
+Graceful degradation: ⚠️ Partial — if context7 is unavailable, fall back to b-research to scrape official docs instead of stopping entirely.
+
 ---
 
 ## Steps
@@ -39,6 +41,8 @@ If context7 is unavailable:
 ### Step 1 — Identify library and topic
 
 First, use `Glob` to find `package.json`, `pyproject.toml`, or `requirements.txt` in the project root. If found, read it and extract the version of the requested library. Use this version when calling `get-library-docs`. If the file is not found or version parsing fails (e.g. `workspace:*`, missing entry), continue without version constraint — do not block on this.
+
+If the extracted version contains a range operator (`^`, `~`, `>=`, `*`, or `workspace:*`), the version is imprecise. In that case, check for a lock file: read `package-lock.json` (look for `"resolved"` or `"version"` under the package name), `pnpm-lock.yaml` (look for `version:` under the package), or `yarn.lock` (look for the resolved version line). Use the exact version found in the lock file. If no lock file exists, proceed with the range version and note: `⚠️ Using version range [range] — Context7 docs may not match exact installed version.`
 
 Extract from the user's request:
 - **Library name**: e.g. `sendgrid`, `bullmq`, `@aws-sdk/client-ses`

@@ -20,6 +20,8 @@ then groups stories by topic into a clean bilingual daily digest.
 If `brave-search` is unavailable, stop and tell the user:
 "❌ brave-search MCP is not connected. Please check `/mcp`."
 
+Graceful degradation: ❌ Not possible — this skill requires live web data. If the MCP is unavailable, stop and tell the user.
+
 ## Curated sources
 
 Results from these domains are preferred over generic tech blogs:
@@ -40,6 +42,8 @@ Results from these domains are preferred over generic tech blogs:
 ## Steps
 
 ### Step 1 — Search by topic category
+
+**Before running the 5 default searches**: check if the user mentioned a specific topic (e.g., 'news about React', 'AI news today', 'security breaches this week'). If yes: replace 1–2 of the 5 default queries with focused queries on that topic, keeping the rest as-is. Example: if user says 'AI news', replace Search 3 (`Apple Google Microsoft product`) with `'[specific AI topic] latest news [year]'`. If user made a generic request ('news today', 'điểm tin') → run the 5 default queries unchanged.
 
 Run **5 searches in parallel** (single message, multiple tool calls), one per major topic area.
 Use `brave_news_search` — it is designed for news with built-in freshness filtering.

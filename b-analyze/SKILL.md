@@ -44,6 +44,8 @@ From `brave-search` MCP server *(optional)*:
 
 If jcodemunch is unavailable: Use `Glob` to map file structure and identify all relevant files. Use `Grep` to find symbol usages, duplicate function names, and repeated patterns across files. Use `Read` for file-level inspection. Note limitation: cross-file dependency tracking will be incomplete without jcodemunch — flag this in the report.
 
+Graceful degradation: ✅ Possible — if jcodemunch unavailable, use Glob/Grep/Read for file analysis. Quality is reduced but the skill remains functional.
+
 ---
 
 ## Steps
@@ -58,6 +60,7 @@ Clarify what to analyze and why:
 
 If the user says "analyze the whole project" without further context, ask which layer or
 concern matters most — analyzing everything produces noise.
+Exception: if the project has fewer than 15 files, proceed with whole-project analysis without asking — the noise risk is low.
 
 ---
 
