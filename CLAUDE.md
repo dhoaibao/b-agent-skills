@@ -100,6 +100,20 @@ When deciding which MCPs a skill should use:
 
 ---
 
+## Doc sync rule
+
+**Any change to a skill — create, update, or delete — requires updating both `README.md` and `REFERENCE.md` in the same commit.**
+
+| Change type | README.md | REFERENCE.md |
+|---|---|---|
+| **Create** skill | Add row to skills overview table | Add full reference section |
+| **Update** skill | Update `Use when` cell and MCP(s) cell if changed | Rewrite the skill's reference section to match |
+| **Delete** skill | Remove row from skills overview table | Remove the skill's reference section entirely |
+
+Never leave README or REFERENCE out of sync with a SKILL.md change. If a PR touches `b-[skill]/SKILL.md`, it must also touch both doc files.
+
+---
+
 ## Quality checklist
 
 Before merging any SKILL.md change, verify:

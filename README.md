@@ -41,7 +41,7 @@ All 5 MCPs must be connected. Verify with `/mcp` in Claude Code.
 | Skill | MCP(s) | Use when |
 |---|---|---|
 | [`b-quick-search`](#b-quick-search) | brave-search | Quick one-call web lookup for current info |
-| [`b-news`](#b-news) | brave-search | Daily tech news digest |
+| [`b-news`](#b-news) | brave-search, firecrawl* | Daily news digest on any user-specified topic |
 | [`b-sync`](#b-sync) | — | Sync skills from GitHub repo to any machine |
 
 ---

@@ -289,26 +289,42 @@ If you need to read multiple full pages → b-research.
 
 ### b-news
 
-Aggregates today's top tech news from 8 curated sources (Ars Technica, 9to5Google,
-9to5Mac, 9to5Linux, BleepingComputer, The Register, How-To Geek, Hacker News),
-groups by topic, and outputs a bilingual digest (English + Vietnamese). Uses
-`brave_news_search` (not `brave_web_search`) with `freshness: "pd"` for proper
-news filtering. All 5 topic searches run in parallel for speed.
+Aggregates today's top news on any user-specified topic from a domain-matched trusted
+source map. Parses user input to extract topics, maps them to authoritative sources
+(e.g., finance → reuters/bloomberg/ft, security → bleepingcomputer/krebsonsecurity,
+science → nature/sciencedaily), generates 3–5 focused queries, runs them in parallel
+via `brave_news_search` with `freshness: "pd"`, then groups results into dynamic
+categories derived from the actual topics found. Falls back to `freshness: "pw"` if
+fewer than 10 stories are returned. Outputs a bilingual digest (English + Vietnamese)
+when the query is in Vietnamese.
 
 **Good triggers:**
 ```
 b-news
+b-news AI crypto
+b-news tài chính thị trường
+b-news khoa học vũ trụ
+b-news chính trị thế giới
 tin tức hôm nay
 có gì mới hôm nay?
-tech news
 điểm tin
 ```
 
-**Output:** Grouped digest with categories — 🤖 AI, 🔒 Security, 📱 Mobile,
-💻 Software, 🐧 Linux, 🏢 Big Tech, 📌 Other. Each story has an English headline
-+ summary + source link, followed by Vietnamese translation. Max 3 stories per category.
+**No topic specified:** Defaults to tech news (backward compatible with all existing triggers).
 
-**On-demand detail:** Follow up with "đọc thêm về [story]" to scrape the full article
-via firecrawl.
+**Output:** Grouped digest with dynamically derived categories (emoji + label per sub-topic).
+Each story has an English headline + summary + source link, with Vietnamese translation
+when the query is in Vietnamese. Header reflects the actual topic(s), not a generic "Tech News" label.
+Max 3 stories per category. Footer lists the actual source domains used.
+
+**Source map:** 12 domain tiers — Universal (reuters, apnews, bbc), Tech, AI/ML,
+Security, Mobile, Linux, Finance, Crypto, Science, Health, Politics, Startups.
+Queries are matched to the relevant tiers; Universal sources are always included as fallback.
+
+**On-demand detail:** Follow up with "đọc thêm về [story]" / "tell me more about [story]"
+to scrape the full article via `firecrawl_scrape`. Not called during initial digest generation.
+
+**Distinction from b-research:** b-news gives a fast, grouped digest of today's headlines.
+Use b-research when you need deep synthesis, comparison, or a multi-source report on a topic.
 
 ---

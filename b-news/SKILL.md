@@ -1,106 +1,144 @@
 ---
 name: b-news
 description: >
-  Aggregate and summarize today's top tech news from curated sources into a grouped digest.
-  ALWAYS use when the user says "tin tức hôm nay", "news hôm nay", "có gì mới hôm nay",
-  "tech news", "b-news", "điểm tin", or asks what's happening in tech today.
-  Trigger even for short queries like "hôm nay có gì mới không".
+  Aggregate and summarize today's top news from any domain into a grouped digest.
+  ALWAYS use when the user says "tin tức", "news hôm nay", "có gì mới", "điểm tin",
+  "b-news", or asks for news about any topic (tech, finance, science, politics, AI, crypto, etc.).
+  Accepts user-defined topics as input. Trigger even for short queries like "hôm nay có gì mới không"
+  or topic-specific like "tin tức tài chính hôm nay".
 ---
 
 # b-news
 
-Aggregates today's top tech news from curated sources using Brave Search,
-then groups stories by topic into a clean bilingual daily digest.
+Fetches today's top news on any user-specified topic from trusted, authoritative sources,
+then groups stories by sub-topic into a clean bilingual daily digest.
+
+## When to use
+- User asks for news on any topic: tech, AI, finance, science, politics, health, crypto, etc.
+- User says "b-news [topic]" or "tin tức [topic] hôm nay"
+- Generic news request with no topic → default to general tech
+
+## When NOT to use
+- User wants deep analysis or a research report → use `b-research` instead
+- User needs a single fact or latest version → use `b-quick-search` instead
 
 ## Tools required
 
 - `brave_news_search` — from `brave-search` MCP server (required)
 - `firecrawl_scrape` — from `firecrawl` MCP server (optional, for detail on demand)
 
-If `brave-search` is unavailable, stop and tell the user:
+If `brave-search` is unavailable: stop and tell the user:
 "❌ brave-search MCP is not connected. Please check `/mcp`."
 
-Graceful degradation: ❌ Not possible — this skill requires live web data. If the MCP is unavailable, stop and tell the user.
+Graceful degradation: ❌ Not possible — requires live news data. Stop if MCP is unavailable.
 
-## Curated sources
+---
 
-Results from these domains are preferred over generic tech blogs:
+## Trusted sources by domain
 
-| Source | Domain | Strength |
-|---|---|---|
-| Ars Technica | arstechnica.com | Deep tech + science reporting |
-| 9to5Google | 9to5google.com | Android, Google, Pixel |
-| 9to5Mac | 9to5mac.com | Apple, iOS, Mac |
-| 9to5Linux | 9to5linux.com | Linux, open source |
-| BleepingComputer | bleepingcomputer.com | Security, malware, CVEs |
-| The Register | theregister.com | Enterprise tech |
-| How-To Geek | howtogeek.com | Software, Windows, tools |
-| Hacker News | news.ycombinator.com | Community top stories |
+Prefer results from domain-matched sources. Use the **Universal** tier as fallback when
+domain-specific sources produce insufficient results.
+
+| Domain | Trusted Sources |
+|---|---|
+| **Universal** | reuters.com, apnews.com, bbc.com |
+| **Tech** | arstechnica.com, theregister.com, theverge.com, techcrunch.com, howtogeek.com, news.ycombinator.com |
+| **AI / ML** | venturebeat.com, arstechnica.com, techcrunch.com, theverge.com, wired.com |
+| **Security / Cyber** | bleepingcomputer.com, krebsonsecurity.com, darkreading.com, therecord.media, securityweek.com |
+| **Mobile / Devices** | 9to5google.com, 9to5mac.com, gsmarena.com, theverge.com |
+| **Linux / Open Source** | 9to5linux.com, lwn.net, omgubuntu.co.uk, phoronix.com |
+| **Finance / Business** | reuters.com, bloomberg.com, ft.com, cnbc.com, wsj.com, marketwatch.com |
+| **Crypto / Web3** | coindesk.com, theblock.co, decrypt.co, cointelegraph.com |
+| **Science** | nature.com, sciencedaily.com, phys.org, newscientist.com, scientificamerican.com |
+| **Health / Medicine** | statnews.com, medscape.com, reuters.com, nejm.org |
+| **Politics / World** | reuters.com, apnews.com, bbc.com, theguardian.com, politico.com, foreignpolicy.com |
+| **Startups / VC** | techcrunch.com, venturebeat.com, crunchbase.com, sifted.eu |
 
 ---
 
 ## Steps
 
-### Step 1 — Search by topic category
+### Step 1 — Parse user input
 
-**Before running the 5 default searches**: check if the user mentioned a specific topic (e.g., 'news about React', 'AI news today', 'security breaches this week'). If yes: replace 1–2 of the 5 default queries with focused queries on that topic, keeping the rest as-is. Example: if user says 'AI news', replace Search 3 (`Apple Google Microsoft product`) with `'[specific AI topic] latest news [year]'`. If user made a generic request ('news today', 'điểm tin') → run the 5 default queries unchanged.
+Extract topics from the user's message:
+- `b-news AI crypto` → topics: `["AI", "crypto"]`
+- `b-news` or "tin tức hôm nay" (no topic) → topics: `["tech"]` (default)
+- `b-news tài chính thị trường` → topics: `["finance", "markets"]`
+- `b-news React TypeScript` → topics: `["tech", "JavaScript ecosystem"]`
 
-Run **5 searches in parallel** (single message, multiple tool calls), one per major topic area.
-Use `brave_news_search` — it is designed for news with built-in freshness filtering.
-Do NOT use `site:` or boolean `OR` operators, as these are unreliable in Brave Search MCP.
+Map each topic to its domain in the trusted sources table above. If a topic spans multiple
+domains (e.g., "AI in healthcare"), select sources from both relevant domains.
 
-```
-Search 1: "AI machine learning"
-Search 2: "security vulnerability breach"
-Search 3: "Apple Google Microsoft product"
-Search 4: "Linux open source release"
-Search 5: "developer tools programming"
-```
+### Step 2 — Generate search queries
 
-- Use `brave_news_search` with `count: 5` and `freshness: "pd"` (past day) per search
-- After getting results, prefer stories from the curated source list above
-  over generic tech blogs — but do not discard good stories from other sources
-- Collect: headline, URL, 1-sentence snippet per story
+Generate **3 to 5 queries** based on extracted topics, covering different angles:
+- 1 broad query per major topic
+- 1 focused query on recent developments or key players in that space
+- If user has ≥ 2 topics: allocate ~2 queries per topic, cap at 5 total
 
-After collecting results: if total unique stories across all 5 searches is fewer than 10 → retry searches 1 and 2 (`AI machine learning`, `security vulnerability breach`) with `freshness: "pw"` (past week). Mark any stories from this retry with `(earlier this week)` in the output.
+Examples:
+- Topic `AI`: → `"artificial intelligence latest news"`, `"OpenAI Google DeepMind update"`
+- Topic `finance`: → `"financial markets news today"`, `"stock market economy latest"`
+- Topic `crypto`: → `"cryptocurrency Bitcoin Ethereum news"`, `"crypto market regulation"`
+- Topics `AI + crypto`: → `"AI news today"`, `"OpenAI Gemini update"`, `"cryptocurrency news today"`, `"Bitcoin Ethereum latest"`
 
-### Step 2 — Deduplicate and categorize
+Do NOT use `site:` operators or boolean `OR` — use natural topic keywords only.
 
-From all collected results (~25 stories), filter and group:
+### Step 3 — Run parallel searches
 
-- **Discard**: duplicates covering the same event (keep the best source), opinion
-  pieces, sponsored content, listicles ("10 best..."), and stories older than 48 hours
-- **Group** into categories (omit any category with no stories):
-  - 🤖 AI & Machine Learning
-  - 🔒 Security & Privacy
-  - 📱 Mobile & Devices
-  - 💻 Software & Apps
-  - 🐧 Linux & Open Source
-  - 🏢 Big Tech
-  - 📌 Other
+Run all generated queries **in parallel** (single message, multiple tool calls).
 
-Target: **3 stories per category max** — quality over quantity.
+- Tool: `brave_news_search`
+- Parameters: `count: 5`, `freshness: "pd"` (past day)
 
-### Step 3 — Scrape for detail (on demand only)
+After collecting results: if total unique stories is fewer than 10 →
+retry the 2 broadest queries with `freshness: "pw"` (past week).
+Mark any stories from the retry with `(earlier this week)` in the output.
 
-Only if the user follows up with "đọc thêm về..." or "chi tiết về..." a specific story:
-call `firecrawl_scrape` on that one URL. Do not bulk scrape during the initial digest.
+From each result, collect: headline, URL, 1-sentence snippet, source domain, published date.
+
+### Step 4 — Filter and select sources
+
+From all collected stories (~15–25 total):
+- **Prefer** stories from domain-matched trusted sources in Step 1
+- **Accept** stories from Universal tier (reuters, apnews, bbc) regardless of domain
+- **Discard**: duplicates covering the same event (keep the best source), opinion pieces,
+  sponsored content, listicles ("10 best…"), and stories older than 48 hours
+- **Keep**: max 3 stories per sub-topic category — quality over quantity
+
+### Step 5 — Categorize dynamically
+
+Derive categories from the actual topics found in results — do NOT use hardcoded category sets.
+
+Category rules:
+- Create one category per distinct sub-topic identified in the results
+- Name each category with a relevant emoji + label (e.g., `🤖 AI & Machine Learning`, `💰 Markets`, `🔬 Research`)
+- Omit any category with 0 stories — never pad with weak content
+- Use a `📌 Other` catch-all only when a story doesn't fit any derived category
+
+### Step 6 — Scrape for detail (on demand only)
+
+Only if the user follows up with "đọc thêm về..." / "chi tiết về..." / "tell me more about..." a specific story:
+call `firecrawl_scrape` on that one URL and summarize the full article.
+Do NOT bulk-scrape during initial digest generation.
 
 ---
 
 ## Output format
 
-**Language detection**: Check the user's query language before formatting output.
-- Vietnamese query ("tin tức", "điểm tin", "hôm nay có gì mới") → bilingual output (English headline + Vietnamese translation)
-- English query ("tech news", "news today", "what's new") → English-only output (skip Vietnamese translations)
+**Language detection**: Check the user's query language before formatting.
+- Vietnamese query ("tin tức", "điểm tin", "hôm nay có gì mới") → bilingual output
+- English query ("news today", "what's new in X") → English-only output
 - Ambiguous or mixed → default to bilingual
+
+The header title reflects the actual topics, not a generic label.
 
 ### Bilingual output (Vietnamese query)
 
 ```
-# 📰 Tech News — [Today's Date]
+# 📰 [Topic] News — [Today's Date]
 
-## 🤖 AI & Machine Learning
+## [Emoji] [Category Name]
 
 **[English Headline]**
 [1-sentence English summary] — ([Source Name](URL))
@@ -109,16 +147,15 @@ call `firecrawl_scrape` on that one URL. Do not bulk scrape during the initial d
 [... remaining categories ...]
 
 ---
-*[N] stories · Sources searched: Ars Technica, 9to5Google, 9to5Mac, BleepingComputer,
-The Register, 9to5Linux, How-To Geek, Hacker News*
+*[N] stories · Topics: [user-specified topics] · Preferred sources: [comma-separated domains used]*
 ```
 
 ### English-only output (English query)
 
 ```
-# 📰 Tech News — [Today's Date]
+# 📰 [Topic] News — [Today's Date]
 
-## 🤖 AI & Machine Learning
+## [Emoji] [Category Name]
 
 **[English Headline]**
 [1-sentence English summary] — ([Source Name](URL))
@@ -126,8 +163,7 @@ The Register, 9to5Linux, How-To Geek, Hacker News*
 [... remaining categories ...]
 
 ---
-*[N] stories · Sources searched: Ars Technica, 9to5Google, 9to5Mac, BleepingComputer,
-The Register, 9to5Linux, How-To Geek, Hacker News*
+*[N] stories · Topics: [user-specified topics] · Preferred sources: [comma-separated domains used]*
 ```
 
 ---
@@ -135,9 +171,11 @@ The Register, 9to5Linux, How-To Geek, Hacker News*
 ## Rules
 
 - Always include today's actual date in the header
-- Always run all 5 `brave_news_search` calls in parallel — never sequentially
-- Never use `site:` operator or boolean `OR` in queries — use topic keywords instead
-- Max 3 stories per category — cut the weakest stories if more are found
-- Omit any category with no stories rather than padding with weak content
-- Do not scrape during digest generation — search snippets are sufficient for summaries
-- Vietnamese translations should be natural, not literal word-for-word
+- Always run all search queries in parallel — never sequentially
+- Never use `site:` operator or boolean `OR` in queries
+- Max 3 stories per category — cut weakest stories if more found
+- Omit empty categories rather than padding with weak content
+- Do not scrape during digest generation — search snippets are sufficient
+- Vietnamese translations must be natural, not literal word-for-word
+- Footer must list the actual source domains that returned results, not the full trusted-sources table
+- If user specifies no topic, default to tech news (backward compatible with existing trigger phrases)
