@@ -23,7 +23,7 @@ ranked hypotheses, locate root cause, then fix. Never jump straight to patching.
 ## When NOT to use
 
 - Code works but could be better (quality, patterns, complexity) → use **b-analyze**
-- Building a new feature or multi-file change → use **b-feature**
+- Building a new feature or multi-file change → use **b-plan**
 - Need to understand unfamiliar code before changes → use **b-analyze**
 
 ## Tools required
@@ -37,6 +37,7 @@ From `jcodemunch` MCP server:
 - `get_related_symbols` — discover functions closely associated with a suspicious symbol
 - `get_symbol_diff` — detect regressions by diffing a symbol between two indexed states
 - `search_text` — search for error strings or regex patterns across the codebase
+- `index_file` — re-index a single changed file after applying a fix (keeps jcodemunch index fresh for subsequent b-analyze calls)
 
 From `sequential-thinking` MCP server:
 - `sequentialthinking` — structured reasoning to form and rank hypotheses
@@ -142,6 +143,7 @@ Now that root cause is confirmed:
 - Write the minimal fix — don't refactor unrelated code in the same change
 - If the fix touches a non-obvious API or behavior, add a comment explaining why
 - If the bug reveals a broader pattern (e.g. same silent-catch pattern exists in 3 other places), flag it to the user as a separate follow-up — don't fix everything at once
+- After applying the fix, call `index_file` on each changed file to keep the jcodemunch index fresh — this ensures any subsequent b-analyze call sees the current code, not the pre-fix state
 
 ---
 

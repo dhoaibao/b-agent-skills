@@ -32,7 +32,6 @@ All 5 MCPs must be connected. Verify with `/mcp` in Claude Code.
 | [`b-research`](#b-research) | brave-search (web+news), firecrawl, context7*, sequential-thinking* | Deep research, tool comparison, synthesis |
 | [`b-analyze`](#b-analyze) | jcodemunch (12 tools), sequential-thinking*, brave-search* | Understand or review code before changing it |
 | [`b-debug`](#b-debug) | jcodemunch (9 tools), sequential-thinking, brave-search*, firecrawl* | Trace bugs that have no obvious cause |
-| [`b-feature`](#b-feature) | all of the above | Full pipeline for complex feature development |
 
 *optional — used conditionally
 
@@ -59,7 +58,7 @@ Copy each skill folder into your Claude Code skills directory:
 
 ```bash
 # Option A — manual copy
-cp -r b-plan b-docs b-research b-analyze b-debug b-feature b-quick-search b-news b-sync ~/.claude/skills/
+cp -r b-plan b-docs b-research b-analyze b-debug b-quick-search b-news b-sync ~/.claude/skills/
 
 # Option B — use b-sync (recommended, keeps skills up to date automatically)
 git clone https://github.com/dhoaibao/b-agent-skills.git ~/.b-agent-skills && bash ~/.b-agent-skills/sync.sh

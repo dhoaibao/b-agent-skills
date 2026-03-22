@@ -59,15 +59,7 @@ If [MCP] is unavailable: [what to do — stop, fallback, or degrade]
 
 Graceful degradation: [✅ Possible / ⚠️ Partial / ❌ Not possible] — [brief explanation]
 
-## Recommended model *(optional — only if non-default model required)*
-**[Model]** (`/model [model]`) — enforced by Step 0.
-[Why this model is needed — reasoning quality, cost, speed.]
-
----
-
 ## Steps
-
-### Step 0 — Model check *(only if ## Recommended model specifies a non-default model; see Model enforcement section below)*
 
 ### Step 1 — [Name]
 [Imperative instructions. Every step must have action verbs.]
@@ -120,28 +112,6 @@ Never leave README or REFERENCE out of sync with a SKILL.md change. If a PR touc
 
 ---
 
-## Model enforcement
-
-Skills that require a non-default model must enforce it with a **Step 0 model check** — `## Recommended model` alone is not enforcement. The section is read after invocation starts, so "Switch before invoking" cannot be acted on.
-
-**Required pattern** for any skill that needs Opus (or any non-default model):
-
-```markdown
-### Step 0 — Model check
-
-This skill requires **Opus** for reliable output.
-
-Check the current model from the system context. If you are not running on Opus:
-- Output: "⚠️ [skill-name] requires Opus. Run `/model opus` then re-invoke."
-- **Stop. Do not proceed with any further steps.**
-
-If you are on Opus: continue to Step 1.
-```
-
-Keep `## Recommended model` as human-readable documentation (explains *why*). Step 0 is what actually enforces it.
-
----
-
 ## Quality checklist
 
 Before merging any SKILL.md change, verify:
@@ -151,7 +121,6 @@ Before merging any SKILL.md change, verify:
 3. **Every fallback path is explicit** — if a tool is unavailable, the skill says exactly what to do (stop, degrade, or use alternative)
 4. **Inter-skill handoffs have trigger conditions** — "if [condition] → use b-[other]" with the specific condition, not just "consider using"
 5. **No trigger keyword regression** — before rewriting a description, list all current trigger keywords and verify all survive in the new version
-6. **Model enforcement** — if `## Recommended model` specifies a non-default model, a Step 0 model check with explicit halt must be present in `## Steps`
 
 ---
 

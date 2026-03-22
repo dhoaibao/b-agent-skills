@@ -30,6 +30,8 @@ appended to the same file for use in the execution session.
 **Rule:** Never implement in the same session as planning for tasks with 5+ steps.
 End session 1 with the plan file, open a new session to execute.
 
+**Execution index refresh:** During plan execution, calls `index_file` on each modified file after each step to keep jcodemunch index fresh for the self-review step.
+
 **English-only plan files:** Plan files are always written in English — regardless of the user's query language. This ensures plan files remain consistent and usable across language-switching sessions.
 
 ---
@@ -51,8 +53,8 @@ hướng dẫn sử dụng Zod
 ```
 
 **Output:** Accurate method signatures, required parameters, auth setup, error codes,
-and deprecation notices for the current version. Routes to implementation, lookup-only,
-or returns context to b-feature pipeline depending on how it was called.
+and deprecation notices for the current version. Routes to implementation or lookup-only
+depending on how it was called.
 
 **Fallback chain:** context7 → firecrawl direct scrape (if library has a known official docs URL) → b-research (full research pipeline). The firecrawl fallback tries a single `firecrawl_scrape` on the official docs URL before escalating to the heavier b-research pipeline.
 
@@ -140,47 +142,9 @@ minimal fix, and verification instructions.
 **Rule:** No patch is written until root cause is explicitly confirmed. Library errors
 trigger a web lookup and `b-docs` call before hypothesis verification.
 
+**Post-fix index refresh:** After applying a fix, calls `index_file` on each changed file to keep jcodemunch index fresh for subsequent b-analyze calls.
+
 **Post-fix review:** If the fix introduced new code (new function, new module) → optionally run `b-analyze: [fixed module]` to verify no new complexity or duplication was introduced.
-
----
-
-### b-feature
-
-Full-cycle orchestrator running across two sessions to keep planning context
-separate from execution context.
-
-**Session 1 — Planning:**
-
-| Phase | Skill | Conditional? |
-|---|---|---|
-| Plan | b-plan | Always |
-| Understand existing code | b-analyze | Skip if greenfield |
-| Fetch library docs | b-docs | Skip if no libraries involved |
-| Research unknowns | b-research | Skip if no open decisions |
-
-Ends with plan file written to `.claude/b-plans/[slug].md`. All findings from
-b-analyze and b-docs are appended to the file. No implementation in Session 1.
-
-**Session 2 — Execution:**
-
-Triggered by `execute plan from .claude/b-plans/[file].md`. Reads the plan file,
-implements step by step (checking off checkboxes), then self-reviews with b-analyze.
-
-**Good triggers:**
-```
-b-feature: add Amazon SES as a fourth email provider
-b-feature: implement exponential backoff retry for all providers
-b-feature: add webhook signature verification
-xây dựng tính năng mới: notification system
-tích hợp Stripe payment
-```
-
-**Rule:** Always prefix with `b-feature:` to guarantee trigger.
-
-**Mid-execution failure:** If a tool fails mid-execution → (a) document as `- [❌] Phase N — [brief reason]` in the plan file; (b) assess whether remaining phases depend on this output; (c) if a blocking dependency exists, pause and inform the user before continuing.
-
-**Not for:** Simple one-file edits (≤4 steps), bug fixes, or quick questions — those
-run faster without the full pipeline.
 
 ---
 
@@ -209,11 +173,15 @@ cài skills mới
 ## Usage patterns
 
 ### Pattern 1 — New feature
-For any non-trivial feature, use the full pipeline:
+For any non-trivial feature, use the manual pipeline:
 ```
-b-feature: [describe the feature]
+1. b-plan: [task]          → confirm plan
+2. b-analyze: [module]     → understand existing code (skip if greenfield)
+3. b-docs: [library]       → fetch accurate API (skip if no libraries)
+4. [implement]             → execute plan steps
+5. b-analyze: [new code]   → self-review before shipping
 ```
-Claude runs Plan → Understand → Docs → Implement → Review automatically.
+b-plan now handles this automatically during execution — see its execution section.
 
 ### Pattern 2 — Debug session
 When something is broken:
@@ -251,7 +219,7 @@ For full control over each step:
 4. [implement]             → execute plan steps
 5. b-analyze: [new code]   → self-review before shipping
 ```
-Same as b-feature but you control the pace at each step.
+You control the pace at each step. b-plan's execution section automates steps 2 and 5.
 
 ---
 
@@ -259,7 +227,7 @@ Same as b-feature but you control the pace at each step.
 
 Claude Code may skip skills on tasks that appear simple. To guarantee activation:
 
-- **Prefix with the skill name**: `b-debug: ...`, `b-feature: ...`, `b-plan: ...`
+- **Prefix with the skill name**: `b-debug: ...`, `b-plan: ...`, `b-research: ...`
 - **Use explicit keywords**: "plan", "analyze", "research", "debug" trigger reliably
 - **Describe complexity**: mentioning "multiple files", "new integration", "not sure why" increases trigger rate
 
@@ -273,6 +241,7 @@ When in doubt, call the skill by name.
 b-plan ──── modify existing code ────────► jcodemunch (scan structure first)
        ──── flags unknowns ──────────────► b-docs     (library API needed, resolved inline)
                                          ► b-research  (decision needed)
+       ──── execution: file modified ────► jcodemunch (index_file to keep index fresh)
 
 b-docs ──── context7 has no index ──────► firecrawl   (direct scrape of official docs URL, single page)
        ──── firecrawl insufficient ────► b-research  (full multi-source research)
@@ -280,6 +249,7 @@ b-docs ──── context7 has no index ──────► firecrawl   (dir
 b-debug ─── trace execution path ────────► jcodemunch (suggest_queries → get_context_bundle → find_references → get_blast_radius → get_symbol → get_related_symbols)
         ─── regression detection ────────► jcodemunch (get_symbol_diff)
         ─── error string lookup ─────────► jcodemunch (search_text)
+        ─── post-fix index refresh ──────► jcodemunch (index_file on changed files)
         ─── library error detected ──────► brave-search (lookup known issues)
                                          ► firecrawl_scrape (top 1–2 pages, optional)
                                          ► firecrawl_map (if scrape empty, optional)
@@ -302,12 +272,6 @@ b-research ── news query ─────────────────
 b-quick-search ── news/current-events ────► brave_news_search (freshness: pd/pw)
                ── general lookup ─────────► brave_web_search
 
-b-feature ── orchestrates all ────────────► b-plan
-                                          ► b-analyze  (understand existing)
-                                          ► b-docs     (gather API)
-                                          ► b-research (gather knowledge, required if unknowns contain compare/evaluate/?)
-                                          ► implement
-                                          ► b-analyze  (self-review)
 ```
 
 ---

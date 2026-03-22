@@ -31,7 +31,7 @@ implementation begins.
 ## Tools required
 
 - `sequentialthinking` — from `sequential-thinking` MCP server
-- `suggest_queries`, `get_repo_outline`, `get_file_outline`, `get_file_tree` — from `jcodemunch` MCP server *(optional, for modify-existing-code tasks)*
+- `suggest_queries`, `get_repo_outline`, `get_file_outline`, `get_file_tree`, `index_file` — from `jcodemunch` MCP server *(optional, for modify-existing-code tasks)*
 
 If sequential-thinking is unavailable: reason through the plan inline step by step,
 making the thinking explicit in the response. Do not skip planning — just do it without the tool.
@@ -98,6 +98,8 @@ Flag anything that needs to be resolved before or during execution:
 
 If any "Docs needed" unknown involves a specific library behavior that will affect plan decisions (e.g., "does BullMQ support X?", "what's the retry API for Axios?") → resolve it now by calling `b-docs` inline, before writing the plan file. Append the finding as a note under the unknown: `→ Confirmed: [finding]`. Do not defer verifiable library assumptions to Session 2.
 
+If the plan flags open tool/approach decisions (keywords: `compare`, `decide between`, `which library`, `evaluate`, or items ending with `?`) → resolve with `b-research` inline for architecture or tool selection decisions. Append findings to the Unknowns section. Do not defer tool selection to the execution session.
+
 An unresolved unknown is a risk. Surface it now, not halfway through implementation.
 
 ---
@@ -123,18 +125,6 @@ Open a new session and run:
 ```
 
 Note: 'new session' means running `claude` in a new terminal, or using `/clear` in the current terminal to reset context.
-
-When writing the plan file, assess the overall complexity of the plan and produce a `## Model hint` section at the top (below frontmatter) recommending a single model for the entire execution session:
-
-- **Opus**: plan has 7+ steps, involves security/auth, DB schema changes, async/concurrency design, or significant cross-cutting architecture decisions
-- **Sonnet**: plan is moderate (3–6 steps), touches multiple files but logic is well-defined
-- **Haiku**: plan is simple (≤2 steps), single file, spec is fully defined
-
-```markdown
-## Model hint
-- Recommended model: [opus / sonnet / haiku]
-- Reason: [one sentence — what makes this plan complex or simple]
-```
 
 **Exception — simple tasks (≤4 steps, single file):** skip the file, plan and execute
 inline in the same session. Not worth the overhead.
@@ -186,10 +176,12 @@ Language: always English — write plan files in English regardless of the user'
 Plan files are always in English. When a new session opens with `execute plan from .claude/b-plans/[file].md`:
 
 1. Read the plan file
-2. Execute steps in order, checking off each `- [ ]` → `- [x]` as it completes
-3. Re-evaluate remaining steps if something unexpected happens mid-execution
-3.5. **If a step fails**: (a) document the failure in the plan file by changing `- [ ]` to `- [❌] Step N — [brief failure reason]`; (b) evaluate whether subsequent steps that depend on this step are now blocked; (c) if any blocking dependency exists, pause and inform the user before continuing. Do not silently skip failed steps.
-4. Update the file with final status when done
+2. If the plan modifies existing code and no `## Context` section exists → run `b-analyze` on the relevant modules first, append findings as `## Context` to the plan file
+3. Execute steps in order, checking off each `- [ ]` → `- [x]` as it completes. After each step that modifies a file, call `index_file` on that file to keep the jcodemunch index fresh for the self-review in step 6.
+4. Re-evaluate remaining steps if something unexpected happens mid-execution
+5. **If a step fails**: (a) document the failure in the plan file by changing `- [ ]` to `- [❌] Step N — [brief failure reason]`; (b) evaluate whether subsequent steps that depend on this step are now blocked; (c) if any blocking dependency exists, pause and inform the user before continuing. Do not silently skip failed steps.
+6. After all steps complete → run `b-analyze` on the changed code as a self-review. Fix any 🔴 High findings before presenting to user. Note 🟡/🟢 findings as follow-ups.
+7. Update the file with final status when done
 
 ---
 

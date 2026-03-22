@@ -24,6 +24,12 @@ and surface concrete improvements — not vague suggestions.
 **Difference from b-debug**: b-analyze is for code that works but could be better.
 b-debug is for code that is broken. If there's an error message → use b-debug instead.
 
+## When NOT to use
+
+- Something is broken and needs debugging → use **b-debug**
+- Planning a new task or sequencing work → use **b-plan**
+- Quick fact lookup or library API question → use **b-quick-search** or **b-docs**
+
 ## Tools required
 
 From `jcodemunch` MCP server:

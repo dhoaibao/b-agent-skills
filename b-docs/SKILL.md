@@ -2,9 +2,9 @@
 name: b-docs
 description: >
   Fetch live, version-accurate library documentation from Context7 before writing integration code.
-  ALWAYS use when the user mentions a library by name (SendGrid, BullMQ, Prisma, Zod, Stripe, etc.),
-  asks "how to use X", "X API", "does X support Y", "tra cứu", "hướng dẫn sử dụng", "cách dùng thư viện",
-  or before any SDK integration. Never implement library code from memory alone — training data may be outdated.
+  ALWAYS use when the user mentions a library by name, asks "how to use X", "X API", "does X support Y",
+  "tra cứu", "hướng dẫn sử dụng", "cách dùng thư viện", or before any SDK integration.
+  Never implement library code from memory alone — training data may be outdated.
   Distinct from b-research: use b-docs for specific API lookup, b-research for deep multi-source synthesis.
 ---
 
@@ -99,7 +99,7 @@ Present the extracted API surface. Then route based on context:
 
 - **Lookup only** ("how does X work?") → stop here, output lookup format below
 - **User requested implementation** → write the code using the fetched docs; add a one-line comment on non-obvious API calls: `// per Context7: sendgrid v8 uses dynamic templates`
-- **Called from b-feature pipeline (Phase 3a)** → return the fetched doc context to Phase 4 (Implement). Do NOT implement here — the orchestrator handles execution in Session 2.
+- **Called from b-plan pipeline** → return the fetched doc context. Append key API notes to the plan file's `## Docs` section.
 
 If the docs reveal a caveat or version difference, call it out explicitly before any code.
 
