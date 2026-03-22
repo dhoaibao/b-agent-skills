@@ -3,8 +3,9 @@ name: b-docs
 description: >
   Fetch live, version-accurate library documentation from Context7 before writing integration code.
   ALWAYS use when the user mentions a library by name (SendGrid, BullMQ, Prisma, Zod, Stripe, etc.),
-  asks "how to use X", "X API", "does X support Y", or before any SDK integration.
-  Never implement library code from memory alone — training data may be outdated.
+  asks "how to use X", "X API", "does X support Y", "tra cứu", "hướng dẫn sử dụng", "cách dùng thư viện",
+  or before any SDK integration. Never implement library code from memory alone — training data may be outdated.
+  Distinct from b-research: use b-docs for specific API lookup, b-research for deep multi-source synthesis.
 ---
 
 # b-docs
@@ -20,10 +21,16 @@ SDK code. Prevents hallucinated APIs, wrong method signatures, and version misma
 - Before implementing ANY code that calls an external library — even familiar ones
 - When context says the project uses a specific version (e.g. `sendgrid@8`, `bullmq@5`)
 
+## When NOT to use
+
+- User wants a deep comparison or multi-source report → use **b-research**
+- User is debugging a broken library call → use **b-debug**
+- User wants general news or current events → use **b-quick-search** or **b-news**
+
 ## Tools required
 
 - `resolve-library-id` — from `context7` MCP server
-- `get-library-docs` — from `context7` MCP server
+- `query-docs` — from `context7` MCP server
 - `firecrawl_scrape` — from `firecrawl` MCP server *(optional, fallback when context7 has no index)*
 
 If context7 is unavailable:
@@ -44,7 +51,7 @@ Most work is retrieval (resolve library ID → fetch docs). Code generation from
 
 ### Step 1 — Identify library and topic
 
-First, use `Glob` to find `package.json`, `pyproject.toml`, or `requirements.txt` in the project root. If found, read it and extract the version of the requested library. Use this version when calling `get-library-docs`. If the file is not found or version parsing fails (e.g. `workspace:*`, missing entry), continue without version constraint — do not block on this.
+First, use `Glob` to find `package.json`, `pyproject.toml`, or `requirements.txt` in the project root. If found, read it and extract the version of the requested library. Use this version when calling `query-docs`. If the file is not found or version parsing fails (e.g. `workspace:*`, missing entry), continue without version constraint — do not block on this.
 
 If the extracted version contains a range operator (`^`, `~`, `>=`, `*`, or `workspace:*`), the version is imprecise. In that case, check for a lock file: read `package-lock.json` (look for `"resolved"` or `"version"` under the package name), `pnpm-lock.yaml` (look for `version:` under the package), or `yarn.lock` (look for the resolved version line). Use the exact version found in the lock file. If no lock file exists, proceed with the range version and note: `⚠️ Using version range [range] — Context7 docs may not match exact installed version.`
 
@@ -71,7 +78,7 @@ If the library has a well-known official docs URL (e.g. docs.sendgrid.com, docs.
 
 ### Step 3 — Fetch docs
 
-Call `get-library-docs` with:
+Call `query-docs` with:
 - The resolved library ID from Step 2
 - `topic`: the specific feature area (keep focused — don't fetch entire docs)
 - `tokens`: 8000 for simple APIs, 12000–15000 for complex ones (auth flows, multi-method APIs, SDK setup)
@@ -148,7 +155,7 @@ Keep the `topic` param focused — a narrow topic returns the right section fast
 | `"errors"` | `"error codes and exception types"` |
 | `"setup"` | `"installation and configuration"` |
 
-When the task spans multiple areas, run `get-library-docs` once per topic rather than one broad fetch.
+When the task spans multiple areas, run `query-docs` once per topic rather than one broad fetch.
 
 ---
 
@@ -158,4 +165,4 @@ When the task spans multiple areas, run `get-library-docs` once per topic rather
 - If context7 returns docs for a different major version than the project uses, flag it explicitly: "⚠️ Context7 returned docs for v3 but your package.json shows v8 — API may differ"
 - Keep topic queries focused — broad topic = too much noise, wrong section fetched
 - If docs are sparse or unhelpful, escalate to `b-research` to scrape official docs directly
-- One `get-library-docs` call per distinct API area — don't batch unrelated topics in one fetch
+- One `query-docs` call per distinct API area — don't batch unrelated topics in one fetch

@@ -11,6 +11,18 @@ description: >
 
 Syncs Claude skills from the public `b-agent-skills` GitHub repo to `~/.claude/skills/` using git + HTTPS. No extra tools required — just `git`.
 
+## When to use
+
+- First-time setup of b-skills on a new machine
+- Updating skills after new skills are added or existing ones are changed
+- User says: "sync b-skills", "update b-skills", "đồng bộ skills", "cập nhật skills", "cài skills mới"
+
+## When NOT to use
+
+- User wants to run a specific skill → invoke that skill directly
+- User wants to create a new skill → follow the new skill creation guide in CLAUDE.md
+- User wants to edit an existing skill → edit the SKILL.md file directly
+
 ## How it works
 
 - `~/.b-agent-skills/` — local clone of the repo (source of truth)
@@ -70,6 +82,16 @@ This will:
 4. Run `~/.b-agent-skills/sync.sh` on any machine to pick it up
 
 ## Steps
+
+### Step 0 — Model check
+
+This skill is optimized for **Haiku** (`/model haiku`) for speed and cost.
+
+Check the current model from the system context. If you are not running on Haiku:
+- Output: "💡 b-sync runs best on Haiku. Run `/model haiku` for faster execution."
+- **Continue anyway** — Haiku is recommended, not required. Any model can run shell commands.
+
+---
 
 ### Step 1 — Detect mode
 
@@ -145,3 +167,24 @@ Any file printed by this command is missing the `name:` frontmatter field — ch
 | `Permission denied` | Check your network or GitHub token if repo requires auth |
 | Skill not showing in Claude Code | Check folder has `SKILL.md` with valid `name` + `description` frontmatter |
 | Symlink broken | Re-run `sync.sh` to refresh |
+
+---
+
+## Output format
+
+```
+✅ Sync complete. [N] skills installed.
+  Added:   [list or 'none']
+  Removed: [list or 'none']
+```
+
+If bootstrap mode, prefix with: `🆕 Bootstrapped b-skills on this machine.`
+
+---
+
+## Rules
+
+- Always snapshot the before-state (Step 2) so the report can show what changed
+- Never modify skill files during sync — b-sync only installs, it does not edit
+- If `sync.sh` fails, diagnose the error — do not retry blindly
+- Always verify symlinks after sync (Step 4) before reporting success

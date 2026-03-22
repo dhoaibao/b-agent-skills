@@ -2,9 +2,9 @@
 name: b-feature
 description: >
   Full-cycle feature orchestrator: plan → docs → research → implement → self-review.
-  ALWAYS use when the user prefixes with "b-feature:", or describes building something
-  non-trivial from scratch, integrating a new service, or making changes spanning
-  multiple files and layers. Best triggered explicitly: "b-feature: [description]".
+  ALWAYS use when the user prefixes with "b-feature:", "xây dựng tính năng", "làm chức năng mới",
+  "tích hợp", or describes building something non-trivial from scratch, integrating a new service,
+  or making changes spanning multiple files and layers. Best triggered explicitly: "b-feature: [description]".
   Not for bug fixes (use b-debug) or quick single-file edits.
 ---
 
@@ -59,7 +59,13 @@ Use **Opus** to start Session 1, then switch models per phase in Session 2:
 
 ---
 
-## Step 0 — Preflight
+### Step 0 — Preflight
+
+**Model check**: This skill requires **Opus** for Session 1 (Phase 1 — b-plan and Phase 2 — b-analyze). Check the current model from the system context. If you are not running on Opus:
+- Output: "⚠️ b-feature Session 1 requires Opus. Run `/model opus` then re-invoke."
+- **Stop. Do not proceed with any further steps.**
+
+If you are on Opus: continue with the MCP check below.
 
 Check MCP availability before starting (run `/mcp` to verify connected servers). Required MCPs per phase:
 - Phase 1 (b-plan): sequential-thinking

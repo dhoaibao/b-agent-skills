@@ -46,6 +46,8 @@ b-docs: sendgrid send email with attachments
 how do I configure retries in bullmq?
 what's the API for aws ses v3?
 does zod support async validation?
+tra cứu cách dùng thư viện Prisma
+hướng dẫn sử dụng Zod
 ```
 
 **Output:** Accurate method signatures, required parameters, auth setup, error codes,
@@ -169,6 +171,8 @@ implements step by step (checking off checkboxes), then self-reviews with b-anal
 b-feature: add Amazon SES as a fourth email provider
 b-feature: implement exponential backoff retry for all providers
 b-feature: add webhook signature verification
+xây dựng tính năng mới: notification system
+tích hợp Stripe payment
 ```
 
 **Rule:** Always prefix with `b-feature:` to guarantee trigger.

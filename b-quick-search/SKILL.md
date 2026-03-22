@@ -25,6 +25,7 @@ The rule is simple: one search call, one clean answer.
 - User wants a deep dive, comparison, or multi-source report → use **b-research**
 - Topic is a library/framework and the user wants API details → use **b-docs**
 - The answer clearly requires reading full articles, not just search snippets
+- User wants a grouped daily news digest → use **b-news** (b-quick-search returns a single news answer, b-news returns a categorized digest)
 
 ## Tools required
 
@@ -46,6 +47,16 @@ One search call + bullet-point formatting requires no deep reasoning. Haiku is s
 ---
 
 ## Steps
+
+### Step 0 — Model check
+
+This skill is optimized for **Haiku** (`/model haiku`) for speed and cost.
+
+Check the current model from the system context. If you are not running on Haiku:
+- Output: "💡 b-quick-search runs best on Haiku. Run `/model haiku` for faster, cheaper lookups."
+- **Continue anyway** — Haiku is recommended, not required. Any model can perform the lookup.
+
+---
 
 ### Step 1 — Route and search
 

@@ -31,7 +31,7 @@ All 5 MCPs must be connected. Verify with `/mcp` in Claude Code.
 | [`b-docs`](#b-docs) | context7, firecrawl* | Before using any library or SDK |
 | [`b-research`](#b-research) | brave-search (web+news), firecrawl, context7*, sequential-thinking* | Deep research, tool comparison, synthesis |
 | [`b-analyze`](#b-analyze) | jcodemunch (12 tools), sequential-thinking*, brave-search* | Understand or review code before changing it |
-| [`b-debug`](#b-debug) | jcodemunch (8 tools), sequential-thinking, brave-search*, firecrawl* | Trace bugs that have no obvious cause |
+| [`b-debug`](#b-debug) | jcodemunch (9 tools), sequential-thinking, brave-search*, firecrawl* | Trace bugs that have no obvious cause |
 | [`b-feature`](#b-feature) | all of the above | Full pipeline for complex feature development |
 
 *optional — used conditionally

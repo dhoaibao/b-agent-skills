@@ -22,6 +22,12 @@ implementation begins.
 - Refactoring, architecture changes, or new feature integration
 - User says: "plan", "thiết kế", "how should I approach X", "lên kế hoạch", "nên bắt đầu từ đâu"
 
+## When NOT to use
+
+- Simple single-file edit or ≤2-step task → just do it directly
+- Something is broken and needs debugging → use **b-debug**
+- Quick fact lookup or library API question → use **b-quick-search** or **b-docs**
+
 ## Tools required
 
 - `sequentialthinking` — from `sequential-thinking` MCP server
@@ -35,13 +41,25 @@ Graceful degradation: ✅ Possible — if jcodemunch unavailable, use Glob/Read 
 
 ## Recommended model
 
-**Opus** (`/model opus`) — required for reliable output.
+**Opus** (`/model opus`) — enforced by Step 0.
 
-A plan with missing dependencies or wrong step ordering causes cascading failures across all subsequent implementation. Opus produces significantly more complete dependency graphs and risk identification than Sonnet on multi-file tasks. Switch before invoking: `/model opus`.
+A plan with missing dependencies or wrong step ordering causes cascading failures across all subsequent implementation. Opus produces significantly more complete dependency graphs and risk identification than Sonnet on multi-file tasks.
 
 ---
 
 ## Steps
+
+### Step 0 — Model check
+
+This skill requires **Opus** for reliable output.
+
+Check the current model from the system context. If you are not running on Opus:
+- Output: "⚠️ b-plan requires Opus. Run `/model opus` then re-invoke."
+- **Stop. Do not proceed with any further steps.**
+
+If you are on Opus: continue to Step 1.
+
+---
 
 ### Step 1 — Clarify scope
 

@@ -20,6 +20,12 @@ ranked hypotheses, locate root cause, then fix. Never jump straight to patching.
 - Previous fix attempts didn't work
 - User says: "debug", "lỗi", "tại sao", "không hoạt động", "fix bug", "why is X not working"
 
+## When NOT to use
+
+- Code works but could be better (quality, patterns, complexity) → use **b-analyze**
+- Building a new feature or multi-file change → use **b-feature**
+- Need to understand unfamiliar code before changes → use **b-analyze**
+
 ## Tools required
 
 From `jcodemunch` MCP server:
@@ -49,13 +55,25 @@ Graceful degradation: ✅ Possible — if jcodemunch unavailable, use Glob/Grep/
 
 ## Recommended model
 
-**Opus** (`/model opus`) — required for reliable output.
+**Opus** (`/model opus`) — enforced by Step 0.
 
-Hypothesis ranking and root-cause tracing are the highest-stakes reasoning tasks in this suite. A wrong hypothesis wastes debugging time and produces incorrect fixes. Sonnet is prone to anchoring on surface symptoms rather than tracing the actual execution path. Switch before invoking: `/model opus`.
+Hypothesis ranking and root-cause tracing are the highest-stakes reasoning tasks in this suite. A wrong hypothesis wastes debugging time and produces incorrect fixes. Sonnet is prone to anchoring on surface symptoms rather than tracing the actual execution path.
 
 ---
 
 ## Steps
+
+### Step 0 — Model check
+
+This skill requires **Opus** for reliable output.
+
+Check the current model from the system context. If you are not running on Opus:
+- Output: "⚠️ b-debug requires Opus. Run `/model opus` then re-invoke."
+- **Stop. Do not proceed with any further steps.**
+
+If you are on Opus: continue to Step 1.
+
+---
 
 ### Step 1 — Gather symptoms
 

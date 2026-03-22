@@ -20,7 +20,7 @@ then groups stories by sub-topic into a clean bilingual daily digest.
 
 ## When NOT to use
 - User wants deep analysis or a research report → use `b-research` instead
-- User needs a single fact or latest version → use `b-quick-search` instead
+- User needs a single fact, latest version, or a single news answer → use `b-quick-search` instead (b-news produces a grouped digest, not a single answer)
 
 ## Tools required
 
@@ -63,6 +63,16 @@ domain-specific sources produce insufficient results.
 ---
 
 ## Steps
+
+### Step 0 — Model check
+
+This skill is optimized for **Haiku** (`/model haiku`) for speed and cost.
+
+Check the current model from the system context. If you are not running on Haiku:
+- Output: "💡 b-news runs best on Haiku. Run `/model haiku` for faster, cheaper digests."
+- **Continue anyway** — Haiku is recommended, not required. Any model can produce the digest.
+
+---
 
 ### Step 1 — Parse user input
 
