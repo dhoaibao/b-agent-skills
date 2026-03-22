@@ -25,7 +25,7 @@ implementation begins.
 ## Tools required
 
 - `sequentialthinking` — from `sequential-thinking` MCP server
-- `get_repo_outline`, `get_file_outline` — from `jcodemunch` MCP server *(optional, for modify-existing-code tasks)*
+- `suggest_queries`, `get_repo_outline`, `get_file_outline`, `get_file_tree` — from `jcodemunch` MCP server *(optional, for modify-existing-code tasks)*
 
 If sequential-thinking is unavailable: reason through the plan inline step by step,
 making the thinking explicit in the response. Do not skip planning — just do it without the tool.
@@ -57,8 +57,10 @@ Skip if: pure greenfield with no existing modules.
 
 Use jcodemunch to scan the relevant area before decomposing:
 - First call `index_folder` with the absolute project root path. Use `use_ai_summaries: false`. Note the `repo` identifier from the response and pass it to all subsequent calls.
+- `suggest_queries` — call immediately after indexing to auto-surface entry points, key symbols, and language distribution. Use the output to orient the plan to the most architecturally significant areas.
+- `get_file_tree(path_prefix="src/")` — use for a scoped directory view when the task affects a specific subdirectory (faster than scanning the full repo outline)
 - `get_repo_outline` — understand overall structure, file layout, module boundaries
-- `get_file_outline` — inspect the specific files the plan will touch
+- `get_file_outline` (batch: `file_paths=[...]`) — inspect specific files the plan will touch; use batch mode to load multiple files in one call
 
 **Goal**: ensure the plan references real file paths, real function names, and respects existing patterns.
 A plan built on wrong assumptions about the codebase fails at Step 1 of execution.
@@ -125,6 +127,8 @@ inline in the same session. Not worth the overhead.
 
 ## Plan file format
 
+Language: always English — write plan files in English regardless of the user's query language.
+
 ```markdown
 # Plan: [task name]
 
@@ -163,7 +167,7 @@ inline in the same session. Not worth the overhead.
 
 ## Execution (in a new session)
 
-When a new session opens with `execute plan from .claude/b-plans/[file].md`:
+Plan files are always in English. When a new session opens with `execute plan from .claude/b-plans/[file].md`:
 
 1. Read the plan file
 2. Execute steps in order, checking off each `- [ ]` → `- [x]` as it completes
@@ -176,6 +180,7 @@ When a new session opens with `execute plan from .claude/b-plans/[file].md`:
 ## Rules
 
 - Always write to `.claude/b-plans/` — never output the plan only in chat for non-trivial tasks
+- Always write plan files in English — regardless of the user's query language
 - Never execute in the same session as planning for tasks with 5+ steps — keep contexts clean
 - Steps must be ordered by dependency — wrong order causes cascading failures
 - Keep steps atomic — one clear action per step, not "implement the whole service layer"

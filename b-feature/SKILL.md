@@ -140,7 +140,7 @@ Read the plan file. Execute steps in order:
 - Check off each step `- [ ]` → `- [x]` in the file as it completes
 - Use the `## Context` section (b-analyze findings) to match existing patterns
 - Use the `## Docs` section for accurate library API calls
-- If something unexpected surfaces → pause, update the plan file, continue
+- If a tool fails mid-execution → (a) document the failure in the plan file as `- [❌] Phase N — [brief reason]`; (b) assess whether remaining phases depend on this output; (c) if a blocking dependency exists, pause and inform the user before continuing.
 
 Do not implement all steps in one pass without checkpoints.
 

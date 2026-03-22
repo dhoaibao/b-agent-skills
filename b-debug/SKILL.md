@@ -23,10 +23,14 @@ ranked hypotheses, locate root cause, then fix. Never jump straight to patching.
 ## Tools required
 
 From `jcodemunch` MCP server:
+- `suggest_queries` — auto-surface entry points and key symbols for unfamiliar codebases (use before Step 2 when codebase is new)
 - `get_context_bundle` — get full context from an entry point (file or function)
 - `find_references` — trace all callers and callees of a function
 - `get_blast_radius` — understand what depends on a suspected module
 - `get_symbol` — inspect a specific function or class in detail
+- `get_related_symbols` — discover functions closely associated with a suspicious symbol
+- `get_symbol_diff` — detect regressions by diffing a symbol between two indexed states
+- `search_text` — search for error strings or regex patterns across the codebase
 
 From `sequential-thinking` MCP server:
 - `sequentialthinking` — structured reasoning to form and rank hypotheses
@@ -36,6 +40,7 @@ From `brave-search` MCP server *(optional)*:
 
 From `firecrawl` MCP server *(optional)*:
 - `firecrawl_scrape` — scrape full content of relevant GitHub issue pages, Stack Overflow answers, or changelogs found via web search
+- `firecrawl_map` — map all URLs on a site when `firecrawl_scrape` returns empty content (JS-rendered or incorrect URL); use to discover the correct URL before retrying scrape
 
 If jcodemunch is unavailable, or `index_folder` returns `file_count = 0`: use Glob/Grep/Read to map files manually, proceed with Steps 2.1–2.4.
 If sequential-thinking is unavailable: reason through hypotheses inline, document steps explicitly in response.
@@ -66,6 +71,7 @@ or "recent changes" is often the fastest path to root cause.
 Use `jcodemunch` to trace the execution path in this order:
 
 0. **Index first** — call `index_folder` with the absolute path to the project root. Use `use_ai_summaries: false` for speed. Note the `repo` identifier from the response (format: `local/[name]-[hash]`) — pass this as `repo` to every subsequent jcodemunch call. If `file_count` is 0, jcodemunch can't parse this codebase → use Glob/Grep to map files manually instead.
+0.5. **suggest_queries** — if the codebase is unfamiliar, call `suggest_queries` immediately after indexing. Use the output to identify entry points, key symbols, and language distribution before tracing the execution path.
 1. `get_context_bundle` on the entry point (route handler, CLI command, event listener) — get full context of the starting point
 2. `find_references` on the relevant function — trace all callers and callees across files
 3. `get_blast_radius` on the suspected module — understand what depends on it
@@ -100,9 +106,11 @@ Present the ranked hypotheses to the user briefly before investigating.
 
 **Library error shortcut**: If the error message or stack trace references a specific library or framework:
 - Use `brave_web_search` with the exact error message in quotes to find known issues, GitHub issues, or changelog entries
-- If results include a GitHub issue page, Stack Overflow answer, or changelog URL that looks relevant → call `firecrawl_scrape` on the top 1–2 most relevant URLs before verifying hypotheses. Use `formats: ["markdown"]`. Cap at 2 URLs. If the page returns empty content, skip and proceed with snippets only.
+- If results include a GitHub issue page, Stack Overflow answer, or changelog URL that looks relevant → call `firecrawl_scrape` on the top 1–2 most relevant URLs before verifying hypotheses. Use `formats: ["markdown"]`. Cap at 2 URLs. If the page returns empty or <200 words → call `firecrawl_map` on the domain root to find the correct URL, then retry scrape on the mapped URL. If still empty, proceed with snippets only.
 - If results point to an API misuse, invoke `b-docs` to verify the correct behavior for that library version
 - Do this before verifying hypotheses — it may eliminate wrong hypotheses immediately and save significant time
+
+**Error string search**: If the error message text is short and specific → call `search_text(is_regex=false, pattern="[exact error string]")` to find all places in the codebase that produce or handle this error. This often reveals the true origin faster than tracing the call graph.
 
 ---
 
@@ -113,7 +121,9 @@ Test hypotheses starting from the most likely:
 - Add targeted logging at the suspected choke point (not scattered everywhere)
 - Check config/env values if hypothesis points there
 - Use `get_symbol` or `get_context_bundle` (jcodemunch) to re-examine a specific function if the call graph revealed something suspicious
+- Use `get_related_symbols` on a suspicious function to discover other functions with similar logic — useful when the bug pattern may exist in multiple places
 - If the codebase uses a library: invoke `b-docs` to verify the correct API behavior for that library version
+- **Regression detection**: if the bug appeared after a recent change, use `get_symbol_diff` to compare the current symbol against an older indexed state (requires two index snapshots)
 
 **Stop when root cause is confirmed** — don't continue investigating other hypotheses once found.
 
@@ -138,6 +148,7 @@ After applying the fix:
 - State what behavior should now change and how to confirm it
 - Suggest the minimal test to verify (a specific request, a unit test, a log line to check)
 - If the fix involved a config/env change, remind the user to restart the process
+- If the fix introduced new code (new function, new module) → optionally run `b-analyze: [fixed module]` to verify no new complexity or duplication was introduced.
 
 ---
 

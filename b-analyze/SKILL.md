@@ -27,11 +27,18 @@ b-debug is for code that is broken. If there's an error message → use b-debug 
 ## Tools required
 
 From `jcodemunch` MCP server:
-- `index_folder` — index a local codebase before querying (`index_repo` for GitHub repos)
+- `index_folder` — index a local codebase before querying
+- `suggest_queries` — auto-surface entry points, language distribution, and key architectural symbols
 - `get_repo_outline` — overview of all modules, files, and top-level symbols
-- `get_file_outline` — functions, classes, and exports per file
+- `get_file_outline` — functions, classes, and exports per file (supports batch: `file_paths=[]`)
+- `get_symbols` — batch-load multiple symbol definitions efficiently
 - `get_dependency_graph` — module coupling and circular dependency detection
 - `search_symbols` — find duplicate or similarly-named functions across files
+- `find_importers` — find all files that import a given module (dead code chain detection)
+- `check_references` — verify if a symbol has any live references (dead code detection)
+- `get_class_hierarchy` — map class inheritance trees for OOP codebases
+- `get_related_symbols` — discover functions closely associated with a symbol (pattern similarity)
+- `search_text` — search for literal strings or regex patterns (magic numbers, hardcoded values)
 
 From `sequential-thinking` MCP server *(optional)*:
 - `sequentialthinking` — structured prioritization of findings to produce an ordered action list
@@ -67,8 +74,9 @@ Use `jcodemunch` to map the target code in this order:
 
 1. **Index first** — call `index_folder` with the absolute path to the project root (e.g. `/home/user/my-project`). Use `use_ai_summaries: false` for speed. Note the `repo` identifier returned in the response (format: `local/[name]-[hash]`) — you must pass this as `repo` to every subsequent jcodemunch call.
    - If `file_count` returns 0 or `symbol_count` is 0, jcodemunch does not support this file type (e.g. Markdown, config-only repos) → switch to the Glob/Grep fallback immediately.
+1.5. **suggest_queries** (repo: ...) — call immediately after indexing. This auto-surfaces entry points, language distribution, and key architectural symbols. Use the output to focus subsequent queries on the most significant areas rather than scanning everything.
 2. `get_repo_outline` (repo: the identifier from step 1) — overview of all modules, files, and top-level symbols
-3. `get_file_outline` — inspect each relevant file for functions, classes, and exports
+3. `get_file_outline` (batch: pass `file_paths=[...]` with the most relevant files from step 1.5) — inspect each file for functions, classes, and exports; use batch mode to load multiple files in one call instead of calling one at a time
 4. `get_dependency_graph` — map module coupling; look for circular deps and tight coupling
 5. `search_symbols` — find duplicate or similarly-named functions across files
 
@@ -103,8 +111,14 @@ With the structure mapped, evaluate:
 
 **Maintainability signals**
 - Missing or misleading names (variables, functions, files)
-- Magic numbers or hardcoded values that should be constants
-- Dead code — functions defined but never called
+- Magic numbers or hardcoded values: use `search_text(is_regex=true, pattern='[0-9]{4,}')` to find suspicious numeric constants; use `search_text` with specific string patterns to find hardcoded configuration values
+- Dead code: use `check_references` on any function that appears to have no callers — a zero-reference count confirms dead code. Use `find_importers` to trace the full import chain before removing a module (verifies it truly has no dependents)
+
+**Class hierarchy (OOP codebases)**
+- Use `get_class_hierarchy` on base classes to map inheritance chains — hierarchies deeper than 3 levels are a coupling signal
+
+**Pattern similarity**
+- Use `get_related_symbols` on key functions to discover semantically similar functions across the codebase — candidates for consolidation or inconsistent implementations of the same concern
 
 For any High finding that involves a named anti-pattern (e.g., circular dependency, god class, N+1 query, DB query in controller) → call `brave_web_search` with `'{pattern name} refactoring solution'`. Use the result to make the concrete suggestion in Step 4 more specific than a generic recommendation.
 
@@ -190,6 +204,6 @@ Based on findings, suggest:
 - Findings must be specific: file + function + reason, not "this module is messy"
 - Every High finding must have a concrete suggestion, not just a complaint
 - Don't fix anything during analysis — this skill produces findings, not changes
-- If analysis reveals a bug (broken logic, not just poor style) → note it and suggest switching to `b-debug`
+- If analysis reveals a bug (broken logic, not just poor style) → state: 'Root cause analysis needed. Run: `b-debug: [symptom] in [entry point]` to trace the execution path.'
 - Keep Low findings in the report but don't let them dominate — focus on what actually matters
 - After outputting findings, always recommend whether to proceed with `b-plan` or if the code is healthy enough to modify directly

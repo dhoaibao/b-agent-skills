@@ -24,10 +24,13 @@ citations and freshness indicators.
 
 ## Tools required
 
-- `brave_web_search` — from `brave-search` MCP server
-- `firecrawl_scrape` — from `firecrawl` MCP server
-- `firecrawl_search` — from `firecrawl` MCP server *(optional, fallback search with full content)*
-- `resolve-library-id` + `get-library-docs` — from `context7` MCP server *(optional, for library/framework API topics)*
+- `brave_web_search` — from `brave-search` MCP server (required, general search)
+- `brave_news_search` — from `brave-search` MCP server *(required for NEWS-type queries; use instead of `brave_web_search` for time-sensitive topics)*
+- `firecrawl_scrape` — from `firecrawl` MCP server (required, scrape individual pages)
+- `firecrawl_search` — from `firecrawl` MCP server *(optional, single-call search+scrape fallback when `brave_web_search` returns <3 results)*
+- `firecrawl_map` — from `firecrawl` MCP server *(optional, discover correct URLs when `firecrawl_scrape` returns empty content)*
+- `firecrawl_crawl` + `firecrawl_check_crawl_status` — from `firecrawl` MCP server *(optional, async deep multi-page crawl for documentation sites)*
+- `resolve-library-id` + `query-docs` — from `context7` MCP server *(optional, for library/framework API topics)*
 - `sequentialthinking` — from `sequential-thinking` MCP server *(optional, for structured conflict resolution)*
 
 If brave-search or firecrawl is unavailable, stop and tell the user:
@@ -50,7 +53,7 @@ Classify the user's query into **one of four types** before doing anything else.
 |------|---------|----------|
 | **VERSION** | "latest version", "what's new", "changelog", "release notes", "current version of X" | Official docs FIRST via direct scrape, then web search |
 | **COMPARE** | "vs", "so sánh", "which is better", "A or B", "compare X and Y" | 2 balanced searches (one per option), equal coverage of both sides |
-| **NEWS** | "recent", "2025/2026", "mới nhất", "latest news", "what happened", time-sensitive topics | Brave search with `freshness: pw` or `pd` |
+| **NEWS** | "recent", "2025/2026", "mới nhất", "latest news", "what happened", time-sensitive topics | `brave_news_search` with `freshness: "pd"` or `"pw"` |
 | **HOWTO / API** | "how to", "cách dùng", "tutorial", "setup", "configure", asking about API usage | Context7 first (Step 1), then scrape official docs + community |
 
 **If topic is library/framework API → also run Step 1 (Context7) before Step 2.**
@@ -88,7 +91,8 @@ Apply the strategy for the query type identified in Step 0:
 - Up to 7 URLs may be scraped for comparison queries to ensure balance (exception to the 5-URL default)
 
 **NEWS queries:**
-- Add `freshness: "pw"` (last 7 days) or `freshness: "pd"` (last 24h) to `brave_web_search`
+- Use `brave_news_search` (not `brave_web_search`) with `freshness: "pd"` (last 24h) or `freshness: "pw"` (last 7 days)
+- Freshness options: `"pd"` = past day, `"pw"` = past week, `"pm"` = past month, `"py"` = past year — start with `"pd"`, broaden to `"pw"` if fewer than 3 results
 - Include the current year in the query
 - Prefer official announcements, official blogs, and reputable tech press over aggregators
 
@@ -119,10 +123,15 @@ Apply the strategy for the query type identified in Step 0:
 
 - Call `firecrawl_scrape` on all selected URLs **in parallel** (single message, multiple tool calls)
 - Use `formats: ["markdown"]`, `onlyMainContent: true` to get clean content
-- **Fallback for JS-heavy pages** (SPAs, Mintlify/GitBook docs, React-rendered pages): if content is empty or <200 words, retry with `waitFor: 5000`. If still <200 words, retry once more with `waitFor: 8000`. If still empty, skip and note in report as "could not scrape — JS-rendered page".
+- **Fallback for JS-heavy pages** (SPAs, Mintlify/GitBook docs, React-rendered pages): if content is empty or <200 words, retry with `waitFor: 5000`. If still <200 words, retry once more with `waitFor: 8000`. If still empty → call `firecrawl_map` on the domain root to discover the correct content URL, then retry scrape on the mapped URL. If still empty, skip and note in report as "could not scrape — JS-rendered page".
 - If a page returns rate-limit or 403 → skip it and note in report
 - Default max: **5 URLs** scraped per session. Exception: **7 URLs** for COMPARE queries
 - If rate-limiting occurs on parallel calls, retry failed URLs sequentially
+
+**Deep multi-page crawl** *(for documentation sites — use when you need comprehensive coverage of a multi-page doc, not just a single article)*:
+1. Call `firecrawl_crawl` on the documentation root URL with `limit: 10–20` pages
+2. Poll `firecrawl_check_crawl_status` every few seconds until `status: "completed"` — do NOT proceed until crawl is done
+3. Use the returned pages as your source set; apply the post-scrape quality gate below
 
 **Post-scrape quality gate** (do this before synthesizing):
 - For each scraped page, check: does the content actually address the user's question?

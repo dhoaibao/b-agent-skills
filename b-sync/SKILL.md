@@ -1,6 +1,10 @@
 ---
 name: b-sync
-description: Sync, update, or bootstrap Claude skills from the b-agent-skills GitHub repo. Use this skill whenever the user says "sync b-skills", "update b-skills", "install b-skills on new machine", "pull latest b-skills", or anything related to keeping ~/.claude/skills up to date from the b-agent-skills repository.
+description: >
+  Sync, update, or bootstrap Claude skills from the b-agent-skills GitHub repo.
+  ALWAYS use when the user says "sync b-skills", "update b-skills", "install b-skills on new machine",
+  "pull latest b-skills", "đồng bộ skills", "cập nhật skills", "cài skills mới".
+  Distinct from other skills: b-sync only manages skill installation — it does not run any skill.
 ---
 
 # b-sync

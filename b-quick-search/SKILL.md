@@ -28,8 +28,8 @@ The rule is simple: one search call, one clean answer.
 
 ## Tools required
 
-- `brave_web_search` — from `brave-search` MCP server (required)
-- `brave_summarizer` — from `brave-search` MCP server *(optional, for factual queries)*
+- `brave_web_search` — from `brave-search` MCP server (required, for general queries)
+- `brave_news_search` — from `brave-search` MCP server *(required for news/current-events queries — use instead of `brave_web_search` when query is about recent events, breaking news, or time-sensitive topics)*
 
 If unavailable: stop and tell the user:
 "❌ brave-search MCP is not connected. Please check `/mcp`."
@@ -41,9 +41,13 @@ Graceful degradation: ❌ Not possible — this skill requires live web data. If
 
 ## Steps
 
-### Step 1 — Search
+### Step 1 — Route and search
 
-Call `brave_web_search` with:
+**Choose the right tool before searching:**
+- **News / current events** (breaking news, recent announcements, "what happened with X", "latest news on Y") → use `brave_news_search` with `freshness: "pd"` (past day) or `"pw"` (past week)
+- **Everything else** (versions, prices, docs, CVEs, definitions) → use `brave_web_search`
+
+Call the selected tool with:
 - A focused, specific query (1–6 words works best)
 - `count: 5` — enough for a quick lookup, not overwhelming
 - English queries unless the topic is Vietnamese-specific
@@ -52,10 +56,6 @@ If the first query returns no useful results, retry once with a rephrased query.
 Rephrasing tips: add the current year, replace ambiguous words with specific technical terms (e.g. "fix" → "patch", "tool" → the exact product name), add the full product/company name, or remove generic qualifiers like "best" or "how to".
 If the retry also fails → tell the user the search returned no relevant results
 and suggest they try b-research for a deeper lookup.
-
-**For factual queries** (version numbers, prices, dates, definitions, yes/no questions):
-Also call `brave_summarizer` with the same query in parallel with `brave_web_search`.
-Use the summarizer output as the primary answer; use search result URLs as citations.
 
 ### Step 2 — Synthesize
 
