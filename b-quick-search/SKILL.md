@@ -37,6 +37,12 @@ Do NOT substitute with any other search tool or training data.
 
 Graceful degradation: ❌ Not possible — this skill requires live web data. If the MCP is unavailable, stop and tell the user.
 
+## Recommended model
+
+**Haiku** (`/model haiku`) — optimal for speed and cost.
+
+One search call + bullet-point formatting requires no deep reasoning. Haiku is significantly faster and cheaper with no quality loss for this task type.
+
 ---
 
 ## Steps

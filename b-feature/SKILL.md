@@ -40,6 +40,23 @@ If a required MCP is missing, note it and skip that step — do not abort the en
 
 Graceful degradation: ⚠️ Partial — if a required MCP is unavailable, the corresponding phase is logged as skipped in the plan file (see Step 0 Preflight). The pipeline continues with available phases.
 
+## Recommended model
+
+Use **Opus** to start Session 1, then switch models per phase in Session 2:
+
+| Phase | Model | Reason |
+|---|---|---|
+| Phase 1 — b-plan | **Opus** | Decomposition + dependency graph — reasoning-heavy |
+| Phase 2 — b-analyze (existing code) | **Opus** | Structural scan informs all implementation choices |
+| Phase 3a — b-docs | **Sonnet** | Retrieval task — bottleneck is docs quality, not reasoning |
+| Phase 3b — b-research | **Sonnet** | Search + synthesis — no deep reasoning chain needed |
+| Phase 4 — implement | **Sonnet** (default) / **Opus** for steps marked `[complex]` in plan | Plan already did the reasoning; follow the plan |
+| Phase 5 — b-analyze (review) | **Opus** | Quality gate — catching subtle issues requires strong reasoning |
+
+**Session 1**: start with `/model opus` — covers Phase 1 and 2 which are the most reasoning-intensive.
+
+**Session 2**: start with `/model sonnet`, then switch to `/model opus` only for steps the plan file marks as `[complex]` or that touch security/DB schema/async logic. Switch back to Sonnet after those steps.
+
 ---
 
 ## Step 0 — Preflight

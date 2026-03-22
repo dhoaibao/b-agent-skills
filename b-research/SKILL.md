@@ -41,6 +41,12 @@ If context7 is unavailable on a library/framework topic, skip Step 1 silently an
 
 Graceful degradation: ❌ Not possible — this skill requires live web data (brave-search + firecrawl). If either MCP is unavailable, stop and tell the user.
 
+## Recommended model
+
+**Sonnet** (`/model sonnet`) — default is sufficient.
+
+The bottleneck here is content retrieval quality (search results + scraped pages), not reasoning depth. Sonnet synthesizes multi-source content well. Use Opus only when the topic requires nuanced conflict resolution between contradictory sources.
+
 ---
 
 ## Steps

@@ -32,6 +32,12 @@ If context7 is unavailable:
 
 Graceful degradation: ⚠️ Partial — fallback chain: context7 → firecrawl (direct scrape of official docs) → b-research (full research pipeline).
 
+## Recommended model
+
+**Sonnet** (`/model sonnet`) — default is sufficient.
+
+Most work is retrieval (resolve library ID → fetch docs). Code generation from well-structured docs does not require deep reasoning. Sonnet handles this reliably.
+
 ---
 
 ## Steps

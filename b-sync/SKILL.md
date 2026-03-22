@@ -24,6 +24,14 @@ Syncs Claude skills from the public `b-agent-skills` GitHub repo to `~/.claude/s
 
 Graceful degradation: ✅ Not applicable — b-sync requires only Bash/git, no MCP server needed.
 
+## Recommended model
+
+**Haiku** (`/model haiku`) — optimal for speed and cost.
+
+b-sync runs shell commands only. The model has no reasoning role — any tier works, but Haiku is fastest.
+
+---
+
 ## Commands
 
 ### Bootstrap a new machine (first time only)

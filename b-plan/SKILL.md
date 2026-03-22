@@ -33,6 +33,12 @@ If jcodemunch is unavailable, or `index_folder` returns `file_count = 0`: use Gl
 
 Graceful degradation: ✅ Possible — if jcodemunch unavailable, use Glob/Read to inspect key files. If sequential-thinking unavailable, reason inline. Quality is reduced but the skill remains functional.
 
+## Recommended model
+
+**Opus** (`/model opus`) — required for reliable output.
+
+A plan with missing dependencies or wrong step ordering causes cascading failures across all subsequent implementation. Opus produces significantly more complete dependency graphs and risk identification than Sonnet on multi-file tasks. Switch before invoking: `/model opus`.
+
 ---
 
 ## Steps
@@ -119,6 +125,24 @@ Open a new session and run:
 ```
 
 Note: 'new session' means running `claude` in a new terminal, or using `/clear` in the current terminal to reset context.
+
+**Model for the execution session:** Include this note in the printed output above so the user knows what model to start the next session with:
+
+```
+💡 Recommended model for execution:
+  - Most steps (multi-file implementation): /model sonnet
+  - Steps marked [complex] or touching security/DB schema/async: /model opus
+  - Single-file, spec is fully defined: /model haiku
+  Rationale: this plan already did the heavy reasoning. Execution follows the plan — model tier can drop one level.
+```
+
+When writing the plan file, add a `## Model hint` section at the top (below frontmatter) listing any steps that require Opus due to complexity, so the executing session knows upfront:
+
+```markdown
+## Model hint
+- Default execution model: sonnet
+- Upgrade to opus for: [list specific step names/numbers, or "none"]
+```
 
 **Exception — simple tasks (≤4 steps, single file):** skip the file, plan and execute
 inline in the same session. Not worth the overhead.
