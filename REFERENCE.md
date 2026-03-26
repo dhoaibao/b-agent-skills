@@ -90,13 +90,15 @@ Context7 is used automatically when the topic is a library or framework.
 
 Deep code analysis using jcodemunch — maps structure, measures complexity, identifies
 duplicate logic, dead code, and OOP issues; produces severity-ranked findings with
-concrete suggestions. Indexes the codebase first via `index_folder`, then runs
-`suggest_queries` → `get_repo_outline` → `get_file_outline` (batch) →
-`get_dependency_graph` → `search_symbols`. For dead code: `check_references` +
-`find_importers`. For OOP: `get_class_hierarchy`. For pattern similarity: `get_related_symbols`.
-For magic numbers/hardcoded strings: `search_text`. For High findings matching a named
-anti-pattern, calls `brave_web_search`. Uses `sequentialthinking` to produce a
-sprint-prioritized action list. Does not fix anything; produces findings only.
+concrete suggestions. Resolves or indexes the codebase first via `resolve_repo` →
+`index_folder` (if needed), then runs `suggest_queries` → `get_repo_outline` →
+`get_file_outline` (batch) → `get_dependency_graph` → `search_symbols`. For symbol
+inspection: `get_symbol_source` (single or batch via `symbol_ids[]`). For dead code:
+`check_references` + `find_importers`. For OOP: `get_class_hierarchy`. For pattern
+similarity: `get_related_symbols`. For magic numbers/hardcoded strings: `search_text`.
+For dbt/SQL projects: `search_columns`. For High findings matching a named anti-pattern,
+calls `brave_web_search`. Uses `sequentialthinking` to produce a sprint-prioritized
+action list. Does not fix anything; produces findings only.
 
 **Good triggers:**
 ```
@@ -118,10 +120,11 @@ Use b-debug when something is broken.
 
 ### b-debug
 
-Systematic, hypothesis-driven bug tracing. Indexes the codebase first via
-`index_folder`, then optionally calls `suggest_queries` (unfamiliar codebases), then
-maps the full execution path with jcodemunch (`get_context_bundle` → `find_references`
-→ `get_blast_radius` → `get_symbol`). For suspicious functions, uses `get_related_symbols`
+Systematic, hypothesis-driven bug tracing. Resolves or indexes the codebase first via
+`resolve_repo` → `index_folder` (if needed), then optionally calls `suggest_queries`
+(unfamiliar codebases), then maps the full execution path with jcodemunch
+(`get_context_bundle` → `find_references` → `get_blast_radius` → `get_symbol_source`).
+For suspicious functions, uses `get_related_symbols`
 to find similar patterns elsewhere. For regression detection: `get_symbol_diff`. For
 error string origin: `search_text`. Forms ranked hypotheses with sequential-thinking,
 confirms root cause, then fixes. For library errors: `brave_web_search` → `firecrawl_scrape`
@@ -238,7 +241,7 @@ When in doubt, call the skill by name.
 ## Skill interaction map
 
 ```
-b-plan ──── modify existing code ────────► jcodemunch (scan structure first)
+b-plan ──── modify existing code ────────► jcodemunch (resolve_repo → scan structure first)
        ──── flags unknowns ──────────────► b-docs     (library API needed, resolved inline)
                                          ► b-research  (decision needed)
        ──── execution: file modified ────► jcodemunch (index_file to keep index fresh)
@@ -246,7 +249,7 @@ b-plan ──── modify existing code ────────► jcodemunch 
 b-docs ──── context7 has no index ──────► firecrawl   (direct scrape of official docs URL, single page)
        ──── firecrawl insufficient ────► b-research  (full multi-source research)
 
-b-debug ─── trace execution path ────────► jcodemunch (suggest_queries → get_context_bundle → find_references → get_blast_radius → get_symbol → get_related_symbols)
+b-debug ─── trace execution path ────────► jcodemunch (resolve_repo → suggest_queries → get_context_bundle → find_references → get_blast_radius → get_symbol_source → get_related_symbols)
         ─── regression detection ────────► jcodemunch (get_symbol_diff)
         ─── error string lookup ─────────► jcodemunch (search_text)
         ─── post-fix index refresh ──────► jcodemunch (index_file on changed files)
@@ -255,8 +258,11 @@ b-debug ─── trace execution path ────────► jcodemunch (s
                                          ► firecrawl_map (if scrape empty, optional)
                                          ► b-docs      (verify API behavior)
 
-b-analyze ── unfamiliar codebase ─────────► jcodemunch (suggest_queries first)
+b-analyze ── index or resolve ────────────► jcodemunch (resolve_repo → index_folder if needed)
+          ── unfamiliar codebase ─────────► jcodemunch (suggest_queries first)
+          ── symbol inspection ───────────► jcodemunch (get_symbol_source, single or batch)
           ── dead code ─────────────────── ► jcodemunch (check_references + find_importers)
+          ── dbt/SQL columns ─────────────► jcodemunch (search_columns)
           ── OOP hierarchy ──────────────► jcodemunch (get_class_hierarchy)
           ── pattern similarity ──────────► jcodemunch (get_related_symbols)
           ── magic numbers/strings ───────► jcodemunch (search_text)

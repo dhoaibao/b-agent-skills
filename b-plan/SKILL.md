@@ -60,7 +60,7 @@ Run if: task modifies or extends existing code.
 Skip if: pure greenfield with no existing modules.
 
 Use jcodemunch to scan the relevant area before decomposing:
-- First call `index_folder` with the absolute project root path. Use `use_ai_summaries: false`. Note the `repo` identifier from the response and pass it to all subsequent calls.
+- First call `resolve_repo(path="/absolute/project/root")`. If it returns a repo identifier, use it directly (index already exists). If it returns no match, call `index_folder` with the absolute project root path and `use_ai_summaries: false`. Note the `repo` identifier from the response and pass it to all subsequent calls.
 - `suggest_queries` — call immediately after indexing to auto-surface entry points, key symbols, and language distribution. Use the output to orient the plan to the most architecturally significant areas.
 - `get_file_tree(path_prefix="src/")` — use for a scoped directory view when the task affects a specific subdirectory (faster than scanning the full repo outline)
 - `get_repo_outline` — understand overall structure, file layout, module boundaries

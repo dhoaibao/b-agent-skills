@@ -37,7 +37,7 @@ From `jcodemunch` MCP server:
 - `suggest_queries` — auto-surface entry points, language distribution, and key architectural symbols
 - `get_repo_outline` — overview of all modules, files, and top-level symbols
 - `get_file_outline` — functions, classes, and exports per file (supports batch: `file_paths=[]`)
-- `get_symbols` — batch-load multiple symbol definitions efficiently
+- `get_symbol_source` — get full source of one symbol (`symbol_id`) or many (`symbol_ids[]`); supports verify and context_lines
 - `get_dependency_graph` — module coupling and circular dependency detection
 - `search_symbols` — find duplicate or similarly-named functions across files
 - `find_importers` — find all files that import a given module (dead code chain detection)
@@ -45,6 +45,7 @@ From `jcodemunch` MCP server:
 - `get_class_hierarchy` — map class inheritance trees for OOP codebases
 - `get_related_symbols` — discover functions closely associated with a symbol (pattern similarity)
 - `search_text` — search for literal strings or regex patterns (magic numbers, hardcoded values)
+- `search_columns` — from jcodemunch MCP server *(optional, for dbt/SQL/data warehouse projects)*
 
 From `sequential-thinking` MCP server *(optional)*:
 - `sequentialthinking` — structured prioritization of findings to produce an ordered action list
@@ -76,7 +77,7 @@ Exception: if the project has fewer than 15 files, proceed with whole-project an
 
 Use `jcodemunch` to map the target code in this order:
 
-1. **Index first** — call `index_folder` with the absolute path to the project root (e.g. `/home/user/my-project`). Use `use_ai_summaries: false` for speed. Note the `repo` identifier returned in the response (format: `local/[name]-[hash]`) — you must pass this as `repo` to every subsequent jcodemunch call.
+1. **Index or resolve** — first call `resolve_repo(path="/absolute/project/root")`. If it returns a repo identifier, use it directly (index already exists). If it returns no match, call `index_folder` with the absolute path to the project root (e.g. `/home/user/my-project`) and `use_ai_summaries: false`. Note the `repo` identifier returned in the response (format: `local/[name]-[hash]`) — you must pass this as `repo` to every subsequent jcodemunch call.
    - If `file_count` returns 0 or `symbol_count` is 0, jcodemunch does not support this file type (e.g. Markdown, config-only repos) → switch to the Glob/Grep fallback immediately.
 1.5. **suggest_queries** (repo: ...) — call immediately after indexing. This auto-surfaces entry points, language distribution, and key architectural symbols. Use the output to focus subsequent queries on the most significant areas rather than scanning everything.
 2. `get_repo_outline` (repo: the identifier from step 1) — overview of all modules, files, and top-level symbols
@@ -123,6 +124,9 @@ With the structure mapped, evaluate:
 
 **Pattern similarity**
 - Use `get_related_symbols` on key functions to discover semantically similar functions across the codebase — candidates for consolidation or inconsistent implementations of the same concern
+
+**Data modeling** *(dbt/SQL projects only)*
+- Use `search_columns` to audit column naming consistency, find undocumented columns, and verify column descriptions match actual usage
 
 For any High finding that involves a named anti-pattern (e.g., circular dependency, god class, N+1 query, DB query in controller) → call `brave_web_search` with `'{pattern name} refactoring solution'`. Use the result to make the concrete suggestion in Step 4 more specific than a generic recommendation.
 

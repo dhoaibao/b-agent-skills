@@ -33,7 +33,7 @@ From `jcodemunch` MCP server:
 - `get_context_bundle` — get full context from an entry point (file or function)
 - `find_references` — trace all callers and callees of a function
 - `get_blast_radius` — understand what depends on a suspected module
-- `get_symbol` — inspect a specific function or class in detail
+- `get_symbol_source` — inspect a specific function or class in detail (supports single `symbol_id` or batch `symbol_ids[]`)
 - `get_related_symbols` — discover functions closely associated with a suspicious symbol
 - `get_symbol_diff` — detect regressions by diffing a symbol between two indexed states
 - `search_text` — search for error strings or regex patterns across the codebase
@@ -75,12 +75,12 @@ or "recent changes" is often the fastest path to root cause.
 
 Use `jcodemunch` to trace the execution path in this order:
 
-0. **Index first** — call `index_folder` with the absolute path to the project root. Use `use_ai_summaries: false` for speed. Note the `repo` identifier from the response (format: `local/[name]-[hash]`) — pass this as `repo` to every subsequent jcodemunch call. If `file_count` is 0, jcodemunch can't parse this codebase → use Glob/Grep to map files manually instead.
+0. **Index or resolve** — first call `resolve_repo(path="/absolute/project/root")`. If it returns a repo identifier, use it directly (index already exists). If it returns no match, call `index_folder` with the absolute path to the project root and `use_ai_summaries: false`. Note the `repo` identifier from the response (format: `local/[name]-[hash]`) — pass this as `repo` to every subsequent jcodemunch call. If `file_count` is 0, jcodemunch can't parse this codebase → use Glob/Grep to map files manually instead.
 0.5. **suggest_queries** — if the codebase is unfamiliar, call `suggest_queries` immediately after indexing. Use the output to identify entry points, key symbols, and language distribution before tracing the execution path.
 1. `get_context_bundle` on the entry point (route handler, CLI command, event listener) — get full context of the starting point
 2. `find_references` on the relevant function — trace all callers and callees across files
 3. `get_blast_radius` on the suspected module — understand what depends on it
-4. `get_symbol` on any function that looks suspicious — inspect its full implementation
+4. `get_symbol_source` on any function that looks suspicious — inspect its full implementation
 
 From this, identify:
 - All layers the request/data passes through (middleware, validators, handlers, services, DB)
@@ -125,7 +125,7 @@ Test hypotheses starting from the most likely:
 
 - Add targeted logging at the suspected choke point (not scattered everywhere)
 - Check config/env values if hypothesis points there
-- Use `get_symbol` or `get_context_bundle` (jcodemunch) to re-examine a specific function if the call graph revealed something suspicious
+- Use `get_symbol_source` or `get_context_bundle` (jcodemunch) to re-examine a specific function if the call graph revealed something suspicious
 - Use `get_related_symbols` on a suspicious function to discover other functions with similar logic — useful when the bug pattern may exist in multiple places
 - If the codebase uses a library: invoke `b-docs` to verify the correct API behavior for that library version
 - **Regression detection**: if the bug appeared after a recent change, use `get_symbol_diff` to compare the current symbol against an older indexed state (requires two index snapshots)
