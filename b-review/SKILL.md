@@ -1,0 +1,211 @@
+---
+name: b-review
+description: >
+  Pre-PR code review — verify logic correctness, requirements fulfillment, edge case
+  coverage, and test adequacy before opening a pull request. ALWAYS use when the user
+  says "review before PR", "kiểm tra logic", "check requirements", "what would a reviewer
+  flag", or after b-gate passes and before committing. Distinct from b-analyze (structural
+  quality, pre-implementation) and b-gate (automated tooling): b-review simulates
+  human-judgment review on changed code.
+---
+
+# b-review
+
+$ARGUMENTS
+
+Review changed code from a reviewer's perspective before it becomes a PR. Checks logic
+correctness, requirements coverage, edge cases, and test adequacy — the things automated
+tooling cannot catch.
+
+If `$ARGUMENTS` is provided, treat it as a pointer to the plan file or a description of
+the original requirements (e.g. `add retry logic to email queue`). Use it as the
+requirements baseline for Step 2.
+
+## When to use
+
+- After b-gate passes, before committing or opening a PR
+- User says "review before PR", "kiểm tra logic trước khi push", "what would a reviewer flag"
+- Validating that the implementation actually fulfills the original requirements
+- Checking if test coverage is adequate for the behavior that was changed
+
+## When NOT to use
+
+- Structural quality review (complexity, duplication, coupling) → use **b-analyze**
+- Automated checks (lint, typecheck, tests, security) → use **b-gate**
+- Something is broken → use **b-debug**
+- Pre-implementation understanding → use **b-analyze**
+
+## Tools required
+
+- `Bash` — to read git diff and changed file list
+- `sequentialthinking` — from `sequential-thinking` MCP server — structured review reasoning
+- `get_symbol_source`, `get_context_bundle` — from `jcodemunch` MCP server *(optional, for reading full context of changed symbols)*
+
+If sequential-thinking is unavailable: reason through review dimensions inline, document each explicitly.
+If jcodemunch is unavailable: use Read tool to inspect changed files directly.
+
+Graceful degradation: ✅ Possible — core review works with Bash + Read. sequential-thinking improves structure of findings; jcodemunch improves symbol context. Both optional.
+
+## Steps
+
+### Step 1 — Get the diff
+
+Run:
+```bash
+git diff HEAD
+# or, if changes are staged:
+git diff --cached
+# or, for a specific branch comparison:
+git diff main...HEAD
+```
+
+Extract:
+- **Files changed**: list of modified, added, deleted files
+- **Changed lines**: what was added (+) and removed (-)
+- **Scope**: how wide is the change? (1 file vs 10 files is a different review depth)
+
+If the diff is large (>500 lines changed), ask the user which area to focus on first rather than reviewing everything at once.
+
+---
+
+### Step 2 — Establish requirements baseline
+
+Determine what the code was *supposed* to do:
+
+1. **Check for plan file** — look for `.claude/b-plans/[task-slug].md`. If found, read the `## Steps` section and the original scope statement. This is the primary requirements source.
+2. **Check $ARGUMENTS** — if provided, use it as the requirements description.
+3. **Ask the user** — if neither is available, ask: "What was this change supposed to accomplish? What does 'done' look like?" One question only.
+
+The review is only as good as the requirements baseline. Do not review without it.
+
+---
+
+### Step 3 — Logic correctness review
+
+Read the changed code (use `get_symbol_source` or Read tool) and check:
+
+**Control flow**
+- Are all branches of conditionals handled? (if/else, switch cases, error paths)
+- Are there unreachable branches or always-true conditions?
+- Are loops bounded? Can they run forever?
+
+**Data handling**
+- Are null/undefined/empty inputs handled?
+- Are type coercions or implicit conversions safe?
+- Are array/object accesses guarded against out-of-bounds or missing keys?
+
+**Async correctness** *(if applicable)*
+- Are all async paths awaited?
+- Are errors from async operations caught?
+- Are there race conditions between parallel operations?
+
+**Side effects**
+- Does the code modify shared state unexpectedly?
+- Are there unintended writes to external systems (DB, cache, queue) in non-obvious paths?
+
+For each issue found: state the file, line range, what the problem is, and what the correct behavior should be.
+
+---
+
+### Step 4 — Requirements coverage check
+
+Map each requirement from Step 2 against the changed code:
+
+| Requirement | Covered? | Where |
+|---|---|---|
+| [Requirement 1] | ✅ / ❌ / ⚠️ Partial | [file:line or "not found"] |
+
+**✅ Covered**: code explicitly implements this behavior
+**❌ Missing**: no code implements this requirement
+**⚠️ Partial**: partially implemented — describe what's missing
+
+Flag any requirement that is ❌ or ⚠️ as a blocker before PR.
+
+---
+
+### Step 5 — Edge case and test adequacy check
+
+**Edge cases to check** (based on the type of change):
+- Empty input, zero values, negative numbers
+- Maximum/minimum boundary values
+- Concurrent or repeated invocations
+- Failure of downstream dependencies (DB down, API timeout)
+- Unexpected input types
+
+**Test adequacy check**:
+- Does a test exist for each requirement from Step 2?
+- Do tests cover the unhappy path (errors, empty results, invalid input)?
+- Are tests testing behavior or implementation details? (behavior tests survive refactors; implementation tests don't)
+- Is there a test that would catch a regression if this code was accidentally reverted?
+
+If tests are missing for a requirement or critical edge case: flag as a finding, not just a suggestion.
+
+---
+
+### Step 6 — Use sequential-thinking to consolidate
+
+Call `sequentialthinking` with:
+> "Given these review findings [list from Steps 3–5], which issues must be fixed before this PR can be merged, which are suggestions, and what specific question would a senior engineer ask about this code?"
+
+Use the output to produce the final report.
+
+---
+
+## Output format
+
+```
+### b-review: [task / PR title]
+
+**Diff scope**: [N files changed, +X -Y lines]
+**Requirements baseline**: [plan file / $ARGUMENTS / user-stated]
+
+---
+
+#### Logic correctness
+✅ No issues found
+— or —
+❌ [Issue]: [file:line] — [what's wrong] → [what it should do]
+
+---
+
+#### Requirements coverage
+| Requirement | Status | Notes |
+|---|---|---|
+| [req] | ✅ / ❌ / ⚠️ | [detail] |
+
+---
+
+#### Edge cases & test adequacy
+✅ Covered
+— or —
+⚠️ Missing test: [behavior] — [why it matters]
+❌ Missing test: [critical behavior] — [risk if untested]
+
+---
+
+#### Reviewer questions
+> [Question a senior engineer would ask about this code]
+
+---
+
+#### Verdict
+**[READY FOR PR / NEEDS FIXES]**
+
+Blockers (must fix before PR):
+- [item]
+
+Suggestions (non-blocking):
+- [item]
+```
+
+---
+
+## Rules
+
+- Never review without a requirements baseline — a review without knowing what was intended produces noise, not signal
+- Blocker = anything that would cause a reviewer to request changes before merge
+- Suggestion = improvement that does not block correctness or requirement fulfillment
+- Do not re-run automated checks (lint, tests) — b-gate owns that; b-review owns human judgment
+- If logic is too complex to understand without running it, say so — do not guess
+- Keep the diff scope in mind: a 3-line fix needs a lighter review than a 200-line feature
+- If requirements are not fulfillable with the current implementation, state clearly: "Requirement X is not met — the implementation does Y instead of Z"

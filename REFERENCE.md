@@ -8,11 +8,15 @@ For quick overview and installation, see [README.md](README.md).
 ### b-plan
 
 Decomposes any non-trivial task into ordered steps, dependencies, and risks before
-any implementation begins. Uses `sequential-thinking` to reason through the happy path,
-identify blockers, and surface unknowns. For tasks that modify existing code, scans
-the codebase first with `jcodemunch` (`suggest_queries` → `get_repo_outline` →
+any implementation begins. Includes a built-in **feasibility gate (Step 0)** — run
+conditionally when scope is uncertain, to confirm the Understanding Lock and check for
+architectural blockers before planning. Uses `sequential-thinking` to reason through
+the happy path, identify blockers, and surface unknowns. For tasks that modify existing
+code, scans the codebase first with `jcodemunch` (`suggest_queries` → `get_repo_outline` →
 `get_file_outline` batch, `get_file_tree` for scoped dirs) so the plan references real
-file paths and respects existing patterns.
+file paths and respects existing patterns. The decomposition step includes an
+**architecture trade-off checkpoint** — surfaces structural choices and documents the
+decision explicitly.
 
 **Good triggers:**
 ```
@@ -23,16 +27,23 @@ where do I start with the payment gateway integration?
 ```
 
 **Output:** Plan file written to `.claude/b-plans/[task-slug].md` in the current
-project root — with ordered steps (checkbox format), dependency map, risk flags, and
-unknowns marked as `b-docs` or `b-research` calls. b-analyze and b-docs findings are
-appended to the same file for use in the execution session.
+project root — with ordered steps (checkbox format), dependency map, risk flags, unknowns
+marked as `b-docs` or `b-research` calls, and an optional `## Feasibility` section when
+Step 0 ran. b-analyze and b-docs findings are appended to the same file for use in
+the execution session.
+
+**Feasibility gate (Step 0):** Runs when task scope is uncertain or decision is not
+yet made. Confirms the Understanding Lock (one-sentence feature description + success
+criteria), quick architecture scan for blockers, and effort estimate. Skip if task is
+clearly scoped, user has already decided to proceed, or it is ≤3 steps / single-file.
 
 **Rule:** Never implement in the same session as planning for tasks with 5+ steps.
 End session 1 with the plan file, open a new session to execute.
 
-**Execution index refresh:** During plan execution, calls `index_file` on each modified file after each step to keep jcodemunch index fresh for the self-review step.
+**Execution:** After all steps complete, runs **b-gate** (not b-analyze) as the final
+quality check. Index refresh: calls `index_file` on each modified file after each step.
 
-**English-only plan files:** Plan files are always written in English — regardless of the user's query language. This ensures plan files remain consistent and usable across language-switching sessions.
+**English-only plan files:** Plan files are always written in English — regardless of the user's query language.
 
 ---
 
@@ -86,6 +97,129 @@ Context7 is used automatically when the topic is a library or framework.
 
 ---
 
+
+### b-tdd
+
+Enforces TDD discipline during implementation: detects test stack, enforces the Iron
+Law (no production code before a failing test exists), and drives each implementation
+step through a full Red-Green-Refactor cycle. No MCP required — uses Bash to run tests.
+Stack auto-detected from `package.json`, `pyproject.toml`, `go test` conventions.
+
+**Good triggers:**
+```
+b-tdd
+test first
+viết test trước
+red-green-refactor
+```
+
+**Output:** Per-step RGR checkpoint log (🔴 Red → 🟢 Green → ✅ Refactor). Final
+summary with test pass count. Handoff to b-gate when all steps are complete.
+
+**Iron Law:** Never writes production code before a failing test. Documents any
+exception with `// b-tdd exception: [reason]`.
+
+**Distinction from b-gate:** b-tdd governs discipline during coding. b-gate validates
+the finished result.
+
+---
+
+### b-gate
+
+Mandatory quality gate — runs after all implementation steps are done. Detects stack
+from config files and runs only checks that are present: **lint → typecheck → tests →
+security → clean-code**. Hard stops on lint failures, typecheck failures, test failures,
+and high/critical security findings. Soft blocks (warn, continue) on medium/low security
+and formatting issues. Uses Bash only — no MCP required.
+
+**Good triggers:**
+```
+b-gate
+check quality
+kiểm tra chất lượng
+validate before done
+```
+
+**Stack detection:** checks for `.eslintrc*`, `tsconfig.json`, `pytest.ini`, `package-lock.json`,
+`.prettierrc*`, `.golangci.yml`, etc. Skips any check with no config — does not fail
+because of missing tooling.
+
+**Output:** Gate report listing each check with status (✅ PASSED / ❌ FAILED / ⚠️ not configured).
+Clear failure message with specific action when any hard stop occurs.
+
+**Rule:** Never passes with unresolved hard failures. On failure, fix the failing check
+and re-run that check only before running the full gate again.
+
+**Distinction from b-tdd:** b-gate validates the finished result. b-tdd enforces
+discipline before and during coding.
+
+**Distinction from b-analyze:** b-gate runs automated tooling (lint, tests, security).
+b-analyze does deep structural analysis — call graphs, complexity, duplication.
+
+---
+
+### b-review
+
+Pre-PR human-judgment review on changed code. Reads the git diff, establishes requirements
+baseline from the plan file (`.claude/b-plans/`) or `$ARGUMENTS`, then checks three
+dimensions: logic correctness (control flow, null handling, async safety, side effects),
+requirements coverage (maps each requirement to changed code — ✅/❌/⚠️ Partial), and
+test adequacy (behavior coverage, unhappy paths, regression safety). Uses
+`sequentialthinking` to consolidate findings and surface what a senior engineer would
+flag. Does not run automated tooling — that is b-gate's role.
+
+**Good triggers:**
+```
+b-review
+b-review: add retry logic to email queue
+review before PR
+kiểm tra logic trước khi push
+what would a reviewer flag?
+```
+
+**Output:** Structured checklist — logic findings, requirements coverage table,
+edge case / test adequacy notes, reviewer questions, and a READY FOR PR / NEEDS FIXES
+verdict with blockers vs suggestions clearly separated.
+
+**Distinction from b-analyze:** b-analyze is pre-implementation structural review
+(complexity, duplication, coupling). b-review is post-implementation correctness review
+(logic, requirements, tests). Different timing, different questions.
+
+**Distinction from b-gate:** b-gate runs lint/typecheck/tests/security automatically.
+b-review checks whether the code does the right thing — automated tools cannot answer that.
+
+**Handoff:** READY FOR PR → run `b-commit`. NEEDS FIXES → fix blockers, re-run b-gate if
+code changed, then b-review again.
+
+---
+
+### b-commit
+
+Reads `git diff HEAD` to understand the change, then outputs a ready-to-use commit
+message and PR description — nothing more. Does not stage, commit, push, or create a
+PR. Commit message follows conventional commits format: `<type>(<scope>): <subject>`
+(imperative, ≤72 chars, behavior-level). Body explains *why*, not *what*. PR
+description uses structured sections: Summary, Why, Changes, Test plan, Notes.
+Flags mixed-concern diffs and suggests splitting, but does not refuse to produce output.
+
+**Good triggers:**
+```
+b-commit
+b-commit: add retry logic to email queue
+tạo commit
+viết commit message
+PR description
+```
+
+**Output:** Commit message block + PR description block, ready to copy-paste.
+Flags mixed commits with a ⚠️ note if detected.
+
+**Distinction from b-gate:** b-gate runs automated checks. b-commit produces text only.
+
+**Prerequisite:** b-gate should have passed before running b-commit.
+
+---
+
 ### b-analyze
 
 Deep code analysis using jcodemunch — maps structure, measures complexity, identifies
@@ -100,6 +234,9 @@ For dbt/SQL projects: `search_columns`. For High findings matching a named anti-
 calls `brave_web_search`. Uses `sequentialthinking` to produce a sprint-prioritized
 action list. Does not fix anything; produces findings only.
 
+**Role:** Pre-implementation understanding and standalone code review only. Not called
+as a post-implementation self-review — use **b-gate** for that.
+
 **Good triggers:**
 ```
 b-analyze: review the service layer before refactoring
@@ -113,6 +250,9 @@ and recommended next steps.
 
 **Distinction from b-debug:** Use b-analyze when code works but could be better.
 Use b-debug when something is broken.
+
+**Distinction from b-gate:** Use b-gate for post-implementation quality validation
+(lint, tests, security). Use b-analyze for structural understanding and code review.
 
 **b-debug handoff:** If analysis reveals a bug (broken logic, not just poor style) → state: 'Root cause analysis needed. Run: `b-debug: [symptom] in [entry point]` to trace the execution path.'
 
@@ -176,15 +316,17 @@ cài skills mới
 ## Usage patterns
 
 ### Pattern 1 — New feature
-For any non-trivial feature, use the manual pipeline:
+For any non-trivial feature, use the standard pipeline:
 ```
-1. b-plan: [task]          → confirm plan
+1. b-plan: [task]          → feasibility gate (Step 0, conditional) + confirm plan
 2. b-analyze: [module]     → understand existing code (skip if greenfield)
 3. b-docs: [library]       → fetch accurate API (skip if no libraries)
-4. [implement]             → execute plan steps
-5. b-analyze: [new code]   → self-review before shipping
+4. b-tdd                   → implement with Iron Law + Red-Green-Refactor per step
+5. b-gate                  → lint → typecheck → tests → security → clean-code
+6. b-review: [task]        → logic, requirements coverage, edge cases, test adequacy
+7. b-commit: [task]        → stage files, commit message, PR description
 ```
-b-plan now handles this automatically during execution — see its execution section.
+b-plan's execution section automates steps 2 and 5 (b-analyze at start, b-gate at end).
 
 ### Pattern 2 — Debug session
 When something is broken:
@@ -216,11 +358,13 @@ Always run this before writing integration code, even for familiar libraries.
 ### Pattern 6 — Manual pipeline
 For full control over each step:
 ```
-1. b-plan: [task]          → confirm plan
+1. b-plan: [task]          → feasibility gate (Step 0, optional) + confirm plan
 2. b-analyze: [module]     → understand existing code
 3. b-docs: [library]       → fetch accurate API
-4. [implement]             → execute plan steps
-5. b-analyze: [new code]   → self-review before shipping
+4. b-tdd                   → implement with Red-Green-Refactor discipline
+5. b-gate                  → automated quality validation
+6. b-review: [task]        → human-judgment review (logic, requirements, tests)
+7. b-commit: [task]        → stage, commit, PR
 ```
 You control the pace at each step. b-plan's execution section automates steps 2 and 5.
 
@@ -230,8 +374,8 @@ You control the pace at each step. b-plan's execution section automates steps 2 
 
 Claude Code may skip skills on tasks that appear simple. To guarantee activation:
 
-- **Prefix with the skill name**: `b-debug: ...`, `b-plan: ...`, `b-research: ...`
-- **Use explicit keywords**: "plan", "analyze", "research", "debug" trigger reliably
+- **Prefix with the skill name**: `b-plan: ...`, `b-tdd`, `b-gate`, `b-debug: ...`, `b-research: ...`
+- **Use explicit keywords**: "plan", "tdd", "gate", "analyze", "research", "debug" trigger reliably
 - **Describe complexity**: mentioning "multiple files", "new integration", "not sure why" increases trigger rate
 
 When in doubt, call the skill by name.
@@ -241,10 +385,27 @@ When in doubt, call the skill by name.
 ## Skill interaction map
 
 ```
-b-plan ──── modify existing code ────────► jcodemunch (resolve_repo → scan structure first)
+b-plan ──── Step 0 (conditional) ────────► jcodemunch (resolve_repo → get_repo_outline → get_dependency_graph)
+       ──── modify existing code ─────────► jcodemunch (resolve_repo → scan structure first)
        ──── flags unknowns ──────────────► b-docs     (library API needed, resolved inline)
                                          ► b-research  (decision needed)
        ──── execution: file modified ────► jcodemunch (index_file to keep index fresh)
+       ──── execution: all steps done ──► b-gate     (final quality check)
+
+b-tdd ───── detect test stack ────────────► Bash (read package.json / pyproject.toml / Makefile)
+      ───── run tests ──────────────────────► Bash (npm test / pytest / go test ./...)
+      ───── all steps complete ─────────────► b-gate (handoff for final validation)
+
+b-gate ──── GATE PASSED ──────────────────► b-review (human-judgment review before PR)
+
+b-review ── read diff ────────────────────► Bash (git diff HEAD)
+         ── requirements baseline ─────────► plan file (.claude/b-plans/) or $ARGUMENTS
+         ── symbol context ────────────────► jcodemunch (get_symbol_source, get_context_bundle, optional)
+         ── consolidate findings ──────────► sequential-thinking
+         ── READY FOR PR ─────────────────► b-commit
+
+b-commit ── read diff ────────────────────► Bash (git diff HEAD, git diff --stat)
+         ── output text only ──────────────► commit message + PR description (no git execution)
 
 b-docs ──── context7 has no index ──────► firecrawl   (direct scrape of official docs URL, single page)
        ──── firecrawl insufficient ────► b-research  (full multi-source research)

@@ -41,6 +41,43 @@ Graceful degradation: ✅ Possible — if jcodemunch unavailable, use Glob/Read 
 
 ## Steps
 
+### Step 0 — Feasibility gate *(conditional)*
+
+Run if: task involves significant new behavior, an unfamiliar area of the codebase, or the user has NOT yet decided to proceed.
+Skip if: task is clearly scoped, user has already decided to implement, or it is ≤3 steps / single-file change.
+
+**Understanding Lock** — before scanning code, confirm:
+- **What does the user want?** State the feature in one sentence. Ask the user to confirm.
+- **What does "done" look like?** List 2–4 concrete success criteria.
+- **Any hard constraints?** (Performance, compatibility, tech stack limits, deadline.)
+- **Is the decision already made?** If yes, skip this step entirely — move to Step 1.
+
+If the user confirms the understanding, proceed. If they correct it, update and re-confirm once.
+Do not loop more than once — if scope is still unclear after one correction, ask one focused clarifying question.
+
+**Quick feasibility scan** — once scope is locked, check:
+1. Does the current architecture support this? Use jcodemunch (`get_repo_outline`, `get_dependency_graph`) or Glob/Read if jcodemunch is unavailable.
+2. Are there blockers? (Missing infrastructure, incompatible dependencies, fundamental architectural gaps.)
+3. Effort estimate: S (hours) / M (1–2 days) / L (3–5 days) / XL (1–2 weeks) / XXL (weeks+).
+
+**Scope of Step 0:** This is a *lightweight* feasibility gate — architecture scan + blocker check + effort estimate. It covers most S–L tasks. It does NOT cover: library capability verification (use `b-docs`), blast radius analysis on large codebases, schema readiness for dbt/SQL, or deep external constraint research.
+
+**Gate outcome:**
+- No blockers, effort S–L → proceed to Step 1
+- No blockers, effort XL–XXL AND any of the following apply → **stop and run a dedicated research session before planning**: unfamiliar architectural pattern (event sourcing, CQRS, real-time sync), unverified library capability, large blast radius, third-party service constraints unknown. Use `b-docs` or `b-research` to resolve these, then return to b-plan.
+- No blockers, effort XL–XXL, all constraints known → surface scope to user, confirm, then proceed to Step 1
+- Blocker found → state it clearly with a workaround (if any) or recommend descoping; do not plan around an unresolved blocker
+
+Append a `## Feasibility` section to the plan file (optional — only if Step 0 was run):
+```markdown
+## Feasibility
+**Effort**: [S/M/L/XL/XXL]
+**Blockers**: [none / description]
+**Assumptions confirmed**: [list]
+```
+
+---
+
 ### Step 1 — Clarify scope
 
 Before planning, confirm:
@@ -84,6 +121,11 @@ Think through:
 - **Happy path**: the sequence of steps assuming everything works
 - **Dependencies**: which steps block others, which can run in parallel
 - **Risks**: where things are most likely to go wrong, and what the fallback is
+
+**Architecture trade-off checkpoint** — if the task involves a structural decision (e.g., new module vs extending existing, sync vs async, REST vs event-driven), surface it explicitly:
+- State the 2–3 viable approaches and the key trade-offs (complexity, performance, coupling)
+- Pick one and document the reason
+- Do not leave architecture decisions implicit inside a step description
 
 ---
 
@@ -169,6 +211,11 @@ Language: always English — write plan files in English regardless of the user'
 - Need b-docs: [library] — [what to verify]
 - Need decision: [question for user]
 - Assuming: [assumption that may not hold]
+
+## Feasibility *(optional — only if Step 0 was run)*
+**Effort**: [S/M/L/XL/XXL]
+**Blockers**: [none / description]
+**Assumptions confirmed**: [list]
 ```
 
 ## Execution (in a new session)
@@ -177,11 +224,13 @@ Plan files are always in English. When a new session opens with `execute plan fr
 
 1. Read the plan file
 2. If the plan modifies existing code and no `## Context` section exists → run `b-analyze` on the relevant modules first, append findings as `## Context` to the plan file
-3. Execute steps in order, checking off each `- [ ]` → `- [x]` as it completes. After each step that modifies a file, call `index_file` on that file to keep the jcodemunch index fresh for the self-review in step 6.
+3. Execute steps in order. For each step that writes production code → apply **b-tdd** (Iron Law: write a failing test first, then implement, then refactor); b-tdd checks off the plan file step after each RGR cycle completes. For non-production-code steps (config, migration, docs, deletion) → check off `- [ ]` → `- [x]` directly after the step completes. After each step that modifies a file, call `index_file` on that file to keep the jcodemunch index fresh.
 4. Re-evaluate remaining steps if something unexpected happens mid-execution
 5. **If a step fails**: (a) document the failure in the plan file by changing `- [ ]` to `- [❌] Step N — [brief failure reason]`; (b) evaluate whether subsequent steps that depend on this step are now blocked; (c) if any blocking dependency exists, pause and inform the user before continuing. Do not silently skip failed steps.
-6. After all steps complete → run `b-analyze` on the changed code as a self-review. Fix any 🔴 High findings before presenting to user. Note 🟡/🟢 findings as follow-ups.
-7. Update the file with final status when done
+6. After all steps complete → run **b-gate** on the changed files. Fix any hard failures (lint, typecheck, test, high-severity security) before proceeding. Note soft warnings as follow-ups.
+7. After b-gate passes → run **b-review** to verify logic correctness and requirements coverage. Fix any blockers b-review surfaces.
+8. After b-review gives READY FOR PR → run **b-commit** to generate commit message and PR description.
+9. Update the plan file with final status when done.
 
 ---
 

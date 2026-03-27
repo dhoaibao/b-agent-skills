@@ -29,6 +29,7 @@ b-debug is for code that is broken. If there's an error message → use b-debug 
 - Something is broken and needs debugging → use **b-debug**
 - Planning a new task or sequencing work → use **b-plan**
 - Quick fact lookup or library API question → use **b-quick-search** or **b-docs**
+- Post-implementation quality validation (lint, tests, security) → use **b-gate**
 
 ## Tools required
 

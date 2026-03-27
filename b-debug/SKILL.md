@@ -9,8 +9,12 @@ description: >
 
 # b-debug
 
+$ARGUMENTS
+
 Systematic, hypothesis-driven bug tracing: understand code structure first, form
 ranked hypotheses, locate root cause, then fix. Never jump straight to patching.
+
+If `$ARGUMENTS` is provided, treat it as the error message or symptom — skip asking for symptoms in Step 1 and proceed directly with what was given.
 
 ## When to use
 
@@ -154,7 +158,7 @@ After applying the fix:
 - State what behavior should now change and how to confirm it
 - Suggest the minimal test to verify (a specific request, a unit test, a log line to check)
 - If the fix involved a config/env change, remind the user to restart the process
-- If the fix introduced new code (new function, new module) → optionally run `b-analyze: [fixed module]` to verify no new complexity or duplication was introduced.
+- If the fix introduced new code (new function, new module) → run **b-gate** on the changed files to validate lint, tests, and security before closing the bug. For structural review of the new code → run `b-analyze: [fixed module]` separately.
 
 ---
 

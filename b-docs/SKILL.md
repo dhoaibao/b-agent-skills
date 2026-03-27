@@ -10,8 +10,12 @@ description: >
 
 # b-docs
 
+$ARGUMENTS
+
 Fetch versioned, accurate documentation from Context7 before writing any library or
 SDK code. Prevents hallucinated APIs, wrong method signatures, and version mismatches.
+
+If `$ARGUMENTS` is provided, parse it as `[library] [topic]` (e.g. `sendgrid send email with attachments`, `bullmq retry configuration`) — skip Step 1 identification and use it directly.
 
 ## When to use
 
