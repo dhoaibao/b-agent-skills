@@ -79,3 +79,19 @@ Verify all MCPs are connected:
 
 All 5 must show `✓ Connected`:
 `context7`, `brave-search`, `firecrawl`, `jcodemunch`, `sequential-thinking`
+
+---
+
+## Codex compatibility
+
+A fully Codex-compatible version of all 12 skills is available in the [`codex/`](codex/) folder.
+
+The Codex edition adapts each skill for OpenAI Codex: skills install to `~/.agents/skills/`, use `policy.allow_implicit_invocation: true` for auto-triggering, declare MCP dependencies in frontmatter, and replace Claude Code-specific references (`CLAUDE.md` → `AGENTS.md`, `.claude/b-plans/` → `.agents/plans/`, `/mcp` → `codex mcp list`).
+
+**Quick install:**
+```bash
+git clone https://github.com/dhoaibao/b-agent-skills.git ~/.b-agent-skills
+bash ~/.b-agent-skills/codex/codex-sync.sh
+```
+
+See [`codex/README.md`](codex/README.md) for full setup instructions, MCP configuration, and known limitations.
