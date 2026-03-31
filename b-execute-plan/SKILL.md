@@ -61,8 +61,31 @@ Use `Read` to load the selected plan file content.
 **Context window warning**: after loading the plan, count total pending (`[ ]`) steps. If pending steps > 6, warn once:
 > "⚠️ This plan has N pending steps. To prevent context overflow mid-execution, consider running steps 1–5 in this session, then opening a fresh session for the remainder. Resume anytime with: `execute plan from .claude/b-plans/[file].md`"
 
-**Session step counter (file-based, context-safe)**: at Step 1 load time, count the existing `[x]` checkboxes in the plan file — store this as `baseline_completed`. After each Step 5 check-off, re-read the file and count total `[x]` checkboxes again. `session_steps = current_completed − baseline_completed`. When `session_steps` reaches 5, remind:
-> "5 steps completed this session. If context feels heavy, open a fresh session and re-invoke with the same plan file to continue."
+**Session step counter (file-based, context-safe)**: at Step 1 load time, count the existing `[x]` checkboxes in the plan file — store this as `baseline_completed`. After each Step 5 check-off, re-read the file and count total `[x]` checkboxes again. `session_steps = current_completed − baseline_completed`.
+
+**Trigger condition** (purely file-derived, survives context compression):
+```
+session_steps >= 5 AND (session_steps − 5) % 3 == 0
+```
+This fires at 5, 8, 11, 14... — no in-context flag needed.
+
+When triggered, **pause execution** and prompt:
+
+```
+⚠️ [N] steps completed this session — context may be getting heavy.
+
+To keep execution clean, you can compact this session before continuing.
+Resume command (use this after compacting):
+  execute plan from .claude/b-plans/[plan-file].md
+
+Choose:
+  1 — Compact session now, then paste the resume command above to continue
+  2 — Continue anyway (I'm tracking context myself)
+```
+
+**Do not proceed until the user replies with `1` or `2`.**
+- If `1`: halt and wait. The user will compact and re-invoke — execution resumes automatically from the next pending step via Session resume logic.
+- If `2`: continue execution. Next reminder fires 3 steps later (at N+3).
 
 This counter is derived from the file on every loop — it survives context compression.
 
@@ -215,5 +238,5 @@ Status: 3 of 6 steps complete ✓
 - **Rollback on partial failure**: if a step fails after modifying files, always check `git diff HEAD --stat` and offer `git checkout -- .` before the user retries. Never leave the repo in an undocumented partial state.
 - **NEEDS FIXES requires git evidence**: reset b-gate checkpoint only after `git diff HEAD --stat` confirms actual file changes — never on natural-language signal alone.
 - **Pipeline scope**: Orchestrate Step 0 (b-analyze, conditional) → b-tdd → b-gate → b-review → b-commit. b-plan is out of scope (use b-plan to create plans; use b-execute-plan to run them).
-- **Auto-advance on success**: Only pause for user input on: failure, ambiguous routing (no keyword match), manual steps (Priority 1), NEEDS FIXES from b-review, or parallel step choice. All other successful steps advance automatically.
+- **Auto-advance on success**: Only pause for user input on: failure, ambiguous routing (no keyword match), manual steps (Priority 1), NEEDS FIXES from b-review, parallel step choice, or session step threshold (5, 8, 11...). All other successful steps advance automatically.
 - Never autonomously trigger destructive git commands — no `git push`, `git pull`, `git commit`, `git reset --hard`, `git revert`, `git clean -f`, or `git branch -D`. Rollback (`git checkout -- .`) must be offered to the user, never auto-executed. Commits are always delegated to b-commit.
