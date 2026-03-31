@@ -10,8 +10,14 @@ description: >
 
 # b-analyze
 
+$ARGUMENTS
+
 Understand code before changing it. Use jcodemunch to map structure, measure quality,
 and surface concrete improvements — not vague suggestions.
+
+**`$ARGUMENTS` mode detection** — parse `$ARGUMENTS` before starting:
+- **`quick`**: run Step 1 and a limited Step 2 (structure map only — no quality analysis, no sequential-thinking). Allowed jcodemunch calls: `resolve_repo`, `suggest_queries`, `get_repo_outline`, `get_file_outline`. Skip: `get_dependency_graph`, `search_symbols`, `check_references`, `find_importers`. Output: structure overview only — no findings, no severity ratings.
+- **`deep`** or **absent**: run full Steps 1–5 (default behavior).
 
 ## When to use
 

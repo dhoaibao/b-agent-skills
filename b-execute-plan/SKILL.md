@@ -85,16 +85,16 @@ Show user:
 
 **Skill routing** — match keywords in the next step's description. **Check rows top-to-bottom and stop at the first match** — earlier rows take precedence:
 
-| Priority | Keyword(s) | Suggested skill |
-|---|---|---|
-| 1 (first) | "delete", "remove", "config", "migrate", "migration", "document", "update docs", "rename", "move" | No skill — non-production step. Instruct user to perform manually, then signal `done`. Check off directly. |
-| 2 | "test", "validate", "quality", "lint", "check quality" | `/b-gate` |
-| 3 | "review", "verify logic", "requirements coverage" | `/b-review` |
-| 4 | "commit", "PR description", "push" | `/b-commit` |
-| 5 (last) | "implement", "write", "code", "add", "create", "refactor", "build", "extend" | `/b-tdd` |
-| — | (no keyword match) | Ask: "Which skill for this step? (b-tdd / b-gate / b-review / b-commit / manual)" |
+| Priority | Keyword(s) | Suggested skill | Examples |
+|---|---|---|---|
+| 1 (first) | "delete", "remove", "config", "migrate", "migration", "document", "update docs", "rename", "move" | No skill — non-production step. Instruct user to perform manually, then signal `done`. Check off directly. | "create migration file", "remove deprecated route", "rename auth module", "update README" |
+| 2 | "test", "validate", "quality", "lint", "check quality" | `/b-gate` | "validate quality before PR", "run lint and tests" |
+| 3 | "review", "verify logic", "requirements coverage" | `/b-review` | "review implementation", "verify logic correctness" |
+| 4 | "commit", "PR description", "push" | `/b-commit` | "commit and push", "write PR description" |
+| 5 (last) | "implement", "write", "code", "add", "create", "refactor", "build", "extend" | `/b-tdd` | "implement retry logic", "add user service", "create auth middleware", "write notification handler" |
+| — | (no keyword match) | Ask: "Which skill for this step? (b-tdd / b-gate / b-review / b-commit / manual)" | — |
 
-Priority 1 is checked first so "create migration" routes to manual (not b-tdd) despite containing "create".
+**Priority 1 is checked first** — "create migration file" matches Priority 1 via "migration", not Priority 5 via "create". Similarly, "create config" matches Priority 1 via "config". Only "create auth middleware" (no Priority 1 keyword) falls through to Priority 5.
 
 **Invocation format varies by skill** — each skill has different $ARGUMENTS expectations. Use the correct format per skill or you will silently break downstream behavior:
 

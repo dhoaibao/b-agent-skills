@@ -31,16 +31,17 @@ All 5 MCPs must be connected. Verify with `/mcp` in Claude Code.
 
 | Skill | MCP(s) | Use when |
 |---|---|---|
-| [`b-plan`](#b-plan) | sequential-thinking, jcodemunch* | Before non-trivial coding; includes conditional feasibility gate and plan-file handoff |
-| [`b-execute-plan`](#b-execute-plan) | — (Bash + Skill only) | Orchestrating the full pipeline with guided checkpoints and state tracking |
-| [`b-tdd`](#b-tdd) | — (Bash only) | During implementation — enforce Iron Law and Red-Green-Refactor per step |
-| [`b-gate`](#b-gate) | — (Bash only) | After implementation — lint → typecheck → tests → security → clean-code |
-| [`b-review`](#b-review) | sequential-thinking, jcodemunch* | After b-gate — logic, requirements, edge cases, test adequacy |
+| [`b-plan`](#b-plan) | sequential-thinking, jcodemunch* | Before non-trivial coding; conditional feasibility gate (Step 0); Step 1 skips duplicate questions when Step 0 ran |
+| [`b-execute-plan`](#b-execute-plan) | — (Bash + Skill only) | Orchestrating the full pipeline with guided checkpoints, state tracking, and routing disambiguation (Priority 1 checked first) |
+| [`b-tdd`](#b-tdd) | — (Bash only) | During implementation — Iron Law + Red-Green-Refactor; 7-language stack detection (Node/Python/Go/Rust/Java/Ruby/PHP) |
+| [`b-gate`](#b-gate) | — (Bash only) | After implementation — lint → typecheck → tests → security → clean-code → integration/e2e (soft block) |
+| [`b-review`](#b-review) | sequential-thinking, jcodemunch* | After b-gate — logic, requirements, edge cases, test adequacy; small-change fast path (≤50 lines, ≤2 files) |
 | [`b-commit`](#b-commit) | — (Bash only) | After b-review — generate commit message and PR description text (no git execution) |
 | [`b-docs`](#b-docs) | context7, firecrawl* | Before using any library or SDK |
 | [`b-research`](#b-research) | brave-search (web+news), firecrawl, context7*, sequential-thinking*, Agent* | Deep research, tool comparison, synthesis |
-| [`b-analyze`](#b-analyze) | jcodemunch (12 tools), sequential-thinking*, brave-search* | Understand or review code before changing it (pre-implementation only) |
+| [`b-analyze`](#b-analyze) | jcodemunch (12 tools), sequential-thinking*, brave-search* | Understand or review code before changing it; `quick` mode (structure map only) or full deep analysis |
 | [`b-debug`](#b-debug) | jcodemunch (9 tools), sequential-thinking, brave-search*, firecrawl* | Trace bugs that have no obvious cause |
+| [`b-observe`](#b-observe) | jcodemunch (6 tools), sequential-thinking* | Static observability audit — missing logs, swallowed errors, metrics gaps, tracing coverage |
 
 *optional — used conditionally
 
@@ -67,7 +68,7 @@ Copy each skill folder into your Claude Code skills directory:
 
 ```bash
 # Option A — manual copy
-cp -r b-plan b-tdd b-gate b-review b-commit b-docs b-research b-analyze b-debug b-quick-search b-news b-sync ~/.claude/skills/
+cp -r b-plan b-tdd b-gate b-review b-commit b-docs b-research b-analyze b-debug b-observe b-quick-search b-news b-sync ~/.claude/skills/
 
 # Option B — use b-sync (recommended, keeps skills up to date automatically)
 git clone https://github.com/dhoaibao/b-agent-skills.git ~/.b-agent-skills && bash ~/.b-agent-skills/sync.sh

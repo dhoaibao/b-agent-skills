@@ -84,8 +84,11 @@ Append a `## Feasibility` section to the plan file (optional — only if Step 0 
 
 ### Step 1 — Clarify scope
 
-Confirm:
+**If Step 0 was run**: skip scope and end-state confirmation — already locked in Understanding Lock. Only verify:
+- (a) **Greenfield vs existing code?** Is this a new module or modifying existing files?
+- (b) **Any hard constraints not yet captured?** (Only ask if Step 0 did not already surface them.)
 
+**If Step 0 was skipped**: confirm all three:
 - **What is the end state?** What does "done" look like exactly?
 - **What already exists?** Is this greenfield or modifying existing code?
 - **What are the constraints?** Deadlines, must-not-break areas, tech stack limits?

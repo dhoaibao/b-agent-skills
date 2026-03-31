@@ -51,6 +51,7 @@ Scan the project root for config files to determine which checks are available:
 | **Tests** | `jest.config.*`, `vitest.config.*`, `pytest.ini`, `pyproject.toml [tool.pytest]`, `*_test.go` files, `Makefile` with `test` target |
 | **Security** | `npm audit` (if `package-lock.json` exists), `pip-audit` (if `requirements*.txt` exists), `govulncheck` (if Go project) |
 | **Clean code** | `prettier --check` (if `.prettierrc*` exists), `black --check` (if `pyproject.toml [tool.black]` or `.black` config exists), `gofmt -l` (Go) |
+| **Integration/E2E** | Jest files matching `*integration*` or `*e2e*`, pytest `integration` marker in config, `Makefile` with `test-integration` or `test-e2e` target, vitest project named `e2e` |
 
 For each check: if no config file is found, skip the check and note it as "not configured" — do not fail because of missing tooling.
 
@@ -58,7 +59,7 @@ For each check: if no config file is found, skip the check and note it as "not c
 
 ### Step 2 — Run checks in order
 
-Run each configured check in this fixed order. **Stop on first failure.**
+Run each configured check in this fixed order. **Stop on first failure** (hard stops: 2a–2d). Exception: **2f (Integration/E2E) is a soft block — reports warnings and continues regardless of outcome.**
 
 #### 2a. Lint
 
@@ -141,6 +142,31 @@ gofmt -l .
 
 If formatting check fails: output the files that need formatting. This is a soft block — report as a warning rather than stopping (formatting can be auto-fixed without logic risk).
 
+#### 2f. Integration/E2E tests *(soft block)*
+
+Run if any of the following are detected:
+- Jest test files matching `*integration*` or `*e2e*` pattern
+- pytest `integration` marker defined in config (`markers = integration`)
+- `Makefile` `test-integration` or `test-e2e` target
+- vitest project configured as `e2e`
+
+```bash
+# Node.js (Jest)
+npx jest --testPathPattern=integration
+
+# Node.js (Vitest)
+npx vitest run --project=e2e
+
+# Python (pytest)
+pytest -m integration
+
+# Makefile
+make test-integration
+# or: make test-e2e
+```
+
+**Soft block**: if integration tests fail, report failures as a warning and continue — do not stop the gate. Integration tests often require external services (database, queue, third-party API) that may not be available in CI or local environments. Note the failure prominently in the gate report and recommend the user investigate before opening a PR.
+
 ---
 
 ### Step 3 — Report result
@@ -166,6 +192,9 @@ Checks run:
   ✅ Tests         — [N passed, 0 failed]
   ✅ Security      — no high/critical vulnerabilities
   ✅ Clean code    — [tool] — PASSED
+  ✅ Integration   — [N passed] (soft block — passed)
+  — or —
+  ⚠️  Integration  — [N failed] (soft block — external services may be unavailable)
 
   ⚠️  [check]      — not configured (skipped)
 

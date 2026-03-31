@@ -68,6 +68,10 @@ If the diff is large (>500 lines changed), ask the user which area to focus on f
 
 ### Step 2 — Establish requirements baseline
 
+**Small-change fast path** — check diff scope from Step 1 first:
+- If diff is **≤50 lines AND ≤2 files** → small-change mode: accept any non-empty requirements baseline (one sentence is sufficient). Skip the vague-response enforcement loop below. Proceed directly with whatever context the user provides.
+- If diff is **>50 lines OR >2 files** → full enforcement applies (continue with the standard process below).
+
 Determine what the code was *supposed* to do:
 
 1. **Check for plan file** — look for `.claude/b-plans/[task-slug].md`. If found, read the `## Steps` section and the original scope statement. This is the primary requirements source.

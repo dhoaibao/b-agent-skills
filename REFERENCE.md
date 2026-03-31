@@ -36,6 +36,8 @@ yet made. Confirms the Understanding Lock (one-sentence feature description + su
 criteria), quick architecture scan for blockers, and effort estimate. Skip if task is
 clearly scoped, user has already decided to proceed, or it is ≤3 steps / single-file.
 
+**Step 0/1 de-duplication:** If Step 0 ran, Step 1 skips the scope/end-state questions (already locked in Understanding Lock) and only verifies: (a) greenfield vs existing code, and (b) any hard constraints not yet captured. Avoids asking the same questions twice.
+
 **Rule:** Never implement in the same session as planning for tasks with 5+ steps.
 End session 1 with the plan file, open a new session to execute.
 
@@ -67,7 +69,7 @@ orchestrate the pipeline
 1. Locate plan file: from argument if provided; if none, Glob `.claude/b-plans/*.md` — if multiple exist, list with timestamps and ask (never auto-select). **Session resume**: completed (`[x]`) steps are skipped automatically.
    - **Context window warning**: if pending steps > 6, warn once and suggest splitting at step 5.
 2. Parse step checkboxes (`- [ ] Step N` / `- [x]` / `- [❌] Step N — reason`).
-3. Display state (✓ / ❌ / ○). Detect skill from keywords — **non-production keywords (delete/remove/config/migrate/document/rename) are checked first** to prevent "create migration" routing to b-tdd. Invocation format is skill-specific: b-tdd → `[plan-file]:[N]`; b-review → `[plan-file]`; b-gate/b-commit → no plan args. Check `## Dependencies` for blocking failures and parallel declarations (offer parallel for b-tdd steps only).
+3. Display state (✓ / ❌ / ○). Detect skill from keywords — **non-production keywords (delete/remove/config/migrate/document/rename) are checked first (Priority 1)** to prevent "create migration" or "create config" routing to b-tdd despite containing "create". Only "create X" with no Priority 1 keyword falls through to Priority 5 (b-tdd). Routing table now includes concrete examples per row. Invocation format is skill-specific: b-tdd → `[plan-file]:[N]`; b-review → `[plan-file]`; b-gate/b-commit → no plan args. Check `## Dependencies` for blocking failures and parallel declarations (offer parallel for b-tdd steps only).
 4. Wait for user signal. On failure: capture reason, write `- [❌] N — reason`, run `git diff HEAD --stat` for partial changes, offer `git checkout -- .` rollback before retrying.
 5. Update plan checkbox (`[ ]` → `[x]`). Re-read file to recompute session step counter (`current [x] − baseline [x] at session start` — file-based, survives context compression).
 6. Loop until done. **NEEDS FIXES re-entry**: user signals fix → run `git diff HEAD --stat` to confirm real changes → ask "cosmetic or new behavior?" → cosmetic: reset b-gate and re-run; new behavior: route through b-tdd first, then b-gate, then b-review. Iron Law is never bypassed.
@@ -159,7 +161,7 @@ Context7 is used automatically when the topic is a library or framework.
 Enforces TDD discipline during implementation: detects test stack, enforces the Iron
 Law (no production code before a failing test exists), and drives each implementation
 step through a full Red-Green-Refactor cycle. No MCP required — uses Bash to run tests.
-Stack auto-detected from `package.json`, `pyproject.toml`, `go test` conventions.
+Stack auto-detected across 7 languages: **Node.js** (`package.json`), **Python** (`pyproject.toml`/`setup.cfg`), **Go** (`_test.go` files), **Rust** (`Cargo.toml` + `#[test]` → `cargo test`), **Java/Kotlin** (`build.gradle`/`pom.xml` → `./gradlew test` or `mvn test`), **Ruby** (`Gemfile` with rspec/minitest → `bundle exec rspec`), **PHP** (`composer.json` with phpunit → `./vendor/bin/phpunit`). Fallback: `Makefile` `test` target, `scripts/test.*`, or any `*Test*`/`*_spec.*` file pattern.
 
 **Good triggers:**
 ```
@@ -192,9 +194,8 @@ the finished result.
 
 Mandatory quality gate — runs after all implementation steps are done. Detects stack
 from config files and runs only checks that are present: **lint → typecheck → tests →
-security → clean-code**. Hard stops on lint failures, typecheck failures, test failures,
-and high/critical security findings. Soft blocks (warn, continue) on medium/low security
-and formatting issues. Uses Bash only — no MCP required.
+security → clean-code → integration/e2e (soft block)**. Hard stops on lint failures, typecheck failures, test failures,
+and high/critical security findings. Soft blocks (warn, continue) on: medium/low security, formatting issues, and integration/e2e test failures (integration tests often require external services). Uses Bash only — no MCP required.
 
 **Good triggers:**
 ```
@@ -204,9 +205,7 @@ kiểm tra chất lượng
 validate before done
 ```
 
-**Stack detection:** checks for `.eslintrc*`, `tsconfig.json`, `pytest.ini`, `package-lock.json`,
-`.prettierrc*`, `.golangci.yml`, etc. Skips any check with no config — does not fail
-because of missing tooling.
+**Stack detection:** checks for `.eslintrc*`, `tsconfig.json`, `pytest.ini`, `package-lock.json`, `.prettierrc*`, `.golangci.yml`, etc. Also detects integration/e2e test configuration: Jest files matching `*integration*`/`*e2e*`, pytest `integration` marker, `Makefile` `test-integration`/`test-e2e` targets, vitest `e2e` project. Skips any check with no config — does not fail because of missing tooling.
 
 **Output:** Gate report listing each check with status (✅ PASSED / ❌ FAILED / ⚠️ not configured).
 Clear failure message with specific action when any hard stop occurs.
@@ -231,6 +230,8 @@ requirements coverage (maps each requirement to changed code — ✅/❌/⚠️ 
 test adequacy (behavior coverage, unhappy paths, regression safety). Uses
 `sequentialthinking` to consolidate findings and surface what a senior engineer would
 flag. Does not run automated tooling — that is b-gate's role.
+
+**Small-change fast path:** If diff is ≤50 lines AND ≤2 files, accepts any non-empty requirements baseline (one sentence is sufficient) and skips the vague-response enforcement loop. Full enforcement applies for diffs >50 lines or >2 files.
 
 **Good triggers:**
 ```
@@ -298,6 +299,8 @@ For dbt/SQL projects: `search_columns`. For High findings matching a named anti-
 calls `brave_web_search`. Uses `sequentialthinking` to produce a sprint-prioritized
 action list. Does not fix anything; produces findings only.
 
+**Quick/deep mode:** Pass `quick` as `$ARGUMENTS` to run Steps 1–2 only (structure map — no quality analysis, no sequential-thinking). Allowed calls in quick mode: `resolve_repo`, `suggest_queries`, `get_repo_outline`, `get_file_outline`. Quick mode output is structure overview only (no findings, no severity ratings). Default (no args or `deep`) runs full Steps 1–5.
+
 **Role:** Pre-implementation understanding and standalone code review only. Not called
 as a post-implementation self-review — use **b-gate** for that.
 
@@ -319,6 +322,43 @@ Use b-debug when something is broken.
 (lint, tests, security). Use b-analyze for structural understanding and code review.
 
 **b-debug handoff:** If analysis reveals a bug (broken logic, not just poor style) → state: 'Root cause analysis needed. Run: `b-debug: [symptom] in [entry point]` to trace the execution path.'
+
+---
+
+### b-observe
+
+Static observability audit — finds missing log statements, silently swallowed errors,
+missing metrics instrumentation, and absent tracing context propagation in source code.
+Does **not** do runtime profiling or APM configuration — static analysis only.
+Uses jcodemunch to map instrumented vs uninstrumented call sites: `search_text` for
+log/trace/metric patterns, `find_references` on logger/tracer symbols to identify files
+with zero instrumentation, `get_symbol_source` to read error handler bodies,
+`get_file_outline` (batch) to enumerate all handlers. Uses `sequentialthinking`
+to rank findings by on-call impact.
+
+**Good triggers:**
+```
+b-observe: the payment service
+observability audit
+find missing logs in background workers
+kiểm tra log trong service xử lý đơn hàng
+tìm lỗi bị nuốt trong error handlers
+tracing coverage audit
+```
+
+**Output:** Grouped findings by gap type — missing logs (🔴/🟡/🟢), missing metrics,
+missing tracing spans. Metrics snapshot (handlers audited, % uninstrumented).
+Ordered remediation list ranked by "which gap causes the most confusion during an outage".
+
+**Scope:** Static analysis only — no runtime profiling, no APM config, no log format
+validation. `console.log` flagged as Medium (observable but unstructured), not High.
+If no instrumentation library detected at all → 🔴 High at the top of the report.
+
+**Distinction from b-analyze:** b-analyze covers structural quality (complexity,
+coupling, duplication). b-observe covers instrumentation completeness — orthogonal concern.
+
+**Distinction from b-debug:** b-debug traces live failures. b-observe prevents
+the silence that makes future failures invisible.
 
 ---
 
@@ -489,7 +529,9 @@ b-debug ─── trace execution path ────────► jcodemunch (r
                                          ► firecrawl_map (if scrape empty, optional)
                                          ► b-docs      (verify API behavior)
 
-b-analyze ── index or resolve ────────────► jcodemunch (resolve_repo → index_folder if needed)
+b-analyze ── quick mode ($ARGS=quick) ─────► jcodemunch (resolve_repo + suggest_queries + get_repo_outline + get_file_outline only)
+          ── full/deep mode (default) ────► jcodemunch (full 12-tool suite)
+          ── index or resolve ────────────► jcodemunch (resolve_repo → index_folder if needed)
           ── unfamiliar codebase ─────────► jcodemunch (suggest_queries first)
           ── symbol inspection ───────────► jcodemunch (get_symbol_source, single or batch)
           ── dead code ─────────────────── ► jcodemunch (check_references + find_importers)
@@ -500,6 +542,13 @@ b-analyze ── index or resolve ────────────► jcodem
           ── findings need refactor ──────► b-plan    (sequence it safely)
           ── named anti-pattern found ────► brave-search (refactoring solution lookup, optional)
           ── prioritize sprint items ─────► sequential-thinking (ordered ROI action list, optional)
+
+b-observe ── detect libraries ──────────► jcodemunch (search_text for log/trace/metric patterns)
+          ── map instrumented files ──────► jcodemunch (find_references on logger/tracer symbols)
+          ── read error handlers ─────────► jcodemunch (get_symbol_source)
+          ── enumerate handlers ──────────► jcodemunch (get_file_outline batch)
+          ── rank by on-call impact ──────► sequential-thinking (ordered remediation list, optional)
+          ── findings need fixes ─────────► b-plan (sequence remediation safely)
 
 b-research ── news query ─────────────────► brave_news_search (freshness: pd/pw)
            ── scrape returns empty ────────► firecrawl_map (discover correct URL, then retry)

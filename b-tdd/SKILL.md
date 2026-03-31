@@ -61,8 +61,12 @@ Before writing any code, detect the project's test tooling:
 
 - **Node.js**: look for `jest`, `vitest`, `mocha` in `package.json` (devDependencies or scripts)
 - **Python**: look for `pytest`, `unittest` in `pyproject.toml`, `setup.cfg`, or `requirements*.txt`
-- **Go**: built-in `go test` — look for `_test.go` files for naming conventions.
-- **Other**: look for a `Makefile` `test` target or `scripts/test.*` file.
+- **Go**: built-in `go test` — look for `_test.go` files for naming conventions
+- **Rust**: look for `[dev-dependencies]` or `#[test]` in `Cargo.toml` / `*.rs` files — run command: `cargo test`
+- **Java/Kotlin**: look for `build.gradle`, `build.gradle.kts`, or `pom.xml` — run command: `./gradlew test` (Gradle) or `mvn test` (Maven)
+- **Ruby**: look for `Gemfile` with `rspec` or `minitest` — run command: `bundle exec rspec` or `ruby -Itest`
+- **PHP**: look for `composer.json` with `phpunit` — run command: `./vendor/bin/phpunit`
+- **Fallback**: look for a `Makefile` `test` target, `scripts/test.*` file, or any `*Test*` / `*_spec.*` file pattern.
 
 If no test tooling is found: stop and inform the user — "No test runner detected. Add a test framework before applying TDD." Do not proceed with production code.
 
