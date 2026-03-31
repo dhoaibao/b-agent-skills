@@ -38,8 +38,9 @@ clearly scoped, user has already decided to proceed, or it is ≤3 steps / singl
 
 **Step 0/1 de-duplication:** If Step 0 ran, Step 1 skips the scope/end-state questions (already locked in Understanding Lock) and only verifies: (a) greenfield vs existing code, and (b) any hard constraints not yet captured. Avoids asking the same questions twice.
 
-**Rule:** Never implement in the same session as planning for tasks with 5+ steps.
-End session 1 with the plan file, open a new session to execute.
+**Rule:** Never execute in the same session as planning — always save to a plan file and open a new session with b-execute-plan.
+
+**Git safety:** Never triggers destructive git commands. If a commit is needed, delegates to b-commit.
 
 **Execution:** After all steps complete, runs **b-gate** (not b-analyze) as the final
 quality check. Index refresh: calls `index_file` on each modified file after each step.
@@ -51,10 +52,10 @@ quality check. Index refresh: calls `index_file` on each modified file after eac
 ### b-execute-plan
 
 Orchestrates the full development pipeline (b-analyze → b-tdd → b-gate → b-review → b-commit) by
-reading plan files, tracking step completion, and prompting for each stage. Reads
-`.claude/b-plans/*.md` files, parses checkbox state, displays progress, and guides
-execution with explicit checkpoints. After each step completes, updates the plan file
-and moves to the next stage.
+reading plan files, tracking step completion, and auto-advancing through successful stages. Reads
+`.claude/b-plans/*.md` files, parses checkbox state, displays progress, invokes each skill
+automatically, and moves to the next stage on success. Pauses only on failure, ambiguous routing,
+manual steps, NEEDS FIXES verdicts, or parallel step choices.
 
 **Good triggers:**
 ```
@@ -70,7 +71,7 @@ orchestrate the pipeline
    - **Context window warning**: if pending steps > 6, warn once and suggest splitting at step 5.
 2. Parse step checkboxes (`- [ ] Step N` / `- [x]` / `- [❌] Step N — reason`).
 3. Display state (✓ / ❌ / ○). Detect skill from keywords — **non-production keywords (delete/remove/config/migrate/document/rename) are checked first (Priority 1)** to prevent "create migration" or "create config" routing to b-tdd despite containing "create". Only "create X" with no Priority 1 keyword falls through to Priority 5 (b-tdd). Routing table now includes concrete examples per row. Invocation format is skill-specific: b-tdd → `[plan-file]:[N]`; b-review → `[plan-file]`; b-gate/b-commit → no plan args. Check `## Dependencies` for blocking failures and parallel declarations (offer parallel for b-tdd steps only).
-4. Wait for user signal. On failure: capture reason, write `- [❌] N — reason`, run `git diff HEAD --stat` for partial changes, offer `git checkout -- .` rollback before retrying.
+4. Invoke skill and detect outcome. **On success**: auto-advance to step 5 (no user input needed). **On failure**: pause, capture reason, write `- [❌] N — reason`, run `git diff HEAD --stat` for partial changes, offer `git checkout -- .` rollback before retrying. **Manual steps (Priority 1)**: instruct user, then wait for `done`/`next`/`continue` — the only required pause in the happy path.
 5. Update plan checkbox (`[ ]` → `[x]`). Re-read file to recompute session step counter (`current [x] − baseline [x] at session start` — file-based, survives context compression).
 6. Loop until done. **NEEDS FIXES re-entry**: user signals fix → run `git diff HEAD --stat` to confirm real changes → ask "cosmetic or new behavior?" → cosmetic: reset b-gate and re-run; new behavior: route through b-tdd first, then b-gate, then b-review. Iron Law is never bypassed.
 
@@ -86,20 +87,22 @@ Status: 3 of 6 steps complete ✓
 ○ Step 5 — Update README.md
 ○ Step 6 — Update REFERENCE.md
 
-→ Next: Step 4 — Write Output format and Rules sections
-Detected skill: /b-tdd (keyword match: 'write'). Confirm? [y/n]
-Run `/b-tdd .claude/b-plans/implement-b-execute-plan.md:4` to proceed, or type a different skill to override.
+→ Invoking Step 4 — Write Output format and Rules sections via /b-tdd (keyword match: 'write')
+[b-tdd invoked automatically with: /b-tdd .claude/b-plans/implement-b-execute-plan.md:4]
 ```
 
 **State tracking:** Parses plan file dynamically. If user manually edits the plan,
-b-execute-plan re-reads it on the next loop. Checkpoint updates are explicit and
-require user signal (`done`, `next`, or skill invocation).
+b-execute-plan re-reads it on the next loop. Checkpoint updates happen automatically
+on success; no user signal required for unambiguous skill routes.
 
 **Scope:** Orchestrates Step 0 (b-analyze, conditional) + production pipeline (b-tdd → b-gate → b-review → b-commit). b-plan is out of scope — use b-plan to create plans, b-execute-plan to run them.
 
-**Distinction from manual pipeline:** b-execute-plan provides guided checkpoints,
-state tracking, and human-in-the-loop orchestration. Users can still run the pipeline
-skills manually; b-execute-plan is an optional convenience wrapper.
+**Git safety:** Never autonomously triggers destructive git commands. Rollback (`git checkout -- .`) is offered to the user, never auto-executed. Commits are always delegated to b-commit.
+
+**Distinction from manual pipeline:** b-execute-plan auto-advances through successful
+stages, handling skill invocation and state tracking automatically. Users can still run
+pipeline skills manually; b-execute-plan eliminates the step-by-step confirmation overhead
+while preserving human control on failures, ambiguity, and NEEDS FIXES.
 
 ---
 
@@ -123,7 +126,9 @@ hướng dẫn sử dụng Zod
 and deprecation notices for the current version. Routes to implementation or lookup-only
 depending on how it was called.
 
-**Fallback chain:** context7 → firecrawl direct scrape (if library has a known official docs URL) → b-research (full research pipeline). The firecrawl fallback tries a single `firecrawl_scrape` on the official docs URL. If the scrape fails or returns <300 words, b-docs notifies the user and actively invokes b-research with the original library and topic query — it does not ask the user to run b-research manually.
+**Fallback chain:** context7 → firecrawl direct scrape (if library has a known official docs URL) → b-research (full research pipeline).
+
+**Git safety:** Never triggers destructive git commands. If a commit is needed, delegates to b-commit. The firecrawl fallback tries a single `firecrawl_scrape` on the official docs URL. If the scrape fails or returns <300 words, b-docs notifies the user and actively invokes b-research with the original library and topic query — it does not ask the user to run b-research manually.
 
 ---
 
@@ -152,6 +157,8 @@ Context7 is used automatically when the topic is a library or framework.
 **Limits:** Max 3 URLs scraped per session (5 for COMPARE queries), selected via strict source hierarchy (Tier 1 official > community > neutral). Pre-scrape filtering eliminates homepages, login pages, aggregators. Post-scrape gate discards <300 words OR topic not mentioned; stops if <2 usable sources remain (no blind rescaping). If Brave returns fewer than 3 relevant results, falls back to `firecrawl_search`. For deep multi-page documentation: use `firecrawl_crawl` + poll `firecrawl_check_crawl_status` (async — do not proceed until `status: "completed"`).
 
 **Context isolation (Step 4):** when ≥ 6 URLs need scraping, spawns a single Explore subagent with the URL list and original research question. The subagent runs all `firecrawl_scrape` calls in parallel, applies the post-scrape quality gate, and returns a compact digest (max 500 words per source with URL). Main context receives only the filtered digest — raw scraped content never floods the main context. When < 6 URLs, scrapes directly in main context. If Agent tool unavailable: falls back to direct parallel scraping in main context.
+
+**Git safety:** Never triggers destructive git commands. If a commit is needed, delegates to b-commit.
 
 ---
 
@@ -188,6 +195,8 @@ exception with `// b-tdd exception: [reason]`.
 **Distinction from b-gate:** b-tdd governs discipline during coding. b-gate validates
 the finished result.
 
+**Git safety:** Never triggers destructive git commands. If a commit is needed, delegates to b-commit.
+
 ---
 
 ### b-gate
@@ -218,6 +227,8 @@ discipline before and during coding.
 
 **Distinction from b-analyze:** b-gate runs automated tooling (lint, tests, security).
 b-analyze does deep structural analysis — call graphs, complexity, duplication.
+
+**Git safety:** Never triggers destructive git commands. If a commit is needed, delegates to b-commit.
 
 ---
 
@@ -255,6 +266,8 @@ b-review checks whether the code does the right thing — automated tools cannot
 
 **Handoff:** READY FOR PR → run `b-commit`. NEEDS FIXES → fix blockers, re-run b-gate if
 code changed, then b-review again.
+
+**Git safety:** Never triggers destructive git commands. If a commit is needed, delegates to b-commit.
 
 ---
 
@@ -323,6 +336,8 @@ Use b-debug when something is broken.
 
 **b-debug handoff:** If analysis reveals a bug (broken logic, not just poor style) → state: 'Root cause analysis needed. Run: `b-debug: [symptom] in [entry point]` to trace the execution path.'
 
+**Git safety:** Never triggers destructive git commands. If a commit is needed, delegates to b-commit.
+
 ---
 
 ### b-observe
@@ -360,6 +375,8 @@ coupling, duplication). b-observe covers instrumentation completeness — orthog
 **Distinction from b-debug:** b-debug traces live failures. b-observe prevents
 the silence that makes future failures invisible.
 
+**Git safety:** Never triggers destructive git commands. If a commit is needed, delegates to b-commit.
+
 ---
 
 ### b-debug
@@ -392,6 +409,8 @@ trigger a web lookup and `b-docs` call before hypothesis verification.
 **Post-fix index refresh:** After applying a fix, calls `index_file` on each changed file to keep jcodemunch index fresh for subsequent b-analyze calls.
 
 **Post-fix review:** If the fix introduced new code (new function, new module) → optionally run `b-analyze: [fixed module]` to verify no new complexity or duplication was introduced.
+
+**Git safety:** Never triggers destructive git commands. If a commit is needed, delegates to b-commit.
 
 ---
 

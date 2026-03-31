@@ -205,3 +205,4 @@ Note any silent catch blocks or unexpected stops in the path.
 - Silent failure points (swallowed exceptions, missing logs) are the most common cause of "no error but not working" bugs — check these first.
 - If the fix requires understanding a library's behavior, use `b-docs` to verify — don't assume.
 - Keep fixes minimal — one bug, one fix.
+- Never trigger destructive git commands — no `git push`, `git pull`, `git commit`, `git reset`, `git revert`, `git clean -f`, `git checkout -- <file>`, or `git branch -D`. If a commit is needed after completing work, delegate to b-commit.

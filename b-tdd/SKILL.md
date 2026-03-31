@@ -183,3 +183,4 @@ Tests: [N passed, 0 failed]
 - If a step has no testable logic (pure config, pure data), mark it explicitly: `[Step N: no test required — config only]`
 - Stack detection happens once per session — do not re-detect for every step.
 - Size heuristic: if a task is ≤2 files and ≤3 steps, b-tdd is still applicable but RGR cycles can be lighter.
+- Never trigger destructive git commands — no `git push`, `git pull`, `git commit`, `git reset`, `git revert`, `git clean -f`, `git checkout -- <file>`, or `git branch -D`. If a commit is needed after completing work, delegate to b-commit.

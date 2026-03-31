@@ -229,3 +229,4 @@ On pass → next step: run **b-review** to verify logic correctness and requirem
 - Never pass the gate with unresolved hard failures, even if the user asks to proceed.
 - If the gate fails, do not rerun the full suite after partial fixes — run only the failing check to confirm the fix before re-running the full gate.
 - Security check scope: only the project's direct and transitive dependencies. Do not scan external infrastructure.
+- Never trigger destructive git commands — no `git push`, `git pull`, `git commit`, `git reset`, `git revert`, `git clean -f`, `git checkout -- <file>`, or `git branch -D`. If a commit is needed after completing work, delegate to b-commit.

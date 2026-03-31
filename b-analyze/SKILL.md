@@ -222,3 +222,4 @@ Based on findings, suggest:
 - If analysis reveals a bug (broken logic, not just poor style) → state: 'Root cause analysis needed. Run: `b-debug: [symptom] in [entry point]` to trace the execution path.'
 - Keep Low findings in the report but don't let them dominate — focus on what actually matters.
 - After outputting findings, always recommend whether to proceed with `b-plan` or if the code is healthy enough to modify directly.
+- Never trigger destructive git commands — no `git push`, `git pull`, `git commit`, `git reset`, `git revert`, `git clean -f`, `git checkout -- <file>`, or `git branch -D`. If a commit is needed after completing work, delegate to b-commit.

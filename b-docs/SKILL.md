@@ -163,3 +163,4 @@ When the task spans multiple areas, run `query-docs` once per topic rather than 
 - Keep topic queries focused — broad topic = too much noise, wrong section fetched.
 - If docs are sparse or unhelpful, escalate to `b-research` to scrape official docs directly.
 - One `query-docs` call per distinct API area — don't batch unrelated topics in one fetch.
+- Never trigger destructive git commands — no `git push`, `git pull`, `git commit`, `git reset`, `git revert`, `git clean -f`, `git checkout -- <file>`, or `git branch -D`. If a commit is needed after completing work, delegate to b-commit.

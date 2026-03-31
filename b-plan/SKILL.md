@@ -164,12 +164,10 @@ If the user confirms → do NOT execute in this session. Instead, print:
 ✅ Plan saved to .claude/b-plans/[task-slug].md
 
 Open a new session and run:
-  execute plan from .claude/b-plans/[task-slug].md
+  /b-execute-plan .claude/b-plans/[task-slug].md
 ```
 
 `new session` means a fresh context (`claude` in a new terminal or `/clear`).
-
-**Exception — simple tasks (≤4 steps, single file):** plan and execute inline in the same session.
 
 ---
 
@@ -220,7 +218,7 @@ Language: always English — write plan files in English regardless of the user'
 
 ## Execution (in a new session)
 
-Plan files are always in English. When a new session opens with `execute plan from .claude/b-plans/[file].md`, use the **b-execute-plan** skill — it orchestrates the full pipeline automatically with state tracking, rollback support, and context-overflow protection.
+Plan files are always in English. When a new session opens, invoke the **b-execute-plan** skill with: `/b-execute-plan .claude/b-plans/[file].md` — it orchestrates the full pipeline automatically with state tracking, rollback support, and context-overflow protection.
 
 Pipeline overview (b-execute-plan handles all of this):
 
@@ -241,10 +239,11 @@ For plans with > 6 pending steps: b-execute-plan warns at load time and reminds 
 
 - Always write to `.claude/b-plans/` — never output the plan only in chat for non-trivial tasks.
 - Always write plan files in English — regardless of the user's query language.
-- Never execute in the same session as planning for tasks with 5+ steps — keep contexts clean.
+- Never execute in the same session as planning — always save to a plan file and open a new session with b-execute-plan.
 - Steps must be ordered by dependency — wrong order causes cascading failures.
 - Keep steps atomic — one clear action per step, not "implement the whole service layer.".
 - If a step requires a b-docs or b-research call, mark it explicitly in the Unknowns section.
 - Surface risks and assumptions proactively — a wrong assumption found at Step 1 is free; found at Step 7 it costs a rewrite.
 - If the task turns out to require 10+ steps, split it into phases — one plan file per phase.
 - During execution, check off steps as completed and update the file in real time.
+- Never trigger destructive git commands — no `git push`, `git pull`, `git commit`, `git reset`, `git revert`, `git clean -f`, `git checkout -- <file>`, or `git branch -D`. If a commit is needed after completing work, delegate to b-commit.

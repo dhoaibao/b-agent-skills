@@ -199,3 +199,4 @@ Use the result to produce an **Ordered remediation list** at the top of Recommen
 - **Distinguish swallowed errors from re-thrown**: a handler that re-throws without logging is a gap, but less severe than one that returns without logging — note the difference in severity.
 - **console.log is not structured logging**: flag `console.log/error/warn` as Medium (not High) — it's observable, but degrades log quality in production.
 - **If no instrumentation library detected**: flag this as 🔴 High at the top of the report — the service has zero observability, not just gaps.
+- Never trigger destructive git commands — no `git push`, `git pull`, `git commit`, `git reset`, `git revert`, `git clean -f`, `git checkout -- <file>`, or `git branch -D`. If a commit is needed after completing work, delegate to b-commit.

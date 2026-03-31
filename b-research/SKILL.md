@@ -240,3 +240,4 @@ The subagent runs all `firecrawl_scrape` calls in parallel (`formats: ["markdown
 - If the user asks a specific question, answer it directly in the Summary before going into detail.
 - Keep the report focused — omit irrelevant scraped content.
 - Note any sources that failed to scrape or were discarded so the user can check manually.
+- Never trigger destructive git commands — no `git push`, `git pull`, `git commit`, `git reset`, `git revert`, `git clean -f`, `git checkout -- <file>`, or `git branch -D`. If a commit is needed after completing work, delegate to b-commit.

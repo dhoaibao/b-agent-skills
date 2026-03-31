@@ -105,15 +105,17 @@ Show user:
 | `/b-review` | `[plan-file]` (no step number) | Needs requirements baseline from plan; step number meaningless |
 | `/b-commit` | no args | Reads `git diff HEAD` directly; plan context not needed |
 
-Show detected skill and ask for confirmation:
+Show routing decision and immediately invoke (no confirmation for unambiguous keyword-matched routes):
 ```
-→ Next: Step N — [description]
-Detected skill: /b-[skill] (keyword match: '[keyword]'). Confirm? [y/n]
-Run `/b-tdd .claude/b-plans/[plan-filename].md:N`   ← for b-tdd
-Run `/b-gate`                                         ← for b-gate
-Run `/b-review .claude/b-plans/[plan-filename].md`   ← for b-review
-Run `/b-commit`                                       ← for b-commit
+→ Invoking Step N — [description] via /b-[skill] (keyword match: '[keyword]')
 ```
+Then invoke using the correct format per skill (see invocation format table above).
+
+**Pause before invoking** only when:
+- No keyword match → ask: "Which skill for this step? (b-tdd / b-gate / b-review / b-commit / manual)"
+- Parallel step detected → ask y/n (see parallel step detection above)
+- Next step has `failed` status → ask retry/skip
+- Priority 1 (manual step) → instruct user to perform the action, then wait for user signal (`done`/`next`/`continue`)
 
 **Dependency blocking** — before routing, check the plan's `## Dependencies` section for sequential dependency declarations (e.g., "Step N requires Step M to be complete"). If a prerequisite step M is `[❌]`:
 ```
@@ -139,14 +141,20 @@ Do not auto-proceed past a blocking failed dependency.
 - Skip: type `skip` to leave the step as-is and advance to the next pending step
 ```
 
-### Step 4 — Wait for user signal
-Pause and wait for the user to reply. Accept any of these signals as "step complete":
-- User replies `done`, `next`, `continue`, or equivalent
-- User explicitly invokes the next skill in the pipeline
+### Step 4 — Invoke skill and detect outcome
+Invoke the skill using the format determined in Step 3. Interpret the skill output to determine success or failure:
 
-Do not advance automatically. When the user signals completion, proceed to Step 5.
+**Per-skill success signals:**
+- `b-tdd`: all tests pass and implementation is complete (green test output, "step complete", no failing assertions)
+- `b-gate`: all checks pass (no lint errors, no typecheck failures, all tests green)
+- `b-review`: "READY FOR PR" verdict → auto-advance; "NEEDS FIXES" → pause (existing NEEDS FIXES re-entry path applies)
+- `b-commit`: commit confirmed
+- **Priority 1 (manual step)**: Claude cannot perform these — instruct the user to do the action, then wait for user signal (`done`/`next`/`continue`). This is the only required pause in the happy path.
 
-**Failure handling**: if the user signals failure (e.g., "failed", "it didn't work", "error"), before halting:
+**On success**: auto-advance to Step 5 without waiting for user input.
+**On failure**: pause and invoke failure handling below.
+
+**Failure handling**: if the skill output signals failure or the user reports failure (e.g., "failed", "it didn't work", "error"), before halting:
 1. Ask the user for a brief reason (one sentence).
 2. Use `Edit` to write `- [❌] N — [brief reason from user]` in the plan file, replacing the `- [ ]` line for the current step.
 3. Check if the step was partially implemented (files modified but step not complete): run `git diff HEAD --stat`. If output shows modified files, present the rollback option:
@@ -191,9 +199,8 @@ Status: 3 of 6 steps complete ✓
 ○ Step 5 — Update README.md to document b-execute-plan
 ○ Step 6 — Update REFERENCE.md with b-execute-plan reference section
 
-→ Next: Step 4 — Write Output format and Rules sections
-Detected skill: /b-tdd (keyword match: 'write'). Confirm? [y/n]
-Run `/b-tdd .claude/b-plans/implement-b-execute-plan.md:4` to proceed, or type a different skill to override.
+→ Invoking Step 4 — Write Output format and Rules sections via /b-tdd (keyword match: 'write')
+[b-tdd invoked automatically with: /b-tdd .claude/b-plans/implement-b-execute-plan.md:4]
 ```
 
 ---
@@ -208,3 +215,5 @@ Run `/b-tdd .claude/b-plans/implement-b-execute-plan.md:4` to proceed, or type a
 - **Rollback on partial failure**: if a step fails after modifying files, always check `git diff HEAD --stat` and offer `git checkout -- .` before the user retries. Never leave the repo in an undocumented partial state.
 - **NEEDS FIXES requires git evidence**: reset b-gate checkpoint only after `git diff HEAD --stat` confirms actual file changes — never on natural-language signal alone.
 - **Pipeline scope**: Orchestrate Step 0 (b-analyze, conditional) → b-tdd → b-gate → b-review → b-commit. b-plan is out of scope (use b-plan to create plans; use b-execute-plan to run them).
+- **Auto-advance on success**: Only pause for user input on: failure, ambiguous routing (no keyword match), manual steps (Priority 1), NEEDS FIXES from b-review, or parallel step choice. All other successful steps advance automatically.
+- Never autonomously trigger destructive git commands — no `git push`, `git pull`, `git commit`, `git reset --hard`, `git revert`, `git clean -f`, or `git branch -D`. Rollback (`git checkout -- .`) must be offered to the user, never auto-executed. Commits are always delegated to b-commit.
