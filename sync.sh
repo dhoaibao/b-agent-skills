@@ -37,7 +37,7 @@ echo "  2) OpenCode"
 echo "  3) HDCode"
 echo "  4) All"
 echo ""
-read -rp "Enter choice [1/2/3/4] (default: 4): " platform_choice
+read -rp "Enter choice [1/2/3/4] (default: 4): " platform_choice </dev/tty
 platform_choice="${platform_choice:-4}"
 
 case "$platform_choice" in
