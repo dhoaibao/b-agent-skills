@@ -75,6 +75,36 @@ if [ "$sync_opencode" = true ]; then
       synced_count=$((synced_count + 1))
     done
 
+    echo "✅ OpenCode: $synced_count agents synced${stale_count:+, $stale_count removed} → $OPENCODE_AGENTS_DST"
+
+  else
+    echo "ℹ️  No opencode/ folder found — skipping OpenCode agent sync"
+  fi
+fi
+
+# ── 4. Sync HDCode agents ─────────────────────────────────────────────────────
+if [ "$sync_hdcode" = true ]; then
+  if [ -d "$OPENCODE_AGENTS_SRC" ]; then
+    mkdir -p "$HDCODE_AGENTS_DST"
+
+    stale_count=0
+    for existing in "$HDCODE_AGENTS_DST"/*.md; do
+      [ -e "$existing" ] || continue
+      if [ -L "$existing" ] && [ ! -f "$OPENCODE_AGENTS_SRC/$(basename "$existing")" ]; then
+        rm "$existing"
+        stale_count=$((stale_count + 1))
+      fi
+    done
+
+    synced_count=0
+    for agent_file in "$OPENCODE_AGENTS_SRC"/*.md; do
+      [ -f "$agent_file" ] || continue
+      target="$HDCODE_AGENTS_DST/$(basename "$agent_file")"
+      { [ -L "$target" ] || [ -f "$target" ]; } && rm "$target"
+      ln -s "$agent_file" "$target"
+      synced_count=$((synced_count + 1))
+    done
+
     echo "✅ HDCode: $synced_count agents synced${stale_count:+, $stale_count removed} → $HDCODE_AGENTS_DST"
 
   else
