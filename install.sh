@@ -35,11 +35,21 @@ echo "  1) OpenCode"
 echo "  2) HDCode"
 echo "  3) All"
 echo ""
+
+_normalize_choice() {
+  local choice="${1:-}"
+  choice="${choice//$'\r'/}"
+  choice="${choice//[[:space:]]/}"
+  printf '%s' "$choice"
+}
+
 if [ -z "${B_AGENT_PLATFORM:-}" ]; then
-  read -rp "Enter choice [1/2/3] (default: 3): " platform_choice </dev/tty
-  platform_choice="${platform_choice:-3}"
+  read -rp "Enter choice [1/2/3] (default: 3): " platform_choice </dev/tty || platform_choice=""
+  platform_choice="$(_normalize_choice "$platform_choice")"
+  [ -n "$platform_choice" ] || platform_choice="3"
 else
-  platform_choice="${B_AGENT_PLATFORM:-3}"
+  platform_choice="$(_normalize_choice "${B_AGENT_PLATFORM:-3}")"
+  [ -n "$platform_choice" ] || platform_choice="3"
 fi
 
 case "$platform_choice" in
