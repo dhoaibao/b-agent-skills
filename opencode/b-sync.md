@@ -2,7 +2,7 @@
 name: b-sync
 description: Sync, update, or bootstrap Claude skills from the b-agent-skills GitHub repo.
 mode: subagent
-model: claude-haiku-4-5
+model: github-copilot/claude-haiku-4-5
 ---
 
 ## Tool Mapping (read before following instructions below)

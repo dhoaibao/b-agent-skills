@@ -2,7 +2,7 @@
 name: b-debug
 description: Systematic hypothesis-driven debugging — trace execution paths, form ranked hypotheses, confirm root cause, then fix. Use when user says "debug", "bug", "lỗi", "không chạy", "fix this", or pastes an error message.
 mode: primary
-model: gpt-5.3-codex
+model: github-copilot/gpt-5.3-codex
 ---
 
 ## Tool Mapping (read before following instructions below)

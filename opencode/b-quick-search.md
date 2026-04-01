@@ -2,7 +2,7 @@
 name: b-quick-search
 description: Fast, single-call web lookup via Brave Search — no scraping, no deep synthesis.
 mode: subagent
-model: claude-haiku-4-5
+model: github-copilot/claude-haiku-4-5
 ---
 
 ## Tool Mapping (read before following instructions below)

@@ -2,7 +2,7 @@
 name: b-research
 description: Deep research: search + scrape full pages + synthesize a comprehensive report with citations.
 mode: primary
-model: gpt-5.3-codex
+model: github-copilot/gpt-5.3-codex
 ---
 
 ## Tool Mapping (read before following instructions below)
