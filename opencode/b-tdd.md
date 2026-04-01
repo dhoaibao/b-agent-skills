@@ -49,7 +49,7 @@ before a failing test exists. Each step follows Red-Green-Refactor strictly.
 
 No MCP tools required. Uses `Bash` for running tests.
 
-Graceful degradation: ✅ Possible — this skill is pure discipline enforced via process, no external tools needed.
+Graceful degradation: ✅ Possible — this agent is pure discipline enforced via process, no external tools needed.
 
 ## Steps
 
@@ -122,8 +122,9 @@ With the test green, clean up:
 ### Step 5 — Continue or stop
 
 **If plan file detected (single-step mode)**:
-- After the RGR cycle for the current step completes and the step is checked off, stop immediately.
+- After the RGR cycle for the current step completes, stop immediately.
 - Emit the single-step completion message (see Output format).
+- Do NOT check off the step — b-execute-plan owns the checkbox.
 - Do NOT read or process the next pending step — return control to the caller.
 
 **If no plan file (iterate-all mode)**:
@@ -162,7 +163,6 @@ Single-step completion (plan-file mode):
 ```
 ✅ Step [N] complete — returning control to caller
 Tests: [N passed, 0 failed]
-☑ Plan step [N] checked off in .opencode/b-plans/[file].md
 ```
 
 All-steps completion (iterate-all mode):

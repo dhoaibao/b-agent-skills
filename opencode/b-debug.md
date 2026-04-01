@@ -32,7 +32,9 @@ If `$ARGUMENTS` is provided, treat it as the error message or symptom — skip a
 ## Tools required
 
 From `jcodemunch` MCP server:
+- `resolve_repo` — cached repo map lookup; reuse an existing repo identifier before indexing.
 - `suggest_queries` — auto-surface entry points and key symbols for unfamiliar codebases (use before Step 2 when codebase is new)
+- `get_ranked_context` — pack the most relevant execution-path symbols into a bounded context window before deeper tracing.
 - `get_context_bundle` — get full context from an entry point (file or function)
 - `find_references` — trace all callers and callees of a function.
 - `get_blast_radius` — understand what depends on a suspected module.
@@ -56,7 +58,7 @@ From `firecrawl` MCP server *(optional)*:
 If jcodemunch is unavailable, or `index_folder` returns `file_count = 0`: use Glob/Grep/Read to map files manually, proceed with Steps 2.1–2.4.
 If sequential-thinking is unavailable: reason through hypotheses inline, document steps explicitly in response.
 
-Graceful degradation: ✅ Possible — if jcodemunch unavailable, use Glob/Grep/Read for file analysis. Quality is reduced but the skill remains functional.
+Graceful degradation: ✅ Possible — if jcodemunch unavailable, use Glob/Grep/Read for file analysis. Quality is reduced but the agent remains functional.
 
 ## Steps
 
@@ -81,10 +83,8 @@ or "recent changes" is often the fastest path to root cause.
 
 Use `jcodemunch` to trace the execution path in this order:
 
-0. **Index or resolve** — first call `resolve_repo(path="/absolute/project/root")`. If it returns a repo identifier, use it directly (index already exists). If it returns no match, call `index_folder` with the absolute path to the project root and `use_ai_summaries: false`. Note the `repo` identifier from the response (format: `local/[name]-[hash]`) — pass this as `repo` to every subsequent jcodemunch call. If `file_count` is 0, jcodemunch can't parse this codebase → use Glob/Grep to map files manually instead.
-   - **Stale index check** (only when `resolve_repo` returned an existing index — skip when `index_folder` was just called): call `get_session_stats(repo=[identifier])` and read the `files_indexed` count. Use `Glob("**/*.{ts,tsx,js,jsx,py,go,rs,java,rb,php,kt,swift}")` to count actual source files. If `|files_indexed − actual_count| / actual_count > 0.10` (more than 10% drift), call `index_folder` to re-index before proceeding — the index is stale and debug tracing will miss recently added or deleted files. If `get_session_stats` is unavailable or returns no file count metric, skip the check and note in output: "⚠️ Could not verify index freshness — analysis may miss recently added/deleted files."
-0.5. **suggest_queries** — if the codebase is unfamiliar, call `suggest_queries` immediately after indexing. Use the output to identify entry points, key symbols, and language distribution before tracing the execution path.
-1. `get_context_bundle` on the entry point (route handler, CLI command, event listener) — get full context of the starting point
+0. **jcodemunch preflight** — run the standard preflight (see `global/AGENTS.md § jcodemunch preflight`) with query = "[symptom or error text]". Use the highest-ranked symbols/files to choose the best entry point and reduce blind tracing.
+1. `get_context_bundle` on the chosen entry point (route handler, CLI command, event listener) — get full context of the starting point
 2. `find_references` on the relevant function — trace all callers and callees across files
 3. `get_blast_radius` on the suspected module — understand what depends on it
 4. `get_symbol_source` on any function that looks suspicious — inspect its full implementation

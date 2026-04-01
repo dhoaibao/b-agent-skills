@@ -38,8 +38,10 @@ b-debug is for code that is broken. If there's an error message → use b-debug 
 ## Tools required
 
 From `jcodemunch` MCP server:
+- `resolve_repo` — cached repo map lookup; reuse an existing repo identifier before indexing.
 - `index_folder` — index a local codebase before querying.
 - `suggest_queries` — auto-surface entry points, language distribution, and key architectural symbols.
+- `get_ranked_context` — pack the most relevant symbols/files into a bounded context window before deep analysis.
 - `get_repo_outline` — overview of all modules, files, and top-level symbols.
 - `get_file_outline` — functions, classes, and exports per file (supports batch: `file_paths=[]`)
 - `get_symbol_source` — get full source of one symbol (`symbol_id`) or many (`symbol_ids[]`); supports verify and context_lines.
@@ -61,7 +63,7 @@ From `brave-search` MCP server *(optional)*:
 
 If jcodemunch is unavailable: Use `Glob` to map file structure and identify all relevant files. Use `Grep` to find symbol usages, duplicate function names, and repeated patterns across files. Use `Read` for file-level inspection. Note limitation: cross-file dependency tracking will be incomplete without jcodemunch — flag this in the report.
 
-Graceful degradation: ✅ Possible — if jcodemunch unavailable, use Glob/Grep/Read for file analysis. Quality is reduced but the skill remains functional.
+Graceful degradation: ✅ Possible — if jcodemunch unavailable, use Glob/Grep/Read for file analysis. Quality is reduced but the agent remains functional.
 
 ## Steps
 
@@ -83,14 +85,11 @@ Exception: if the project has fewer than 15 files, proceed with whole-project an
 
 Use `jcodemunch` to map the target code in this order:
 
-1. **Index or resolve** — first call `resolve_repo(path="/absolute/project/root")`. If it returns a repo identifier, use it directly (index already exists). If it returns no match, call `index_folder` with the absolute path to the project root (e.g. `/home/user/my-project`) and `use_ai_summaries: false`. Note the `repo` identifier returned in the response (format: `local/[name]-[hash]`) — you must pass this as `repo` to every subsequent jcodemunch call.
-   - If `file_count` returns 0 or `symbol_count` is 0, jcodemunch does not support this file type (e.g. Markdown, config-only repos) → switch to the Glob/Grep fallback immediately.
-   - **Stale index check** (only when `resolve_repo` returned an existing index — skip when `index_folder` was just called): call `get_session_stats(repo=[identifier])` and read the `files_indexed` count. Use `Glob("**/*.{ts,tsx,js,jsx,py,go,rs,java,rb,php,kt,swift}")` to count actual source files. If `|files_indexed − actual_count| / actual_count > 0.10` (more than 10% drift), call `index_folder` to re-index before proceeding — the index is stale and analysis will miss recently added or deleted files. If `get_session_stats` is unavailable or returns no file count metric, skip the check and note in output: "⚠️ Could not verify index freshness — analysis may miss recently added/deleted files."
-2. **suggest_queries** (repo: ...) — call immediately after indexing. This auto-surfaces entry points, language distribution, and key architectural symbols. Use the output to focus subsequent queries on the most significant areas rather than scanning everything.
-3. `get_repo_outline` (repo: the identifier from step 1) — overview of all modules, files, and top-level symbols
-4. `get_file_outline` (batch: pass `file_paths=[...]` with the most relevant files from step 2) — inspect each file for functions, classes, and exports; use batch mode to load multiple files in one call instead of calling one at a time
-5. `get_dependency_graph` — map module coupling; look for circular deps and tight coupling
-6. `search_symbols` — find duplicate or similarly-named functions across files
+1. **jcodemunch preflight** — run the standard preflight (see `global/AGENTS.md § jcodemunch preflight`) with query = "code structure and quality of [target + goal from Step 1]". Use the returned repo identifier and ranked context for all subsequent calls.
+2. `get_repo_outline` — overview of all modules, files, and top-level symbols
+3. `get_file_outline` (batch: pass `file_paths=[...]` from the ranked context) — inspect each file for functions, classes, and exports; use batch mode to load multiple files in one call
+4. `get_dependency_graph` — map module coupling; look for circular deps and tight coupling
+5. `search_symbols` — find duplicate or similarly-named functions across files
 
 From these, extract:
 - **Call graph**: what calls what, entry points, leaf functions.
@@ -218,7 +217,7 @@ Based on findings, suggest:
 - Never suggest a refactor without first understanding the full structure — partial analysis leads to wrong recommendations.
 - Findings must be specific: file + function + reason, not "this module is messy".
 - Every High finding must have a concrete suggestion, not just a complaint.
-- Don't fix anything during analysis — this skill produces findings, not changes.
+- Don't fix anything during analysis — this agent produces findings, not changes.
 - If analysis reveals a bug (broken logic, not just poor style) → state: 'Root cause analysis needed. Run: `b-debug: [symptom] in [entry point]` to trace the execution path.'
 - Keep Low findings in the report but don't let them dominate — focus on what actually matters.
 - After outputting findings, always recommend whether to proceed with `b-plan` or if the code is healthy enough to modify directly.

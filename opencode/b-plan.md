@@ -29,13 +29,13 @@ implementation begins.
 ## Tools required
 
 - `sequentialthinking` — from `sequential-thinking` MCP server.
-- `suggest_queries`, `get_repo_outline`, `get_file_outline`, `get_file_tree`, `index_file` — from `jcodemunch` MCP server *(optional, for modify-existing-code tasks)*.
+- `resolve_repo`, `suggest_queries`, `get_ranked_context`, `get_repo_outline`, `get_file_outline`, `get_file_tree`, `index_file` — from `jcodemunch` MCP server *(optional, for modify-existing-code tasks)*.
 
 If sequential-thinking is unavailable: reason through the plan inline step by step,
 making the thinking explicit in the response. Do not skip planning — just do it without the tool.
 If jcodemunch is unavailable, or `index_folder` returns `file_count = 0`: use Glob/Read to inspect key files manually before Step 2.
 
-Graceful degradation: ✅ Possible — if jcodemunch unavailable, use Glob/Read to inspect key files. If sequential-thinking unavailable, reason inline. Quality is reduced but the skill remains functional.
+Graceful degradation: ✅ Possible — if jcodemunch unavailable, use Glob/Read to inspect key files. If sequential-thinking unavailable, reason inline. Quality is reduced but the agent remains functional.
 
 ## Steps
 
@@ -103,8 +103,7 @@ Run if: task modifies or extends existing code.
 Skip if: pure greenfield with no existing modules.
 
 Use jcodemunch to scan before decomposition:
-- First call `resolve_repo(path="/absolute/project/root")`. If it returns a repo identifier, use it directly (index already exists). If it returns no match, call `index_folder` with the absolute project root path and `use_ai_summaries: false`. Note the `repo` identifier from the response and pass it to all subsequent calls.
-- `suggest_queries` — call immediately after indexing to auto-surface entry points, key symbols, and language distribution. Use the output to orient the plan to the most architecturally significant areas.
+- Run the standard preflight (see `global/AGENTS.md § jcodemunch preflight`) with query = "[requested change description — feature, module, or bugfix area]". Use the returned ranked context as the primary read set for planning.
 - `get_file_tree(path_prefix="src/")` — scoped directory view when the task targets a subdirectory.
 - `get_repo_outline` — understand overall structure, file layout, module boundaries.
 - `get_file_outline` (batch: `file_paths=[...]`) — inspect specific files the plan will touch; use batch mode to load multiple files in one call.
@@ -250,7 +249,7 @@ Pipeline overview (b-execute-plan handles all of this):
 2. **After all implementation steps** → invoke `@b-gate` (no args — runs on full working tree).
 3. **After b-gate passes** → invoke `@b-review [plan-file]` (passes plan as requirements baseline).
 4. **After READY FOR PR** → invoke `@b-commit`.
-5. **Non-production steps** (config, docs, delete, migrate, rename): perform manually, signal `done` — no skill invoked.
+5. **Non-production steps** (config, docs, delete, migrate, rename): perform manually, signal `done` — no agent invoked.
 6. **On step failure**: b-execute-plan writes `[❌] N — reason`, checks `git diff --stat` for partial changes, offers `git checkout -- .` rollback, blocks dependent steps from running.
 7. **On NEEDS FIXES from b-review**: b-execute-plan verifies real code changes via `git diff HEAD --stat` before resetting b-gate checkpoint — never resets on verbal signal alone.
 

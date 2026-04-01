@@ -34,7 +34,7 @@ If unavailable: stop and tell the user:
 "❌ brave-search MCP is not connected. Please check `/mcp`."
 Do NOT substitute with any other search tool or training data.
 
-Graceful degradation: ❌ Not possible — this skill requires live web data. If the MCP is unavailable, stop and tell the user.
+Graceful degradation: ❌ Not possible — this agent requires live web data. If the MCP is unavailable, stop and tell the user.
 
 ## Steps
 

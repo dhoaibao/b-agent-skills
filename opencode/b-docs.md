@@ -64,10 +64,36 @@ If multiple libraries are involved (e.g. "integrate Mailgun with Express"), run 
 Call `resolve-library-id` with the library name.
 
 - If multiple results return, pick the one with the highest match and correct scope (e.g. prefer `@sendgrid/mail` over a community fork)
-- If no result found: try the firecrawl direct-scrape fallback (see below) before escalating to b-research.
+- If no result found: apply the **scope gate** below before deciding whether to escalate.
 
-**Firecrawl direct-scrape fallback** *(when context7 has no index for a library)*:
-If the library has a well-known official docs URL (e.g. docs.sendgrid.com, docs.bullmq.io, docs.stripe.com) → call `firecrawl_scrape` on that URL with `formats: ["markdown"], onlyMainContent: true`. If the scrape returns ≥300 words of relevant content → use it directly as the doc source, skip b-research. If the scrape fails or returns <300 words → escalate to b-research: notify the user "⚠️ context7 has no index for `[library]` and direct scrape was insufficient — escalating to b-research for deeper lookup. You can cancel with Ctrl+C." then invoke `@b-research [library] [topic]`.
+**Scope gate** *(applies when context7 has no index for the library)*:
+
+Classify the query before escalating:
+
+A query is a **simple lookup** if ALL of the following are true:
+- It targets a single API method, config key, or option (not a feature workflow spanning multiple calls)
+- It does not compare multiple libraries or versions
+- It does not require synthesizing information from multiple sources
+
+A query is **complex** if any of the following is true:
+- It spans multiple API areas or libraries
+- It requires comparing versions or migration paths
+- It asks for a deep dive or multi-source validation
+
+**If context7 has no index AND query is a simple lookup**:
+1. Check if the library has a well-known official docs URL. If yes → proceed to the **firecrawl direct-scrape fallback** below.
+2. If no obvious official docs URL is known → **stop immediately**:
+   ```
+   ❌ Context7 has no index for `[library]` and this appears to be a simple lookup.
+   Try the official docs at [guessed URL if obvious, else omit].
+   Use b-research only if you need a multi-source deep dive.
+   ```
+   Do NOT auto-invoke b-research for simple lookups.
+
+**If context7 has no index AND query is complex** → proceed directly to b-research escalation (skip firecrawl).
+
+**Firecrawl direct-scrape fallback** *(simple lookup only, when an official docs URL is known)*:
+Call `firecrawl_scrape` on the official docs URL with `formats: ["markdown"], onlyMainContent: true`. If the scrape returns ≥300 words of relevant content → use it directly as the doc source, skip b-research. If the scrape fails or returns <300 words → escalate to b-research: notify the user "⚠️ context7 has no index for `[library]` and direct scrape was insufficient — escalating to b-research for deeper lookup. You can cancel with Ctrl+C." then invoke `@b-research [library] [topic]`.
 
 ---
 

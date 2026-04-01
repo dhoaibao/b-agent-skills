@@ -30,6 +30,9 @@ and missing tracing context propagation so they can be fixed before they hide in
 
 From `jcodemunch` MCP server:
 - `resolve_repo`, `index_folder` — index or resolve the local codebase before querying.
+- `get_session_stats` — verify index freshness before auditing instrumentation coverage.
+- `suggest_queries` — auto-surface likely service entry points before auditing instrumentation gaps.
+- `get_ranked_context` — pack the most relevant handlers/jobs/boundary files into a bounded context window before auditing.
 - `search_text` — find log/trace/metric call patterns and detect their absence in error handlers.
 - `find_references` — find all usages of logger, tracer, and metrics objects to map instrumented vs uninstrumented call sites.
 - `get_symbol_source` — read full source of error handlers, request handlers, and service entry points.
@@ -53,7 +56,7 @@ Confirm:
 
 If the user says "audit everything" without further context, ask which service or layer matters most — a full-repo audit produces noise on large codebases.
 
-Use `resolve_repo` first. If no match, call `index_folder` with the project root and `use_ai_summaries: false`. Then call `get_repo_outline` to understand module layout before narrowing scope.
+Run the standard jcodemunch preflight (see `global/AGENTS.md § jcodemunch preflight`) with query = "[audit target — e.g. 'payment service HTTP handlers observability']". Use the returned ranked context to prioritize handlers/jobs/boundary files. Then call `get_repo_outline` to understand module layout before narrowing scope.
 
 ---
 
@@ -191,7 +194,7 @@ Use the result to produce an **Ordered remediation list** at the top of Recommen
 
 - **Static only**: never suggest runtime profiling, live log sampling, or APM configuration — those require live systems. Flag them as out of scope.
 - **Findings must be specific**: file + function + reason, not "logging is missing everywhere".
-- **Don't fix during audit**: this skill produces a findings report. Hand off to b-plan for remediation sequencing.
+- **Don't fix during audit**: this agent produces a findings report. Hand off to b-plan for remediation sequencing.
 - **Scope before auditing**: always confirm target layer or service first — a full-repo scan on a large project produces noise.
 - **Distinguish swallowed errors from re-thrown**: a handler that re-throws without logging is a gap, but less severe than one that returns without logging — note the difference in severity.
 - **console.log is not structured logging**: flag `console.log/error/warn` as Medium (not High) — it's observable, but degrades log quality in production.

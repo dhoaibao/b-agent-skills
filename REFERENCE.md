@@ -2,9 +2,9 @@
 
 Detailed reference for all agents in the b-agents suite.
 For quick overview and installation, see [README.md](README.md).
-Formatting note: bullet style is standardized across all skill specs for consistent readability.
+Formatting note: bullet style is standardized across all agent specs for consistent readability.
 
-## Skill reference
+## Agent reference
 
 ### b-plan
 
@@ -12,8 +12,7 @@ Decomposes non-trivial tasks into ordered steps, dependencies, and risks before
 implementation. Includes a conditional **feasibility gate (Step 0)** for uncertain scope
 to confirm Understanding Lock, blockers, and effort. Uses `sequential-thinking` for
 decomposition and unknown/risk surfacing. For modify-existing-code tasks, scans with
-`jcodemunch` (`suggest_queries` → `get_repo_outline` → `get_file_outline` batch, optional
-`get_file_tree`) so plans reference real paths/symbols and follow existing patterns.
+`jcodemunch` using a shared preflight: cached repo lookup via `resolve_repo` → entrypoint discovery via `suggest_queries` → bounded relevant context via `get_ranked_context`, then `get_repo_outline` / `get_file_outline` batch (optional `get_file_tree`) so plans reference real paths/symbols and follow existing patterns.
 Includes an explicit **architecture trade-off checkpoint**, a **deploy safety checkpoint** (new routes/endpoints/UI → suggest feature flag; DB schema changes → document migration ordering — additive before deploy, destructive after; new external service calls/queues → flag availability verification), and a plan-file handoff for execution in a fresh session. Deploy safety findings are appended to the plan's `## Risks` section.
 
 **Good triggers:**
@@ -56,7 +55,7 @@ quality check. Index refresh: calls `index_file` on each modified file after eac
 
 Orchestrates the full development pipeline (b-analyze → b-tdd → b-gate → b-review → b-commit) by
 reading plan files, tracking step completion, and auto-advancing through successful stages. Reads
-`.opencode/b-plans/*.md` files, parses checkbox state, displays progress, invokes each skill
+`.opencode/b-plans/*.md` files, parses checkbox state, displays progress, invokes each agent
 automatically, and moves to the next stage on success. Pauses only on failure, ambiguous routing,
 manual steps, NEEDS FIXES verdicts, or parallel step choices.
 
@@ -68,16 +67,12 @@ run plan: implement-b-execute-plan.md
 orchestrate the pipeline
 ```
 
-**Workflow:**
-0. **Pre-execution (conditional)**: if the plan modifies existing code and no `## Context` section exists → extract explicit file paths from plan Steps, run b-analyze scoped to only those paths, append as `## Context`. Ask user if scope is ambiguous — never run unconstrained full-repo analysis.
-1. Locate plan file: from argument if provided; if none, Glob `.opencode/b-plans/*.md` — if multiple exist, list with timestamps and ask (never auto-select). **Session resume**: completed (`[x]`) steps are skipped automatically.
-   - **Context window warning**: if pending steps > 6, warn once and suggest splitting at step 5.
-   - **Two-tier context threshold**: session step counter threshold = 3 if plan file contains `## Context` section (analysis-heavy — context fills faster), 5 otherwise. Derived from file content at load time — survives context compression. Fires at 3/6/9… or 5/8/11… respectively.
-2. Parse step checkboxes (`- [ ] Step N` / `- [x]` / `- [❌] Step N — reason`).
-3. Display state (✓ / ❌ / ○). Detect skill from keywords — **non-production keywords (delete/remove/config/migrate/document/rename) are checked first (Priority 1)** to prevent "create migration" or "create config" routing to b-tdd despite containing "create". Only "create X" with no Priority 1 keyword falls through to Priority 5 (b-tdd). Routing table now includes concrete examples per row. Invocation format is skill-specific: b-tdd → `[plan-file]:[N]`; b-review → `[plan-file]`; b-gate/b-commit → no plan args. Check `## Dependencies` for blocking failures and parallel declarations (offer parallel for b-tdd steps only).
-4. Invoke skill and detect outcome. **On success**: auto-advance to step 5 (no user input needed). **b-gate failure shortcut**: if b-gate failed, extract failing check name + first ~10 error lines and offer two options: (1) auto-launch `@b-debug [failing-check]: [key error lines]`, or (2) fix manually. If user picks (1), invokes b-debug immediately, then re-runs b-gate; if passes, auto-advances. **On failure (non-gate or user picks manual)**: pause, capture reason, write `- [❌] N — reason`, run `git diff HEAD --stat` for partial changes, offer `git checkout -- .` rollback before retrying. **Manual steps (Priority 1)**: instruct user, then wait for `done`/`next`/`continue` — the only required pause in the happy path.
-5. Update plan checkbox (`[ ]` → `[x]`). Re-read file to recompute session step counter (`current [x] − baseline [x] at session start` — file-based, survives context compression).
-6. Loop until done. **NEEDS FIXES re-entry**: user signals fix → run `git diff HEAD --stat` to confirm real changes → ask "cosmetic or new behavior?" → cosmetic: reset b-gate and re-run; new behavior: route through b-tdd first, then b-gate, then b-review. Iron Law is never bypassed.
+**Pipeline structured as 4 explicit phase contracts:**
+
+- **Phase 1 — LoadPlan**: Locates and reads the plan file (from argument or Glob). Builds `{steps[], baseline_completed, has_analysis_context, pending_steps_count, session_counter_threshold}`. Handles session resume (skips `[x]` steps), context window warning (>6 pending steps), session counter + pause trigger, and the **conditional pre-execution analysis (Step 0)**: if the plan modifies existing code and no `## Context` section exists → refine scope with jcodemunch (`resolve_repo` → `get_ranked_context`) and run b-analyze, appending output as `## Context`. Never auto-invokes — asks user first.
+- **Phase 2 — SelectNextStep**: Resolves `{step_N, agent_route, is_manual, is_blocked}` from the step state map. Applies the 5-priority routing table (Priority 1 = manual keywords checked first to prevent "create migration" misfires; Priority 5 = b-tdd as last resort). Checks `## Dependencies` for blocking `[❌]` prerequisite steps. Invocation format is agent-specific: b-tdd → `[plan-file]:[N]`; b-review → `[plan-file]`; b-gate/b-commit → no plan args.
+- **Phase 3 — RunStep**: Invokes the selected agent and returns `{outcome: success | failure | needs_fixes | manual_done}`. **b-gate failure shortcut**: if b-gate fails → extract failing check + first ~10 error lines, write to `## Last Gate Failure`, offer auto-launch of `@b-debug` or manual fix. **Manual steps**: instruct user, wait for `done`/`next`/`continue`.
+- **Phase 4 — HandleOutcome**: Updates plan file and determines next action. `success/manual_done` → mark `[x]`, re-read file (session counter recompute), advance to Phase 2 or show done summary. `failure` → mark `[❌]`, `git diff HEAD --stat`, offer rollback, halt. `needs_fixes` (b-review) → write `## Review Feedback`, verify real git changes, ask "cosmetic or new behavior?" → cosmetic: reset b-gate `[x]` → `[ ]`; new behavior: route to b-tdd first, then reset b-gate, then b-review again.
 
 **Output:**
 ```
@@ -85,7 +80,7 @@ orchestrate the pipeline
 Status: 3 of 6 steps complete ✓
 
 ✓ Step 1 — Create b-execute-plan agent file
-✓ Step 2 — Design skill workflow
+✓ Step 2 — Design agent workflow
 ✓ Step 3 — Define Tools required
 ○ Step 4 — Write Output format
 ○ Step 5 — Update README.md
@@ -97,15 +92,15 @@ Status: 3 of 6 steps complete ✓
 
 **State tracking:** Parses plan file dynamically. If user manually edits the plan,
 b-execute-plan re-reads it on the next loop. Checkpoint updates happen automatically
-on success; no user signal required for unambiguous skill routes.
+on success; no user signal required for unambiguous agent routes.
 
 **Scope:** Orchestrates Step 0 (b-analyze, conditional) + production pipeline (b-tdd → b-gate → b-review → b-commit). b-plan is out of scope — use b-plan to create plans, b-execute-plan to run them.
 
 **Git safety:** Never autonomously triggers destructive git commands. Rollback (`git checkout -- .`) is offered to the user, never auto-executed. Commits are always delegated to b-commit.
 
 **Distinction from manual pipeline:** b-execute-plan auto-advances through successful
-stages, handling skill invocation and state tracking automatically. Users can still run
-pipeline skills manually; b-execute-plan eliminates the step-by-step confirmation overhead
+stages, handling agent invocation and state tracking automatically. Users can still run
+pipeline agents manually; b-execute-plan eliminates the step-by-step confirmation overhead
 while preserving human control on failures, ambiguity, and NEEDS FIXES.
 
 ---
@@ -130,7 +125,7 @@ hướng dẫn sử dụng Zod
 and deprecation notices for the current version. Routes to implementation or lookup-only
 depending on how it was called.
 
-**Fallback chain:** context7 → firecrawl direct scrape (if library has a known official docs URL) → b-research (full research pipeline).
+**Fallback chain:** context7 → **scope gate** (if no index: classify query as simple or complex; simple lookups with no known docs URL stop immediately rather than auto-escalating) → firecrawl direct scrape (simple lookup + known official docs URL) → b-research (complex queries or insufficient scrape).
 
 **Git safety:** Never triggers destructive git commands. If a commit is needed, delegates to b-commit. The firecrawl fallback tries a single `firecrawl_scrape` on the official docs URL. If the scrape fails or returns <300 words, b-docs notifies the user and actively invokes b-research with the original library and topic query — it does not ask the user to run b-research manually.
 
@@ -244,6 +239,8 @@ dimensions: logic correctness (control flow, null handling, async safety, side e
 `sequentialthinking` to consolidate findings and surface what a senior engineer would
 flag. Does not run automated tooling — that is b-gate's role.
 
+**Impact-aware context selection:** If the repo is locally indexed, b-review uses jcodemunch preflight (`resolve_repo` → `suggest_queries` → `get_ranked_context`) and then `get_changed_symbols` + `get_blast_radius` to prioritize review depth on high-impact symbols rather than relying only on raw diff size.
+
 **Small-change fast path:** If diff is ≤50 lines AND ≤2 files, accepts any non-empty requirements baseline (one sentence is sufficient), skips the vague-response enforcement loop, and skips both the security review sub-section and the observability check. Full enforcement applies for diffs >50 lines or >2 files.
 
 **Issue enrichment:** After reading the plan file, checks for an `**Issue**:` field. If value starts with `http` → calls `firecrawl_scrape`, trims to 500 words, appends to requirements baseline as `**Issue context** (from [URL]): …`. If scrape returns <200 chars or HTTP 403 → skips silently: "Issue URL requires authentication — using URL as context reference only." If value is a ticket ID (not a URL) → displays as `**Issue reference**: [value]` in review output. If field absent → skips entirely.
@@ -307,7 +304,7 @@ On mixed-concern diffs: stops and outputs 2 separate commit message suggestions 
 Deep code analysis using jcodemunch — maps structure, measures complexity, identifies
 duplicate logic, dead code, and OOP issues; produces severity-ranked findings with
 concrete suggestions. Resolves or indexes the codebase first via `resolve_repo` →
-`index_folder` (if needed), then runs `suggest_queries` → `get_repo_outline` →
+`index_folder` (if needed), then runs a shared preflight: `suggest_queries` for entrypoint discovery and `get_ranked_context` for bounded relevant context, followed by `get_repo_outline` →
 `get_file_outline` (batch) → `get_dependency_graph` → `search_symbols`. For symbol
 inspection: `get_symbol_source` (single or batch via `symbol_ids[]`). For dead code:
 `check_references` + `find_importers`. For OOP: `get_class_hierarchy`. For pattern
@@ -351,11 +348,13 @@ Use b-debug when something is broken.
 Static observability audit — finds missing log statements, silently swallowed errors,
 missing metrics instrumentation, and absent tracing context propagation in source code.
 Does **not** do runtime profiling or APM configuration — static analysis only.
-Uses jcodemunch to map instrumented vs uninstrumented call sites: `search_text` for
+Uses jcodemunch with a shared preflight: cached repo lookup via `resolve_repo` → entrypoint discovery via `suggest_queries` → bounded relevant context via `get_ranked_context`, then `search_text` for
 log/trace/metric patterns, `find_references` on logger/tracer symbols to identify files
 with zero instrumentation, `get_symbol_source` to read error handler bodies,
 `get_file_outline` (batch) to enumerate all handlers. Uses `sequentialthinking`
 to rank findings by on-call impact.
+
+**Stale index detection:** When `resolve_repo` returns an existing index, calls `get_session_stats` and compares `files_indexed` against a Glob count of source files (`**/*.{ts,tsx,js,jsx,py,go,rs,java,rb,php,kt,swift}`). If drift >10%, calls `index_folder` to re-index before auditing. If `get_session_stats` unavailable: notes "⚠️ Could not verify index freshness" and continues.
 
 **Good triggers:**
 ```
@@ -388,8 +387,8 @@ the silence that makes future failures invisible.
 ### b-debug
 
 Systematic, hypothesis-driven bug tracing. Resolves or indexes the codebase first via
-`resolve_repo` → `index_folder` (if needed), then optionally calls `suggest_queries`
-(unfamiliar codebases), then maps the full execution path with jcodemunch
+`resolve_repo` → `index_folder` (if needed), then runs a shared preflight: `suggest_queries`
+for entrypoint discovery and `get_ranked_context` for bounded relevant context, then maps the full execution path with jcodemunch
 (`get_context_bundle` → `find_references` → `get_blast_radius` → `get_symbol_source`).
 For suspicious functions, uses `get_related_symbols`
 to find similar patterns elsewhere. For regression detection: `get_symbol_diff`. For
@@ -419,28 +418,6 @@ trigger a web lookup and `b-docs` call before hypothesis verification.
 **Post-fix review:** If the fix introduced new code (new function, new module) → optionally run `b-analyze: [fixed module]` to verify no new complexity or duplication was introduced.
 
 **Git safety:** Never triggers destructive git commands. If a commit is needed, delegates to b-commit.
-
----
-
-### b-sync
-
-Syncs OpenCode agents from the `b-agents` GitHub repo to `~/.config/opencode/agents/` using `curl` + `install.sh`. No MCP required — only the Bash tool.
-
-**Good triggers:**
-```
-sync b-skills
-update b-skills
-install b-skills on new machine
-đồng bộ skills
-cập nhật skills
-cài skills mới
-```
-
-**Modes:** BOOTSTRAP (first install: `git clone` + `sync.sh`) vs UPDATE (existing: `git pull` via `sync.sh`). Auto-detected by checking for `~/.b-agents/.git`.
-
-**Output:** Before/after skill list diff — lists added and removed skills, total count. Validates symlinks and frontmatter after sync.
-
-**Distinction from other skills:** b-sync only manages skill installation — it does not invoke other skills.
 
 ---
 
@@ -503,17 +480,17 @@ You control the pace at each step. b-plan's execution section automates steps 2 
 
 ## Trigger tips
 
-OpenCode may skip skills on tasks that appear simple. To guarantee activation:
+OpenCode may skip agents on tasks that appear simple. To guarantee activation:
 
-- **Prefix with the skill name**: `b-plan: ...`, `b-tdd`, `b-gate`, `b-debug: ...`, `b-research: ...`
+- **Prefix with the agent name**: `b-plan: ...`, `b-tdd`, `b-gate`, `b-debug: ...`, `b-research: ...`
 - **Use explicit keywords**: "plan", "tdd", "gate", "analyze", "research", "debug" trigger reliably
 - **Describe complexity**: mentioning "multiple files", "new integration", "not sure why" increases trigger rate
 
-When in doubt, call the skill by name.
+When in doubt, call the agent by name.
 
 ---
 
-## Skill interaction map
+## Agent interaction map
 
 ```
 b-plan ──── Step 0 (conditional) ────────► jcodemunch (resolve_repo → get_repo_outline → get_dependency_graph)
@@ -594,7 +571,7 @@ b-quick-search ── news/current-events ────► brave_news_search (fre
 
 ---
 
-## Personal / daily skill reference
+## Personal / daily agent reference
 
 ### b-quick-search
 

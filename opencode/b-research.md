@@ -1,7 +1,7 @@
 ---
 name: b-research
 description: Deep research: search + scrape full pages + synthesize a comprehensive report with citations.
-mode: primary
+mode: subagent
 model: hdwebsoft/gpt-5.4
 ---
 
@@ -45,7 +45,7 @@ If brave-search or firecrawl is unavailable, stop and tell the user:
 If context7 is unavailable on a library/framework topic, skip Step 2 silently and continue with Step 3.
 If task tool is unavailable: use direct parallel `firecrawl_scrape` calls in the main context as before (existing behavior).
 
-Graceful degradation: ❌ Not possible — this skill requires live web data (brave-search + firecrawl). If either MCP is unavailable, stop and tell the user. task tool unavailability: ✅ graceful — falls back to direct parallel scraping.
+Graceful degradation: ❌ Not possible — this agent requires live web data (brave-search + firecrawl). If either MCP is unavailable, stop and tell the user. task tool unavailability: ✅ graceful — falls back to direct parallel scraping.
 
 ## Steps
 

@@ -56,15 +56,55 @@ For each check: if no config file is found, skip the check and note it as "not c
 
 ---
 
+### Step 1.5 — Resolve canonical commands
+
+Before running any check, resolve the exact commands to use for this project:
+
+**Node.js — detect package manager from lockfile:**
+
+| Lockfile present | Package manager | Run prefix |
+|---|---|---|
+| `bun.lockb` | bun | `bun run` |
+| `pnpm-lock.yaml` | pnpm | `pnpm run` |
+| `yarn.lock` | yarn | `yarn` |
+| `package-lock.json` | npm | `npm run` |
+| none | npm (default) | `npm run` |
+
+**Prefer `scripts` in `package.json`**: if `package.json` has a `scripts` entry for the check (e.g. `"lint"`, `"test"`, `"typecheck"`), use `<pm> run <script>` instead of calling the tool directly. Only fall back to direct tool invocation (e.g. `npx eslint .`) if no script entry exists.
+
+Example resolutions:
+- `package.json` has `"lint": "eslint ."` + `pnpm-lock.yaml` → `lint_cmd = pnpm run lint`
+- No `lint` script, `package-lock.json` present → `lint_cmd = npx eslint . --max-warnings=0`
+- `package.json` has `"format:check": "prettier --check ."` + `bun.lockb` → `format_cmd = bun run format:check`
+- No `format:check` or `format` script → `format_cmd = npx prettier --check .`
+- `package.json` has `"audit": "npm audit --audit-level=high"` → `security_cmd = npm run audit`
+- No `audit` script → `security_cmd = npm audit --audit-level=high`
+
+**Python — detect runner from lockfile:**
+
+| File present | Runner |
+|---|---|
+| `uv.lock` | `uv run` |
+| `poetry.lock` | `poetry run` |
+| neither | plain command (e.g. `pytest`, `ruff`) |
+
+**Go**: no package manager layer — use direct `go` commands.
+
+Store resolved commands as: `lint_cmd`, `test_cmd`, `typecheck_cmd`, `security_cmd`, `format_cmd`. Use them in Step 2.
+
+---
+
 ### Step 2 — Run checks in order
 
 Run each configured check in this fixed order. **Stop on first failure** (hard stops: 2a–2d). Exception: **2f (Integration/E2E) is a soft block — reports warnings and continues regardless of outcome.**
 
+Use the resolved commands from Step 1.5. The examples below show fallback direct invocations for reference only.
+
 #### 2a. Lint
 
 ```bash
-# Node.js
-npx eslint . --max-warnings=0
+# Node.js — use resolved lint_cmd (e.g. pnpm run lint, or fallback: npx eslint . --max-warnings=0)
+<lint_cmd>
 
 # Python (ruff preferred, flake8 fallback)
 ruff check .
@@ -79,11 +119,11 @@ If lint fails: output the errors, stop. Do not proceed to typecheck.
 #### 2b. Typecheck
 
 ```bash
-# TypeScript
-npx tsc --noEmit
+# TypeScript — use resolved typecheck_cmd (e.g. pnpm run typecheck, or fallback: npx tsc --noEmit)
+<typecheck_cmd>
 
-# Python
-mypy .
+# Python — use resolved runner (e.g. uv run mypy ., or fallback: mypy .)
+<runner> mypy .
 
 # Go — type safety is guaranteed by the compiler; run build instead
 go build ./...
@@ -94,13 +134,11 @@ If typecheck fails: output the errors, stop. Do not proceed to tests.
 #### 2c. Tests
 
 ```bash
-# Node.js
-npm test
-# or: npx jest --passWithNoTests
-# or: npx vitest run
+# Node.js — use resolved test_cmd (e.g. pnpm run test, or fallback: npx jest --passWithNoTests)
+<test_cmd>
 
-# Python
-pytest
+# Python — use resolved runner (e.g. uv run pytest, or fallback: pytest)
+<runner> pytest
 
 # Go
 go test ./...
@@ -115,11 +153,11 @@ Run after tests pass. Behavior depends on whether a coverage threshold is config
 **Hard-block** (fail the gate) if a coverage threshold is explicitly configured AND actual coverage falls below it:
 
 ```bash
-# Node.js (jest) — reads coverageThreshold from jest.config.* or package.json jest field
-npm test -- --coverage
+# Node.js (jest) — use resolved test_cmd with --coverage flag appended
+<test_cmd> -- --coverage
 
 # Node.js (nyc) — reads threshold from .nycrc or package.json nyc field
-nyc npm test
+nyc <test_cmd>
 
 # Python (pytest-cov) — reads fail_under from setup.cfg [coverage:report] or pyproject.toml [tool.coverage.report]
 pytest --cov --cov-fail-under=$(grep fail_under setup.cfg | awk -F= '{print $2}' | tr -d ' ')
@@ -142,12 +180,14 @@ If coverage hard-blocks: output the coverage report showing which files/lines ar
 
 #### 2d. Security
 
-```bash
-# Node.js
-npm audit --audit-level=high
+Use the resolved `security_cmd` from Step 1.5. The examples below show fallback direct invocations for reference only.
 
-# Python
-pip-audit
+```bash
+# Node.js — use resolved security_cmd (e.g. pnpm run audit, or fallback: npm audit --audit-level=high)
+<security_cmd>
+
+# Python — use resolved runner (e.g. uv run pip-audit, or fallback: pip-audit)
+<runner> pip-audit
 
 # Go
 govulncheck ./...
@@ -159,12 +199,14 @@ Only block on **high** or **critical** severity. Report medium/low as warnings a
 
 #### 2e. Clean code
 
-```bash
-# JS/TS
-npx prettier --check .
+Use the resolved `format_cmd` from Step 1.5. The examples below show fallback direct invocations for reference only.
 
-# Python
-black --check .
+```bash
+# JS/TS — use resolved format_cmd (e.g. pnpm run format:check, or fallback: npx prettier --check .)
+<format_cmd>
+
+# Python — use resolved runner (e.g. uv run black --check ., or fallback: black --check .)
+<runner> black --check .
 
 # Go
 gofmt -l .
@@ -181,15 +223,19 @@ Run if any of the following are detected:
 - `Makefile` `test-integration` or `test-e2e` target
 - vitest project configured as `e2e`
 
+Use the resolved commands from Step 1.5 where applicable:
+
 ```bash
-# Node.js (Jest)
-npx jest --testPathPattern=integration
+# Node.js (Jest) — use resolved test_cmd with pattern flag (e.g. pnpm run test -- --testPathPattern=integration)
+<test_cmd> -- --testPathPattern=integration
+# or fallback: npx jest --testPathPattern=integration
 
-# Node.js (Vitest)
-npx vitest run --project=e2e
+# Node.js (Vitest) — use resolved test_cmd with project flag (e.g. pnpm run test -- --project=e2e)
+<test_cmd> -- --project=e2e
+# or fallback: npx vitest run --project=e2e
 
-# Python (pytest)
-pytest -m integration
+# Python (pytest) — use resolved runner (e.g. uv run pytest -m integration, or fallback: pytest -m integration)
+<runner> pytest -m integration
 
 # Makefile
 make test-integration

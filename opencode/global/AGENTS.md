@@ -20,7 +20,7 @@ Or simply: `execute plan` — b-execute-plan will discover the plan file automat
 
 ## Subagents
 
-All skills are available as subagents:
+All agents are available as subagents:
 
 ### Orchestration
 | Agent | Role |
@@ -50,7 +50,6 @@ All skills are available as subagents:
 | Agent | Role |
 |---|---|
 | `@b-news` | Daily news digest on any topic |
-| `@b-sync` | Sync skills from GitHub repo |
 
 Invoke directly for one-off tasks:
 ```
@@ -70,6 +69,26 @@ b-execute-plan writes to these sections to bridge state between subagent calls:
 | `## Context` | b-execute-plan (after @b-analyze) | @b-tdd before each implementation step |
 | `## Last Gate Failure` | b-execute-plan (when @b-gate fails) | @b-debug when auto-debug is triggered |
 | `## Review Feedback` | b-execute-plan (when @b-review returns NEEDS FIXES) | @b-tdd on re-entry |
+
+## jcodemunch preflight
+
+Run this sequence at the start of any agent that needs to understand existing code before acting.
+
+**Call order:**
+1. `resolve_repo(path="<absolute project root>")` — look up the cached repo map.
+   - If a repo identifier is returned: reuse it. Run stale-index check: call `get_session_stats(repo=<id>)`, count actual source files with `Glob("**/*.{ts,tsx,js,jsx,py,go,rs,java,rb,php,kt,swift}")`. If drift `> 10%`, re-index with `index_folder(path=<root>, use_ai_summaries=false)`.
+   - If no match: call `index_folder(path=<root>, use_ai_summaries=false)`. Note the `repo` identifier from the response.
+   - If `file_count = 0` or `symbol_count = 0`: jcodemunch cannot parse this codebase → fall back to Glob/Grep/Read.
+2. `suggest_queries(repo=<id>)` — surface entry points, key symbols, and language distribution.
+3. `get_ranked_context(repo=<id>, query="<agent-specific task query>", token_budget=4000)` — pack the most relevant symbols/files into a bounded context window.
+
+Use `<repo id>` in all subsequent jcodemunch calls.
+
+**Fallback**: if jcodemunch MCP is unavailable → use `Glob` to map file structure, `Grep` for symbol/pattern search, `Read` for file inspection. Note in output: "⚠️ jcodemunch unavailable — analysis based on Glob/Grep/Read; cross-file tracking may be incomplete."
+
+**Session reuse**: if another agent already ran this preflight in the same session, reuse the repo identifier — do not re-index.
+
+---
 
 ## Git safety
 

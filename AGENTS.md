@@ -10,11 +10,11 @@ Every `opencode/b-[name].md` must begin with YAML frontmatter:
 
 ```yaml
 ---
-name: b-skill-name
+name: b-agent-name
 description: >
-  [Trigger-focused description, ≤80 words. Answer ONLY: "when should Claude trigger this skill?"
+  [Trigger-focused description, ≤80 words. Answer ONLY: "when should Claude trigger this agent?"
   Include: ALWAYS trigger condition, key Vietnamese + English trigger phrases,
-  and one sentence distinguishing this from similar skills.
+  and one sentence distinguishing this from similar agents.
   Do NOT include usage instructions — those go in the agent file body.]
 ---
 ```
@@ -24,10 +24,10 @@ description: >
 - `description` — ≤80 words, trigger-focused only
 
 **Description rules:**
-- Start with a one-line summary of what the skill does
-- Include `ALWAYS use this skill when...` with specific trigger phrases
+- Start with a one-line summary of what the agent does
+- Include `ALWAYS use this agent when...` with specific trigger phrases
 - Include both Vietnamese and English trigger keywords
-- End with disambiguation from the most similar skill
+- End with disambiguation from the most similar agent
 - No step-by-step instructions, no tool lists, no output format details
 
 ---
@@ -43,13 +43,13 @@ description: >
 
 # b-example
 
-[1–2 sentence summary of what this skill does and why it exists.]
+[1–2 sentence summary of what this agent does and why it exists.]
 
 ## When to use
 - [Bullet list of scenarios]
 
 ## When NOT to use *(optional but recommended)*
-- [Scenarios that should trigger a different skill instead]
+- [Scenarios that should trigger a different agent instead]
 
 ## Tools required
 - `tool_name` — from `mcp-server` MCP server
@@ -82,13 +82,13 @@ Graceful degradation: [✅ Possible / ⚠️ Partial / ❌ Not possible] — [br
 
 ## MCP selection criteria
 
-When deciding which MCPs a skill should use:
+When deciding which MCPs an agent should use:
 
 | Role | When to add | Example |
 |---|---|---|
-| **Primary** | Skill cannot function without it | brave-search for b-quick-search |
-| **Secondary** | Skill uses it conditionally for a specific step | context7 for b-research (HOWTO queries only) |
-| **Optional** | Enhances quality but skill works without it | sequential-thinking for b-analyze |
+| **Primary** | Agent cannot function without it | brave-search for b-quick-search |
+| **Secondary** | Agent uses it conditionally for a specific step | context7 for b-research (HOWTO queries only) |
+| **Optional** | Enhances quality but agent works without it | sequential-thinking for b-analyze |
 
 **Rules:**
 - Never add an MCP just to increase coverage — every MCP must have a clear use case in the Steps section
@@ -100,7 +100,7 @@ When deciding which MCPs a skill should use:
 
 ## Agent file sync rule
 
-All skills live in `opencode/b-[name].md`. When changing agent files:
+All agents live in `opencode/b-[name].md`. When changing agent files:
 
 | Change type | Action |
 |---|---|
@@ -114,7 +114,7 @@ All skills live in `opencode/b-[name].md`. When changing agent files:
 |---|---|
 | Step logic / routing / rules | Apply the equivalent change manually, keeping `@b-[name]` format |
 | New subagent invocation added | Add to the `## Subagent invocation` section |
-| New inter-skill state (e.g. new section written to plan file) | Update the state bridging block accordingly |
+| New inter-agent state (e.g. new section written to plan file) | Update the state bridging block accordingly |
 | Output format / cosmetic | Copy directly — no translation needed |
 
 Intentional differences to preserve in `b-execute-plan` agent file:
@@ -159,9 +159,9 @@ model: [see model table in OPENCODE.md]
 
 | Change type | README.md | REFERENCE.md |
 |---|---|---|
-| **Create** agent | Add row to skills overview table | Add full reference section |
+| **Create** agent | Add row to agents overview table | Add full reference section |
 | **Update** agent | Update `Use when` cell and MCP(s) cell if changed | Rewrite the agent's reference section to match |
-| **Delete** agent | Remove row from skills overview table | Remove the agent's reference section entirely |
+| **Delete** agent | Remove row from agents overview table | Remove the agent's reference section entirely |
 
 Never leave README or REFERENCE out of sync with an agent file change.
 
@@ -173,13 +173,13 @@ Before merging any agent file change, verify:
 
 1. **Description ≤80 words** — verify with `wc -w` on the extracted description text
 2. **Every step has imperative verbs** — "Call X", "Extract Y", "Check Z" — not "X is called" or "Y should be extracted"
-3. **Every fallback path is explicit** — if a tool is unavailable, the skill says exactly what to do (stop, degrade, or use alternative)
-4. **Inter-skill handoffs have trigger conditions** — "if [condition] → use b-[other]" with the specific condition, not just "consider using"
+3. **Every fallback path is explicit** — if a tool is unavailable, the agent says exactly what to do (stop, degrade, or use alternative)
+4. **Inter-agent handoffs have trigger conditions** — "if [condition] → use b-[other]" with the specific condition, not just "consider using"
 5. **No trigger keyword regression** — before rewriting a description, list all current trigger keywords and verify all survive in the new version
 
 ---
 
-## New skill creation guide
+## New agent creation guide
 
 ### Folder structure
 
@@ -187,7 +187,7 @@ Before merging any agent file change, verify:
 b-agents/
 ├── opencode/
 │   ├── AGENTS.md         ← Global OpenCode rules (symlinked to ~/.agents/AGENTS.md)
-│   └── b-new-skill.md    ← OpenCode agent file
+│   └── b-new-agent.md    ← OpenCode agent file
 ├── install.sh
 ├── README.md
 ├── REFERENCE.md
@@ -202,15 +202,15 @@ b-agents/
 
 ### How to add to sync
 
-1. Create `opencode/b-new-skill.md` with valid frontmatter (`name` + `description`)
+1. Create `opencode/b-new-agent.md` with valid frontmatter (`name` + `description`)
 2. `install.sh` picks it up automatically — no script changes needed
-3. Update `README.md` skills overview table
+3. Update `README.md` agents overview table
 4. Update `REFERENCE.md` with a detailed reference section
-5. Commit, push, run `@b-sync` in OpenCode then restart OpenCode
+5. Commit, push, run the install script, then restart OpenCode
 
 ### How to add a new MCP to the suite
 
 1. Add the MCP to the `MCP dependencies` table in `README.md`
-2. In each skill that uses it, add to the "Tools required" section with role label
+2. In each agent that uses it, add to the "Tools required" section with role label
 3. Update the "All N MCPs must be connected" count in `README.md`
-4. Document graceful degradation for every skill that uses the new MCP
+4. Document graceful degradation for every agent that uses the new MCP
