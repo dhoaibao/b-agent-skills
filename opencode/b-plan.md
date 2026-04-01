@@ -5,21 +5,6 @@ mode: primary
 model: hdwebsoft/claude-sonnet-4-6
 ---
 
-## Tool Mapping (read before following instructions below)
-
-When instructions reference these Claude Code tools, use the OpenCode equivalent:
-
-| Claude Code | OpenCode equivalent |
-|---|---|
-| `Read` / `Glob` / `Grep` | Read files natively |
-| `Edit` / `Write` | Edit files natively |
-| `Bash` | Run bash commands natively |
-| `Skill tool` → `/b-[name]` | Invoke `@b-[name]` subagent |
-| `Agent tool` | Spawn subagent via task tool |
-| `TaskCreate` / `TaskUpdate` | Skip — plan file manages state |
-
----
-
 
 # b-plan
 
@@ -180,10 +165,10 @@ An unresolved unknown is a risk. Surface it now, not halfway through implementat
 
 ### Step 4 — Write plan to file
 
-Write the plan to `.claude/b-plans/[task-slug].md` in the **current project root** (not `~/.claude`).
+Write the plan to `.opencode/b-plans/[task-slug].md` in the **current project root** (not `~/.claude`).
 
 - `task-slug` = kebab-case of the task name, e.g. `add-retry-logic`, `refactor-auth-module`.
-- Create `.claude/b-plans/` if it doesn't exist.
+- Create `.opencode/b-plans/` if it doesn't exist.
 - Show the file path to the user after writing.
 
 Then present a short summary in chat (scope + step count) and ask for confirmation.
@@ -192,13 +177,13 @@ If the user requests changes → update the file, then confirm again.
 If the user confirms → do NOT execute in this session. Instead, print:
 
 ```
-✅ Plan saved to .claude/b-plans/[task-slug].md
+✅ Plan saved to .opencode/b-plans/[task-slug].md
 
 Open a new session and run:
-  /b-execute-plan .claude/b-plans/[task-slug].md
+  @b-execute-plan .opencode/b-plans/[task-slug].md
 ```
 
-`new session` means a fresh context (`claude` in a new terminal or `/clear`).
+`new session` means a fresh context (`opencode` in a new terminal or `/clear`).
 
 ---
 
@@ -256,15 +241,15 @@ Language: always English — write plan files in English regardless of the user'
 
 ## Execution (in a new session)
 
-Plan files are always in English. When a new session opens, invoke the **b-execute-plan** skill with: `/b-execute-plan .claude/b-plans/[file].md` — it orchestrates the full pipeline automatically with state tracking, rollback support, and context-overflow protection.
+Plan files are always in English. When a new session opens, invoke the **b-execute-plan** agent with: `@b-execute-plan .opencode/b-plans/[file].md` — it orchestrates the full pipeline automatically with state tracking, rollback support, and context-overflow protection.
 
 Pipeline overview (b-execute-plan handles all of this):
 
 0. **Pre-execution** *(conditional)*: if plan modifies existing code and no `## Context` section exists → extract file paths from plan Steps, run `b-analyze` scoped to only those paths, append as `## Context`. Skip if greenfield or context already present.
-1. **Per implementation step** → invoke `/b-tdd [plan-file]:[N]` (single-step mode: runs exactly step N, checks it off, returns control). b-tdd enforces Iron Law + RGR per step.
-2. **After all implementation steps** → invoke `/b-gate` (no args — runs on full working tree).
-3. **After b-gate passes** → invoke `/b-review [plan-file]` (passes plan as requirements baseline).
-4. **After READY FOR PR** → invoke `/b-commit`.
+1. **Per implementation step** → invoke `@b-tdd [plan-file]:[N]` (single-step mode: runs exactly step N, checks it off, returns control). b-tdd enforces Iron Law + RGR per step.
+2. **After all implementation steps** → invoke `@b-gate` (no args — runs on full working tree).
+3. **After b-gate passes** → invoke `@b-review [plan-file]` (passes plan as requirements baseline).
+4. **After READY FOR PR** → invoke `@b-commit`.
 5. **Non-production steps** (config, docs, delete, migrate, rename): perform manually, signal `done` — no skill invoked.
 6. **On step failure**: b-execute-plan writes `[❌] N — reason`, checks `git diff --stat` for partial changes, offers `git checkout -- .` rollback, blocks dependent steps from running.
 7. **On NEEDS FIXES from b-review**: b-execute-plan verifies real code changes via `git diff HEAD --stat` before resetting b-gate checkpoint — never resets on verbal signal alone.
@@ -275,7 +260,7 @@ For plans with > 6 pending steps: b-execute-plan warns at load time and reminds 
 
 ## Rules
 
-- Always write to `.claude/b-plans/` — never output the plan only in chat for non-trivial tasks.
+- Always write to `.opencode/b-plans/` — never output the plan only in chat for non-trivial tasks.
 - Always write plan files in English — regardless of the user's query language.
 - Never execute in the same session as planning — always save to a plan file and open a new session with b-execute-plan.
 - Steps must be ordered by dependency — wrong order causes cascading failures.

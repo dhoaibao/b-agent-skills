@@ -5,26 +5,7 @@ mode: primary
 model: hdwebsoft/claude-sonnet-4-6
 ---
 
-## Tool Mapping (read before following instructions below)
-
-When instructions reference these Claude Code tools, use the OpenCode equivalent:
-
-| Claude Code | OpenCode equivalent |
-|---|---|
-| `Read` / `Glob` / `Grep` | Read files natively |
-| `Edit` / `Write` | Edit files natively |
-| `Bash` | Run bash commands natively |
-| `Skill tool` → `/b-[name]` | Invoke `@b-[name]` subagent with same arguments |
-| `Agent tool` | Spawn subagent via task tool |
-| `TaskCreate` / `TaskUpdate` | Skip — plan file manages state |
-
-**Subagent invocation format:**
-- `/b-tdd [plan-file]:[N]` → `@b-tdd [plan-file]:[N]`
-- `/b-gate` → `@b-gate`
-- `/b-review [plan-file]` → `@b-review [plan-file]`
-- `/b-commit` → `@b-commit`
-- `/b-debug [error]` → `@b-debug [error]`
-- `/b-analyze [scope]` → `@b-analyze [scope]`
+## Subagent invocation
 
 **State bridging between subagents**: before invoking each subagent, write relevant context to the plan file so the subagent has what it needs:
 - Before `@b-tdd`: ensure `## Context` section exists (from b-analyze output).
@@ -35,7 +16,7 @@ When instructions reference these Claude Code tools, use the OpenCode equivalent
 
 # b-execute-plan
 
-Reads `.claude/b-plans/*.md` files, parses step state, and guides users through the production development pipeline with explicit checkpoints and state tracking.
+Reads `.opencode/b-plans/*.md` files, parses step state, and guides users through the production development pipeline with explicit checkpoints and state tracking.
 
 ## When to use
 - User says "execute plan" or provides a plan file path
@@ -47,7 +28,7 @@ Reads `.claude/b-plans/*.md` files, parses step state, and guides users through 
 - Running a single skill in isolation (use `@b-tdd`, `@b-gate`, etc. directly)
 
 ## Tools required
-- File listing — discover `.claude/b-plans/*.md` files
+- File listing — discover `.opencode/b-plans/*.md` files
 - File read — load and parse plan file content
 - File edit — update checkbox state (`- [ ]` → `- [x]`)
 - Subagent invocation — invoke downstream skills via `@` mention
@@ -89,8 +70,8 @@ If `y`: invoke `@b-analyze` scoped to the resolved paths. Append output as a `##
 ### Step 1 — Locate and load plan file
 
 Detect plan file from:
-1. Argument passed by user (e.g., `execute plan from .claude/b-plans/file.md`)
-2. If no argument: list all `.claude/b-plans/*.md` files.
+1. Argument passed by user (e.g., `execute plan from .opencode/b-plans/file.md`)
+2. If no argument: list all `.opencode/b-plans/*.md` files.
    - If exactly one file exists → use it automatically.
    - If multiple files exist → list all with last-modified timestamps and ask which to execute.
 3. If no files found → ask the user to provide the plan file path.
@@ -116,7 +97,7 @@ When triggered, pause and prompt:
 ```
 ⚠️ [N] steps completed this session — context may be getting heavy.
 
-Resume command: execute plan from .claude/b-plans/[plan-file].md
+Resume command: execute plan from .opencode/b-plans/[plan-file].md
 
 Choose:
   1 — Compact session now, then paste the resume command above to continue
@@ -170,7 +151,7 @@ Show routing decision and invoke immediately (no confirmation for unambiguous ke
 **Failed step handling**: if next step has `failed` status:
 ```
 ⚠️ Step N previously failed: [reason]. Retry or skip?
-- Retry: run @b-[skill] .claude/b-plans/[file].md:N
+- Retry: run @b-[skill] .opencode/b-plans/[file].md:N
 - Skip: type `skip` to leave as-is and advance
 ```
 
@@ -245,7 +226,7 @@ Status: [N] of [M] steps complete ✓
 ○ Step 4 — [description]
 
 → Invoking Step 3 — [description] via @b-tdd (keyword match: 'implement')
-[@b-tdd invoked with: .claude/b-plans/[file].md:3]
+[@b-tdd invoked with: .opencode/b-plans/[file].md:3]
 ```
 
 ---

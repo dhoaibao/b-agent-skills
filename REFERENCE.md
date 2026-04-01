@@ -24,7 +24,7 @@ how should I approach refactoring the auth module?
 where do I start with the payment gateway integration?
 ```
 
-**Output:** Plan file written to `.claude/b-plans/[task-slug].md` in the current
+**Output:** Plan file written to `.opencode/b-plans/[task-slug].md` in the current
 project root — with ordered steps (checkbox format), dependency map, risk flags, unknowns
 marked as `b-docs` or `b-research` calls, and an optional `## Feasibility` section when
 Step 0 ran. b-analyze and b-docs findings are appended to the same file for use in
@@ -56,7 +56,7 @@ quality check. Index refresh: calls `index_file` on each modified file after eac
 
 Orchestrates the full development pipeline (b-analyze → b-tdd → b-gate → b-review → b-commit) by
 reading plan files, tracking step completion, and auto-advancing through successful stages. Reads
-`.claude/b-plans/*.md` files, parses checkbox state, displays progress, invokes each skill
+`.opencode/b-plans/*.md` files, parses checkbox state, displays progress, invokes each skill
 automatically, and moves to the next stage on success. Pauses only on failure, ambiguous routing,
 manual steps, NEEDS FIXES verdicts, or parallel step choices.
 
@@ -70,12 +70,12 @@ orchestrate the pipeline
 
 **Workflow:**
 0. **Pre-execution (conditional)**: if the plan modifies existing code and no `## Context` section exists → extract explicit file paths from plan Steps, run b-analyze scoped to only those paths, append as `## Context`. Ask user if scope is ambiguous — never run unconstrained full-repo analysis.
-1. Locate plan file: from argument if provided; if none, Glob `.claude/b-plans/*.md` — if multiple exist, list with timestamps and ask (never auto-select). **Session resume**: completed (`[x]`) steps are skipped automatically.
+1. Locate plan file: from argument if provided; if none, Glob `.opencode/b-plans/*.md` — if multiple exist, list with timestamps and ask (never auto-select). **Session resume**: completed (`[x]`) steps are skipped automatically.
    - **Context window warning**: if pending steps > 6, warn once and suggest splitting at step 5.
    - **Two-tier context threshold**: session step counter threshold = 3 if plan file contains `## Context` section (analysis-heavy — context fills faster), 5 otherwise. Derived from file content at load time — survives context compression. Fires at 3/6/9… or 5/8/11… respectively.
 2. Parse step checkboxes (`- [ ] Step N` / `- [x]` / `- [❌] Step N — reason`).
 3. Display state (✓ / ❌ / ○). Detect skill from keywords — **non-production keywords (delete/remove/config/migrate/document/rename) are checked first (Priority 1)** to prevent "create migration" or "create config" routing to b-tdd despite containing "create". Only "create X" with no Priority 1 keyword falls through to Priority 5 (b-tdd). Routing table now includes concrete examples per row. Invocation format is skill-specific: b-tdd → `[plan-file]:[N]`; b-review → `[plan-file]`; b-gate/b-commit → no plan args. Check `## Dependencies` for blocking failures and parallel declarations (offer parallel for b-tdd steps only).
-4. Invoke skill and detect outcome. **On success**: auto-advance to step 5 (no user input needed). **b-gate failure shortcut**: if b-gate failed, extract failing check name + first ~10 error lines and offer two options: (1) auto-launch `/b-debug [failing-check]: [key error lines]`, or (2) fix manually. If user picks (1), invokes b-debug immediately, then re-runs b-gate; if passes, auto-advances. **On failure (non-gate or user picks manual)**: pause, capture reason, write `- [❌] N — reason`, run `git diff HEAD --stat` for partial changes, offer `git checkout -- .` rollback before retrying. **Manual steps (Priority 1)**: instruct user, then wait for `done`/`next`/`continue` — the only required pause in the happy path.
+4. Invoke skill and detect outcome. **On success**: auto-advance to step 5 (no user input needed). **b-gate failure shortcut**: if b-gate failed, extract failing check name + first ~10 error lines and offer two options: (1) auto-launch `@b-debug [failing-check]: [key error lines]`, or (2) fix manually. If user picks (1), invokes b-debug immediately, then re-runs b-gate; if passes, auto-advances. **On failure (non-gate or user picks manual)**: pause, capture reason, write `- [❌] N — reason`, run `git diff HEAD --stat` for partial changes, offer `git checkout -- .` rollback before retrying. **Manual steps (Priority 1)**: instruct user, then wait for `done`/`next`/`continue` — the only required pause in the happy path.
 5. Update plan checkbox (`[ ]` → `[x]`). Re-read file to recompute session step counter (`current [x] − baseline [x] at session start` — file-based, survives context compression).
 6. Loop until done. **NEEDS FIXES re-entry**: user signals fix → run `git diff HEAD --stat` to confirm real changes → ask "cosmetic or new behavior?" → cosmetic: reset b-gate and re-run; new behavior: route through b-tdd first, then b-gate, then b-review. Iron Law is never bypassed.
 
@@ -84,15 +84,15 @@ orchestrate the pipeline
 📋 Plan: Implement b-execute-plan
 Status: 3 of 6 steps complete ✓
 
-✓ Step 1 — Create b-execute-plan/SKILL.md
+✓ Step 1 — Create b-execute-plan agent file
 ✓ Step 2 — Design skill workflow
 ✓ Step 3 — Define Tools required
 ○ Step 4 — Write Output format
 ○ Step 5 — Update README.md
 ○ Step 6 — Update REFERENCE.md
 
-→ Invoking Step 4 — Write Output format and Rules sections via /b-tdd (keyword match: 'write')
-[b-tdd invoked automatically with: /b-tdd .claude/b-plans/implement-b-execute-plan.md:4]
+→ Invoking Step 4 — Write Output format and Rules sections via @b-tdd (keyword match: 'write')
+[@b-tdd invoked automatically with: @b-tdd .opencode/b-plans/implement-b-execute-plan.md:4]
 ```
 
 **State tracking:** Parses plan file dynamically. If user manually edits the plan,
@@ -183,8 +183,8 @@ red-green-refactor
 ```
 
 **Argument format:**
-- `b-tdd .claude/b-plans/file.md:3` — single-step mode, runs exactly step 3 (used by b-execute-plan)
-- `b-tdd .claude/b-plans/file.md` — single-step mode, auto-detects first pending step
+- `b-tdd .opencode/b-plans/file.md:3` — single-step mode, runs exactly step 3 (used by b-execute-plan)
+- `b-tdd .opencode/b-plans/file.md` — single-step mode, auto-detects first pending step
 - `b-tdd` (no args) — iterate-all mode, runs all steps sequentially
 
 **Output:** Per-step RGR checkpoint log (🔴 Red → 🟢 Green → ✅ Refactor). Single-step completion message when called with plan file; full summary + b-gate handoff when iterating all.
@@ -239,7 +239,7 @@ b-analyze does deep structural analysis — call graphs, complexity, duplication
 ### b-review
 
 Pre-PR human-judgment review on changed code. Reads the git diff, establishes requirements
-baseline from the plan file (`.claude/b-plans/`) or `$ARGUMENTS`, then checks five
+baseline from the plan file (`.opencode/b-plans/`) or `$ARGUMENTS`, then checks five
 dimensions: logic correctness (control flow, null handling, async safety, side effects, plus **security review** — auth/authz enforcement, input validation, sensitive data exposure, injection vectors, rate limiting on new public endpoints), requirements coverage (maps each requirement to changed code — ✅/❌/⚠️ Partial), test adequacy (behavior coverage, unhappy paths, regression safety), and an **observability check** on new handlers/endpoints/jobs (entry-point logging present, errors not swallowed, metric emitted if implied). Uses
 `sequentialthinking` to consolidate findings and surface what a senior engineer would
 flag. Does not run automated tooling — that is b-gate's role.
@@ -424,7 +424,7 @@ trigger a web lookup and `b-docs` call before hypothesis verification.
 
 ### b-sync
 
-Syncs Claude skills from the `b-agent-skills` GitHub repo to `~/.claude/skills/` using git + `sync.sh`. No MCP required — only the Bash tool.
+Syncs OpenCode agents from the `b-agent-skills` GitHub repo to `~/.config/opencode/agents/` using `curl` + `install.sh`. No MCP required — only the Bash tool.
 
 **Good triggers:**
 ```
@@ -503,7 +503,7 @@ You control the pace at each step. b-plan's execution section automates steps 2 
 
 ## Trigger tips
 
-Claude Code may skip skills on tasks that appear simple. To guarantee activation:
+OpenCode may skip skills on tasks that appear simple. To guarantee activation:
 
 - **Prefix with the skill name**: `b-plan: ...`, `b-tdd`, `b-gate`, `b-debug: ...`, `b-research: ...`
 - **Use explicit keywords**: "plan", "tdd", "gate", "analyze", "research", "debug" trigger reliably
@@ -535,7 +535,7 @@ b-tdd ───── called with [file.md]:[N] ────► single-step mode
 b-gate ──── GATE PASSED ──────────────────► b-review (human-judgment review before PR)
 
 b-review ── read diff ────────────────────► Bash (git diff HEAD)
-         ── requirements baseline ─────────► plan file (.claude/b-plans/) or $ARGUMENTS
+         ── requirements baseline ─────────► plan file (.opencode/b-plans/) or $ARGUMENTS
          ── Issue URL enrichment ──────────► firecrawl_scrape (optional, when **Issue**: URL present in plan)
          ── symbol context ────────────────► jcodemunch (get_symbol_source, get_context_bundle, optional)
          ── consolidate findings ──────────► sequential-thinking

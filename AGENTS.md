@@ -6,7 +6,7 @@ Guidelines for creating, editing, and maintaining skills in this repository.
 
 ## Frontmatter spec
 
-Every `SKILL.md` must begin with YAML frontmatter:
+Every `opencode/b-[name].md` must begin with YAML frontmatter:
 
 ```yaml
 ---
@@ -15,7 +15,7 @@ description: >
   [Trigger-focused description, ≤80 words. Answer ONLY: "when should Claude trigger this skill?"
   Include: ALWAYS trigger condition, key Vietnamese + English trigger phrases,
   and one sentence distinguishing this from similar skills.
-  Do NOT include usage instructions — those go in the SKILL.md body.]
+  Do NOT include usage instructions — those go in the agent file body.]
 ---
 ```
 
@@ -32,7 +32,7 @@ description: >
 
 ---
 
-## SKILL.md structure template
+## Agent file structure template
 
 ```markdown
 ---
@@ -98,97 +98,78 @@ When deciding which MCPs a skill should use:
 
 ---
 
-## OpenCode sync rule
+## Agent file sync rule
 
-**All skills in this repo are OpenCode-paired** — every `claude/b-[name]/SKILL.md` has a corresponding `opencode/b-[name].md`. All paired skills must stay in sync with their SKILL.md in the same commit:
+All skills live in `opencode/b-[name].md`. When changing agent files:
 
-| Change type | `opencode/` action |
+| Change type | Action |
 |---|---|
-| **Create** skill that needs OpenCode subagent | Create `opencode/b-[name].md` |
-| **Update** SKILL.md (any change) | Update `opencode/b-[name].md` body |
-| **Delete** skill | Delete `opencode/b-[name].md` |
+| **Create** new agent | Create `opencode/b-[name].md` |
+| **Update** agent | Edit `opencode/b-[name].md` directly |
+| **Delete** agent | Delete `opencode/b-[name].md` |
 
-**Create** — a skill needs an agent file when it is invoked by another skill via `Skill` tool, or should be available as `@b-[name]` in OpenCode sessions.
+**Exception: `b-execute-plan`** — its agent file contains intentional adaptations that must be preserved when updating:
 
-**Update** — any change to SKILL.md requires updating the agent file body in the same commit.
-
-**Exception: `b-execute-plan`** — its agent file is NOT a direct copy of SKILL.md. It contains intentional adaptations that must be preserved when updating:
-
-| What changed in SKILL.md | What to do in agent file |
+| What changed | What to do in agent file |
 |---|---|
-| Step logic / routing / rules | Apply the equivalent change manually, keeping `@b-[name]` format instead of `Skill tool` |
-| New `Skill tool` invocation added | Translate to `@b-[name]` subagent invocation |
-| New inter-skill state (e.g. new section written to plan file) | Update the state bridging block in the Tool Mapping section accordingly |
+| Step logic / routing / rules | Apply the equivalent change manually, keeping `@b-[name]` format |
+| New subagent invocation added | Add to the `## Subagent invocation` section |
+| New inter-skill state (e.g. new section written to plan file) | Update the state bridging block accordingly |
 | Output format / cosmetic | Copy directly — no translation needed |
 
 Intentional differences to preserve in `b-execute-plan` agent file:
-- All `Skill("/b-[name]")` → `@b-[name]` subagent invocations
+- All subagent invocations use `@b-[name]` format
 - State bridging block: writes context to plan file before each subagent call (`## Context`, `## Last Gate Failure`, `## Review Feedback`)
-- `Skill invocation format` table uses `@b-[name]` syntax throughout
+- `## Subagent invocation` section lists `@b-[name]` syntax throughout
 
-**Delete** — when a skill is deleted from the repo, delete its agent file in the same commit.
-
-**`opencode/AGENTS.md` sync** — update `opencode/AGENTS.md` (global rules) and `AGENTS.md` (repo rules) in the same commit when any of these change:
+**`opencode/global/AGENTS.md` sync** — update `opencode/global/AGENTS.md` (global rules) and `AGENTS.md` (repo rules) in the same commit when any of these change:
 
 | Change | Section to update |
 |---|---|
-| Subagent added or removed | `## Subagents` table in `opencode/AGENTS.md` |
-| New plan file section added | `## Plan file state sections` table in `opencode/AGENTS.md` |
-| b-execute-plan workflow changes | `## Invoking the execution pipeline` in `opencode/AGENTS.md` |
-| Git safety rules change | `## Git safety` in `opencode/AGENTS.md` |
-
-**`CLAUDE.md` ↔ `AGENTS.md` mirror rule** — `AGENTS.md` (repo root) and `CLAUDE.md` (repo root) must always stay in sync:
-
-- Any change to authoring conventions, structure templates, MCP rules, doc sync rules, quality checklist, or new skill creation guide in `AGENTS.md` must be mirrored to `CLAUDE.md` in the same commit.
-- Any equivalent change made to `CLAUDE.md` must also be applied to `AGENTS.md` in the same commit.
-- These two files must be identical — no intentional differences are allowed.
+| Subagent added or removed | `## Subagents` table in `opencode/global/AGENTS.md` |
+| New plan file section added | `## Plan file state sections` table in `opencode/global/AGENTS.md` |
+| b-execute-plan workflow changes | `## Invoking the execution pipeline` in `opencode/global/AGENTS.md` |
+| Git safety rules change | `## Git safety` in `opencode/global/AGENTS.md` |
 
 **Agent file structure** — every `opencode/b-[name].md` follows this format:
 
 ```markdown
 ---
 name: b-[name]
-description: [one-line, same intent as SKILL.md description]
-mode: [primary for orchestrator skills / subagent for all others]
+description: [one-line, trigger-focused]
+mode: [primary for orchestrator agents / subagent for all others]
 model: [see model table in OPENCODE.md]
 ---
 
-## Tool Mapping (read before following instructions below)
-[standard tool mapping table — never change this section]
-
----
-
-[SKILL.md content from # heading onward — excluding YAML frontmatter]
+[Agent file body — # heading onward]
 ```
 
-The **Tool Mapping preamble is fixed** — never modify it when updating agent files. Only the body (SKILL.md content) changes.
+**How to update**: edit `opencode/b-[name].md` directly.
 
-**How to update**: copy SKILL.md content from the `# b-[name]` heading to end of file, paste into the agent file body after the `---` separator, replacing the previous body.
-
-**How to add a new paired skill**:
+**How to add a new agent**:
 1. Create `opencode/b-[name].md` with the structure above.
 2. `install.sh` picks it up automatically — no script changes needed.
-3. Update `OPENCODE.md` model assignments table if the new skill uses a non-default model.
+3. Update `OPENCODE.md` model assignments table if the new agent uses a non-default model.
 
 ---
 
 ## Doc sync rule
 
-**Any change to a skill — create, update, or delete — requires updating both `README.md` and `REFERENCE.md` in the same commit.**
+**Any change to an agent file — create, update, or delete — requires updating both `README.md` and `REFERENCE.md` in the same commit.**
 
 | Change type | README.md | REFERENCE.md |
 |---|---|---|
-| **Create** skill | Add row to skills overview table | Add full reference section |
-| **Update** skill | Update `Use when` cell and MCP(s) cell if changed | Rewrite the skill's reference section to match |
-| **Delete** skill | Remove row from skills overview table | Remove the skill's reference section entirely |
+| **Create** agent | Add row to skills overview table | Add full reference section |
+| **Update** agent | Update `Use when` cell and MCP(s) cell if changed | Rewrite the agent's reference section to match |
+| **Delete** agent | Remove row from skills overview table | Remove the agent's reference section entirely |
 
-Never leave README or REFERENCE out of sync with a SKILL.md change. If a PR touches `claude/b-[skill]/SKILL.md`, it must also touch both doc files.
+Never leave README or REFERENCE out of sync with an agent file change.
 
 ---
 
 ## Quality checklist
 
-Before merging any SKILL.md change, verify:
+Before merging any agent file change, verify:
 
 1. **Description ≤80 words** — verify with `wc -w` on the extracted description text
 2. **Every step has imperative verbs** — "Call X", "Extract Y", "Check Z" — not "X is called" or "Y should be extracted"
@@ -204,33 +185,28 @@ Before merging any SKILL.md change, verify:
 
 ```
 b-agent-skills/
-├── claude/
-│   └── b-new-skill/
-│       └── SKILL.md      ← Claude Code skill file
 ├── opencode/
 │   ├── AGENTS.md         ← Global OpenCode rules (symlinked to ~/.agents/AGENTS.md)
 │   └── b-new-skill.md    ← OpenCode agent file
 ├── install.sh
 ├── README.md
 ├── REFERENCE.md
-├── AGENTS.md             ← Repo-level OpenCode rules
-└── CLAUDE.md             ← Repo-level Claude Code rules
+└── AGENTS.md             ← Repo-level authoring conventions
 ```
 
 ### Naming convention
 
-- Folder and `name` field: `b-[verb-or-noun]` in kebab-case
+- `name` field: `b-[verb-or-noun]` in kebab-case
 - Examples: `b-plan`, `b-docs`, `b-research`, `b-debug`
 - Keep names short (1–2 words after `b-`)
 
 ### How to add to sync
 
-1. Create `claude/b-new-skill/SKILL.md` with valid frontmatter (`name` + `description`)
-2. Create `opencode/b-new-skill.md` as the paired OpenCode agent file
-3. `install.sh` picks up both automatically — no script changes needed
-4. Update `README.md` skills overview table
-5. Update `REFERENCE.md` with a detailed reference section
-6. Commit, push, run `/b-sync` then restart Claude Code / OpenCode
+1. Create `opencode/b-new-skill.md` with valid frontmatter (`name` + `description`)
+2. `install.sh` picks it up automatically — no script changes needed
+3. Update `README.md` skills overview table
+4. Update `REFERENCE.md` with a detailed reference section
+5. Commit, push, run `@b-sync` in OpenCode then restart OpenCode
 
 ### How to add a new MCP to the suite
 

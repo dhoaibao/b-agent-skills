@@ -5,21 +5,6 @@ mode: subagent
 model: hdwebsoft/gpt-5.4
 ---
 
-## Tool Mapping (read before following instructions below)
-
-When instructions reference these Claude Code tools, use the OpenCode equivalent:
-
-| Claude Code | OpenCode equivalent |
-|---|---|
-| `Read` / `Glob` / `Grep` | Read files natively |
-| `Edit` / `Write` | Edit files natively |
-| `Bash` | Run bash commands natively |
-| `Skill tool` → `/b-[name]` | Invoke `@b-[name]` subagent |
-| `Agent tool` | Spawn subagent via task tool |
-| `TaskCreate` / `TaskUpdate` | Skip — plan file manages state |
-
----
-
 
 # b-docs
 
@@ -53,7 +38,7 @@ If `$ARGUMENTS` is provided, parse it as `[library] [topic]` (e.g. `sendgrid sen
 If context7 is unavailable:
 - Notify the user: "❌ context7 MCP not connected — escalating to b-research for `[library] [topic]`. You can cancel with Ctrl+C."
 - Do NOT fall back to training data for API details.
-- Invoke the `b-research` skill with the original library and topic as the query.
+- Invoke `@b-research [library] [topic]` to escalate.
 
 Graceful degradation: ⚠️ Partial — fallback chain: context7 → firecrawl (direct scrape of official docs) → b-research (full research pipeline).
 
@@ -82,7 +67,7 @@ Call `resolve-library-id` with the library name.
 - If no result found: try the firecrawl direct-scrape fallback (see below) before escalating to b-research.
 
 **Firecrawl direct-scrape fallback** *(when context7 has no index for a library)*:
-If the library has a well-known official docs URL (e.g. docs.sendgrid.com, docs.bullmq.io, docs.stripe.com) → call `firecrawl_scrape` on that URL with `formats: ["markdown"], onlyMainContent: true`. If the scrape returns ≥300 words of relevant content → use it directly as the doc source, skip b-research. If the scrape fails or returns <300 words → escalate to b-research: notify the user "⚠️ context7 has no index for `[library]` and direct scrape was insufficient — escalating to b-research for deeper lookup. You can cancel with Ctrl+C." then invoke the `b-research` skill with the original library and topic as the query.
+If the library has a well-known official docs URL (e.g. docs.sendgrid.com, docs.bullmq.io, docs.stripe.com) → call `firecrawl_scrape` on that URL with `formats: ["markdown"], onlyMainContent: true`. If the scrape returns ≥300 words of relevant content → use it directly as the doc source, skip b-research. If the scrape fails or returns <300 words → escalate to b-research: notify the user "⚠️ context7 has no index for `[library]` and direct scrape was insufficient — escalating to b-research for deeper lookup. You can cancel with Ctrl+C." then invoke `@b-research [library] [topic]`.
 
 ---
 
@@ -90,8 +75,7 @@ If the library has a well-known official docs URL (e.g. docs.sendgrid.com, docs.
 
 Call `query-docs` with:
 - The resolved library ID from Step 2.
-- `topic`: the specific feature area (keep focused — don't fetch entire docs)
-- `tokens`: 8000 for simple APIs, 12000–15000 for complex ones (auth flows, multi-method APIs, SDK setup)
+- `query`: the specific feature area as a natural language question (keep focused — don't fetch entire docs)
 
 Repeat with a different `topic` if the user's task spans multiple API areas (e.g. "send email" AND "handle bounce webhooks" — fetch both).
 

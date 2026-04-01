@@ -5,21 +5,6 @@ mode: subagent
 model: hdwebsoft/gpt-5.4
 ---
 
-## Tool Mapping (read before following instructions below)
-
-When instructions reference these Claude Code tools, use the OpenCode equivalent:
-
-| Claude Code | OpenCode equivalent |
-|---|---|
-| `Read` / `Glob` / `Grep` | Read files natively |
-| `Edit` / `Write` | Edit files natively |
-| `Bash` | Run bash commands natively |
-| `Skill tool` → `/b-[name]` | Invoke `@b-[name]` subagent |
-| `Agent tool` | Spawn subagent via task tool |
-| `TaskCreate` / `TaskUpdate` | Skip — plan file manages state |
-
----
-
 
 # b-debug
 

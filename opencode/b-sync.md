@@ -1,29 +1,14 @@
 ---
 name: b-sync
-description: Sync, update, or bootstrap Claude skills from the b-agent-skills GitHub repo.
+description: Sync, update, or bootstrap OpenCode agents from the b-agent-skills GitHub repo.
 mode: subagent
 model: github-copilot/claude-haiku-4-5
----
-
-## Tool Mapping (read before following instructions below)
-
-When instructions reference these Claude Code tools, use the OpenCode equivalent:
-
-| Claude Code | OpenCode equivalent |
-|---|---|
-| `Read` / `Glob` / `Grep` | Read files natively |
-| `Edit` / `Write` | Edit files natively |
-| `Bash` | Run bash commands natively |
-| `Skill tool` → `/b-[name]` | Invoke `@b-[name]` subagent |
-| `Agent tool` | Spawn subagent via task tool |
-| `TaskCreate` / `TaskUpdate` | Skip — plan file manages state |
-
 ---
 
 
 # b-sync
 
-Syncs Claude Code skills and/or OpenCode agents from the public `b-agent-skills` GitHub repo using `curl` + `install.sh`. No extra tools required — just `curl` and `bash`.
+Syncs OpenCode agents from the public `b-agent-skills` GitHub repo using `curl` + `install.sh`. No extra tools required — just `curl` and `bash`.
 
 ## When to use
 
@@ -34,15 +19,13 @@ Syncs Claude Code skills and/or OpenCode agents from the public `b-agent-skills`
 ## When NOT to use
 
 - User wants to run a specific skill → invoke that skill directly.
-- User wants to create a new skill → follow the new skill creation guide in CLAUDE.md.
-- User wants to edit an existing skill → edit the SKILL.md file directly.
+- User wants to create a new skill → follow the new skill creation guide in AGENTS.md.
+- User wants to edit an existing skill → edit the agent file (opencode/b-[name].md) directly.
 
 ## How it works
 
 - `~/.b-agent-skills/` — local clone of the repo (source of truth)
-- `claude/b-[name]/SKILL.md` — Claude Code skill files (source)
 - `opencode/b-[name].md` — OpenCode agent files (source)
-- `~/.claude/skills/<skill-name>` — symlinks to Claude Code skills
 - `~/.config/opencode/agents/<skill-name>.md` — symlinks to OpenCode agents
 - Updating = run `install.sh` via `curl` → re-clones or pulls and re-symlinks automatically.
 - Stale symlinks (skills removed from repo) are cleaned up automatically on each sync.
@@ -62,13 +45,13 @@ Graceful degradation: ✅ Possible — b-sync requires only Bash/curl and does n
 curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agent-skills/main/install.sh | bash
 ```
 
-This single command handles both first-time setup and updates. After running, **restart Claude Code or OpenCode** to pick up new skills.
+This single command handles both first-time setup and updates. After running, **restart OpenCode** to pick up new agents.
 
 If you have forked this repo, replace the URL above with your own fork's HTTPS URL.
 
 ### Sync / update skills (everyday use)
 
-Run `/b-sync` in Claude Code or `@b-sync` in OpenCode — then **restart Claude Code / OpenCode** to load the updated skills.
+Run `@b-sync` in OpenCode — then **restart OpenCode** to load the updated agents.
 
 Or run directly:
 
@@ -84,17 +67,15 @@ This will:
 ## What install.sh does (for reference)
 
 - Clones or pulls latest from `main`
-- **Claude Code**: scans `claude/b-[name]/` folders; symlinks those with `SKILL.md` into `~/.claude/skills/`
-- **OpenCode**: scans `opencode/b-[name].md` files; symlinks them into `~/.config/opencode/agents/`
+- Scans `opencode/b-[name].md` files; symlinks them into `~/.config/opencode/agents/`
 - Removes stale symlinks for skills deleted from the repo on each platform.
 - Safe to re-run anytime — idempotent.
 
-## Adding a new skill to the repo
+## Adding a new agent to the repo
 
-1. Create `claude/b-new-skill/SKILL.md` with proper frontmatter
-2. Create `opencode/b-new-skill.md` as the paired OpenCode agent file
-3. Commit and push
-4. Run `/b-sync` (or `curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agent-skills/main/install.sh | bash`) then restart Claude Code / OpenCode to pick it up
+1. Create `opencode/b-new-skill.md` as the OpenCode agent file
+2. Commit and push
+3. Run `@b-sync` (or `curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agent-skills/main/install.sh | bash`) then restart OpenCode to pick it up
 
 ## Steps
 
@@ -107,9 +88,9 @@ Run: `[ -d ~/.b-agent-skills/.git ] && echo "UPDATE" || echo "BOOTSTRAP"`
 
 ### Step 2 — Snapshot current state
 
-Run: `ls ~/.claude/skills/ 2>/dev/null || echo "(none)"`
+Run: `ls ~/.config/opencode/agents/ 2>/dev/null || echo "(none)"`
 
-Save this output as the "before" skill list — used in Step 5 to diff what changed.
+Save this output as the "before" agent list — used in Step 5 to diff what changed.
 
 ### Step 3 — Run sync
 
@@ -122,7 +103,7 @@ curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agent-skills/main/instal
 This handles both BOOTSTRAP and UPDATE automatically — no branching needed.
 Output the script's stdout — it contains live progress messages (🔄 Updating, 🔗 Syncing, ✅ per skill).
 
-After sync completes, tell the user: **"Restart Claude Code or OpenCode to load the updated skills."**
+After sync completes, tell the user: **"Restart OpenCode to load the updated agents."**
 
 If install.sh exits with error: check the output message.
 - If "⚠️ Local changes detected" → tell the user to run `cd ~/.b-agent-skills && git stash` first, then retry sync.
@@ -130,29 +111,26 @@ If install.sh exits with error: check the output message.
 
 ### Step 4 — Verify symlinks
 
-Run both checks:
+Run:
 
 ```bash
-ls -la ~/.claude/skills/ | grep "^l"
-grep -rL 'name:' ~/.claude/skills/*/SKILL.md 2>/dev/null
+ls -la ~/.config/opencode/agents/ | grep "^l"
 ```
 
-- First command lists all active symlinks — confirms sync worked.
-- Second command flags any skills missing required `name:` frontmatter.
-- If any skill is flagged → tell the user which skill has broken frontmatter.
+- Lists all active symlinks — confirms sync worked.
 
 ### Step 5 — Report changes
 
-Compare the before list (Step 2) vs current `ls ~/.claude/skills/`:
+Compare the before list (Step 2) vs current `ls ~/.config/opencode/agents/`:
 
 - **Added**: names in current but not in before.
 - **Removed**: names in before but not in current.
-- **Total installed**: count of current skills.
+- **Total installed**: count of current agents.
 
 Print summary:
 
 ```
-✅ Sync complete. [N] skills installed.
+✅ Sync complete. [N] agents installed.
   Added:   [list or 'none']
   Removed: [list or 'none']
 ```
@@ -161,20 +139,20 @@ Print summary:
 
 ## Verify after sync
 
-After running `install.sh`, verify installed skills are valid:
+After running `install.sh`, verify installed agents are symlinked:
 
 ```bash
-grep -rL 'name:' ~/.claude/skills/*/SKILL.md 2>/dev/null
+ls -la ~/.config/opencode/agents/ | grep "^l"
 ```
 
-Any file printed by this command is missing the `name:` frontmatter field — check and fix that skill's SKILL.md before using it.
+Each line should point to `~/.b-agent-skills/opencode/b-[name].md`.
 
 ## Troubleshooting
 
 | Problem | Fix |
 |---|---|
 | `Permission denied` | Check your network or GitHub token if repo requires auth |
-| Skill not showing in Claude Code | Check folder has `SKILL.md` with valid `name` + `description` frontmatter |
+| Agent not showing in OpenCode | Check `opencode/b-[name].md` has valid `name` + `description` frontmatter |
 | Symlink broken | Re-run `install.sh` via curl to refresh |
 
 ---
@@ -182,7 +160,7 @@ Any file printed by this command is missing the `name:` frontmatter field — ch
 ## Output format
 
 ```
-✅ Sync complete. [N] skills installed.
+✅ Sync complete. [N] agents installed.
   Added:   [list or 'none']
   Removed: [list or 'none']
 ```

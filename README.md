@@ -1,6 +1,6 @@
 # b-agent-skills
 
-A personal skill suite for **Claude Code** and **OpenCode**.
+A personal skill suite for **OpenCode**.
 
 ## Install & Update
 
@@ -8,9 +8,9 @@ A personal skill suite for **Claude Code** and **OpenCode**.
 curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agent-skills/main/install.sh | bash
 ```
 
-Then **restart Claude Code or OpenCode** to load the skills.
+Then **restart OpenCode** to load the agents.
 
-> **To update skills later**: run `/b-sync` in Claude Code (or `@b-sync` in OpenCode), then restart Claude Code / OpenCode.
+> **To update agents later**: run `@b-sync` in OpenCode, then restart OpenCode.
 
 ---
 
@@ -21,7 +21,7 @@ Skills are organized into two groups:
 - **Development skills** — a tightly integrated pipeline: `b-plan → b-tdd → b-gate → b-review → b-commit`, with `b-analyze`, `b-debug`, `b-docs`, `b-research`, and `b-observe` as supporting tools. `b-execute-plan` orchestrates the full pipeline.
 - **Personal / daily skills** — standalone utilities: `b-quick-search`, `b-news`, `b-sync`.
 
-**Hybrid workflow**: Claude Code handles planning (`b-plan`), OpenCode handles execution (`b-execute-plan`). Plan files in `.claude/b-plans/*.md` are the shared contract.
+**OpenCode workflow**: planning (`@b-plan`) and execution (`@b-execute-plan`) both happen within OpenCode. Plan files in `.opencode/b-plans/*.md` track step state.
 
 **Git-safety guardrail**: destructive git commands are prohibited in all skills except `b-commit`, which owns all git write operations.
 
@@ -35,26 +35,26 @@ Skills are organized into two groups:
 | `jcodemunch` | Code structure & call graph analysis |
 | `sequential-thinking` | Structured reasoning |
 
-Verify all 5 are connected with `/mcp` in Claude Code.
+Verify all 5 are connected in OpenCode.
 
 ### Model assignments
 
-| Skill | Claude Code model | OpenCode model |
-|---|---|---|
-| `b-analyze` | `sonnet` | `hdwebsoft/gpt-5.4` |
-| `b-commit` | `haiku` | `github-copilot/claude-haiku-4-5` |
-| `b-debug` | `sonnet` | `hdwebsoft/gpt-5.4` |
-| `b-docs` | `haiku` | `hdwebsoft/gpt-5.4` |
-| `b-execute-plan` | `sonnet` | `hdwebsoft/claude-sonnet-4-6` |
-| `b-gate` | `haiku` | `github-copilot/claude-haiku-4-5` |
-| `b-news` | `haiku` | `github-copilot/claude-haiku-4-5` |
-| `b-observe` | `sonnet` | `hdwebsoft/gpt-5.4` |
-| `b-plan` | `sonnet` | `hdwebsoft/claude-sonnet-4-6` |
-| `b-quick-search` | `haiku` | `github-copilot/claude-haiku-4-5` |
-| `b-research` | `sonnet` | `hdwebsoft/gpt-5.4` |
-| `b-review` | `sonnet` | `hdwebsoft/gpt-5.4` |
-| `b-sync` | `haiku` | `github-copilot/claude-haiku-4-5` |
-| `b-tdd` | `sonnet` | `hdwebsoft/gpt-5.4` |
+| Skill | OpenCode model |
+|---|---|
+| `b-analyze` | `hdwebsoft/gpt-5.4` |
+| `b-commit` | `github-copilot/claude-haiku-4-5` |
+| `b-debug` | `hdwebsoft/gpt-5.4` |
+| `b-docs` | `hdwebsoft/gpt-5.4` |
+| `b-execute-plan` | `hdwebsoft/claude-sonnet-4-6` |
+| `b-gate` | `hdwebsoft/gpt-5.4` |
+| `b-news` | `github-copilot/claude-haiku-4-5` |
+| `b-observe` | `hdwebsoft/gpt-5.4` |
+| `b-plan` | `hdwebsoft/claude-sonnet-4-6` |
+| `b-quick-search` | `github-copilot/claude-haiku-4-5` |
+| `b-research` | `hdwebsoft/gpt-5.4` |
+| `b-review` | `hdwebsoft/gpt-5.4` |
+| `b-sync` | `github-copilot/claude-haiku-4-5` |
+| `b-tdd` | `hdwebsoft/gpt-5.4` |
 
 ---
 

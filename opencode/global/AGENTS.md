@@ -1,19 +1,19 @@
 # b-agent-skills — OpenCode Rules
 
-## Hybrid workflow
+## OpenCode workflow
 
-This project uses a hybrid workflow:
-- **Claude Code** handles planning: clarify requirements → `/b-plan` → writes `.claude/b-plans/*.md`
-- **OpenCode** handles execution: reads plan file → runs `b-execute-plan` pipeline
+All planning and execution happen within OpenCode:
+- **Planning**: clarify requirements → `@b-plan` → writes `.opencode/b-plans/*.md`
+- **Execution**: reads plan file → runs `@b-execute-plan` pipeline
 
-Plan files live in `.claude/b-plans/*.md`. Claude Code writes them; OpenCode reads and executes them.
+Plan files live in `.opencode/b-plans/*.md`. Both are written and executed entirely within OpenCode.
 
 ## Invoking the execution pipeline
 
 When asked to execute a plan, use the `b-execute-plan` primary agent:
 
 ```
-execute plan from .claude/b-plans/<filename>.md
+execute plan from .opencode/b-plans/<filename>.md
 ```
 
 Or simply: `execute plan` — b-execute-plan will discover the plan file automatically.

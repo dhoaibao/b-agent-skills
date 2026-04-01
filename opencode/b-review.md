@@ -5,21 +5,6 @@ mode: subagent
 model: hdwebsoft/gpt-5.4
 ---
 
-## Tool Mapping (read before following instructions below)
-
-When instructions reference these Claude Code tools, use the OpenCode equivalent:
-
-| Claude Code | OpenCode equivalent |
-|---|---|
-| `Read` / `Glob` / `Grep` | Read files natively |
-| `Edit` / `Write` | Edit files natively |
-| `Bash` | Run bash commands natively |
-| `Skill tool` → `/b-[name]` | Invoke `@b-[name]` subagent |
-| `Agent tool` | Spawn subagent via task tool |
-| `TaskCreate` / `TaskUpdate` | Skip — plan file manages state |
-
----
-
 
 # b-review
 
@@ -88,7 +73,7 @@ If the diff is large (>500 lines changed), ask the user which area to focus on f
 
 Determine what the code was *supposed* to do:
 
-1. **Check for plan file** — look for `.claude/b-plans/[task-slug].md`. If found, read the `## Steps` section and the original scope statement. This is the primary requirements source.
+1. **Check for plan file** — look for `.opencode/b-plans/[task-slug].md`. If found, read the `## Steps` section and the original scope statement. This is the primary requirements source.
 
    1b. **Issue enrichment** *(runs only when a plan file was found in step 1)*: scan the plan file header for an `**Issue**:` field.
    - If the value starts with `http`: call `firecrawl_scrape` with `url=[value]` and `formats: ["markdown"]`. Trim the result to 500 words and append to the requirements baseline as: `**Issue context** (from [URL]):
@@ -97,7 +82,7 @@ Determine what the code was *supposed* to do:
    - If the `**Issue**:` field is absent or empty: skip this sub-step entirely.
 
 2. **Check $ARGUMENTS** — if provided:
-   - If `$ARGUMENTS` ends in `.md` → use `Read` to verify the file exists. If it exists, treat it as the primary requirements source (same as a plan file found in `.claude/b-plans/`).
+   - If `$ARGUMENTS` ends in `.md` → use `Read` to verify the file exists. If it exists, treat it as the primary requirements source (same as a plan file found in `.opencode/b-plans/`).
    - If `$ARGUMENTS` does not end in `.md` → treat it as a text description of requirements.
 3. **Ask the user** — if neither is available, ask: "What was this change supposed to accomplish? What does 'done' look like?" Initial ask, then one re-prompt if vague — two questions maximum.
 
@@ -135,15 +120,16 @@ Read the changed code (use `get_symbol_source` or Read tool) and check:
 - Does the code modify shared state unexpectedly?
 - Are there unintended writes to external systems (DB, cache, queue) in non-obvious paths?
 
-**Security review** *(skip if diff ≤50 lines AND ≤2 files — same fast-path threshold as Step 2)*
+**Security review**
 
-Check changed code only for these five vectors:
+**Always check** (no fast-path exception):
+- **Injection vectors** — is dynamic SQL, shell commands, or HTML constructed with unsanitized input? Check every user-facing input path regardless of diff size.
 
+**Skip if diff ≤50 lines AND ≤2 files** (fast-path threshold — same as Step 2):
 1. **Auth/authz** — do new endpoints or handlers require authentication? Is it enforced? Are role/permission checks correct?
 2. **Input validation** — is untrusted input sanitized before use in DB queries, filesystem paths, or `eval`/exec calls?
 3. **Sensitive data** — are passwords, tokens, or PII logged or returned in responses where they should not be?
-4. **Injection vectors** — is dynamic SQL, shell commands, or HTML constructed with unsanitized input?
-5. **Rate limiting** — do new publicly accessible endpoints have rate limiting in place?
+4. **Rate limiting** — do new publicly accessible endpoints have rate limiting in place?
 
 For each issue found: state the file, line range, what the problem is, and what the correct behavior should be.
 

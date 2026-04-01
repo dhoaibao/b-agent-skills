@@ -5,21 +5,6 @@ mode: subagent
 model: hdwebsoft/gpt-5.4
 ---
 
-## Tool Mapping (read before following instructions below)
-
-When instructions reference these Claude Code tools, use the OpenCode equivalent:
-
-| Claude Code | OpenCode equivalent |
-|---|---|
-| `Read` / `Glob` / `Grep` | Read files natively |
-| `Edit` / `Write` | Edit files natively |
-| `Bash` | Run bash commands natively |
-| `Skill tool` → `/b-[name]` | Invoke `@b-[name]` subagent |
-| `Agent tool` | Spawn subagent via task tool |
-| `TaskCreate` / `TaskUpdate` | Skip — plan file manages state |
-
----
-
 
 # b-tdd
 
@@ -30,7 +15,7 @@ before a failing test exists. Each step follows Red-Green-Refactor strictly.
 
 **`$ARGUMENTS` argument detection** — parse `$ARGUMENTS` before starting, in this priority order:
 
-1. **Explicit step format** `[path.md]:[N]` (e.g. `.claude/b-plans/file.md:3`) — highest priority.
+1. **Explicit step format** `[path.md]:[N]` (e.g. `.opencode/b-plans/file.md:3`) — highest priority.
    - Split on the last `:` to extract plan file path and step number N.
    - Use `Read` to verify the plan file exists.
    - Store plan file path + step number N as the authoritative target. Do NOT scan for "next pending" — run exactly step N.
@@ -41,7 +26,7 @@ before a failing test exists. Each step follows Red-Green-Refactor strictly.
 
 3. **No `.md`** — treat `$ARGUMENTS` as an error message, task description, or scope note. No plan file involved.
 
-4. **Absent** — check session context for an `execute plan from .claude/b-plans/[file].md` invocation. If found, use that file. If not found, ask once: "Is there a plan file for this session?"
+4. **Absent** — check session context for an `execute plan from .opencode/b-plans/[file].md` invocation. If found, use that file. If not found, ask once: "Is there a plan file for this session?"
 
 **Operation mode** — determined from the detection above:
 - **Plan-file detected → single-step mode**: run exactly one Red-Green-Refactor cycle for the target step (explicit N from format 1, or first pending from format 2), then stop and emit the single-step completion message. Return control to the caller. Do NOT process any other steps.
@@ -128,7 +113,9 @@ With the test green, clean up:
 
 **Index update**: after refactor is confirmed green, if jcodemunch is available, call `index_file` on each file modified during this RGR cycle to keep the index fresh for subsequent b-analyze or b-debug calls.
 
-**Plan file update**: after refactor is confirmed green, check off the current step in the plan file. Use the `Edit` tool to change `- [ ] N.` → `- [x] N.` in the active plan file. Use the plan file path detected from `$ARGUMENTS` or session context (see intro). If still unknown, ask the user once.
+**Plan file update**: after refactor is confirmed green:
+- **Iterate-all mode** (no plan file, or plan file only without step number): check off the current step using `Edit` to change `- [ ] N.` → `- [x] N.` in the active plan file. Use the plan file path detected from `$ARGUMENTS` or session context. If still unknown, ask the user once.
+- **Single-step mode** (called with `[plan-file]:[N]`): do NOT check off the step — b-execute-plan owns the checkbox. Only emit the completion message and return control.
 
 ---
 
@@ -167,7 +154,7 @@ At each checkpoint, output:
   → Refactoring...
 
 ✅ Refactor complete — [what was cleaned up]
-  ☑ Plan step [N] checked off in .claude/b-plans/[file].md
+  ☑ Plan step [N] checked off in .opencode/b-plans/[file].md
   → Next step: [next plan step]
 ```
 
@@ -175,7 +162,7 @@ Single-step completion (plan-file mode):
 ```
 ✅ Step [N] complete — returning control to caller
 Tests: [N passed, 0 failed]
-☑ Plan step [N] checked off in .claude/b-plans/[file].md
+☑ Plan step [N] checked off in .opencode/b-plans/[file].md
 ```
 
 All-steps completion (iterate-all mode):

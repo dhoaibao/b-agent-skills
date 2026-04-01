@@ -5,21 +5,6 @@ mode: subagent
 model: github-copilot/claude-haiku-4-5
 ---
 
-## Tool Mapping (read before following instructions below)
-
-When instructions reference these Claude Code tools, use the OpenCode equivalent:
-
-| Claude Code | OpenCode equivalent |
-|---|---|
-| `Read` / `Glob` / `Grep` | Read files natively |
-| `Edit` / `Write` | Edit files natively |
-| `Bash` | Run bash commands natively |
-| `Skill tool` → `/b-[name]` | Invoke `@b-[name]` subagent |
-| `Agent tool` | Spawn subagent via task tool |
-| `TaskCreate` / `TaskUpdate` | Skip — plan file manages state |
-
----
-
 
 # b-commit
 
@@ -60,9 +45,14 @@ git diff HEAD
 git diff --stat HEAD
 ```
 
+If the output is empty:
+1. Try `git diff --staged` (changes staged but not yet committed).
+2. If still empty: try `git diff HEAD~1 HEAD` (the most recent commit).
+3. If still empty: ask the user — "No uncommitted, staged, or recent changes found. Which changes should I write a commit message for? (Provide a commit hash, branch name, or describe the change.)" Do not proceed with an empty diff.
+
 Understand:
 - **What behavior changed** — not just which lines, but what the code now does differently.
-- **Why this change was made** — from plan file (`.claude/b-plans/`) or conversation context.
+- **Why this change was made** — from plan file (`.opencode/b-plans/`) or conversation context.
 - **Atomicity** — is this one logical unit, or mixed concerns?
 
 If the diff mixes unrelated changes (e.g. feature + unrelated refactor + formatting fix): **stop and do not produce a single unified commit message**. Instead:

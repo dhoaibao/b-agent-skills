@@ -2,22 +2,7 @@
 name: b-gate
 description: Mandatory quality gate — stack-aware ordered checks lint → typecheck → tests → security → clean-code. Use after all implementation steps complete or when user says "gate", "check quality", "kiểm tra chất lượng".
 mode: subagent
-model: github-copilot/claude-haiku-4-5
----
-
-## Tool Mapping (read before following instructions below)
-
-When instructions reference these Claude Code tools, use the OpenCode equivalent:
-
-| Claude Code | OpenCode equivalent |
-|---|---|
-| `Read` / `Glob` / `Grep` | Read files natively |
-| `Edit` / `Write` | Edit files natively |
-| `Bash` | Run bash commands natively |
-| `Skill tool` → `/b-[name]` | Invoke `@b-[name]` subagent |
-| `Agent tool` | Spawn subagent via task tool |
-| `TaskCreate` / `TaskUpdate` | Skip — plan file manages state |
-
+model: hdwebsoft/gpt-5.4
 ---
 
 
