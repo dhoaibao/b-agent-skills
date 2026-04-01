@@ -1,6 +1,6 @@
-# b-agent-skills — Skill reference
+# b-agents — Agent reference
 
-Detailed reference for all skills in the b-agent-skills suite.
+Detailed reference for all agents in the b-agents suite.
 For quick overview and installation, see [README.md](README.md).
 Formatting note: bullet style is standardized across all skill specs for consistent readability.
 
@@ -424,7 +424,7 @@ trigger a web lookup and `b-docs` call before hypothesis verification.
 
 ### b-sync
 
-Syncs OpenCode agents from the `b-agent-skills` GitHub repo to `~/.config/opencode/agents/` using `curl` + `install.sh`. No MCP required — only the Bash tool.
+Syncs OpenCode agents from the `b-agents` GitHub repo to `~/.config/opencode/agents/` using `curl` + `install.sh`. No MCP required — only the Bash tool.
 
 **Good triggers:**
 ```
@@ -436,7 +436,7 @@ cập nhật skills
 cài skills mới
 ```
 
-**Modes:** BOOTSTRAP (first install: `git clone` + `sync.sh`) vs UPDATE (existing: `git pull` via `sync.sh`). Auto-detected by checking for `~/.b-agent-skills/.git`.
+**Modes:** BOOTSTRAP (first install: `git clone` + `sync.sh`) vs UPDATE (existing: `git pull` via `sync.sh`). Auto-detected by checking for `~/.b-agents/.git`.
 
 **Output:** Before/after skill list diff — lists added and removed skills, total count. Validates symlinks and frontmatter after sync.
 

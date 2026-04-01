@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# install.sh — Bootstrap or update b-agent-skills on any machine
+# install.sh — Bootstrap or update b-agents on any machine
 # Usage:
-#   First time : curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agent-skills/main/install.sh | bash
-#   Update     : curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agent-skills/main/install.sh | bash
+#   First time : curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agents/main/install.sh | bash
+#   Update     : curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agents/main/install.sh | bash
 
 set -euo pipefail
 
-REPO="https://github.com/dhoaibao/b-agent-skills.git"
-LOCAL_REPO="$HOME/.b-agent-skills"
+REPO="https://github.com/dhoaibao/b-agents.git"
+LOCAL_REPO="$HOME/.b-agents"
 OPENCODE_AGENTS_SRC="$LOCAL_REPO/opencode"
 OPENCODE_AGENTS_DST="$HOME/.config/opencode/agents"
 HDCODE_AGENTS_DST="$HOME/.config/hdcode/agents"
@@ -21,10 +21,10 @@ if [ -d "$LOCAL_REPO/.git" ]; then
     echo "   Run: cd $LOCAL_REPO && git stash"
     exit 1
   fi
-  echo "🔄 Updating b-agent-skills..."
+  echo "🔄 Updating b-agents..."
   git -C "$LOCAL_REPO" pull --ff-only
 else
-  echo "📦 Cloning b-agent-skills..."
+  echo "📦 Cloning b-agents..."
   git clone "$REPO" "$LOCAL_REPO"
 fi
 

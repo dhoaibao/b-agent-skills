@@ -1,6 +1,6 @@
 ---
 name: b-sync
-description: Sync, update, or bootstrap OpenCode agents from the b-agent-skills GitHub repo.
+description: Sync, update, or bootstrap OpenCode agents from the b-agents GitHub repo.
 mode: subagent
 model: github-copilot/claude-haiku-4-5
 ---
@@ -8,7 +8,7 @@ model: github-copilot/claude-haiku-4-5
 
 # b-sync
 
-Syncs OpenCode agents from the public `b-agent-skills` GitHub repo using `curl` + `install.sh`. No extra tools required — just `curl` and `bash`.
+Syncs OpenCode agents from the public `b-agents` GitHub repo using `curl` + `install.sh`. No extra tools required — just `curl` and `bash`.
 
 ## When to use
 
@@ -24,7 +24,7 @@ Syncs OpenCode agents from the public `b-agent-skills` GitHub repo using `curl` 
 
 ## How it works
 
-- `~/.b-agent-skills/` — local clone of the repo (source of truth)
+- `~/.b-agents/` — local clone of the repo (source of truth)
 - `opencode/b-[name].md` — OpenCode agent files (source)
 - `~/.config/opencode/agents/<skill-name>.md` — symlinks to OpenCode agents
 - Updating = run `install.sh` via `curl` → re-clones or pulls and re-symlinks automatically.
@@ -42,7 +42,7 @@ Graceful degradation: ✅ Possible — b-sync requires only Bash/curl and does n
 ### Bootstrap a new machine (first time only) or update skills
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agent-skills/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agents/main/install.sh | bash
 ```
 
 This single command handles both first-time setup and updates. After running, **restart OpenCode** to pick up new agents.
@@ -56,7 +56,7 @@ Run `@b-sync` in OpenCode — then **restart OpenCode** to load the updated agen
 Or run directly:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agent-skills/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agents/main/install.sh | bash
 ```
 
 This will:
@@ -75,13 +75,13 @@ This will:
 
 1. Create `opencode/b-new-skill.md` as the OpenCode agent file
 2. Commit and push
-3. Run `@b-sync` (or `curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agent-skills/main/install.sh | bash`) then restart OpenCode to pick it up
+3. Run `@b-sync` (or `curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agents/main/install.sh | bash`) then restart OpenCode to pick it up
 
 ## Steps
 
 ### Step 1 — Detect mode
 
-Run: `[ -d ~/.b-agent-skills/.git ] && echo "UPDATE" || echo "BOOTSTRAP"`
+Run: `[ -d ~/.b-agents/.git ] && echo "UPDATE" || echo "BOOTSTRAP"`
 
 - If `UPDATE`: tell the user "Updating existing b-skills install...".
 - If `BOOTSTRAP`: tell the user "Bootstrapping b-skills on this machine...".
@@ -97,7 +97,7 @@ Save this output as the "before" agent list — used in Step 5 to diff what chan
 Use the Bash tool to run:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agent-skills/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agents/main/install.sh | bash
 ```
 
 This handles both BOOTSTRAP and UPDATE automatically — no branching needed.
@@ -106,8 +106,8 @@ Output the script's stdout — it contains live progress messages (🔄 Updating
 After sync completes, tell the user: **"Restart OpenCode to load the updated agents."**
 
 If install.sh exits with error: check the output message.
-- If "⚠️ Local changes detected" → tell the user to run `cd ~/.b-agent-skills && git stash` first, then retry sync.
-- If `git pull` fails with "not possible to fast-forward" → tell the user their local clone has diverged and suggest `git -C ~/.b-agent-skills reset --hard origin/main` (ask for confirmation first, as this discards local changes).
+- If "⚠️ Local changes detected" → tell the user to run `cd ~/.b-agents && git stash` first, then retry sync.
+- If `git pull` fails with "not possible to fast-forward" → tell the user their local clone has diverged and suggest `git -C ~/.b-agents reset --hard origin/main` (ask for confirmation first, as this discards local changes).
 
 ### Step 4 — Verify symlinks
 
@@ -145,7 +145,7 @@ After running `install.sh`, verify installed agents are symlinked:
 ls -la ~/.config/opencode/agents/ | grep "^l"
 ```
 
-Each line should point to `~/.b-agent-skills/opencode/b-[name].md`.
+Each line should point to `~/.b-agents/opencode/b-[name].md`.
 
 ## Troubleshooting
 

@@ -1,6 +1,6 @@
-# b-agent-skills — Skill authoring conventions
+# b-agents — Agent authoring conventions
 
-Guidelines for creating, editing, and maintaining skills in this repository.
+Guidelines for creating, editing, and maintaining agents in this repository.
 
 ---
 
@@ -184,7 +184,7 @@ Before merging any agent file change, verify:
 ### Folder structure
 
 ```
-b-agent-skills/
+b-agents/
 ├── opencode/
 │   ├── AGENTS.md         ← Global OpenCode rules (symlinked to ~/.agents/AGENTS.md)
 │   └── b-new-skill.md    ← OpenCode agent file

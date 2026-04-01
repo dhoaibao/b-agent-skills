@@ -1,4 +1,4 @@
-# b-agent-skills — OpenCode Rules
+# b-agents — OpenCode Rules
 
 ## OpenCode workflow
 

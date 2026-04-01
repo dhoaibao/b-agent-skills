@@ -1,11 +1,11 @@
-# b-agent-skills
+# b-agents
 
-A personal skill suite for **OpenCode**.
+A personal agent suite for **OpenCode**.
 
 ## Install & Update
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agent-skills/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agents/main/install.sh | bash
 ```
 
 Then **restart OpenCode** to load the agents.
