@@ -35,7 +35,7 @@ echo "  1) OpenCode"
 echo "  2) HDCode"
 echo "  3) All"
 echo ""
-if [ -t 0 ] && [ -z "${B_AGENT_PLATFORM:-}" ]; then
+if [ -z "${B_AGENT_PLATFORM:-}" ]; then
   read -rp "Enter choice [1/2/3] (default: 3): " platform_choice </dev/tty
   platform_choice="${platform_choice:-3}"
 else
