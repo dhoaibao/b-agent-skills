@@ -175,15 +175,17 @@ if [ "$sync_hdcode" = true ]; then
 fi
 
 # ── 6. Sync global AGENTS.md (OpenCode global rules) ─────────────────────────
-GLOBAL_AGENTS_FILE="$OPENCODE_AGENTS_SRC/AGENTS.md"
-if [ -f "$GLOBAL_AGENTS_FILE" ]; then
-  mkdir -p "$GLOBAL_AGENTS_DST"
-  target="$GLOBAL_AGENTS_DST/AGENTS.md"
+if [ "$sync_opencode" = true ] || [ "$sync_hdcode" = true ]; then
+  GLOBAL_AGENTS_FILE="$OPENCODE_AGENTS_SRC/AGENTS.md"
+  if [ -f "$GLOBAL_AGENTS_FILE" ]; then
+    mkdir -p "$GLOBAL_AGENTS_DST"
+    target="$GLOBAL_AGENTS_DST/AGENTS.md"
 
-  if [ -L "$target" ] || [ -f "$target" ]; then
-    rm "$target"
+    if [ -L "$target" ] || [ -f "$target" ]; then
+      rm "$target"
+    fi
+
+    ln -s "$GLOBAL_AGENTS_FILE" "$target"
+    echo "🔗 Global AGENTS.md → $target"
   fi
-
-  ln -s "$GLOBAL_AGENTS_FILE" "$target"
-  echo "🔗 Global AGENTS.md → $target"
 fi
