@@ -6,6 +6,7 @@ description: >
   "viết test trước", "red-green-refactor", or when executing b-plan steps that touch
   production code without first writing a failing test. Distinct from b-gate: b-tdd
   governs discipline before and during coding; b-gate validates after.
+model: sonnet
 ---
 
 # b-tdd

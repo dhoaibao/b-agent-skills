@@ -5,6 +5,7 @@ description: >
   ALWAYS use when the user says "sync b-skills", "update b-skills", "install b-skills on new machine",
   "pull latest b-skills", "đồng bộ skills", "cập nhật skills", "cài skills mới".
   Distinct from other skills: b-sync only manages skill installation — it does not invoke other skills.
+model: haiku
 ---
 
 # b-sync

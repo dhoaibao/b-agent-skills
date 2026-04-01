@@ -6,6 +6,7 @@ description: >
   "find latest", "tìm mới nhất", "what is the latest version of X", or needs a quick
   current-info lookup: latest releases, prices, changelogs, CVEs.
   Use b-research instead when the user wants depth, comparison, or a full report.
+model: haiku
 ---
 
 # b-quick-search

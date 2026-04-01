@@ -6,6 +6,7 @@ description: >
   "b-gate", or after completing all implementation steps in a b-plan session. Distinct
   from b-tdd (which enforces test discipline during coding): b-gate validates the final
   result before declaring work done.
+model: haiku
 ---
 
 # b-gate

@@ -7,6 +7,7 @@ description: >
   Accepts user-defined topics as input. Trigger for short queries like "hôm nay có gì mới không"
   or topic-specific like "tin tức tài chính hôm nay".
   Distinct from b-quick-search: b-news returns grouped digests, while b-quick-search answers one-off lookups.
+model: haiku
 ---
 
 # b-news

@@ -6,6 +6,7 @@ description: >
   or after b-review passes. Reads git diff to understand the change, then outputs
   ready-to-use commit message and PR description for the user to apply manually.
   Distinct from b-gate and b-review: b-commit produces text only, executes nothing.
+model: haiku
 ---
 
 # b-commit

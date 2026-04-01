@@ -7,6 +7,7 @@ description: >
   or describes a task touching 2+ files or multiple moving parts,
   or when the task clearly touches 2+ files without an explicit plan request.
   Distinct from b-analyze: b-plan sequences execution steps; b-analyze evaluates code quality and structure.
+model: sonnet
 ---
 
 # b-plan

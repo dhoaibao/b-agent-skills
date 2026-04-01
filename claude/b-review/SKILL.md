@@ -7,6 +7,7 @@ description: >
   flag", or after b-gate passes and before committing. Distinct from b-analyze (structural
   quality, pre-implementation) and b-gate (automated tooling): b-review simulates
   human-judgment review on changed code.
+model: sonnet
 ---
 
 # b-review

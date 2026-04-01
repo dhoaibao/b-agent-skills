@@ -6,6 +6,7 @@ description: >
   "fix this", "why is X not working", "unexpected behavior", "không hoạt động",
   or when an error message is pasted. Never guess-and-patch — always trace systematically.
   Distinct from b-analyze: b-debug fixes confirmed breakages; b-analyze reviews healthy code quality.
+model: sonnet
 ---
 
 # b-debug

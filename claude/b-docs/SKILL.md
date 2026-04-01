@@ -6,6 +6,7 @@ description: >
   "tra cứu", "hướng dẫn sử dụng", "cách dùng thư viện", or before any SDK integration.
   Never implement library code from memory alone — training data may be outdated.
   Distinct from b-research: use b-docs for specific API lookup, b-research for deep multi-source synthesis.
+model: haiku
 ---
 
 # b-docs

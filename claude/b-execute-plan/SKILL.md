@@ -2,6 +2,7 @@
 name: b-execute-plan
 description: >
   Orchestrates the full development pipeline (b-tdd → b-gate → b-review → b-commit) by reading plan files, tracking step completion, and prompting for each stage. ALWAYS use for: "execute plan", "chạy plan", "thực thi kế hoạch", "run plan", "guided pipeline". Differs from b-plan (which creates plans) and individual skills (which run isolated stages).
+model: sonnet
 ---
 
 # b-execute-plan

@@ -6,6 +6,7 @@ description: >
   "refactor", "dọn dẹp code", "tìm code smell", "cải thiện code", "tái cấu trúc",
   or when asked to understand an unfamiliar codebase before changes.
   Distinct from b-debug: use b-analyze when code works but could be better, not when something is broken.
+model: sonnet
 ---
 
 # b-analyze

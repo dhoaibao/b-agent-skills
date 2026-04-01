@@ -6,6 +6,7 @@ description: >
   "compare", "tổng hợp thông tin về", "viết report về", or needs depth — evaluating tools,
   comparing options, or producing a multi-source report.
   Use b-quick-search instead when a single search call can answer the question.
+model: sonnet
 ---
 
 # b-research

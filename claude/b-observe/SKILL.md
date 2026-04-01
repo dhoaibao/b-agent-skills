@@ -7,6 +7,7 @@ description: >
   "tìm lỗi bị nuốt", "tracing", "metrics coverage", or "audit instrumentation".
   Distinct from b-analyze (general quality) and b-debug (runtime failures): b-observe
   targets instrumentation completeness, not code structure or live system behavior.
+model: sonnet
 ---
 
 # b-observe
