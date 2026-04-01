@@ -37,6 +37,25 @@ Skills are organized into two groups:
 
 Verify all 5 are connected with `/mcp` in Claude Code.
 
+### Model assignments
+
+| Skill | Claude Code model | OpenCode model |
+|---|---|---|
+| `b-analyze` | `sonnet` | `hdwebsoft/gpt-5.4` |
+| `b-commit` | `haiku` | `github-copilot/claude-haiku-4-5` |
+| `b-debug` | `sonnet` | `hdwebsoft/gpt-5.4` |
+| `b-docs` | `haiku` | `hdwebsoft/gpt-5.4` |
+| `b-execute-plan` | `sonnet` | `hdwebsoft/claude-sonnet-4-6` |
+| `b-gate` | `haiku` | `github-copilot/claude-haiku-4-5` |
+| `b-news` | `haiku` | `github-copilot/claude-haiku-4-5` |
+| `b-observe` | `sonnet` | `hdwebsoft/gpt-5.4` |
+| `b-plan` | `sonnet` | `hdwebsoft/claude-sonnet-4-6` |
+| `b-quick-search` | `haiku` | `github-copilot/claude-haiku-4-5` |
+| `b-research` | `sonnet` | `hdwebsoft/gpt-5.4` |
+| `b-review` | `sonnet` | `hdwebsoft/gpt-5.4` |
+| `b-sync` | `haiku` | `github-copilot/claude-haiku-4-5` |
+| `b-tdd` | `sonnet` | `hdwebsoft/gpt-5.4` |
+
 ---
 
 ## Skill reference
