@@ -45,8 +45,8 @@ Graceful degradation: ✅ Possible — core pipeline always works.
 ### Phase 1 — LoadPlan
 
 **Input**: plan file path (from argument or Glob discovery)
-**Output**: `{plan_file, steps[], baseline_completed, has_analysis_context, pending_steps_count, session_counter_threshold}`
-**Decisions**: fresh start vs resume; context window warning; Step 0 (pre-analysis) trigger
+**Output**: `{plan_file, steps[], baseline_completed, pending_steps_count}`
+**Decisions**: fresh start vs resume; Step 0 (pre-analysis) trigger
 
 #### Step 0 — Pre-execution analysis *(conditional)*
 
@@ -89,33 +89,7 @@ Read the selected plan file.
 
 **Session resume**: if the plan file already has completed steps (`[x]`), automatically resume from the first pending (`[ ]`) step.
 
-**Context window warning**: after loading, count total pending (`[ ]`) steps. If pending steps > 6, warn once:
-> "⚠️ This plan has N pending steps. Consider running steps 1–5 in this session, then opening a fresh session for the remainder."
-
-**Session step counter**: count existing `[x]` checkboxes → store as `baseline_completed`. Check for `## Context` section → store as `has_analysis_context`.
-
-After each Phase 4 check-off, re-read the file and count total `[x]` checkboxes. `session_steps = current_completed − baseline_completed`.
-
-**Pause trigger**:
-```
-threshold = 3 if has_analysis_context else 5
-remaining_steps = count of pending [ ] steps at load time
-session_steps >= threshold AND (session_steps − threshold) % 3 == 0 AND remaining_steps > 2
-```
-
-Skip the pause entirely if `remaining_steps <= 2` at load time — no value in interrupting when almost done.
-
-When triggered, pause and prompt:
-```
-⚠️ [N] steps completed this session — context may be getting heavy.
-
-Resume command: execute plan from .opencode/b-plans/[plan-file].md
-
-Choose:
-  1 — Compact session now, then paste the resume command above to continue
-  2 — Continue anyway (I'm tracking context myself)
-```
-Do not proceed until user replies with `1` or `2`.
+**Session step counter**: count existing `[x]` checkboxes → store as `baseline_completed`.
 
 #### Step 2 — Parse plan structure and extract step checkboxes
 

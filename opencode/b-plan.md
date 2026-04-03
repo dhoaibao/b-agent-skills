@@ -178,11 +178,9 @@ If the user confirms → do NOT execute in this session. Instead, print:
 ```
 ✅ Plan saved to .opencode/b-plans/[task-slug].md
 
-Open a new session and run:
-  @b-execute-plan .opencode/b-plans/[task-slug].md
+To execute: open a new session and run:
+  execute plan from .opencode/b-plans/[task-slug].md
 ```
-
-`new session` means a fresh context (`opencode` in a new terminal or `/clear`).
 
 ---
 
@@ -240,7 +238,7 @@ Language: always English — write plan files in English regardless of the user'
 
 ## Execution (in a new session)
 
-Plan files are always in English. When a new session opens, invoke the **b-execute-plan** agent with: `@b-execute-plan .opencode/b-plans/[file].md` — it orchestrates the full pipeline automatically with state tracking, rollback support, and context-overflow protection.
+Plan files are always in English. When a new session opens, run: `execute plan from .opencode/b-plans/[file].md` — b-execute-plan orchestrates the full pipeline automatically with state tracking and rollback support.
 
 Pipeline overview (b-execute-plan handles all of this):
 
@@ -253,7 +251,7 @@ Pipeline overview (b-execute-plan handles all of this):
 6. **On step failure**: b-execute-plan writes `[❌] N — reason`, checks `git diff --stat` for partial changes, offers `git checkout -- .` rollback, blocks dependent steps from running.
 7. **On NEEDS FIXES from b-review**: b-execute-plan verifies real code changes via `git diff HEAD --stat` before resetting b-gate checkpoint — never resets on verbal signal alone.
 
-For plans with > 6 pending steps: b-execute-plan warns at load time and reminds after 5 completed steps to consider a fresh session. Session step count is derived from the file (context-safe).
+Session step count is derived from the file — each step runs via subagent so the main session stays token-light throughout execution.
 
 ---
 
