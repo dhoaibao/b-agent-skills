@@ -238,17 +238,21 @@ PYEOF
   echo "⚠️  Remember to set any missing API keys in the config files before using the MCPs."
 fi
 
-# ── 6. Sync global AGENTS.md (OpenCode global rules) ─────────────────────────
-if [ "$sync_opencode" = true ] || [ "$sync_hdcode" = true ]; then
-  GLOBAL_AGENTS_FILE="$OPENCODE_AGENTS_SRC/global/AGENTS.md"
-  if [ -f "$GLOBAL_AGENTS_FILE" ]; then
-    mkdir -p "$GLOBAL_AGENTS_DST"
-    target="$GLOBAL_AGENTS_DST/AGENTS.md"
+# ── 6. Sync global AGENTS.md ─────────────────────────────────────────────────
+GLOBAL_AGENTS_FILE="$OPENCODE_AGENTS_SRC/global/AGENTS.md"
+if [ -f "$GLOBAL_AGENTS_FILE" ]; then
+  if [ "$sync_opencode" = true ]; then
+    mkdir -p "$HOME/.config/opencode"
+    target="$HOME/.config/opencode/AGENTS.md"
+    [ -L "$target" ] || [ -f "$target" ] && rm "$target"
+    ln -s "$GLOBAL_AGENTS_FILE" "$target"
+    echo "🔗 Global AGENTS.md → $target"
+  fi
 
-    if [ -L "$target" ] || [ -f "$target" ]; then
-      rm "$target"
-    fi
-
+  if [ "$sync_hdcode" = true ]; then
+    mkdir -p "$HOME/.config/hdcode"
+    target="$HOME/.config/hdcode/AGENTS.md"
+    [ -L "$target" ] || [ -f "$target" ] && rm "$target"
     ln -s "$GLOBAL_AGENTS_FILE" "$target"
     echo "🔗 Global AGENTS.md → $target"
   fi
