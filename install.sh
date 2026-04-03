@@ -11,7 +11,6 @@ LOCAL_REPO="$HOME/.b-agents"
 OPENCODE_AGENTS_SRC="$LOCAL_REPO/opencode"
 OPENCODE_AGENTS_DST="$HOME/.config/opencode/agents"
 HDCODE_AGENTS_DST="$HOME/.config/hdcode/agents"
-GLOBAL_AGENTS_DST="$HOME/.agents"
 
 # ── 1. Clone or update the repo ──────────────────────────────────────────────
 if [ -d "$LOCAL_REPO/.git" ]; then
