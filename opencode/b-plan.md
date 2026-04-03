@@ -28,14 +28,18 @@ implementation begins.
 
 ## Tools required
 
-- `sequentialthinking` — from `sequential-thinking` MCP server.
+- `sequentialthinking` — from `sequential-thinking` MCP server (required for Step 2 decomposition).
 - `resolve_repo`, `suggest_queries`, `get_ranked_context`, `get_repo_outline`, `get_file_outline`, `get_file_tree`, `index_file` — from `jcodemunch` MCP server *(optional, for modify-existing-code tasks)*.
+- `resolve-library-id`, `query-docs` — from `context7` MCP server *(optional, for inline library verification in Step 3 — simple lookups only; delegate complex research to b-docs)*.
+- `brave_web_search` — from `brave-search` MCP server *(optional, for tool/approach comparison in Step 3 — simple lookups only; delegate multi-source research to b-research)*.
 
 If sequential-thinking is unavailable: reason through the plan inline step by step,
 making the thinking explicit in the response. Do not skip planning — just do it without the tool.
 If jcodemunch is unavailable, or `index_folder` returns `file_count = 0`: use Glob/Read to inspect key files manually before Step 2.
+If context7 is unavailable: delegate library verification to b-docs as before.
+If brave-search is unavailable: delegate tool comparison to b-research as before.
 
-Graceful degradation: ✅ Possible — if jcodemunch unavailable, use Glob/Read to inspect key files. If sequential-thinking unavailable, reason inline. Quality is reduced but the agent remains functional.
+Graceful degradation: ✅ Possible — if jcodemunch unavailable, use Glob/Read. If sequential-thinking unavailable, reason inline. context7 and brave-search are convenience shortcuts; b-docs and b-research are always available as fallbacks.
 
 ## Steps
 
@@ -154,9 +158,15 @@ Flag anything that must be resolved before or during execution:
 - **Decisions needed**: choices that depend on user preference or business logic.
 - **Assumptions**: things the plan assumes to be true — state them explicitly.
 
-If a "Docs needed" unknown affects plan decisions (e.g., "does BullMQ support X?"), resolve it now with `b-docs` and append `→ Confirmed: [finding]`. Do not defer verifiable library assumptions to Session 2.
+If a "Docs needed" unknown affects plan decisions (e.g., "does BullMQ support X?"):
+- **Simple lookup** (single method, single config option, yes/no capability check) → call `resolve-library-id` then `query-docs` directly with the specific question. Append `→ Confirmed: [finding]`. Faster than invoking b-docs as a subagent.
+- **Complex lookup** (multi-area, version comparison, migration path) → invoke `b-docs` as before.
+Do not defer verifiable library assumptions to Session 2.
 
-If the plan has open tool/approach decisions (`compare`, `decide between`, `which library`, `evaluate`, or `?`), resolve with `b-research` inline and append findings to Unknowns. Do not defer tool selection to execution.
+If the plan has open tool/approach decisions (`compare`, `decide between`, `which library`, `evaluate`, or `?`):
+- **Quick comparison** (2 options, single criterion) → call `brave_web_search` with a focused query (e.g. `"BullMQ vs Agenda.js reliability comparison"`) and resolve inline. Append findings to Unknowns.
+- **Deep comparison** (multiple criteria, performance benchmarks, multi-source) → invoke `b-research` as before.
+Do not defer tool selection to execution.
 
 An unresolved unknown is a risk. Surface it now, not halfway through implementation.
 

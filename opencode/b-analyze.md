@@ -61,9 +61,11 @@ From `sequential-thinking` MCP server *(optional)*:
 From `brave-search` MCP server *(optional)*:
 - `brave_web_search` — look up refactoring solutions for named anti-patterns found during analysis.
 
-If jcodemunch is unavailable: Use `Glob` to map file structure and identify all relevant files. Use `Grep` to find symbol usages, duplicate function names, and repeated patterns across files. Use `Read` for file-level inspection. Note limitation: cross-file dependency tracking will be incomplete without jcodemunch — flag this in the report.
+**jcodemunch is required for this agent.** Never use Glob/Grep/Read to explore structure when jcodemunch is available — they produce an incomplete picture for analysis tasks.
 
-Graceful degradation: ✅ Possible — if jcodemunch unavailable, use Glob/Grep/Read for file analysis. Quality is reduced but the agent remains functional.
+If jcodemunch is unavailable: use `Glob` to map file structure, `Grep` for symbol/pattern search, `Read` for file inspection. Note in report: "⚠️ jcodemunch unavailable — analysis based on Glob/Grep/Read; cross-file dependency tracking, dead code detection, and call graph analysis are unavailable."
+
+Graceful degradation: ✅ Possible — analysis degrades significantly without jcodemunch (no call graph, no cross-file references, no dead code). Flag all limitations explicitly in the report.
 
 ## Steps
 
@@ -134,7 +136,7 @@ With the structure mapped, evaluate:
 **Data modeling** *(dbt/SQL projects only)*
 - Use `search_columns` to audit column naming consistency, find undocumented columns, and verify column descriptions match actual usage.
 
-For any High finding that involves a named anti-pattern (e.g., circular dependency, god class, N+1 query, DB query in controller) → call `brave_web_search` with `'{pattern name} refactoring solution'`. Use the result to make the concrete suggestion in Step 4 more specific than a generic recommendation.
+For any **🔴 High** finding that involves a named anti-pattern (e.g., circular dependency, god class, N+1 query, DB query in controller) → call `brave_web_search` with `'{pattern name} refactoring solution'`. Use the result to make the concrete suggestion in Step 4 specific: exact technique name + example structure, not just "extract this into a service". Do NOT call brave_web_search for 🟡 Medium or 🟢 Low findings — only High findings warrant the extra lookup cost.
 
 ---
 

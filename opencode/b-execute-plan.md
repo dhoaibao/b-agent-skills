@@ -165,8 +165,21 @@ Invoke the subagent using the format from Phase 2. Interpret output for success 
 - `@b-commit`: commit message generated → outcome = `success`
 - **Priority 1 (manual step)**: instruct user, wait for `done`/`next`/`continue` signal → outcome = `manual_done`
 
-**On success / manual_done**: pass `{outcome: success}` to Phase 4 without waiting for user input.
+**On success / manual_done**: pass `{outcome: success}` directly to Phase 4 — no pause, no output between steps beyond the inline status line. Phase 4 will immediately loop back to Phase 2 for the next step.
 **On failure / needs_fixes**: pass `{outcome: failure | needs_fixes}` to Phase 4.
+
+**Happy path flow** (all steps succeed, no issues):
+```
+Phase 1 (once)
+  └─ Load plan, parse steps
+  └─ [Step 0 ask — only if conditions met, user answers y/n once]
+→ Loop until all steps done:
+    Phase 2: select next step → route to agent → invoke immediately
+    Phase 3: run subagent → success
+    Phase 4: mark [x] → pending steps remain → back to Phase 2  ← no pause here
+→ All steps [x]: print summary, exit
+```
+The entire pipeline from step 1 to final commit runs without any user interaction as long as every subagent returns success.
 
 **b-gate failure shortcut**: if b-gate fails:
 1. Extract failing check name and first ~10 lines of error output.
@@ -192,11 +205,10 @@ Invoke the subagent using the format from Phase 2. Interpret output for success 
 
 **On `success` or `manual_done`**:
 1. Edit the corresponding checkbox `- [ ]` → `- [x]`.
-2. Re-read the file to recompute the session step counter (for pause trigger).
-3. Check if all steps are complete or skipped:
+2. Check if all steps are complete or skipped:
    - All done → show summary, congratulate user, exit. Note any failed/skipped steps.
    - All remaining steps `failed` → surface blocked state — do not loop indefinitely.
-   - Pending steps remain → return to Phase 2.
+   - Pending steps remain → **immediately return to Phase 2 without pausing**.
 
 **On `failure`**:
 1. Ask user for a brief reason (one sentence).
@@ -238,11 +250,11 @@ Status: [N] of [M] steps complete ✓
 
 ## Rules
 
-- **Only update plan with user approval**: never auto-commit plan changes without explicit user signal (`done`, `next`).
+- **Checkbox updates are automatic**: on step success, update `- [ ]` → `- [x]` immediately without waiting for user approval — this is housekeeping, not a user decision. "User approval" only applies to skipping steps, overriding failures, or marking a step done after a manual action (`done` signal).
 - **Warn on skipped steps**: if user requests jumping to a later step, warn that earlier steps will be marked incomplete.
 - **Preserve plan file integrity**: validate checkbox syntax before editing; skip malformed lines and log a warning.
 - **Invocation format is subagent-specific**: `@b-tdd` gets `[plan-file]:[N]`; `@b-review` gets `[plan-file]`; `@b-gate` and `@b-commit` get no plan args.
 - **Rollback on partial failure**: if a step fails after modifying files, always check `git diff HEAD --stat` and offer `git checkout -- .` before retry.
 - **NEEDS FIXES requires git evidence**: reset b-gate checkpoint only after `git diff HEAD --stat` confirms actual file changes.
-- **Auto-advance on success**: only pause for user input on: failure, ambiguous routing, manual steps, NEEDS FIXES from b-review, or session step threshold.
+- **Auto-advance on success**: when a step completes successfully, immediately proceed to the next step — no pause, no confirmation, no summary between steps. Only pause for user input on: failure, ambiguous routing, manual steps (Priority 1), or NEEDS FIXES from b-review.
 - **Never autonomously trigger destructive git commands** — no `git push`, `git pull`, `git commit`, `git reset --hard`, `git revert`, `git clean -f`, or `git branch -D`. Rollback (`git checkout -- .`) must be offered to user, never auto-executed. Commits are always delegated to `@b-commit`.

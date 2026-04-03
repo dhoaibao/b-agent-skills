@@ -39,12 +39,21 @@ From `jcodemunch` MCP server:
 - `get_file_outline` — batch-inspect files for function signatures to identify all error-handling functions.
 - `get_repo_outline` — understand module structure to scope the audit.
 
+From `context7` MCP server *(optional, for instrumentation library docs)*:
+- `resolve-library-id` — resolve the detected logger/tracer/metrics library name to a Context7 ID.
+- `query-docs` — fetch correct API patterns for the instrumentation library found in Step 2 (e.g. correct structured log call signature for `winston`, span attribute conventions for `opentelemetry`, counter naming for `prom-client`). Use before Step 3 to know what "correct instrumentation" looks like before declaring a gap.
+
+From `brave-search` MCP server *(optional, for observability best-practice lookup)*:
+- `brave_web_search` — look up instrumentation best practices for named patterns found during the audit (e.g. `"winston structured logging best practices"`, `"opentelemetry span naming conventions"`, `"prometheus counter vs gauge"`). Use in Step 6 to make remediation suggestions concrete rather than generic.
+
 From `sequential-thinking` MCP server *(optional)*:
 - `sequentialthinking` — prioritize findings by impact and produce an ordered remediation list.
 
 If jcodemunch is unavailable: use `Grep` to search for log/trace patterns and `Read` to inspect error handlers directly. Note limitation: cross-file reference tracking will be incomplete — flag this in the report.
+If context7 is unavailable: proceed with knowledge of the library's API from codebase usage patterns found via jcodemunch/Grep.
+If brave-search is unavailable: omit best-practice lookup in Step 6 and provide generic remediation guidance.
 
-Graceful degradation: ✅ Possible — Grep/Read can cover most patterns. jcodemunch improves completeness of reference tracking. sequential-thinking improves prioritization. Both optional.
+Graceful degradation: ✅ Possible — Grep/Read can cover most patterns. jcodemunch improves completeness, context7 validates correct patterns, brave-search enriches remediation advice. All optional.
 
 ## Steps
 
@@ -80,6 +89,8 @@ search_text(query="opentelemetry|tracer\.|startSpan|trace\.|context\.with|propag
 ```
 
 For each found library, use `find_references` on the primary logger/tracer/metrics symbol to map which files are instrumented. Files with zero references to any instrumentation library are candidates for Step 3.
+
+**Context7 lookup** *(once library is identified)*: call `resolve-library-id` then `query-docs` for the detected library with query = "[library name] structured logging / span attributes / counter labels" to establish what correct instrumentation looks like. This is the reference baseline for declaring a gap in Steps 3–5. Skip if library is standard built-in (e.g. Python `logging`).
 
 ---
 
@@ -144,6 +155,8 @@ If sequential-thinking is available, call `sequentialthinking` with:
 > "Given these observability gaps [list from Steps 3–5], rank the top 5 by incident impact. Which gaps would cause the most confusion during an outage — where would an on-call engineer be flying blind?"
 
 Use the result to produce an **Ordered remediation list** at the top of Recommended Next Steps.
+
+**Best-practice enrichment** *(for High findings only)*: for each 🔴 High finding that involves a named pattern (e.g. swallowed error in express middleware, missing span on gRPC handler, no request counter on REST endpoint), call `brave_web_search` with `"[library name] [pattern] observability best practice"`. Use the result to make the remediation suggestion concrete: specify the correct API call, not just "add logging here".
 
 ---
 

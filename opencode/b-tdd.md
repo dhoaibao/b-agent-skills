@@ -47,9 +47,22 @@ before a failing test exists. Each step follows Red-Green-Refactor strictly.
 
 ## Tools required
 
-No MCP tools required. Uses `Bash` for running tests.
+- `Bash` — run test suite commands.
 
-Graceful degradation: ✅ Possible — this agent is pure discipline enforced via process, no external tools needed.
+From `jcodemunch` MCP server *(optional, for index freshness after fix)*:
+- `index_file` — re-index each changed file after the Green step to keep the index fresh for subsequent b-analyze or b-debug calls.
+
+From `context7` MCP server *(optional, for library-integration steps)*:
+- `resolve-library-id` — resolve the library name to a Context7-compatible ID before writing tests.
+- `query-docs` — fetch correct API signatures, method names, and test helper patterns for the library under test. Use before writing assertions in Step 2 (Red) and before writing production code in Step 3 (Green) when the step involves a library API.
+
+From `sequential-thinking` MCP server *(optional, for complex test case design)*:
+- `sequentialthinking` — use when a step has non-obvious edge cases (async race conditions, multi-state transitions, error propagation chains). Call with: "What test cases are needed to fully specify [behavior from step description]?" Use the output to expand the single failing test into a complete test suite before starting Green.
+
+If context7 is unavailable: write tests based on existing code patterns and library usage in the codebase. Flag any assumption with: `// b-tdd note: API shape assumed — verify against context7 when available`.
+If sequential-thinking is unavailable: reason through edge cases inline as a numbered list before writing the test.
+
+Graceful degradation: ✅ Possible — core TDD discipline works with Bash alone. context7 and sequential-thinking improve test accuracy and completeness for library-heavy steps.
 
 ## Steps
 
@@ -74,6 +87,13 @@ If no test tooling is found: stop and inform the user — "No test runner detect
 
 For each implementation step:
 
+**Library API check** *(before writing the test)*: if the step description mentions a specific library or external dependency (e.g. "send email via SendGrid", "queue job with BullMQ", "validate JWT with jsonwebtoken"):
+- Call `resolve-library-id` then `query-docs` with query = "[library] [specific API area from step description]".
+- Extract: method signature, required parameters, error types, and any test helper patterns (e.g. mock factories, jest spies, pytest fixtures).
+- Use these to write accurate assertions — not guesses from training data.
+
+**Edge case expansion** *(optional, for complex behavior)*: if the step has non-obvious edge cases (async operations, state machines, error propagation), call `sequentialthinking` with: "What test cases fully specify [step description]?" Use the output to plan a minimal complete test suite before writing the first test.
+
 1. Write a test that describes the exact behavior to implement.
 2. Run the test suite: `npm test`, `pytest`, `go test ./...`, or the project-specific command.
 3. **Verify the test fails** — if it passes without any production code change, the test is wrong. Fix the test first.
@@ -84,6 +104,8 @@ For each implementation step:
 ---
 
 ### Step 3 — Green: write the minimum production code
+
+**Library usage check** *(before writing production code)*: if the failing test calls a library method not yet implemented, verify the correct call signature via context7 `query-docs` if not already done in Step 2. Never implement a library call from training memory alone.
 
 Write the smallest amount of production code that makes the failing test pass:
 
