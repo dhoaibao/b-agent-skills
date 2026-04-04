@@ -138,7 +138,7 @@ Intentional differences to preserve in `b-execute-plan` agent file:
 name: b-[name]
 description: [one-line, trigger-focused]
 mode: [primary for orchestrator agents / subagent for all others]
-model: [see model table in OPENCODE.md]
+model: [configured model]
 ---
 
 [Agent file body — # heading onward]
@@ -149,7 +149,7 @@ model: [see model table in OPENCODE.md]
 **How to add a new agent**:
 1. Create `opencode/b-[name].md` with the structure above.
 2. `install.sh` picks it up automatically — no script changes needed.
-3. Update `OPENCODE.md` model assignments table if the new agent uses a non-default model.
+3. Document the configured model in the relevant agent documentation if the new agent uses a non-default model.
 
 ---
 

@@ -43,24 +43,6 @@ Agents are organized into two groups:
 
 Verify all 5 are connected in OpenCode.
 
-### Model assignments
-
-| Agent | OpenCode model |
-|---|---|
-| `b-analyze` | `hdwebsoft/gpt-5.4` |
-| `b-commit` | `hdwebsoft/claude-haiku-4-5-20251001` |
-| `b-debug` | `hdwebsoft/claude-sonnet-4-6` |
-| `b-docs` | `hdwebsoft/gpt-5.4` |
-| `b-execute-plan` | `hdwebsoft/gpt-5.4` |
-| `b-gate` | `hdwebsoft/claude-haiku-4-5-20251001` |
-| `b-news` | `hdwebsoft/claude-haiku-4-5-20251001` |
-| `b-observe` | `hdwebsoft/claude-haiku-4-5-20251001` |
-| `b-plan` | `github-copilot/claude-opus-4.5` |
-| `b-quick-search` | `hdwebsoft/claude-haiku-4-5-20251001` |
-| `b-research` | `hdwebsoft/gpt-5.4` |
-| `b-review` | `hdwebsoft/claude-sonnet-4-6` |
-| `b-tdd` | `hdwebsoft/gpt-5.3-codex` |
-
 ---
 
 ## Agent reference
