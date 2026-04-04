@@ -24,6 +24,8 @@ Quick lookups and news requests should call `brave_web_search` / `brave_news_sea
 
 **Execution guardrail**: in `b-execute-plan`, greenfield plans auto-skip pre-execution analysis, but plans that modify existing code always ask whether to run `b-analyze` first. Existing `## Context` is reused only when it still matches the current plan scope.
 
+**Post-execution suggestion guardrail**: when `b-execute-plan` finishes a plan, it must suggest follow-up actions with explicit subagent names when applicable — e.g. `@b-review` for diff review and `@b-commit` for commit / PR text — rather than generic wording.
+
 **OpenCode workflow**: planning (`@b-plan`) and execution (`@b-execute-plan`) both happen within OpenCode. Plan files must always be written inside the current project root at `.opencode/b-plans/*.md` and track step state there.
 
 **Codebase understanding workflow**: jcodemunch-backed agents now use a shared preflight: `resolve_repo` (cached repo map) → `get_repo_outline` health check / re-index if coverage is implausibly low → `suggest_queries` (entrypoint discovery) → `get_ranked_context` (bounded relevant context) before deeper symbol/file reads.

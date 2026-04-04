@@ -66,6 +66,15 @@ Invoke directly for one-off tasks:
 | `## Last Gate Failure` | `@b-execute-plan` (when `@b-gate` fails) | `@b-debug` when auto-debug is triggered |
 | `## Review Feedback` | `@b-execute-plan` (when `@b-review` returns NEEDS FIXES) | `@b-tdd` on re-entry |
 
+## Post-execution suggestions
+
+When `@b-execute-plan` finishes all plan steps, its suggested next actions must use explicit subagent names whenever a suite agent exists for that action.
+
+- Use: `run @b-review to review the diff before commit`
+- Use: `run @b-commit to draft the commit message and PR description`
+- Do not use generic phrasing like `review the diff before commit` or `draft a commit message / PR description` without naming the mapped subagent.
+- Generic suggestions are allowed only for actions with no corresponding subagent (for example: summarizing exact files changed).
+
 ## Mandatory MCP toolset usage
 
 > **Iron rule**: when an MCP is connected and available, its toolset **MUST** be used. Using native tools (Glob/Grep/Read/Bash/webfetch) when the equivalent MCP is available is a violation — not a preference. Native tools are **last-resort fallbacks only**, used exclusively when the MCP is confirmed unavailable.

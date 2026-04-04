@@ -206,7 +206,7 @@ The entire pipeline from step 1 to final commit runs without any user interactio
 **On `success` or `manual_done`**:
 1. Edit the corresponding checkbox `- [ ]` → `- [x]`.
 2. Check if all steps are complete or skipped:
-   - All done → show summary, congratulate user, exit. Note any failed/skipped steps.
+   - All done → show summary, congratulate user, exit, and suggest concrete next steps using explicit subagent names when a suite agent exists for that action. Note any failed/skipped steps.
    - All remaining steps `failed` → surface blocked state — do not loop indefinitely.
    - Pending steps remain → **immediately return to Phase 2 without pausing**.
 
@@ -258,3 +258,4 @@ Status: [N] of [M] steps complete ✓
 - **NEEDS FIXES requires git evidence**: reset b-gate checkpoint only after `git diff HEAD --stat` confirms actual file changes.
 - **Auto-advance on success**: when a step completes successfully, immediately proceed to the next step — no pause, no confirmation, no summary between steps. Only pause for user input on: failure, ambiguous routing, manual steps (Priority 1), or NEEDS FIXES from b-review.
 - **Never autonomously trigger destructive git commands** — no `git push`, `git pull`, `git commit`, `git reset --hard`, `git revert`, `git clean -f`, or `git branch -D`. Rollback (`git checkout -- .`) must be offered to user, never auto-executed. Commits are always delegated to `@b-commit`.
+- **Final suggestions must name subagents explicitly**: never end with generic wording like `review the diff before commit` or `draft a commit message / PR description` when those actions map to suite agents. Prefer `run @b-review to review the diff before commit` and `run @b-commit to draft the commit message and PR description`.
