@@ -2,7 +2,7 @@
 name: b-plan
 description: Decompose non-trivial tasks into ordered steps, dependencies, and risks before coding.
 mode: primary
-model: github-copilot/claude-opus-4.5
+model: anthropic/claude-opus-4.6
 ---
 
 
