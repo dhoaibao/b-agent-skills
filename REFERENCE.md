@@ -8,6 +8,8 @@ Formatting note: bullet style is standardized across all agent specs for consist
 
 ### b-plan
 
+**Model:** `anthropic/claude-sonnet-4-6`
+
 Decomposes non-trivial tasks into ordered steps, dependencies, and risks before
 implementation. Includes a conditional **feasibility gate (Step 0)** for uncertain scope
 to confirm Understanding Lock, blockers, and effort. Uses `sequential-thinking` for
@@ -71,7 +73,7 @@ orchestrate the pipeline
 
 **Pipeline structured as 4 explicit phase contracts:**
 
-- **Phase 1 — LoadPlan**: Locates and reads the plan file (from argument or Glob). Builds `{steps[], baseline_completed, has_analysis_context, pending_steps_count, session_counter_threshold}`. Handles session resume (skips `[x]` steps), context window warning (>6 pending steps), session counter + pause trigger, and the **conditional pre-execution analysis (Step 0)**: greenfield plans auto-skip, but any plan that modifies existing code must ask the user whether to run b-analyze first. Existing `## Context` can satisfy Step 0 only if it is still valid for the current scope; otherwise treat it as missing, refine scope with jcodemunch (`resolve_repo` → `get_ranked_context`), and ask whether to refresh it. Never auto-invokes — asks user first.
+- **Phase 1 — LoadPlan**: Locates and reads the plan file (from argument or Glob). Builds `{steps[], baseline_completed, has_analysis_context, pending_steps_count, session_counter_threshold}`. Handles session resume (skips `[x]` steps), context window warning (>6 pending steps), session counter + pause trigger, and the **conditional pre-execution analysis (Step 0)**: greenfield plans auto-skip; existing-code plans require Step 0 only when risk triggers are present — ambiguous scope, unfamiliar or multi-file/multi-layer work, shared/public/high-blast-radius modules, or missing/stale `## Context`. Small, local, well-scoped existing-code changes may skip it. Existing `## Context` can satisfy Step 0 only if it is still valid for the current scope; otherwise treat it as missing, refine scope with jcodemunch (`resolve_repo` → `get_ranked_context`), and ask whether to refresh it. Never auto-invokes — asks user first.
 - **Phase 2 — SelectNextStep**: Resolves `{step_N, agent_route, is_manual, is_blocked}` from the step state map. Applies the 5-priority routing table (Priority 1 = manual keywords checked first to prevent "create migration" misfires; Priority 5 = b-tdd as last resort). Checks `## Dependencies` for blocking `[❌]` prerequisite steps. Invocation format is agent-specific: b-tdd → `[plan-file]:[N]`; b-review → `[plan-file]`; b-gate/b-commit → no plan args.
 - **Phase 3 — RunStep**: Invokes the selected agent and returns `{outcome: success | failure | needs_fixes | manual_done}`. **b-gate failure shortcut**: if b-gate fails → extract failing check + first ~10 error lines, write to `## Last Gate Failure`, offer auto-launch of `@b-debug` or manual fix. **Manual steps**: instruct user, wait for `done`/`next`/`continue`.
 - **Phase 4 — HandleOutcome**: Updates plan file and determines next action. `success/manual_done` → mark `[x]`, re-read file (session counter recompute), advance to Phase 2 or show done summary. When all steps are done, follow-up suggestions must name mapped suite agents explicitly (for example: `@b-review`, `@b-commit`) instead of generic action text. `failure` → mark `[❌]`, `git diff HEAD --stat`, offer rollback, halt. `needs_fixes` (b-review) → write `## Review Feedback`, verify real git changes, ask "cosmetic or new behavior?" → cosmetic: reset b-gate `[x]` → `[ ]`; new behavior: route to b-tdd first, then reset b-gate, then b-review again.
@@ -239,6 +241,8 @@ b-analyze does deep structural analysis — call graphs, complexity, duplication
 
 ### b-review
 
+**Model:** `anthropic/claude-sonnet-4-6`
+
 Pre-PR human-judgment review on changed code. Reads the git diff, establishes requirements
 baseline from the plan file (`.opencode/b-plans/`) or `$ARGUMENTS`, then checks five
 dimensions: logic correctness (control flow, null handling, async safety, side effects, plus **security review** — auth/authz enforcement, input validation, sensitive data exposure, injection vectors, rate limiting on new public endpoints), requirements coverage (maps each requirement to changed code — ✅/❌/⚠️ Partial), test adequacy (behavior coverage, unhappy paths, regression safety), and an **observability check** on new handlers/endpoints/jobs (entry-point logging present, errors not swallowed, metric emitted if implied). Uses
@@ -306,6 +310,8 @@ On mixed-concern diffs: stops and outputs 2 separate commit message suggestions 
 ---
 
 ### b-analyze
+
+**Model:** `anthropic/claude-sonnet-4-6`
 
 Deep code analysis using jcodemunch — maps structure, measures complexity, identifies
 duplicate logic, dead code, and OOP issues; produces severity-ranked findings with

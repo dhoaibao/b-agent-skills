@@ -2,7 +2,7 @@
 name: b-plan
 description: Decompose non-trivial tasks into ordered steps, dependencies, and risks before coding.
 mode: primary
-model: anthropic/claude-opus-4-6
+model: anthropic/claude-sonnet-4-6
 ---
 
 

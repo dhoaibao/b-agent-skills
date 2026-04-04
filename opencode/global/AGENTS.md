@@ -20,6 +20,8 @@ execute plan from .opencode/b-plans/<filename>.md
 
 Or simply: `execute plan` — `b-execute-plan` will discover the plan file automatically.
 
+For plans that modify existing code, Step 0 (pre-execution `@b-analyze`) is **conditional, not always-on**. Require it only when scope is ambiguous, the code area is unfamiliar or spans multiple files/layers, the change touches shared/public/high-blast-radius modules, or the existing `## Context` is missing/stale. Small, local, well-scoped changes may skip Step 0.
+
 ## Subagents
 
 All agents are available as subagents:

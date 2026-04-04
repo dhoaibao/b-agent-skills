@@ -2,7 +2,7 @@
 name: b-review
 description: Pre-PR code review — verify logic correctness, requirements fulfillment, edge case coverage, and test adequacy before opening a pull request. Use when user says "review before PR", "kiểm tra logic", or after b-gate passes.
 mode: subagent
-model: hdwebsoft/gpt-5.4
+model: anthropic/claude-sonnet-4-6
 ---
 
 

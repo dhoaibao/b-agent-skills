@@ -128,7 +128,7 @@ Intentional differences to preserve in `b-execute-plan` agent file:
 |---|---|
 | Subagent added or removed | `## Subagents` table in `opencode/global/AGENTS.md` |
 | New plan file section added | `## Plan file state sections` table in `opencode/global/AGENTS.md` |
-| b-execute-plan workflow changes | `## Invoking the execution pipeline` in `opencode/global/AGENTS.md` |
+| b-execute-plan workflow changes | `## Invoking the execution pipeline` in `opencode/global/AGENTS.md` and the `b-execute-plan` Step 0 policy in this file's review checklist / related guidance |
 | Git safety rules change | `## Git safety` in `opencode/global/AGENTS.md` |
 
 **Agent file structure** — every `opencode/b-[name].md` follows this format:
@@ -176,6 +176,7 @@ Before merging any agent file change, verify:
 3. **Every fallback path is explicit** — if a tool is unavailable, the agent says exactly what to do (stop, degrade, or use alternative)
 4. **Inter-agent handoffs have trigger conditions** — "if [condition] → use b-[other]" with the specific condition, not just "consider using"
 5. **No trigger keyword regression** — before rewriting a description, list all current trigger keywords and verify all survive in the new version
+6. **`b-execute-plan` Step 0 stays risk-based** — do not make pre-execution analysis always-on for every existing-code change; require it only for ambiguous, unfamiliar, broad, high-blast-radius, or stale-context cases
 
 ---
 

@@ -54,7 +54,15 @@ Graceful degradation: ✅ Possible — core pipeline always works.
 - Plan is greenfield (no existing modules are changed)
 - `## Context` section already exists in the plan file and is still valid for the current plan scope
 
-**If the plan modifies existing code, always ask before execution** whether to run pre-execution analysis. Never auto-invoke `@b-analyze`.
+**Require Step 0** only when the plan modifies existing code **and at least one risk trigger is true**:
+- Scope is ambiguous, broad, or not tied to clear files/modules yet
+- Code area is unfamiliar or spans more than 2 files / multiple layers
+- Change touches shared utilities, public APIs, core flows, or high-blast-radius modules
+- Existing `## Context` is missing, stale, incomplete, or mismatched to the current plan scope
+
+**Skip Step 0** for small, local, well-scoped existing-code changes (typically 1–2 files, one layer, low blast radius) when the plan already has valid matching context.
+
+Never auto-invoke `@b-analyze`. Ask the user first whenever Step 0 is required.
 
 **Determine scope before asking:**
 1. Scan `## Steps` for explicit file paths or backtick module names.
@@ -63,9 +71,9 @@ Graceful degradation: ✅ Possible — core pipeline always works.
 4. If the repo can be resolved with jcodemunch, use `resolve_repo` as a cached repo map lookup and call `get_ranked_context` with the plan title + scope as the query. Use the top-ranked files/symbols to refine the analysis scope.
 5. If still ambiguous → ask: "Which module or directory should I analyze?"
 
-If the existing `## Context` appears stale, incomplete, or mismatched to the current plan scope, treat it as missing and ask whether to refresh it.
+If the existing `## Context` appears stale, incomplete, or mismatched to the current plan scope, treat it as missing and re-evaluate the risk triggers above.
 
-**Ask before running** (never auto-invoke):
+**Ask before running** (never auto-invoke, only when Step 0 is required):
 ```
 Run b-analyze on [resolved scope] before starting?
 This builds codebase context for the execution (~5–10k tokens).
