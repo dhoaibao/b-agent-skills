@@ -1,12 +1,14 @@
 # b-agents — OpenCode Rules
 
+This file defines global OpenCode runtime rules. For repo-level agent authoring conventions, see the root `AGENTS.md`.
+
 ## OpenCode workflow
 
 All planning and execution happen within OpenCode:
 - **Planning**: clarify requirements → `@b-plan` → writes `.opencode/b-plans/*.md`
 - **Execution**: reads plan file → runs `@b-execute-plan` pipeline
 
-Plan files live in `.opencode/b-plans/*.md`. Both are written and executed entirely within OpenCode.
+Plan files live in `.opencode/b-plans/*.md`.
 
 ## Invoking the execution pipeline
 
@@ -16,7 +18,7 @@ When asked to execute a plan, use the `b-execute-plan` primary agent:
 execute plan from .opencode/b-plans/<filename>.md
 ```
 
-Or simply: `execute plan` — b-execute-plan will discover the plan file automatically.
+Or simply: `execute plan` — `b-execute-plan` will discover the plan file automatically.
 
 ## Subagents
 
@@ -56,13 +58,13 @@ Invoke directly for one-off tasks:
 
 ## Plan file state sections
 
-b-execute-plan writes to these sections to bridge state between subagent calls:
+`@b-execute-plan` writes to these sections to bridge state between subagent calls:
 
 | Section | Written by | Read by |
 |---|---|---|
-| `## Context` | b-execute-plan (after @b-analyze) | @b-tdd before each implementation step |
-| `## Last Gate Failure` | b-execute-plan (when @b-gate fails) | @b-debug when auto-debug is triggered |
-| `## Review Feedback` | b-execute-plan (when @b-review returns NEEDS FIXES) | @b-tdd on re-entry |
+| `## Context` | `@b-execute-plan` (after `@b-analyze`) | `@b-tdd` before each implementation step |
+| `## Last Gate Failure` | `@b-execute-plan` (when `@b-gate` fails) | `@b-debug` when auto-debug is triggered |
+| `## Review Feedback` | `@b-execute-plan` (when `@b-review` returns NEEDS FIXES) | `@b-tdd` on re-entry |
 
 ## Mandatory MCP toolset usage
 
