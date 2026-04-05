@@ -19,7 +19,7 @@ Then **restart OpenCode** to load the agents.
 Agents are organized into one integrated development suite:
 
 - **Development agents** — a tightly integrated pipeline: `b-plan → b-tdd → b-gate → b-review → b-commit`, with `b-analyze`, `b-debug`, `b-docs`, `b-research`, and `b-observe` as supporting tools. `b-execute-plan` orchestrates the full pipeline.
-- **Model allocation** — `b-plan`, `b-review`, and `b-analyze` use `anthropic/claude-sonnet-4-6`; execution-oriented agents remain on `hdwebsoft/gpt-5.4` unless specified otherwise.
+- **Model allocation** — `b-plan`, `b-gate`, `b-review`, and `b-analyze` use `anthropic/claude-sonnet-4-6`; execution-oriented agents remain on `hdwebsoft/gpt-5.4` unless specified otherwise.
 
 Quick lookups and news requests should call `brave_web_search` / `brave_news_search` directly instead of routing through separate utility agents.
 

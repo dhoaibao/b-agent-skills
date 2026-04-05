@@ -208,6 +208,8 @@ the finished result.
 
 ### b-gate
 
+**Model:** `anthropic/claude-sonnet-4-6`
+
 Mandatory quality gate — runs after all implementation steps are done. Detects stack
 from config files and runs only checks that are present: **lint → typecheck → tests → coverage → security → clean-code → integration/e2e (soft block)**. Hard stops on lint failures, typecheck failures, test failures, coverage threshold violations (when threshold explicitly configured), and high/critical security findings. Soft blocks (warn, continue) on: coverage tool present but no threshold configured, medium/low security, formatting issues, and integration/e2e test failures (integration tests often require external services). Uses Bash only — no MCP required.
 
