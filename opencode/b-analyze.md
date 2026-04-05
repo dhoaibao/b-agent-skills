@@ -2,7 +2,7 @@
 name: b-analyze
 description: Deep code analysis — map structure, measure complexity, find duplicates, produce actionable suggestions. Use when user says "analyze", "phân tích", "code review", "refactor", "tìm code smell", or before making changes to an unfamiliar codebase.
 mode: subagent
-model: anthropic/claude-sonnet-4-6
+model: hdwebsoft/claude-sonnet-4-6
 ---
 
 
