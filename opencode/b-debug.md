@@ -1,6 +1,6 @@
 ---
 name: b-debug
-description: Systematic hypothesis-driven debugging — trace execution paths, form ranked hypotheses, confirm root cause, then fix. Use when user says "debug", "bug", "lỗi", "không chạy", "fix this", or pastes an error message.
+description: Systematic hypothesis-driven debugging — trace execution paths, form ranked hypotheses, confirm root cause, then fix and verify by default. Use when user says "debug", "bug", "lỗi", "không chạy", "fix this", or pastes an error message.
 mode: subagent
 model: hdwebsoft/gpt-5.4
 ---
@@ -11,9 +11,15 @@ model: hdwebsoft/gpt-5.4
 $ARGUMENTS
 
 Systematic, hypothesis-driven bug tracing: understand code structure first, form
-ranked hypotheses, locate root cause, then fix. Never jump straight to patching.
+ranked hypotheses, locate root cause, then fix and verify. Never jump straight to patching.
+
+Default contract: when invoked by another agent or directly by the user, `b-debug`
+must complete the full loop **trace → confirm root cause → fix → verify** unless the
+caller explicitly asks for diagnosis-only, root-cause-only, or investigation-only output.
+Do not stop after reporting the cause if a safe, minimal fix is available.
 
 If `$ARGUMENTS` is provided, treat it as the error message or symptom — skip asking for symptoms in Step 1 and proceed directly with what was given.
+If `$ARGUMENTS` explicitly limits scope to investigation-only, honor that limit and stop after Step 4.
 
 ## When to use
 
@@ -158,7 +164,7 @@ State clearly: *"Root cause: [X] because [Y]"* before writing any fix.
 
 ### Step 5 — Fix
 
-Now that root cause is confirmed:
+Now that root cause is confirmed, the default behavior is to implement the minimal safe fix immediately — not to hand the fix back to the caller as a separate follow-up.
 
 - Write the minimal fix — don't refactor unrelated code in the same change.
 - If the fix touches a non-obvious API or behavior, add a comment explaining why.
@@ -175,6 +181,7 @@ After applying the fix:
 - Suggest the minimal test to verify (a specific request, a unit test, a log line to check)
 - If the fix involved a config/env change, remind the user to restart the process.
 - If the fix introduced new code (new function, new module) → run **b-gate** on the changed files to validate lint, tests, and security before closing the bug. For structural review of the new code → run `b-analyze: [fixed module]` separately.
+- Do not end at "root cause found". Close the loop by stating the applied fix and the exact verification step unless the caller explicitly requested diagnosis-only mode.
 
 ---
 
@@ -205,7 +212,7 @@ Note any silent catch blocks or unexpected stops in the path.
 // the fix
 \`\`\`
 
-**Verify by**: [how to confirm it works]
+**Verification result / Verify by**: [what was checked, or exact steps to confirm it works]
 ```
 
 ---
@@ -213,6 +220,7 @@ Note any silent catch blocks or unexpected stops in the path.
 ## Rules
 
 - Never patch before confirming root cause — a wrong fix wastes time and introduces new bugs.
+- Default to full execution: trace → confirm root cause → fix → verify. Only stop at diagnosis when the caller explicitly requests that narrower scope.
 - Always map the full execution path first — the bug is often not where it surfaces.
 - If 2+ hypotheses seem equally likely, verify the cheaper one first.
 - Silent failure points (swallowed exceptions, missing logs) are the most common cause of "no error but not working" bugs — check these first.

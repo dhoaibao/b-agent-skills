@@ -164,7 +164,7 @@ Show routing decision and invoke immediately (no confirmation for unambiguous or
 
 **Input**: `{step_N, agent_route, is_manual}`
 **Output**: `{outcome: success | failure | needs_fixes | manual_done}`
-**Decisions**: invoke agent vs instruct user; b-gate failure shortcut (offer @b-debug auto-launch)
+**Decisions**: invoke agent vs instruct user; b-gate failure shortcut (offer @b-debug auto-launch for full-loop debug)
 
 Invoke the subagent using the format from Phase 2. Interpret output for success or failure:
 
@@ -199,10 +199,10 @@ The entire pipeline from step 1 to final commit runs without any user interactio
    [first ~10 lines of error output]
 
    Options:
-     1 — Auto-launch @b-debug with this error (faster root cause analysis)
+     1 — Auto-launch @b-debug with this error (trace → root cause → fix → verify when possible)
      2 — Fix manually (I'll investigate myself)
    ```
-4. If user picks `1`: invoke `@b-debug [key error lines]`. Wait for completion, then re-invoke `@b-gate`. If passes, outcome = `success` → proceed to Phase 4.
+4. If user picks `1`: invoke `@b-debug [key error lines]`. Treat `@b-debug` as full-loop by default: it should investigate, apply the minimal safe fix when available, and state how the fix was verified before returning. Then re-invoke `@b-gate`. If passes, outcome = `success` → proceed to Phase 4.
 
 ---
 

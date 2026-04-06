@@ -391,7 +391,7 @@ the silence that makes future failures invisible.
 
 ### b-debug
 
-Systematic, hypothesis-driven bug tracing. Resolves or indexes the codebase first via
+Systematic, hypothesis-driven bug tracing and repair. Resolves or indexes the codebase first via
 `resolve_repo` → `index_folder` (if needed), then runs a shared preflight: `get_repo_outline` health check, `suggest_queries`
 for entrypoint discovery and `get_ranked_context` for bounded relevant context, then maps the full execution path with jcodemunch
 (`get_context_bundle` → `find_references` → `get_blast_radius` → `get_impact_preview` → `get_symbol_source`).
@@ -401,6 +401,8 @@ error string origin: `search_text`. Forms ranked hypotheses with sequential-thin
 When static analysis is insufficient to confirm root cause, uses a **dynamic verification loop**: add 1–2 targeted log statements at the suspected choke point → instruct user to run the failing scenario and paste output → analyze output to confirm or eliminate hypothesis → remove debug logging after confirmation. Hard cap of 3 iterations; after 3 unconfirmed rounds, surfaces all gathered evidence and escalates (APM/profiler, isolation, or escalation). Confirms root cause, then fixes. For library errors: `brave_web_search` → `firecrawl_scrape`
 (with `firecrawl_map` fallback when scrape returns empty) → `b-docs`. Never patches
 before root cause is confirmed.
+
+**Default execution contract:** `b-debug` is not a trace-only agent. When invoked directly or by another agent, it must continue through **trace → confirm root cause → fix → verify** by default. It may stop after diagnosis only when the caller explicitly requests investigation-only / root-cause-only output, or when no safe minimal fix can be applied from the available evidence.
 
 **Stale index detection:** When `resolve_repo` returns an existing index, calls `get_session_stats` and compares `files_indexed` against a Glob count of source files (`**/*.{ts,tsx,js,jsx,py,go,rs,java,rb,php,kt,swift}`). If drift >10%, calls `index_folder` to re-index before proceeding. If `get_session_stats` unavailable: notes "⚠️ Could not verify index freshness" and continues.
 
@@ -413,10 +415,9 @@ fix: email queue jobs disappearing silently
 ```
 
 **Output:** Symptoms summary, execution path map, ranked hypotheses, confirmed root cause,
-minimal fix, and verification instructions.
+minimal fix, and verification result or exact verification steps. Diagnosis-only output is the exception, not the default.
 
-**Rule:** No patch is written until root cause is explicitly confirmed. Library errors
-trigger a web lookup and `b-docs` call before hypothesis verification.
+**Rule:** No patch is written until root cause is explicitly confirmed. Once confirmed, `b-debug` should apply the minimal safe fix and close the loop with verification unless the caller explicitly narrowed scope. Library errors trigger a web lookup and `b-docs` call before hypothesis verification.
 
 **Post-fix index refresh:** After applying a fix, calls `index_file` on each changed file to keep jcodemunch index fresh for subsequent b-analyze calls.
 

@@ -38,7 +38,7 @@ All agents are available as subagents:
 | `@b-gate` | Quality gate — lint → typecheck → tests → coverage → security → clean-code |
 | `@b-review` | Pre-PR review — logic, requirements, edge cases, test adequacy |
 | `@b-commit` | Generate commit message and PR description text |
-| `@b-debug` | Hypothesis-driven debugging — trace root cause before fixing |
+| `@b-debug` | Hypothesis-driven debugging — trace, confirm root cause, fix, and verify by default |
 | `@b-analyze` | Deep code analysis — structure, complexity, duplication |
 
 ### Planning & research

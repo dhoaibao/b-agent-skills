@@ -34,6 +34,8 @@ Quick lookups and news requests should call `brave_web_search` / `brave_news_sea
 
 **Structured reasoning workflow**: for non-trivial debugging, planning, trade-off analysis, and prioritization, agents must call `sequential-thinking` and surface the ordered result explicitly rather than hiding it behind free-form prose.
 
+**Debugging contract**: `b-debug` is full-loop by default — when invoked directly or as a subagent, it should continue through **trace → confirm root cause → fix → verify** unless the caller explicitly asks for diagnosis-only output.
+
 **Git-safety guardrail**: destructive git commands are prohibited in all agents except `b-commit`, which owns all git write operations.
 
 ### MCP dependencies
