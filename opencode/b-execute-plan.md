@@ -215,7 +215,7 @@ The entire pipeline from step 1 to final commit runs without any user interactio
 **On `success` or `manual_done`**:
 1. Edit the corresponding checkbox `- [ ]` → `- [x]`.
 2. Check if all steps are complete or skipped:
-   - All done → show summary, congratulate user, exit, and suggest concrete next steps using explicit subagent names when a suite agent exists for that action. Note any failed/skipped steps.
+   - All done → show summary, congratulate user, exit, and suggest concrete next steps using explicit subagent names when a suite agent exists for that action. If the latest `@b-review` output surfaced observability follow-up on new handlers/endpoints/jobs, include `run @b-observe: [scope]` as an explicit optional next step. Note any failed/skipped steps.
    - All remaining steps `failed` → surface blocked state — do not loop indefinitely.
    - Pending steps remain → **immediately return to Phase 2 without pausing**.
 
@@ -235,8 +235,10 @@ The entire pipeline from step 1 to final commit runs without any user interactio
    - If empty: inform user "No code changes detected. Please modify and save files before re-entering b-gate."
    - If modified files exist: proceed to step 4.
 4. Ask: "Did this fix add new behavior, or was it cosmetic (null check, rename, guard clause, typo)?"
-   - **Cosmetic** → reset b-gate `[x]` to `[ ]`, return to Phase 2 → routes to `@b-gate`.
-   - **New behavior** → determine affected step N: scan b-review's NEEDS FIXES output for a step number reference; if none found, ask the user "Which step number does this fix belong to?" (one question, required). Return to Phase 2 → routes to `@b-tdd [plan-file]:[N]` for that step. After b-tdd completes, reset b-gate `[x]` to `[ ]` and proceed through b-gate → b-review again.
+    - **Cosmetic** → reset b-gate `[x]` to `[ ]`, return to Phase 2 → routes to `@b-gate`.
+    - **New behavior** → determine affected step N: scan b-review's NEEDS FIXES output for a step number reference; if none found, ask the user "Which step number does this fix belong to?" (one question, required). Return to Phase 2 → routes to `@b-tdd [plan-file]:[N]` for that step. After b-tdd completes, reset b-gate `[x]` to `[ ]` and proceed through b-gate → b-review again.
+
+**Observability follow-up rule**: do not auto-invoke `@b-observe` as a mandatory pipeline stage. Only suggest it when `@b-review` explicitly identifies observability uncertainty or missing instrumentation on newly added endpoints, handlers, jobs, or queue consumers.
 
 ---
 
@@ -268,3 +270,4 @@ Status: [N] of [M] steps complete ✓
 - **Auto-advance on success**: when a step completes successfully, immediately proceed to the next step — no pause, no confirmation, no summary between steps. Only pause for user input on: failure, ambiguous routing, manual steps (Priority 1), or NEEDS FIXES from b-review.
 - **Never autonomously trigger destructive git commands** — no `git push`, `git pull`, `git commit`, `git reset --hard`, `git revert`, `git clean -f`, or `git branch -D`. Rollback (`git checkout -- .`) must be offered to user, never auto-executed. Commits are always delegated to `@b-commit`.
 - **Final suggestions must name subagents explicitly**: never end with generic wording like `review the diff before commit` or `draft a commit message / PR description` when those actions map to suite agents. Prefer `run @b-review to review the diff before commit` and `run @b-commit to draft the commit message and PR description`.
+- **`@b-observe` is opt-in follow-up, not an automatic stage**: suggest it only when `@b-review` surfaces observability-specific uncertainty on new entry points or background flows.

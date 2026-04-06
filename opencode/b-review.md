@@ -188,6 +188,8 @@ If tests are missing for a requirement or critical edge case: flag as a finding,
 
 **Note**: this is not a full observability audit — only minimum instrumentation on new code. For a complete instrumentation review → run `b-observe` separately.
 
+**Handoff rule**: if Step 5.5 finds missing entry logs, swallowed errors, or broader instrumentation uncertainty in newly added handlers/endpoints/jobs, end the review with an explicit follow-up suggestion: `run b-observe: [changed module or entry-point scope]` for a full observability audit. Use this as a suggestion when the gap is non-blocking, or as part of NEEDS FIXES when the gap leaves a new critical path effectively opaque.
+
 ---
 
 ### Step 6 — Use sequential-thinking to consolidate
@@ -252,6 +254,7 @@ Blockers (must fix before PR):
 
 Suggestions (non-blocking):
 - [item]
+- [If observability follow-up is warranted] Run `b-observe: [scope]` for a full instrumentation audit.
 ```
 
 ---
@@ -262,6 +265,7 @@ Suggestions (non-blocking):
 - Blocker = anything that would cause a reviewer to request changes before merge.
 - Suggestion = improvement that does not block correctness or requirement fulfillment.
 - Do not re-run automated checks (lint, tests) — b-gate owns that; b-review owns human judgment.
+- If the review uncovers observability uncertainty on new entry points, recommend `b-observe` explicitly instead of stretching b-review into a full instrumentation audit.
 - If logic is too complex to understand without running it, say so — do not guess.
 - Keep the diff scope in mind: a 3-line fix needs a lighter review than a 200-line feature.
 - If requirements are not fulfillable with the current implementation, state clearly: "Requirement X is not met — the implementation does Y instead of Z".
