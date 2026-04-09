@@ -2,7 +2,7 @@
 name: b-review
 description: Pre-PR code review — verify logic correctness, requirements fulfillment, edge case coverage, and test adequacy before opening a pull request. Use when user says "review before PR", "kiểm tra logic", or after b-gate passes.
 mode: subagent
-model: github-copilot/claude-sonnet-4-5
+model: github-copilot/gpt-5.3-codex
 ---
 
 

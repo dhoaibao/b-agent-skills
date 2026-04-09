@@ -2,7 +2,7 @@
 name: b-tdd
 description: TDD enforcement — Iron Law (no production code before failing test) and Red-Green-Refactor cycle per implementation step. Use when user says "tdd", "test first", "viết test trước", or when executing b-plan implementation steps.
 mode: subagent
-model: github-copilot/claude-sonnet-4-5
+model: github-copilot/gpt-5.3-codex
 ---
 
 
