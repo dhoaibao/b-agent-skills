@@ -1,6 +1,6 @@
 # b-agents
 
-A lean 4-agent suite for **OpenCode**.
+A lean 4-agent suite for **Claude Code**.
 
 ## Install & Update
 
@@ -8,7 +8,7 @@ A lean 4-agent suite for **OpenCode**.
 curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agents/main/install.sh | bash
 ```
 
-Then **restart OpenCode** to load the agents.
+Then **restart Claude Code** to load the agents.
 
 ---
 
@@ -44,4 +44,4 @@ See [REFERENCE.md](REFERENCE.md) for full details — triggers, output format, r
 | `jcodemunch` | Code structure & call graph analysis |
 | `sequential-thinking` | Structured reasoning |
 
-Verify all 5 are connected in OpenCode.
+Verify all 5 are connected in Claude Code (`/mcp`).

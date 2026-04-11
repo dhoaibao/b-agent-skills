@@ -1,17 +1,18 @@
-# b-agents — OpenCode Rules
+# b-agents — Claude Code global rules
 
-This file defines global OpenCode runtime rules. For repo-level agent authoring conventions, see the root `AGENTS.md`.
+This file defines global Claude Code runtime rules applied in every conversation.
+For repo-level agent authoring conventions, see the root `AGENTS.md`.
 
-## OpenCode workflow
+## Agent suite
 
 Four agents covering the full development cycle:
 
 | Agent | Role |
 |---|---|
-| `@b-plan` | Think before coding — decompose tasks, evaluate approaches, produce plan file |
-| `@b-research` | All external knowledge — library docs, comparisons, multi-source research |
-| `@b-debug` | Full-loop debugging — trace, confirm root cause, fix, verify |
-| `@b-review` | Pre-PR review — logic correctness, requirements, edge cases, test adequacy |
+| `b-plan` | Think before coding — decompose tasks, evaluate approaches, produce plan file |
+| `b-research` | All external knowledge — library docs, comparisons, multi-source research |
+| `b-debug` | Full-loop debugging — trace, confirm root cause, fix, verify |
+| `b-review` | Pre-PR review — logic correctness, requirements, edge cases, test adequacy |
 
 **Typical flow:**
 ```
@@ -22,17 +23,21 @@ b-debug (any time something breaks)
 
 ## Invoking agents
 
+Claude Code will automatically route to the appropriate agent based on your request. You can also invoke explicitly:
+
 ```
-@b-plan add rate limiting to the API
-@b-research how to use Prisma transactions
-@b-research compare BullMQ vs Bee-Queue
-@b-debug webhook not triggering despite correct URL
-@b-review
+use b-plan to add rate limiting to the API
+use b-research to look up Prisma transaction API
+use b-research to compare BullMQ vs Bee-Queue
+use b-debug to fix: webhook not triggering despite correct URL
+use b-review
 ```
+
+---
 
 ## Mandatory MCP toolset usage
 
-> **Iron rule**: when an MCP is connected and available, its toolset **MUST** be used. Using native tools (Glob/Grep/Read/Bash/webfetch) when the equivalent MCP is available is a violation — not a preference. Native tools are **last-resort fallbacks only**.
+> **Iron rule**: when an MCP is connected and available, its toolset **MUST** be used. Using native tools (Glob/Grep/Read/Bash/WebFetch) when the equivalent MCP is available is a violation — not a preference. Native tools are **last-resort fallbacks only**.
 
 **How to check MCP availability**: treat each MCP as available unless a call returns a connection error. Do not pre-emptively skip MCPs based on assumptions.
 
@@ -57,7 +62,9 @@ When jcodemunch is connected: **never** use Glob, Grep, or Read to explore or un
 | Understanding a class hierarchy | `get_class_hierarchy(repo, "ClassName")` |
 | Finding related code | `get_related_symbols(repo, symbol_id)` |
 
-**jcodemunch preflight** — run at the start of any agent that needs to understand existing code:
+### jcodemunch preflight
+
+Run at the start of any agent that needs to understand existing code:
 
 1. `resolve_repo(path="<absolute project root>")` — look up the cached repo map.
    - If a repo identifier is returned: reuse it. Verify index health with `get_repo_outline(repo=<id>)`.
@@ -78,23 +85,23 @@ When jcodemunch is connected: **never** use Glob, Grep, or Read to explore or un
 
 ### Web search — Brave Search + Firecrawl (REQUIRED when available)
 
-When brave-search or firecrawl is connected: **never** use `webfetch` directly.
+When brave-search or firecrawl is connected: **never** use `WebFetch` directly.
 
 **Mandatory substitution table:**
 
 | Native tool / action | ✅ MUST use instead |
 |---|---|
-| `webfetch(url)` to search for info | `brave_web_search(query)` → then `firecrawl_scrape(url)` |
-| `webfetch(url)` to read a known page | `firecrawl_scrape(url, formats=["markdown"])` |
+| `WebFetch(url)` to search for info | `brave_web_search(query)` → then `firecrawl_scrape(url)` |
+| `WebFetch(url)` to read a known page | `firecrawl_scrape(url, formats=["markdown"])` |
 | Manually guessing and fetching URLs | `firecrawl_map(url, search=...)` to discover the right URL first |
-| Repeated `webfetch` for multi-page coverage | `firecrawl_crawl(url, limit=N)` |
+| Repeated `WebFetch` for multi-page coverage | `firecrawl_crawl(url, limit=N)` |
 | News / current events lookup | `brave_news_search(query, freshness=...)` |
 
 **Search-first rule**: always call `brave_web_search` first, then `firecrawl_scrape` on the top 1–3 results.
 
 **Fallback chain** *(only when MCPs are unavailable)*:
 - brave-search unavailable → use `firecrawl_search` (combined search+scrape).
-- firecrawl unavailable → use `webfetch` as last resort.
+- firecrawl unavailable → use `WebFetch` as last resort.
 
 ---
 
@@ -148,8 +155,8 @@ MCP toolset  >  specialized native tool  >  general native tool  >  Bash command
 |---|---|---|---|
 | Read a source file | `jcodemunch:get_file_content` | `Read` tool | `cat` via Bash |
 | Find a function | `jcodemunch:search_symbols` | `Grep` tool | `grep` via Bash |
-| Search the web | `brave_web_search` | `firecrawl_search` | `webfetch` |
-| Scrape a URL | `firecrawl_scrape` | `webfetch` | — |
+| Search the web | `brave_web_search` | `firecrawl_search` | `WebFetch` |
+| Scrape a URL | `firecrawl_scrape` | `WebFetch` | — |
 | Library API lookup | `context7:query-docs` | `firecrawl_scrape(docs URL)` | training knowledge (❌ avoid) |
 | Complex reasoning | `sequentialthinking` | numbered prose with explicit steps | inline prose (❌ avoid) |
 

@@ -6,27 +6,47 @@ Guidelines for creating, editing, and maintaining agents in this repository.
 
 ## Frontmatter spec
 
-Every `opencode/b-[name].md` must begin with YAML frontmatter:
+Every `claude/agents/b-[name].md` must begin with YAML frontmatter:
 
 ```yaml
 ---
 name: b-agent-name
 description: >
-  [Trigger-focused description, ≤80 words. Answer ONLY: "when should OpenCode trigger this agent?"
+  [Trigger-focused description. Answer ONLY: "when should Claude Code route to this agent?"
   Include: ALWAYS trigger condition, key Vietnamese + English trigger phrases,
-  and one sentence distinguishing this from similar agents.
+  one sentence distinguishing this from similar agents, and 1–2 <example> blocks.
   Do NOT include usage instructions — those go in the agent file body.]
+
+  <example>
+  Context: [Situation description]
+  user: "[User request]"
+  assistant: "[How assistant should respond]"
+  <commentary>
+  [Why this agent should be triggered]
+  </commentary>
+  </example>
+model: sonnet  # or opus, haiku
+color: blue    # optional, for visual distinction
 ---
 ```
 
 **Required fields:**
 - `name` — kebab-case, prefixed with `b-`
-- `description` — ≤80 words, trigger-focused only
+- `description` — trigger-focused, includes `<example>` blocks
+
+**Optional fields:**
+- `model` — `sonnet` (default), `opus` (complex reasoning), `haiku` (fast/cheap)
+- `color` — visual label: `red`, `blue`, `green`, `purple`, `yellow`, `orange`, `cyan`, `pink`
+
+**Model tiers:**
+- `opus` — Tier 1 agents (complex reasoning, critical decisions): `b-plan`, `b-debug`
+- `sonnet` — Tier 2 agents (balanced quality + cost): `b-review`, `b-research`
 
 **Description rules:**
 - Start with a one-line summary of what the agent does
 - Include `ALWAYS use this agent when...` with specific trigger phrases
 - Include both Vietnamese and English trigger keywords
+- Include 1–2 `<example>` blocks (important for automatic routing in Claude Code)
 - End with disambiguation from the most similar agent
 - No step-by-step instructions, no tool lists, no output format details
 
@@ -38,10 +58,14 @@ description: >
 ---
 name: b-example
 description: >
-  [≤80 words, trigger-focused]
+  [Trigger-focused, with <example> blocks]
+model: sonnet
+color: blue
 ---
 
 # b-example
+
+$ARGUMENTS
 
 [1–2 sentence summary of what this agent does and why it exists.]
 
@@ -100,40 +124,41 @@ When deciding which MCPs an agent should use:
 
 ## Agent file sync rule
 
-All agents live in `opencode/b-[name].md`. When changing agent files:
+All agents live in `claude/agents/b-[name].md`. When changing agent files:
 
 | Change type | Action |
 |---|---|
-| **Create** new agent | Create `opencode/b-[name].md` |
-| **Update** agent | Edit `opencode/b-[name].md` directly |
-| **Delete** agent | Delete `opencode/b-[name].md` |
+| **Create** new agent | Create `claude/agents/b-[name].md` |
+| **Update** agent | Edit `claude/agents/b-[name].md` directly |
+| **Delete** agent | Delete `claude/agents/b-[name].md` |
 
-**`opencode/global/AGENTS.md` sync** — update `opencode/global/AGENTS.md` (global rules) and `AGENTS.md` (repo rules) in the same commit when any of these change:
+**`claude/CLAUDE.md` sync** — update `claude/CLAUDE.md` (global rules) and `AGENTS.md` (repo rules) in the same commit when any of these change:
 
 | Change | Section to update |
 |---|---|
-| Agent added or removed | Agent table in `opencode/global/AGENTS.md` |
-| Git safety rules change | `## Git safety` in `opencode/global/AGENTS.md` |
+| Agent added or removed | Agent table in `claude/CLAUDE.md` |
+| Git safety rules change | `## Git safety` in `claude/CLAUDE.md` |
 
-**Agent file structure** — every `opencode/b-[name].md` follows this format:
+**Agent file structure** — every `claude/agents/b-[name].md` follows this format:
 
 ```markdown
 ---
 name: b-[name]
-description: [one-line, trigger-focused]
-mode: [primary for orchestrator agents / subagent for all others]
-model: [configured model]
+description: >
+  [trigger-focused with <example> blocks]
+model: [sonnet / opus / haiku]
+color: [optional]
 ---
 
 [Agent file body — # heading onward]
 ```
 
-**How to update**: edit `opencode/b-[name].md` directly.
+**How to update**: edit `claude/agents/b-[name].md` directly.
 
 **How to add a new agent**:
-1. Create `opencode/b-[name].md` with the structure above.
+1. Create `claude/agents/b-[name].md` with the structure above.
 2. `install.sh` picks it up automatically — no script changes needed.
-3. Document the configured model in the relevant agent documentation if the new agent uses a non-default model.
+3. Update `TIERS.md` if the new agent has a specific model tier rationale.
 
 ---
 
@@ -155,7 +180,7 @@ Never leave README or REFERENCE out of sync with an agent file change.
 
 Before merging any agent file change, verify:
 
-1. **Description ≤80 words** — verify with `wc -w` on the extracted description text
+1. **Description has `<example>` blocks** — at least one `<example>` block with `user:`, `assistant:`, and `<commentary>` for correct Claude Code routing
 2. **Every step has imperative verbs** — "Call X", "Extract Y", "Check Z" — not "X is called" or "Y should be extracted"
 3. **Every fallback path is explicit** — if a tool is unavailable, the agent says exactly what to do (stop, degrade, or use alternative)
 4. **Inter-agent handoffs have trigger conditions** — "if [condition] → use b-[other]" with the specific condition, not just "consider using"
@@ -168,14 +193,14 @@ Before merging any agent file change, verify:
 ### Folder structure
 
 ```
-b-agents/
-├── opencode/
-│   ├── global/
-│   │   └── AGENTS.md     ← Global OpenCode rules (symlinked to ~/.agents/AGENTS.md)
-│   ├── b-plan.md
-│   ├── b-research.md
-│   ├── b-debug.md
-│   └── b-review.md
+b-agent-skills/
+├── claude/
+│   ├── agents/
+│   │   ├── b-plan.md
+│   │   ├── b-research.md
+│   │   ├── b-debug.md
+│   │   └── b-review.md
+│   └── CLAUDE.md         ← Global Claude Code rules (symlinked to ~/.claude/CLAUDE.md)
 ├── install.sh
 ├── README.md
 ├── REFERENCE.md
@@ -191,11 +216,11 @@ b-agents/
 
 ### How to add to sync
 
-1. Create `opencode/b-new-agent.md` with valid frontmatter (`name` + `description`)
+1. Create `claude/agents/b-new-agent.md` with valid frontmatter (`name` + `description`)
 2. `install.sh` picks it up automatically — no script changes needed
 3. Update `README.md` agents overview table
 4. Update `REFERENCE.md` with a detailed reference section
-5. Commit, push, run the install script, then restart OpenCode
+5. Commit, push, run the install script, then restart Claude Code
 
 ### How to add a new MCP to the suite
 

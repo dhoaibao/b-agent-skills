@@ -1,10 +1,33 @@
 ---
 name: b-debug
-description: Systematic hypothesis-driven debugging — trace execution paths, form ranked hypotheses, confirm root cause, then fix and verify by default. Use when user says "debug", "bug", "lỗi", "không chạy", "fix this", or pastes an error message.
-mode: primary
-model: github-copilot/gpt-5.3-codex
----
+description: >
+  Systematic hypothesis-driven debugging — trace execution paths, form ranked
+  hypotheses, confirm root cause, then fix and verify by default. ALWAYS use
+  when user says "debug", "bug", "lỗi", "không chạy", "fix this", "tại sao",
+  "không hoạt động", or pastes an error message or stack trace. Unlike b-plan
+  (design what to build) or b-research (look up docs), b-debug owns the full
+  trace → fix → verify loop.
 
+  <example>
+  Context: User has a runtime error
+  user: "b-debug: webhook not triggering despite correct URL registration"
+  assistant: "I'll use the b-debug agent to trace the execution path and identify the root cause."
+  <commentary>
+  Explicit "debug" with a symptom — b-debug handles this with the full trace → fix → verify loop.
+  </commentary>
+  </example>
+
+  <example>
+  Context: User has a silent failure with no error
+  user: "tại sao callback này không chạy?"
+  assistant: "I'll use b-debug to map the code structure and form hypotheses about why the callback isn't firing."
+  <commentary>
+  "tại sao" (why) + "không chạy" (not running) are explicit b-debug triggers in Vietnamese.
+  </commentary>
+  </example>
+model: opus
+color: red
+---
 
 # b-debug
 
@@ -92,7 +115,7 @@ or "recent changes" is often the fastest path to root cause.
 
 Use `jcodemunch` to trace the execution path in this order:
 
-0. **jcodemunch preflight** — run the standard preflight (see `global/AGENTS.md § jcodemunch preflight`) with query = "[symptom or error text]". Use the highest-ranked symbols/files to choose the best entry point and reduce blind tracing.
+0. **jcodemunch preflight** — run the preflight defined in `CLAUDE.md § jcodemunch preflight` with query = "[symptom or error text]". Use the highest-ranked symbols/files to choose the best entry point and reduce blind tracing.
 1. `get_context_bundle` on the chosen entry point (route handler, CLI command, event listener) — get full context of the starting point
 2. `find_references` on the relevant function — trace all callers and callees across files
 3. `get_blast_radius` on the suspected module — understand what depends on it

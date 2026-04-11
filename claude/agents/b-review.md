@@ -1,10 +1,33 @@
 ---
 name: b-review
-description: Pre-PR code review — verify logic correctness, requirements fulfillment, edge case coverage, and test adequacy before opening a pull request. Use when user says "review before PR", "kiểm tra logic", or after implementation is done.
-mode: primary
-model: github-copilot/gpt-5.3-codex
----
+description: >
+  Pre-PR code review — verify logic correctness, requirements fulfillment, edge
+  case coverage, and test adequacy before opening a pull request. ALWAYS use
+  when the user says "review before PR", "kiểm tra logic", "review code",
+  "kiểm tra trước khi push", or after implementation is done and the user wants
+  human-judgment review. Unlike b-debug (fix broken), b-review checks that
+  working code actually fulfills its requirements.
 
+  <example>
+  Context: User finished implementing a feature and wants to review before committing
+  user: "review before PR"
+  assistant: "I'll use the b-review agent to check logic correctness, requirements coverage, edge cases, and test adequacy."
+  <commentary>
+  "review before PR" is an explicit b-review trigger — the agent performs pre-PR human-judgment review.
+  </commentary>
+  </example>
+
+  <example>
+  Context: User wants to verify their implementation is correct
+  user: "kiểm tra logic trước khi push"
+  assistant: "I'll use b-review to review the diff against the requirements and check for logic gaps."
+  <commentary>
+  "kiểm tra logic trước khi push" (check logic before push) is a Vietnamese b-review trigger.
+  </commentary>
+  </example>
+model: sonnet
+color: green
+---
 
 # b-review
 
@@ -75,7 +98,7 @@ If the diff is large (>500 lines changed), ask the user which area to focus on f
 
 Determine what the code was *supposed* to do:
 
-1. **Check for plan file** — look for `.opencode/b-plans/[task-slug].md`. If found, read the `## Steps` section and the original scope statement. This is the primary requirements source.
+1. **Check for plan file** — look for `.claude/b-plans/[task-slug].md`. If found, read the `## Steps` section and the original scope statement. This is the primary requirements source.
 
    1b. **Issue enrichment** *(runs only when a plan file was found in step 1)*: scan the plan file header for an `**Issue**:` field.
    - If the value starts with `http`: call `firecrawl_scrape` with `url=[value]` and `formats: ["markdown"]`. Trim the result to 500 words and append to the requirements baseline as: `**Issue context** (from [URL]):
@@ -84,7 +107,7 @@ Determine what the code was *supposed* to do:
    - If the `**Issue**:` field is absent or empty: skip this sub-step entirely.
 
 2. **Check $ARGUMENTS** — if provided:
-   - If `$ARGUMENTS` ends in `.md` → use `Read` to verify the file exists. If it exists, treat it as the primary requirements source (same as a plan file found in `.opencode/b-plans/`).
+   - If `$ARGUMENTS` ends in `.md` → use `Read` to verify the file exists. If it exists, treat it as the primary requirements source (same as a plan file found in `.claude/b-plans/`).
    - If `$ARGUMENTS` does not end in `.md` → treat it as a text description of requirements.
 3. **Ask the user** — if neither is available, ask: "What was this change supposed to accomplish? What does 'done' look like?" Initial ask, then one re-prompt if vague — two questions maximum.
 
@@ -101,7 +124,7 @@ The review is only as good as the requirements baseline. Do not review without i
 
 ### Step 3 — Logic correctness review
 
-Run the standard jcodemunch preflight (see `global/AGENTS.md § jcodemunch preflight`) with query = "[diff scope + requirements baseline summary]". Then call `get_changed_symbols` to map the diff to named symbols, `get_blast_radius` on the top changed symbols to understand downstream impact, and `get_impact_preview` when a changed symbol sits on a service boundary or shared helper. Use the returned context as the primary review read set. If jcodemunch is unavailable, or `index_folder` returns `file_count = 0` or `is_stale: true`, fall back to direct Read on changed files. Always note: "⚠️ jcodemunch unavailable — blast-radius analysis unavailable."
+Run the jcodemunch preflight defined in `CLAUDE.md § jcodemunch preflight` with query = "[diff scope + requirements baseline summary]". Then call `get_changed_symbols` to map the diff to named symbols, `get_blast_radius` on the top changed symbols to understand downstream impact, and `get_impact_preview` when a changed symbol sits on a service boundary or shared helper. Use the returned context as the primary review read set. If jcodemunch is unavailable, or `index_folder` returns `file_count = 0` or `is_stale: true`, fall back to direct Read on changed files. Always note: "⚠️ jcodemunch unavailable — blast-radius analysis unavailable."
 
 **Impact-first review rule**: when `get_changed_symbols` returns named symbols, prioritize review depth on (a) symbols with the largest blast radius, (b) symbols at service boundaries, and (c) symbols implementing explicit requirements from Step 2. Raw line-count alone should not determine review depth.
 

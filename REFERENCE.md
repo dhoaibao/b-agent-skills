@@ -15,25 +15,26 @@ surface risks, and produce an execution-ready plan file.
 - Uses `sequential-thinking` to decompose work and rank approaches.
 - For existing-code tasks, uses jcodemunch preflight plus targeted structure reads.
 - Evaluates multiple approaches and documents the chosen one in `## Decision`.
-- Includes conditional **Step 0 feasibility gate** for uncertain or large-scope tasks.
+- Includes conditional **Step 1 feasibility gate** for uncertain or large-scope tasks.
 - Adds deploy-safety annotations (feature flags, migration ordering, external dependencies).
 
 **Good triggers**
 ```text
-b-plan: add rate limiting to the API
+use b-plan: add rate limiting to the API
 plan: design the notification system
 how should I approach refactoring the auth module?
+lên kế hoạch thêm rate limiting
 ```
 
 **Output**
-- Writes a plan file to `.opencode/b-plans/[task-slug].md`.
+- Writes a plan file to `.claude/b-plans/[task-slug].md`.
 - Includes: `## Decision` (approach chosen + alternatives rejected), ordered checkbox steps,
   dependencies, risks, unknowns, and optional `## Feasibility`.
 - Plan files are always in English.
 
 **Key rules**
 - Do not implement in the same session as planning.
-- Step 0 only confirms feasibility / blockers; it does not replace `b-research` for deep unknowns.
+- Step 1 feasibility gate only confirms blockers; it does not replace `b-research` for deep unknowns.
 - All unresolved unknowns must be surfaced in the plan — never deferred silently.
 
 ---
@@ -51,7 +52,7 @@ All external knowledge in one agent: library docs lookups and deep multi-source 
 
 **Good triggers**
 ```text
-b-research: how do I configure retries in BullMQ?
+use b-research: how do I configure retries in BullMQ?
 b-research: compare bullmq vs bee-queue for job queues
 b-research: best practices for webhook signature verification
 tra cứu cách dùng thư viện Prisma
@@ -86,6 +87,7 @@ Diagnosis-only is allowed only when the caller explicitly requests it.
 b-debug: webhook not triggering despite correct URL registration
 b-debug: intermittent 500 on /api/send with no error in logs
 why is this callback not running?
+lỗi này là do gì?
 ```
 
 **Output**
@@ -117,8 +119,8 @@ observability on new entry points.
 
 **Good triggers**
 ```text
-b-review
 review before PR
+use b-review
 kiểm tra logic trước khi push
 ```
 
@@ -178,7 +180,7 @@ b-research: [library] — [feature]
 ## Agent interaction map
 
 ```
-b-plan ──────────────── writes ─────────────────► plan file in .opencode/b-plans/
+b-plan ──────────────── writes ─────────────────► plan file in .claude/b-plans/
        └── unknown library/approach ────────────► b-research (before or during planning)
 
 b-review ────────────── READY FOR PR ───────────► commit

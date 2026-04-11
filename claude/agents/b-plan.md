@@ -1,14 +1,32 @@
 ---
 name: b-plan
 description: >
-  Think before coding. Decompose non-trivial tasks into ordered steps, evaluate approaches,
-  surface risks, and produce an execution-ready plan file. ALWAYS use when the user says
-  "plan", "thiết kế", "how should I approach", "lên kế hoạch", "nên bắt đầu từ đâu",
-  or the task spans more than 2 files or has unclear scope.
-  Unlike b-debug (fix broken) or b-research (lookup info), b-plan owns the decision of
-  what to build and in what order.
-mode: primary
-model: opencode/minimax-m2.5-free
+  Think before coding. Decompose non-trivial tasks into ordered steps, evaluate
+  approaches, surface risks, and produce an execution-ready plan file.
+  ALWAYS use when the user says "plan", "thiết kế", "how should I approach",
+  "lên kế hoạch", "nên bắt đầu từ đâu", or the task spans more than 2 files
+  or has unclear scope. Unlike b-debug (fix broken) or b-research (lookup info),
+  b-plan owns the decision of what to build and in what order.
+
+  <example>
+  Context: User wants to add a new feature across multiple files
+  user: "plan adding rate limiting to the API"
+  assistant: "I'll use the b-plan agent to decompose this task, evaluate approaches, and produce a plan file."
+  <commentary>
+  User explicitly says "plan" and this involves multi-file architecture work — b-plan is the right agent.
+  </commentary>
+  </example>
+
+  <example>
+  Context: User is unsure how to approach a complex refactoring task
+  user: "how should I approach refactoring the auth module?"
+  assistant: "I'll use b-plan to scan the existing code, evaluate approaches, and create a structured plan."
+  <commentary>
+  "How should I approach" with multi-file scope — unclear approach needs b-plan.
+  </commentary>
+  </example>
+model: opus
+color: purple
 ---
 
 # b-plan
@@ -88,7 +106,7 @@ Confirm what is being built before scanning any code.
 
 Use jcodemunch to understand what already exists before planning:
 
-- Run the standard preflight (see `global/AGENTS.md § jcodemunch preflight`) with query = "[requested change description]".
+- Run the jcodemunch preflight (see `CLAUDE.md § jcodemunch preflight`) with query = "[requested change description]".
 - `get_file_tree(path_prefix="src/")` — scoped directory view for the affected area.
 - `get_repo_outline` — overall structure, module boundaries.
 - `get_file_outline(file_paths=[...])` — batch-inspect files the plan will touch.
@@ -150,10 +168,10 @@ An unresolved unknown is a risk. Name it now.
 
 ### Step 6 — Write plan
 
-Write to `.opencode/b-plans/[task-slug].md` in the **current project root only**.
+Write to `.claude/b-plans/[task-slug].md` in the **current project root only**.
 
 - `task-slug` = kebab-case, e.g. `add-retry-logic`, `refactor-auth-module`.
-- Create `.opencode/b-plans/` if it doesn't exist.
+- Create `.claude/b-plans/` if it doesn't exist.
 - Show the exact saved path after writing.
 
 Present a short summary (scope + step count) and ask for confirmation. Update and re-confirm if the user requests changes.
@@ -211,7 +229,7 @@ Always English, regardless of the user's query language.
 
 ## Rules
 
-- Always write to `.opencode/b-plans/` — never leave the plan only in chat.
+- Always write to `.claude/b-plans/` — never leave the plan only in chat.
 - Always write plan files in English.
 - Do not implement in the same session as planning.
 - Steps must be ordered by dependency — wrong order causes cascading failures.
