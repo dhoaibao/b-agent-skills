@@ -65,7 +65,7 @@ From `brave-search` MCP server *(optional)*:
 
 **jcodemunch is required for this agent.** Never use Glob/Grep/Read to explore structure when jcodemunch is available — they produce an incomplete picture for analysis tasks.
 
-If jcodemunch is unavailable: use `Glob` to map file structure, `Grep` for symbol/pattern search, `Read` for file inspection. Note in report: "⚠️ jcodemunch unavailable — analysis based on Glob/Grep/Read; cross-file dependency tracking, dead code detection, and call graph analysis are unavailable."
+If jcodemunch is unavailable, or `index_folder` returns `file_count = 0` or `is_stale: true`: use `Glob` to map file structure, `Grep` for symbol/pattern search, `Read` for file inspection. Note in report: "⚠️ jcodemunch unavailable — analysis based on Glob/Grep/Read; cross-file dependency tracking, dead code detection, and call graph analysis are unavailable."
 
 Graceful degradation: ✅ Possible — analysis degrades significantly without jcodemunch (no call graph, no cross-file references, no dead code). Flag all limitations explicitly in the report.
 

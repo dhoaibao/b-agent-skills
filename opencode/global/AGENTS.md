@@ -74,7 +74,7 @@ When `@b-execute-plan` finishes all plan steps, its suggested next actions must 
 
 - Use: `run @b-review to review the diff before commit`
 - Use: `run @b-commit to draft the commit message and PR description`
-- Do not use generic phrasing like `review the diff before commit` or `draft a commit message / PR description` without naming the mapped subagent.
+- Do not use generic phrasing like "review the diff before commit" or "draft a commit message / PR description" without naming the mapped subagent.
 - Generic suggestions are allowed only for actions with no corresponding subagent (for example: summarizing exact files changed).
 
 ## Mandatory MCP toolset usage
@@ -108,15 +108,18 @@ When jcodemunch is connected: **never** use Glob, Grep, or Read to explore or un
 
 1. `resolve_repo(path="<absolute project root>")` — look up the cached repo map.
    - If a repo identifier is returned: reuse it. Verify index health with `get_repo_outline(repo=<id>)`.
-   - If the outline shows implausibly low coverage for the task (for example: `file_count = 0`, `symbol_count = 0`, only one language/file for a clearly larger repo, or the target directory/files are missing from the tree) → re-index with `index_folder(path=<root>, use_ai_summaries=false)`.
-   - If no match: call `index_folder(path=<root>, use_ai_summaries=false)`. Note the `repo` identifier from the response.
+   - **Check `is_stale` flag**: if `is_stale: true`, the index is outdated (git SHA mismatch) → re-index with `index_folder(path=<root>, incremental=true, use_ai_summaries=false)`.
+   - If the outline shows implausibly low coverage for the task (for example: `file_count = 0`, `symbol_count = 0`, only one language/file for a clearly larger repo, or the target directory/files are missing from the tree) → re-index with `index_folder(path=<root>, incremental=true, use_ai_summaries=false)`.
+   - If no match: call `index_folder(path=<root>, incremental=true, use_ai_summaries=false)`. Note the `repo` identifier from the response.
    - If re-index still returns `file_count = 0` or `symbol_count = 0`: jcodemunch cannot parse this codebase → fall back to Glob/Grep/Read.
 2. `suggest_queries(repo=<id>)` — surface entry points, key symbols, and language distribution.
 3. `get_ranked_context(repo=<id>, query="<agent-specific task query>", token_budget=4000)` — pack the most relevant symbols/files into a bounded context window.
 
-**Session reuse**: if another agent already ran this preflight in the same session, reuse the repo identifier — do not re-index.
+**Session reuse**: if another agent already ran this preflight in this session, reuse the repo identifier — do not re-index.
 
-**Fallback** *(only when jcodemunch is unavailable or returns `file_count=0`)*: use `Glob` to map file structure, `Grep` for pattern search, `Read` for file inspection. Always note: "⚠️ jcodemunch unavailable — analysis based on Glob/Grep/Read; cross-file tracking incomplete."
+**Always use `incremental=true`**: ensures file deletion detection (`deleted: N` in response) and reduces re-index time.
+
+**Fallback** *(only when jcodemunch is unavailable or returns `file_count = 0` or `is_stale: true`)*: use `Glob` to map file structure, `Grep` for pattern search, `Read` for file inspection. Always note: "⚠️ jcodemunch unavailable — analysis based on Glob/Grep/Read; cross-file tracking incomplete."
 
 **Compliance note**: when an agent falls back from jcodemunch, it must state both (a) why fallback was necessary, and (b) which MCP capability is now missing (for example: blast radius, call graph, dead code detection, symbol diff, or ranked context).
 

@@ -35,7 +35,7 @@ implementation begins.
 
 If sequential-thinking is unavailable: reason through the plan inline step by step,
 making the thinking explicit in the response. Do not skip planning — just do it without the tool.
-If jcodemunch is unavailable, or `index_folder` returns `file_count = 0`: use Glob/Read to inspect key files manually before Step 2 and explicitly note that blast-radius / rename-safety checks were skipped.
+If jcodemunch is unavailable, or `index_folder` returns `file_count = 0` or `is_stale: true`: use Glob/Read to inspect key files manually before Step 2 and explicitly note that blast-radius / rename-safety checks were skipped. Always note: "⚠️ jcodemunch unavailable — analysis based on Glob/Read; cross-file tracking incomplete."
 If context7 is unavailable: delegate library verification to b-docs as before.
 If brave-search is unavailable: delegate tool comparison to b-research as before.
 
@@ -57,7 +57,7 @@ Skip if the task is clearly scoped, already approved, or ≤3 steps/single-file.
 If the user corrects scope, update and re-confirm once. If still unclear, ask one focused clarifying question.
 
 **Quick feasibility scan** — once scope is locked, check:
-1. Does the current architecture support this? Use jcodemunch (`get_repo_outline`, `get_dependency_graph`) or Glob/Read if jcodemunch is unavailable.
+1. Does the current architecture support this? Use jcodemunch (`get_repo_outline`, `get_dependency_graph`) or Glob/Read if jcodemunch is unavailable, or if `index_folder` returns `file_count = 0` or `is_stale: true`. Always note: "⚠️ jcodemunch unavailable — cross-file tracking incomplete."
 2. Are there blockers? (Missing infrastructure, incompatible dependencies, fundamental architectural gaps.)
 3. Effort estimate: S (hours) / M (1–2 days) / L (3–5 days) / XL (1–2 weeks) / XXL (weeks+).
 

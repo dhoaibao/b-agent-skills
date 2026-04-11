@@ -61,7 +61,7 @@ From `firecrawl` MCP server *(optional)*:
 - `firecrawl_scrape` — scrape full content of relevant GitHub issue pages, Stack Overflow answers, or changelogs found via web search.
 - `firecrawl_map` — map all URLs on a site when `firecrawl_scrape` returns empty content (JS-rendered or incorrect URL); use to discover the correct URL before retrying scrape.
 
-If jcodemunch is unavailable, or `index_folder` returns `file_count = 0`: use Glob/Grep/Read to map files manually, proceed with Steps 2.1–2.4.
+If jcodemunch is unavailable, or `index_folder` returns `file_count = 0` or `is_stale: true`: use Glob/Grep/Read to map files manually, proceed with Steps 2.1–2.4. Always note: "⚠️ jcodemunch unavailable — analysis based on Glob/Grep/Read; cross-file tracking incomplete."
 If sequential-thinking is unavailable: reason through hypotheses inline, document steps explicitly in response.
 
 Graceful degradation: ✅ Possible — if jcodemunch unavailable, use Glob/Grep/Read for file analysis. Quality is reduced but the agent remains functional.

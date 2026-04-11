@@ -49,7 +49,7 @@ From `brave-search` MCP server *(optional, for observability best-practice looku
 From `sequential-thinking` MCP server *(optional)*:
 - `sequentialthinking` — prioritize findings by impact and produce an ordered remediation list.
 
-If jcodemunch is unavailable: use `Grep` to search for log/trace patterns and `Read` to inspect error handlers directly. Note limitation: cross-file reference tracking will be incomplete — flag this in the report.
+If jcodemunch is unavailable, or `index_folder` returns `file_count = 0` or `is_stale: true`: use `Grep` to search for log/trace patterns and `Read` to inspect error handlers directly. Note limitation: cross-file reference tracking will be incomplete — flag this in the report. Always note: "⚠️ jcodemunch unavailable — cross-file tracking incomplete."
 If context7 is unavailable: proceed with knowledge of the library's API from codebase usage patterns found via jcodemunch/Grep.
 If brave-search is unavailable: omit best-practice lookup in Step 6 and provide generic remediation guidance.
 
