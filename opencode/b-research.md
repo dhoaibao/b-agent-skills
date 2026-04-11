@@ -6,7 +6,6 @@ description: >
   "tra cứu", "does X support Y", or needs library API docs, comparisons, or reports.
   Covers both quick library lookups (Context7-first) and full multi-source research.
 mode: primary
-model: github-copilot/claude-haiku-4.5
 ---
 
 
