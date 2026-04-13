@@ -2,6 +2,8 @@
 
 A lean 4-agent suite for **OpenCode** subagents.
 
+The suite is optimized around **symbol-first code analysis (jCodeMunch)** and **selective structured reasoning (Sequential Thinking only when ambiguity or trade-offs justify it)**.
+
 ## Install & Update
 
 ```bash
@@ -41,7 +43,7 @@ See [REFERENCE.md](REFERENCE.md) for full details — triggers, output format, r
 | `context7` | Live, version-accurate library docs |
 | `brave-search` | Real web search |
 | `firecrawl` | Full page scraping |
-| `jcodemunch` | Code structure & call graph analysis |
+| `jcodemunch` | Code structure, symbol-first retrieval, impact analysis |
 | `sequential-thinking` | Structured reasoning |
 
 Verify all 5 are connected in OpenCode.

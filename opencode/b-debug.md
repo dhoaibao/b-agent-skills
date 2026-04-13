@@ -63,8 +63,8 @@ From `firecrawl` MCP server *(optional)*:
 - `firecrawl_scrape` — scrape full content of relevant GitHub issue pages, Stack Overflow answers, or changelogs found via web search.
 - `firecrawl_map` — map all URLs on a site when `firecrawl_scrape` returns empty content (JS-rendered or incorrect URL); use to discover the correct URL before retrying scrape.
 
-If jcodemunch is unavailable, or `index_folder` returns `file_count = 0` or `is_stale: true`: use Glob/Grep/Read to map files manually, proceed with Steps 2.1–2.4. Always note: "⚠️ jcodemunch unavailable — analysis based on Glob/Grep/Read; cross-file tracking incomplete."
-If sequential-thinking is unavailable: reason through hypotheses inline, document steps explicitly in response.
+If jcodemunch is unavailable, or re-indexing still returns `file_count = 0`: use Glob/Grep/Read to map files manually, proceed with Steps 2.1–2.4. Always note: "⚠️ jcodemunch unavailable — analysis based on Glob/Grep/Read; cross-file tracking incomplete."
+If sequential-thinking is unavailable: reason through hypotheses inline, document steps explicitly in response. Format fallback as: `Hypothesis N → Evidence for → Evidence against → Cheapest verification → Confirmed/Rejected`.
 If context7 is unavailable: invoke b-research for library API questions instead.
 
 Graceful degradation: ✅ Possible — if jcodemunch unavailable, use Glob/Grep/Read for file analysis. Quality is reduced but the agent remains functional.
@@ -88,7 +88,7 @@ or "recent changes" is often the fastest path to root cause.
 
 ### Step 2 — Map the code structure
 
-> **Session optimization**: If jcodemunch has already been queried in this session, reuse the repo identifier — do not re-index. Proceed directly to `get_context_bundle` on the relevant entry point.
+> **Session optimization**: If jcodemunch has already been queried in this session, reuse the repo identifier — but still honor preflight freshness checks. Re-index first if the reused index is stale, then proceed to `get_context_bundle` on the relevant entry point.
 
 Use `jcodemunch` to trace the execution path in this order:
 
@@ -97,7 +97,8 @@ Use `jcodemunch` to trace the execution path in this order:
 2. `find_references` on the relevant function — trace all callers and callees across files
 3. `get_blast_radius` on the suspected module — understand what depends on it
 4. `get_impact_preview` on the top suspected symbol when the failure may cascade through callers — this exposes the true upstream break path faster than manual tracing.
-5. `get_symbol_source` on any function that looks suspicious — inspect its full implementation
+5. `get_file_outline` on the highest-signal files before opening more source — confirm which symbols are worth reading
+6. `get_symbol_source` on any function that looks suspicious — inspect its full implementation
 
 From this, identify:
 - All layers the request/data passes through (middleware, validators, handlers, services, DB)
@@ -115,6 +116,7 @@ Use `sequential-thinking` to reason through possible causes:
 
 - Generate 3–5 hypotheses ranked by likelihood.
 - For each hypothesis, state: *what would cause this symptom* and *how to verify it*
+- For each hypothesis, also state: *evidence for*, *evidence against*, and *cheapest verification step*.
 - Bias toward the simplest explanation first (Occam's razor)
 - Common categories to consider:
   - **Wrong layer**: error surfaces in A but is caused by B upstream
@@ -125,6 +127,8 @@ Use `sequential-thinking` to reason through possible causes:
   - **Data shape**: unexpected null, wrong type, missing field
 
 Present the ranked hypotheses to the user briefly before investigating.
+
+Do **not** call `sequentialthinking` if the stack trace or code path already identifies one clear root cause with no meaningful competing hypothesis.
 
 **Library error shortcut**: If the error message or stack trace references a specific library or framework:
 - Use `brave_web_search` with the exact error message in quotes to find known issues, GitHub issues, or changelog entries.
@@ -142,7 +146,7 @@ Test hypotheses starting from the most likely:
 
 - Add targeted logging at the suspected choke point (not scattered everywhere)
 - Check config/env values if hypothesis points there.
-- Use `get_symbol_source` or `get_context_bundle` (jcodemunch) to re-examine a specific function if the call graph revealed something suspicious.
+- Use `get_file_outline` first when narrowing within a large file; then `get_symbol_source` or `get_context_bundle` to re-examine the exact suspicious function.
 - Use `get_related_symbols` on a suspicious function to discover other functions with similar logic — useful when the bug pattern may exist in multiple places.
 - If the hypothesis points to library API misuse: call `resolve-library-id` + `query-docs` directly to verify the correct method signature, parameter order, or behavior. Escalate to b-research only if context7 has no index.
 - **Regression detection**: if the bug appeared after a recent change, use `get_symbol_diff` to compare the current symbol against an older indexed state (requires two index snapshots)

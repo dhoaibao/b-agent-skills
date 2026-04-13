@@ -34,13 +34,13 @@ requirements baseline for Step 2.
 
 - `Bash` — to read git diff and changed file list.
 - `sequentialthinking` — from `sequential-thinking` MCP server — structured review reasoning.
-- `resolve_repo`, `suggest_queries`, `get_ranked_context`, `get_changed_symbols`, `get_blast_radius`, `get_impact_preview`, `get_symbol_source`, `get_context_bundle` — from `jcodemunch` MCP server *(required when the repo is locally indexed or indexable; use fallback only if jcodemunch is unavailable or indexing fails)*
+- `resolve_repo`, `suggest_queries`, `get_ranked_context`, `get_changed_symbols`, `get_blast_radius`, `get_impact_preview`, `get_file_outline`, `get_symbol_source`, `get_context_bundle`, `find_references` — from `jcodemunch` MCP server *(required when the repo is locally indexed or indexable; use fallback only if jcodemunch is unavailable or indexing fails)*
 - `firecrawl_scrape` — from `firecrawl` MCP server *(optional, for fetching issue/ticket URL content when an `**Issue**:` URL is present in the plan file)*
 - `resolve-library-id` + `query-docs` — from `context7` MCP server *(optional, for verifying library API calls in changed code — catches wrong method signatures, deprecated APIs, misused parameters)*
 - `brave_web_search` — from `brave-search` MCP server *(optional, for CVE/known-vulnerability lookup when a risky security pattern is found in changed code)*
 
-If sequential-thinking is unavailable: reason through review dimensions inline, document each explicitly.
-If jcodemunch is unavailable, or `index_folder` returns `file_count = 0` or `is_stale: true`: use Read tool to inspect changed files directly. Note: "⚠️ jcodemunch unavailable — blast-radius analysis unavailable."
+If sequential-thinking is unavailable: reason through review dimensions inline, document each explicitly. Format fallback as: `Finding → Severity → Why blocker/not blocker → Suggested action`.
+If jcodemunch is unavailable, or re-indexing still returns `file_count = 0`: use Read tool to inspect changed files directly. Note: "⚠️ jcodemunch unavailable — blast-radius analysis unavailable."
 If firecrawl is unavailable: skip Issue URL fetch; display ticket ID or URL as a context reference only.
 If context7 is unavailable: skip API verification step; note any suspicious library calls manually.
 If brave-search is unavailable: skip CVE lookup; flag the pattern as a manual security review item.
@@ -101,11 +101,11 @@ The review is only as good as the requirements baseline. Do not review without i
 
 ### Step 3 — Logic correctness review
 
-Run the standard jcodemunch preflight (see `global/AGENTS.md § jcodemunch preflight`) with query = "[diff scope + requirements baseline summary]". Then call `get_changed_symbols` to map the diff to named symbols, `get_blast_radius` on the top changed symbols to understand downstream impact, and `get_impact_preview` when a changed symbol sits on a service boundary or shared helper. Use the returned context as the primary review read set. If jcodemunch is unavailable, or `index_folder` returns `file_count = 0` or `is_stale: true`, fall back to direct Read on changed files. Always note: "⚠️ jcodemunch unavailable — blast-radius analysis unavailable."
+Run the standard jcodemunch preflight (see `global/AGENTS.md § jcodemunch preflight`) with query = "[diff scope + requirements baseline summary]". If the reused index is stale, re-index first, then continue. Call `get_changed_symbols` to map the diff to named symbols, `get_blast_radius` on the top changed symbols to understand downstream impact, and `get_impact_preview` when a changed symbol sits on a service boundary or shared helper. Use `get_file_outline` on the changed files before opening source, then `get_symbol_source` / `get_context_bundle` only for the highest-risk symbols. Add `find_references` when the diff changes a shared helper or exported boundary. If jcodemunch is unavailable, or re-indexing still returns `file_count = 0`, fall back to direct Read on changed files. Always note: "⚠️ jcodemunch unavailable — blast-radius analysis unavailable."
 
 **Impact-first review rule**: when `get_changed_symbols` returns named symbols, prioritize review depth on (a) symbols with the largest blast radius, (b) symbols at service boundaries, and (c) symbols implementing explicit requirements from Step 2. Raw line-count alone should not determine review depth.
 
-Read the changed code (use `get_symbol_source` or Read tool) and check:
+Read the changed code (prefer `get_file_outline` → `get_symbol_source`; use Read only as fallback) and check:
 
 **Control flow**
 - Are all branches of conditionals handled? (if/else, switch cases, error paths)
@@ -203,7 +203,7 @@ Flag any gaps as findings in the review output. Non-blocking gaps go under Sugge
 ### Step 6 — Consolidate findings
 
 **If Steps 3–5.5 found 3 or more issues**, or there is genuine ambiguity about which issues are blockers vs suggestions: call `sequentialthinking` with:
-> "Given these review findings [list], which must be fixed before merge, which are non-blocking suggestions, and what one question would a senior engineer ask about this code?"
+> "Given these review findings [list] and this blocker rubric [correctness, requirement miss, security risk, data loss, regression risk], classify each item into blocker, non-blocking risk, or suggestion; explain why; and give one senior-reviewer question."
 
 **If fewer than 3 findings**, or all findings clearly classify as blocker/suggestion: consolidate inline without calling sequentialthinking — it adds no value when the classification is obvious.
 

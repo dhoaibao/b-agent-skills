@@ -42,8 +42,8 @@ If `$ARGUMENTS` is provided, treat it as the task description — skip asking "w
 - `brave_web_search` — from `brave-search` MCP server *(optional, for tool/approach comparison in Step 5 — simple lookups only)*.
 - `firecrawl_scrape` — from `firecrawl` MCP server *(optional, for scraping Issue/ticket URL in Step 1)*.
 
-If sequential-thinking is unavailable: reason through plans and trade-offs inline with explicit numbered steps.
-If jcodemunch is unavailable: use Glob/Read to inspect key files. Note: "⚠️ jcodemunch unavailable — cross-file tracking incomplete."
+If sequential-thinking is unavailable: reason through plans and trade-offs inline with explicit numbered steps. Format fallback as: `Goal → Constraints → Options → Decision → Ordered steps → Open questions`.
+If jcodemunch is unavailable, or re-indexing still returns `file_count = 0`: use Glob/Read to inspect key files. Note: "⚠️ jcodemunch unavailable — cross-file tracking incomplete."
 If context7 or brave-search is unavailable: delegate to b-research.
 If firecrawl is unavailable: store the Issue URL as a plain reference without scraping.
 
@@ -88,10 +88,11 @@ Confirm what is being built before scanning any code.
 
 Use jcodemunch to understand what already exists before planning:
 
-- Run the standard preflight (see `global/AGENTS.md § jcodemunch preflight`) with query = "[requested change description]".
+- Run the standard preflight (see `global/AGENTS.md § jcodemunch preflight`) with query = "[requested change description]". If the reused index is stale, re-index first, then continue.
 - `get_file_tree(path_prefix="src/")` — scoped directory view for the affected area.
 - `get_repo_outline` — overall structure, module boundaries.
 - `get_file_outline(file_paths=[...])` — batch-inspect files the plan will touch.
+- Only if outlines are insufficient: `get_symbol_source` or `get_context_bundle` for the exact symbols on the proposed execution path.
 
 **Goal**: reference real paths and symbols. A plan that references wrong file names or non-existent functions fails at execution.
 
@@ -102,8 +103,9 @@ Use jcodemunch to understand what already exists before planning:
 Run if the task has a structural decision: new module vs extending existing, sync vs async, REST vs event-driven, library A vs B.
 
 1. List 2–3 viable approaches with key trade-offs (complexity, performance, coupling, reversibility).
-2. Use `sequentialthinking` to evaluate them systematically.
-3. Pick one and document in `## Decision` (see plan file format below).
+2. Use `sequentialthinking` to evaluate them systematically against the current constraints.
+3. Make the reasoning useful for execution: return the chosen approach, alternatives rejected, the assumption that could flip the decision, and the first implementation step.
+4. Pick one and document in `## Decision` (see plan file format below).
 
 Skip this step if the approach is already obvious or decided — do not invent choices where there are none.
 
@@ -117,6 +119,7 @@ Use `sequentialthinking` to break the chosen approach into atomic, ordered steps
 - Ordered by dependency — not by what's easiest.
 - Usually 4–8 steps. Split into phases if >10.
 - Each step answers: *what*, *why now*, *done when*.
+- Ask for output in this shape: `Goal`, `Constraints`, `Ordered steps`, `Dependencies`, `Open questions`, `First action`.
 
 **Impact checkpoint** *(modify-existing-code only)*:
 - `get_blast_radius` on the main symbol/module being changed.

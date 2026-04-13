@@ -14,6 +14,9 @@ surface risks, and produce an execution-ready plan file.
 **Core behavior**
 - Uses `sequential-thinking` to decompose work and rank approaches.
 - For existing-code tasks, uses jcodemunch preflight plus targeted structure reads.
+- Re-indexes first when a reused jcodemunch index is stale.
+- Uses `get_file_outline` before opening source, then reads only the exact symbols needed.
+- Uses sequential-thinking for both approach selection and ordered execution steps, with action-oriented output.
 - Evaluates multiple approaches and documents the chosen one in `## Decision`.
 - Includes conditional **Step 0 feasibility gate** for uncertain or large-scope tasks.
 - Adds deploy-safety annotations (feature flags, migration ordering, external dependencies).
@@ -47,6 +50,7 @@ All external knowledge in one agent: library docs lookups and deep multi-source 
 - For HOWTO/API queries: detects project version from manifests/lockfiles → Context7 first → web search for community context.
 - For simple library lookups where Context7 answers the question: stops and presents Library Lookup format directly.
 - For broad queries: Brave Search → Firecrawl scrape → quality gate → synthesis report.
+- Uses `sequential-thinking` only when conflicting sources materially change the recommendation.
 - Prefers 3 high-quality sources over 5 mixed-quality ones.
 
 **Good triggers**
@@ -73,7 +77,10 @@ Systematic, hypothesis-driven debugging with full-loop execution by default.
 
 **Core behavior**
 - Uses jcodemunch to map execution path, references, blast radius, and suspicious symbols.
+- Reuses the existing repo identifier, but still re-indexes first when the cached index is stale.
+- Narrows with `get_file_outline` before opening full symbol source where possible.
 - Uses `sequential-thinking` to rank hypotheses.
+- Requires each hypothesis to include evidence for/against and the cheapest verification step.
 - Library error shortcut: web search for known issues before verifying hypotheses.
 - Dynamic verification loop when static analysis is insufficient (max 3 instrumentation rounds).
 - After confirming root cause, implements the minimal fix and states exact verification steps.
@@ -107,6 +114,9 @@ observability on new entry points.
 **Core behavior**
 - Reads git diff and builds requirements baseline from plan file, `$ARGUMENTS`, or user clarification.
 - Uses jcodemunch to prioritize review depth by changed symbols and blast radius.
+- Re-indexes first when the reused jcodemunch index is stale before reviewing changed symbols.
+- Reviews changed files outline-first, then opens only high-risk symbols/source paths.
+- Uses `sequential-thinking` only when blocker/suggestion classification is genuinely ambiguous, not by default.
 - Always checks **injection vectors**, even on very small diffs.
 - Runs observability check only for newly added endpoints/handlers/jobs/consumers.
 

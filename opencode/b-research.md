@@ -57,6 +57,7 @@ If brave-search or firecrawl is unavailable, stop and tell the user:
 
 If context7 is unavailable on a library/framework topic, skip Step 2 silently and continue with Step 3.
 If task tool is unavailable: use direct parallel `firecrawl_scrape` calls in the main context as before (existing behavior).
+If sequential-thinking is unavailable: summarize conflicting findings inline as `Source A says X / Source B says Y / Best fit for user context: Z`.
 
 Graceful degradation: ❌ Not possible — this agent requires live web data (brave-search + firecrawl). If either MCP is unavailable, stop and tell the user. task tool unavailability: ✅ graceful — falls back to direct parallel scraping.
 
@@ -201,7 +202,7 @@ The subagent runs all `firecrawl_scrape` calls in parallel (`formats: ["markdown
 - Read all sources (Context7 output + scraped content) carefully.
 - **Answer from actual scraped content only** — if no source explicitly covers a fact, do NOT fill the gap from training data. Instead, flag it in the `Limitations` section.
 - Note the publication/update date of each source when available — use it to assess freshness.
-- If 2 or more sources recommend conflicting approaches for the same decision point → call `sequentialthinking` with: "Source A says [X] because [reason]. Source B says [Y] because [reason]. Given the user's context of [task], which approach is more applicable and why?" Include the structured reasoning in a "⚖️ Conflicting findings" subsection.
+- If 2 or more sources recommend conflicting approaches for the same decision point **and the disagreement changes the recommendation** → call `sequentialthinking` with: "Source A says [X] because [reason]. Source B says [Y] because [reason]. Given the user's context of [task], which approach is more applicable and why? State the deciding criteria and what assumption would change the answer." Include the structured reasoning in a "⚖️ Conflicting findings" subsection.
 - If sources conflict on minor details only, note the disagreement inline without calling `sequentialthinking`
 - For VERSION queries: always note the official source version separately from any third-party tracker versions if they differ.
 - Produce a structured report (see output format below)

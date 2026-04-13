@@ -44,6 +44,13 @@ All agents are configured with `mode: subagent` — invoke them via **@ mention*
 
 When jcodemunch is connected: **never** use Glob, Grep, or Read to explore or understand a codebase.
 
+**Working style rule**: use jcodemunch to narrow first, then read narrowly.
+- Start with repo/file/symbol discovery tools.
+- Prefer `get_file_outline` before `get_symbol_source`.
+- Prefer `get_symbol_source` before `get_file_content`.
+- Use `get_file_content` only when symbol boundaries are insufficient (file-level state, long procedural flow, config/text files, or exact line-range review).
+- Before risky edits, run impact tools (`find_references`, `get_blast_radius`, `get_impact_preview`, `plan_refactoring`) before reading more code.
+
 **Mandatory substitution table — no exceptions when jcodemunch is available:**
 
 | Native tool / action | ✅ MUST use instead (jcodemunch) |
@@ -64,11 +71,23 @@ When jcodemunch is connected: **never** use Glob, Grep, or Read to explore or un
 1. `resolve_repo(path="<absolute project root>")` — look up the cached repo map.
    - If a repo identifier is returned: reuse it. Verify index health with `get_repo_outline(repo=<id>)`.
    - **Check `is_stale` flag**: if `is_stale: true` → re-index with `index_folder(path=<root>, incremental=true, use_ai_summaries=false)`.
+   - After re-indexing due to staleness, call `get_repo_outline(repo=<id>)` again before proceeding.
    - If outline shows implausibly low coverage (`file_count = 0`, `symbol_count = 0`) → re-index.
    - If no match: call `index_folder(path=<root>, incremental=true, use_ai_summaries=false)`.
    - If re-index still returns `file_count = 0` → fall back to Glob/Grep/Read.
 2. `suggest_queries(repo=<id>)` — surface entry points, key symbols, and language distribution.
 3. `get_ranked_context(repo=<id>, query="<agent-specific task query>", token_budget=4000)` — pack the most relevant symbols/files into a bounded context window.
+
+**Read-order heuristic**:
+1. `search_symbols` / `search_text`
+2. `get_file_outline`
+3. `get_symbol_source` or `get_context_bundle`
+4. `get_file_content` only if still necessary
+
+**Token-efficiency rule**:
+- Do not open full files by default.
+- Batch symbol reads when possible (`get_symbol_source(symbol_ids[])`, `get_context_bundle`).
+- Use `search_text` for strings/config/errors; use `search_symbols` for code entities.
 
 **Session reuse**: if another agent already ran this preflight in this session, reuse the repo identifier — do not re-index.
 
@@ -148,7 +167,7 @@ MCP toolset  >  specialized native tool  >  general native tool  >  Bash command
 
 | Task | 1st choice (MUST) | 2nd choice | Last resort |
 |---|---|---|---|
-| Read a source file | `jcodemunch:get_file_content` | `Read` tool | `cat` via Bash |
+| Read a source file | `jcodemunch:get_symbol_source` / `get_file_outline` | `jcodemunch:get_file_content` / `Read` tool | `cat` via Bash |
 | Find a function | `jcodemunch:search_symbols` | `Grep` tool | `grep` via Bash |
 | Search the web | `brave_web_search` | `firecrawl_search` | `webfetch` |
 | Scrape a URL | `firecrawl_scrape` | `webfetch` | — |
