@@ -2,7 +2,7 @@
 name: b-review
 description: Pre-PR code review — verify logic correctness, requirements fulfillment, edge case coverage, and test adequacy before opening a pull request. Use when user says "review before PR", "kiểm tra logic", or after implementation is done.
 mode: subagent
-model: openai/gpt-5.4
+model: opencode-go/glm-5.1
 ---
 
 

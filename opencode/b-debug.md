@@ -2,7 +2,7 @@
 name: b-debug
 description: Systematic hypothesis-driven debugging — trace execution paths, form ranked hypotheses, confirm root cause, then fix and verify by default. Use when user says "debug", "bug", "lỗi", "không chạy", "fix this", or pastes an error message.
 mode: subagent
-model: openai/gpt-5.3-codex
+model: opencode-go/glm-5.1
 ---
 
 

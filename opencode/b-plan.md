@@ -8,7 +8,7 @@ description: >
   Unlike b-debug (fix broken) or b-research (lookup info), b-plan owns the decision of
   what to build and in what order.
 mode: subagent
-model: openai/gpt-5.4
+model: opencode-go/glm-5.1
 ---
 
 # b-plan
