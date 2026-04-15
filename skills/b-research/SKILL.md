@@ -1,20 +1,20 @@
 ---
 name: b-research
 description: >
-  Research, library docs lookup, and multi-source synthesis. ALWAYS use when the user says
+  Research, library docs lookup, and multi-source synthesis. ALWAYS invoke when the user says
   "research", "tìm hiểu", "deep dive", "so sánh", "tổng hợp", "how to use X", "cách dùng",
   "tra cứu", "does X support Y", or needs library API docs, comparisons, or reports.
   Covers both quick library lookups (Context7-first) and full multi-source research.
-mode: subagent
-model: opencode-go/kimi-k2.5
+  Unlike b-debug (fix broken) or b-plan (decide approach), b-research retrieves and synthesizes
+  external knowledge.
+effort: high
 ---
-
 
 # b-research
 
 $ARGUMENTS
 
-All external knowledge in one agent: classify query → fetch versioned library docs via
+All external knowledge in one skill: classify query → fetch versioned library docs via
 Context7 (for API/HOWTO queries) → search with type-specific strategy via Brave Search →
 scrape full content via Firecrawl → synthesize into a report with citations.
 
@@ -49,17 +49,15 @@ If `$ARGUMENTS` is provided, treat it as the research question — proceed direc
 - `firecrawl_crawl` + `firecrawl_check_crawl_status` — from `firecrawl` MCP server *(optional, async deep multi-page crawl for documentation sites)*
 - `resolve-library-id` + `query-docs` — from `context7` MCP server *(optional, for library/framework API topics)*
 - `sequentialthinking` — from `sequential-thinking` MCP server *(optional, for structured conflict resolution)*
-- `task` tool (Explore subagent) *(optional, for Step 4 when ≥ 4 URLs need scraping — spawn one subagent to run all scrapes in parallel and return a compact digest)* — spawn a single Explore subagent with the selected URL list and original research question. The subagent runs all `firecrawl_scrape` calls in parallel, applies the post-scrape quality gate, and returns only relevant excerpts (max 500 words per source, with source URL). Main context receives the compact digest and proceeds directly to Step 5 without raw scraped content flooding the context. When < 4 URLs, use direct parallel scraping as before.
 
 If brave-search or firecrawl is unavailable, stop and tell the user:
 - brave-search missing: "❌ brave-search MCP is not connected. Please check `/mcp`.".
 - firecrawl missing: "❌ firecrawl MCP is not connected. Please check `/mcp`.".
 
 If context7 is unavailable on a library/framework topic, skip Step 2 silently and continue with Step 3.
-If task tool is unavailable: use direct parallel `firecrawl_scrape` calls in the main context as before (existing behavior).
 If sequential-thinking is unavailable: summarize conflicting findings inline as `Source A says X / Source B says Y / Best fit for user context: Z`.
 
-Graceful degradation: ❌ Not possible — this agent requires live web data (brave-search + firecrawl). If either MCP is unavailable, stop and tell the user. task tool unavailability: ✅ graceful — falls back to direct parallel scraping.
+Graceful degradation: ❌ Not possible — this skill requires live web data (brave-search + firecrawl). If either MCP is unavailable, stop and tell the user.
 
 ## Steps
 
@@ -149,20 +147,6 @@ Apply the strategy for the query type identified in Step 1:
 
 ### Step 4 — Scrape
 
-**Context isolation threshold**: if ≥ 4 URLs need scraping → spawn a single Explore subagent (see below). If < 4 URLs → use direct parallel `firecrawl_scrape` calls in main context. (With smart source selection keeping typical queries to 3 URLs, subagent spawn is rare — reduces context overhead.)
-
----
-
-**When ≥ 4 URLs — spawn a single Explore subagent**
-
-Pass to the subagent:
-1. The list of selected URLs to scrape
-2. The original research question
-
-The subagent runs all `firecrawl_scrape` calls in parallel (`formats: ["markdown"]`, `onlyMainContent: true`), applies the full post-scrape quality gate (discards pages with < 300 words of relevant content, retries JS-heavy pages with `waitFor: 5000/8000`, uses `firecrawl_map` for empty pages), and returns a compact digest: relevant excerpt per source (max 500 words), source URL, and discard notes. Main context receives this digest and proceeds to Step 5 without raw scraped content in context.
-
----
-
 **Pre-scrape filtering** (before Step 4, eliminate low-value URLs):
 - Remove from scrape queue:
   - Homepage or landing page (no specific content)
@@ -172,13 +156,9 @@ The subagent runs all `firecrawl_scrape` calls in parallel (`formats: ["markdown
   - Paywalled pages with paywall message visible
 - **Goal**: scrape only high-signal sources → saves 1–2K tokens by avoiding trash content
 
----
-
-**When < 4 URLs — scrape directly in main context**
-
 - Call `firecrawl_scrape` on all selected URLs **in parallel** (single message, multiple tool calls)
 - Use `formats: ["markdown"]`, `onlyMainContent: true` to get clean content without boilerplate.
-- **Fallback for JS-heavy pages** (SPAs, Mintlify/GitBook docs, React-rendered pages): if content is empty or <200 words after one retry with `waitFor: 5000` → skip and note in report as "could not scrape — JS-rendered or access denied". (Removed retry with `waitFor: 8000` and `firecrawl_map` fallback to save tokens — not worth the cost for marginal improvement.)
+- **Fallback for JS-heavy pages** (SPAs, Mintlify/GitBook docs, React-rendered pages): if content is empty or <200 words after one retry with `waitFor: 5000` → skip and note in report as "could not scrape — JS-rendered or access denied".
 - If a page returns rate-limit or 403 → skip it and note in report.
 - Default max: **3 URLs** scraped per session (quality > quantity). Exception: **5 URLs** for COMPARE queries (ensure balanced coverage of both options — 2–3 per side).
 - If rate-limiting occurs on parallel calls, retry failed URLs sequentially.

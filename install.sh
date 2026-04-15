@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# install.sh — Bootstrap or update b-agents on any machine
+# install.sh — Bootstrap or update b-skills on any machine
 # Usage:
 #   First time : curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agents/main/install.sh | bash
 #   Update     : curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agents/main/install.sh | bash
@@ -7,10 +7,11 @@
 set -euo pipefail
 
 REPO="https://github.com/dhoaibao/b-agents.git"
-LOCAL_REPO="$HOME/.b-agents"
-OPENCODE_AGENTS_SRC="$LOCAL_REPO/opencode"
-OPENCODE_AGENTS_DST="$HOME/.config/opencode/agents"
-HDCODE_AGENTS_DST="$HOME/.config/hdcode/agents"
+LOCAL_REPO="$HOME/.b-skills"
+SKILLS_SRC="$LOCAL_REPO/skills"
+CLAUDE_SKILLS_DST="$HOME/.claude/skills"
+CLAUDE_GLOBAL_SRC="$LOCAL_REPO/skills/global/CLAUDE.md"
+CLAUDE_GLOBAL_DST="$HOME/.claude/CLAUDE.md"
 
 # ── 1. Clone or update the repo ──────────────────────────────────────────────
 if [ -d "$LOCAL_REPO/.git" ]; then
@@ -20,108 +21,80 @@ if [ -d "$LOCAL_REPO/.git" ]; then
     echo "   Run: cd $LOCAL_REPO && git stash"
     exit 1
   fi
-  echo "🔄 Updating b-agents..."
+  echo "🔄 Updating b-skills..."
   git -C "$LOCAL_REPO" pull --ff-only
 else
-  echo "📦 Cloning b-agents..."
+  echo "📦 Cloning b-skills..."
   git clone "$REPO" "$LOCAL_REPO"
 fi
 
-# ── 2. Platform selection ─────────────────────────────────────────────────────
-echo ""
-echo "Which platform do you want to sync?"
-echo "  1) OpenCode"
-echo "  2) HDCode"
-echo "  3) All"
-echo ""
+# ── 2. Sync skills to ~/.claude/skills/ ────────────────────────────────────────
+if [ -d "$SKILLS_SRC" ]; then
+  mkdir -p "$CLAUDE_SKILLS_DST"
 
-_normalize_choice() {
-  local choice="${1:-}"
-  choice="${choice//$'\r'/}"
-  choice="${choice//[[:space:]]/}"
-  printf '%s' "$choice"
-}
+  stale_count=0
+  for existing in "$CLAUDE_SKILLS_DST"/*/SKILL.md; do
+    [ -f "$existing" ] || continue
+    skill_dir=$(basename "$(dirname "$existing")")
+    if [ ! -d "$SKILLS_SRC/$skill_dir" ]; then
+      rm -rf "$(dirname "$existing")"
+      stale_count=$((stale_count + 1))
+    fi
+  done
 
-if [ -z "${B_AGENT_PLATFORM:-}" ]; then
-  read -rp "Enter choice [1/2/3] (default: 3): " platform_choice </dev/tty || platform_choice=""
-  platform_choice="$(_normalize_choice "$platform_choice")"
-  [ -n "$platform_choice" ] || platform_choice="3"
+  synced_count=0
+  for skill_dir in "$SKILLS_SRC"/*/; do
+    [ -d "$skill_dir" ] || continue
+    skill_name=$(basename "$skill_dir")
+    [ "$skill_name" = "global" ] && continue  # skip global/ — handled separately
+    [ -f "$skill_dir/SKILL.md" ] || continue  # skip dirs without SKILL.md
+    target_dir="$CLAUDE_SKILLS_DST/$skill_name"
+    mkdir -p "$target_dir"
+    # Copy SKILL.md (and any other files in the skill directory)
+    cp -r "$skill_dir"* "$target_dir/"
+    synced_count=$((synced_count + 1))
+  done
+
+  echo "✅ Skills: $synced_count synced${stale_count:+, $stale_count removed} → $CLAUDE_SKILLS_DST"
+
+  # ── 2.5. Remove stale global symlink from old OpenCode install ────────────
+  old_agents_link="$HOME/.config/opencode/AGENTS.md"
+  if [ -L "$old_agents_link" ]; then
+    echo "🧹 Found old OpenCode AGENTS.md symlink — removing it."
+    rm "$old_agents_link"
+  fi
+
+  # Remove old OpenCode agent symlinks if they exist
+  if [ -d "$HOME/.config/opencode/agents" ]; then
+    echo "🧹 Found old OpenCode agents directory — removing it."
+    rm -rf "$HOME/.config/opencode/agents"
+  fi
+
 else
-  platform_choice="$(_normalize_choice "${B_AGENT_PLATFORM:-3}")"
-  [ -n "$platform_choice" ] || platform_choice="3"
+  echo "ℹ️  No skills/ folder found — skipping skill sync"
 fi
 
-case "$platform_choice" in
-  1) sync_opencode=true;  sync_hdcode=false ;;
-  2) sync_opencode=false; sync_hdcode=true  ;;
-  3) sync_opencode=true;  sync_hdcode=true  ;;
-  *)
-    echo "❌ Invalid choice. Exiting."
-    exit 1
-    ;;
-esac
+# ── 3. Sync global CLAUDE.md to ~/.claude/CLAUDE.md ──────────────────────────
+if [ -f "$CLAUDE_GLOBAL_SRC" ]; then
+  mkdir -p "$(dirname "$CLAUDE_GLOBAL_DST")"
 
-# ── 3. Sync OpenCode agents ───────────────────────────────────────────────────
-if [ "$sync_opencode" = true ]; then
-  if [ -d "$OPENCODE_AGENTS_SRC" ]; then
-    mkdir -p "$OPENCODE_AGENTS_DST"
+  # Remove old symlink or file if it exists
+  [ -L "$CLAUDE_GLOBAL_DST" ] && rm "$CLAUDE_GLOBAL_DST"
+  [ -f "$CLAUDE_GLOBAL_DST" ] && rm "$CLAUDE_GLOBAL_DST"
 
-    stale_count=0
-    for existing in "$OPENCODE_AGENTS_DST"/*.md; do
-      [ -e "$existing" ] || continue
-      if [ -L "$existing" ] && [ ! -f "$OPENCODE_AGENTS_SRC/$(basename "$existing")" ]; then
-        rm "$existing"
-        stale_count=$((stale_count + 1))
-      fi
-    done
+  # Create symlink to global CLAUDE.md
+  ln -s "$CLAUDE_GLOBAL_SRC" "$CLAUDE_GLOBAL_DST"
+  echo "🔗 Global CLAUDE.md → $CLAUDE_GLOBAL_DST"
 
-    synced_count=0
-    for agent_file in "$OPENCODE_AGENTS_SRC"/*.md; do
-      [ -f "$agent_file" ] || continue
-      target="$OPENCODE_AGENTS_DST/$(basename "$agent_file")"
-      { [ -L "$target" ] || [ -f "$target" ]; } && rm "$target"
-      ln -s "$agent_file" "$target"
-      synced_count=$((synced_count + 1))
-    done
-
-    echo "✅ OpenCode: $synced_count agents synced${stale_count:+, $stale_count removed} → $OPENCODE_AGENTS_DST"
-
-  else
-    echo "ℹ️  No opencode/ folder found — skipping OpenCode agent sync"
+  # ── 3.5. Remove old global AGENTS.md symlink if present ──────────────────
+  old_claude_agents="$HOME/.claude/AGENTS.md"
+  if [ -L "$old_claude_agents" ]; then
+    echo "🧹 Found old ~/.claude/AGENTS.md symlink — removing it."
+    rm "$old_claude_agents"
   fi
 fi
 
-# ── 4. Sync HDCode agents ─────────────────────────────────────────────────────
-if [ "$sync_hdcode" = true ]; then
-  if [ -d "$OPENCODE_AGENTS_SRC" ]; then
-    mkdir -p "$HDCODE_AGENTS_DST"
-
-    stale_count=0
-    for existing in "$HDCODE_AGENTS_DST"/*.md; do
-      [ -e "$existing" ] || continue
-      if [ -L "$existing" ] && [ ! -f "$OPENCODE_AGENTS_SRC/$(basename "$existing")" ]; then
-        rm "$existing"
-        stale_count=$((stale_count + 1))
-      fi
-    done
-
-    synced_count=0
-    for agent_file in "$OPENCODE_AGENTS_SRC"/*.md; do
-      [ -f "$agent_file" ] || continue
-      target="$HDCODE_AGENTS_DST/$(basename "$agent_file")"
-      { [ -L "$target" ] || [ -f "$target" ]; } && rm "$target"
-      ln -s "$agent_file" "$target"
-      synced_count=$((synced_count + 1))
-    done
-
-    echo "✅ HDCode: $synced_count agents synced${stale_count:+, $stale_count removed} → $HDCODE_AGENTS_DST"
-
-  else
-    echo "ℹ️  No opencode/ folder found — skipping HDCode agent sync"
-  fi
-fi
-
-# ── 5. Install / update MCP servers ──────────────────────────────────────────
+# ── 4. Install / update MCP servers ──────────────────────────────────────────
 echo ""
 echo "Do you want to install / update MCP servers?"
 echo "  (Adds context7, brave-search, firecrawl, jcodemunch, sequential-thinking)"
@@ -145,13 +118,11 @@ if [[ "$install_mcps" =~ ^[Yy]$ ]]; then
 
     mkdir -p "$(dirname "$config_file")"
 
-    # Read existing config or start fresh
     local existing="{}"
     if [ -f "$config_file" ]; then
       existing=$(cat "$config_file")
     fi
 
-    # Pass keys via env vars — never interpolated into script source
     _MCP_BRAVE_KEY="$brave_key" \
     _MCP_FIRECRAWL_KEY="$firecrawl_key" \
     _MCP_FIRECRAWL_URL="$firecrawl_url" \
@@ -164,57 +135,54 @@ brave_key = os.environ.get("_MCP_BRAVE_KEY", "")
 firecrawl_key = os.environ.get("_MCP_FIRECRAWL_KEY", "")
 firecrawl_url = os.environ.get("_MCP_FIRECRAWL_URL", "")
 
-mcp = existing.get("mcp", {})
+mcpServers = existing.get("mcpServers", {})
 
 # sequential-thinking — no key needed
-mcp["sequential-thinking"] = {
-    "type": "local",
-    "command": ["npx", "-y", "@modelcontextprotocol/server-sequential-thinking"]
+mcpServers["sequential-thinking"] = {
+    "command": "npx",
+    "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
 }
 
 # context7 — remote, no key needed
-mcp["context7"] = {
-    "enabled": True,
-    "type": "remote",
+mcpServers["context7"] = {
+    "type": "url",
     "url": "https://mcp.context7.com/mcp"
 }
 
 # jcodemunch — no key needed
-mcp["jcodemunch"] = {
-    "enabled": True,
-    "type": "local",
-    "command": ["uvx", "jcodemunch-mcp"]
+mcpServers["jcodemunch"] = {
+    "command": "uvx",
+    "args": ["jcodemunch-mcp"]
 }
 
 # brave-search — update key only if provided
-if "brave-search" not in mcp:
-    mcp["brave-search"] = {
-        "enabled": True,
-        "type": "local",
-        "command": ["npx", "-y", "@modelcontextprotocol/server-brave-search"],
-        "environment": {"BRAVE_API_KEY": brave_key or "YOUR_API_KEY"}
+if "brave-search" not in mcpServers:
+    mcpServers["brave-search"] = {
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-brave-search"],
+        "env": {"BRAVE_API_KEY": brave_key or "YOUR_API_KEY"}
     }
 elif brave_key:
-    mcp["brave-search"].setdefault("environment", {})["BRAVE_API_KEY"] = brave_key
+    mcpServers["brave-search"].setdefault("env", {})["BRAVE_API_KEY"] = brave_key
 
 # firecrawl — update keys only if provided
-if "firecrawl" not in mcp:
-    mcp["firecrawl"] = {
-        "type": "local",
-        "command": ["npx", "-y", "firecrawl-mcp"],
-        "environment": {
+if "firecrawl" not in mcpServers:
+    mcpServers["firecrawl"] = {
+        "command": "npx",
+        "args": ["-y", "firecrawl-mcp"],
+        "env": {
             "FIRECRAWL_API_KEY": firecrawl_key or "YOUR_API_KEY",
             "FIRECRAWL_API_URL": firecrawl_url
         }
     }
 else:
-    env = mcp["firecrawl"].setdefault("environment", {})
+    env = mcpServers["firecrawl"].setdefault("env", {})
     if firecrawl_key:
         env["FIRECRAWL_API_KEY"] = firecrawl_key
     if firecrawl_url:
         env["FIRECRAWL_API_URL"] = firecrawl_url
 
-existing["mcp"] = mcp
+existing["mcpServers"] = mcpServers
 print(json.dumps(existing, indent=2))
 PYEOF
   }
@@ -230,29 +198,16 @@ PYEOF
     fi
   }
 
-  [ "$sync_opencode" = true ] && _write_mcp_config "$HOME/.config/opencode/opencode.json"
-  [ "$sync_hdcode"   = true ] && _write_mcp_config "$HOME/.config/hdcode/opencode.json"
+  _write_mcp_config "$HOME/.claude/settings.json"
 
   echo ""
-  echo "⚠️  Remember to set any missing API keys in the config files before using the MCPs."
+  echo "⚠️  Remember to set any missing API keys in the config file before using the MCPs."
 fi
 
-# ── 6. Sync global AGENTS.md ─────────────────────────────────────────────────
-GLOBAL_AGENTS_FILE="$OPENCODE_AGENTS_SRC/global/AGENTS.md"
-if [ -f "$GLOBAL_AGENTS_FILE" ]; then
-  if [ "$sync_opencode" = true ]; then
-    mkdir -p "$HOME/.config/opencode"
-    target="$HOME/.config/opencode/AGENTS.md"
-    [ -L "$target" ] || [ -f "$target" ] && rm "$target"
-    ln -s "$GLOBAL_AGENTS_FILE" "$target"
-    echo "🔗 Global AGENTS.md → $target"
-  fi
-
-  if [ "$sync_hdcode" = true ]; then
-    mkdir -p "$HOME/.config/hdcode"
-    target="$HOME/.config/hdcode/AGENTS.md"
-    [ -L "$target" ] || [ -f "$target" ] && rm "$target"
-    ln -s "$GLOBAL_AGENTS_FILE" "$target"
-    echo "🔗 Global AGENTS.md → $target"
-  fi
-fi
+# ── 5. Done ──────────────────────────────────────────────────────────────────
+echo ""
+echo "✅ b-skills installed successfully."
+echo "   Skills:    $CLAUDE_SKILLS_DST/"
+echo "   Global:    $CLAUDE_GLOBAL_DST"
+echo ""
+echo "   Restart Claude Code to load the skills."

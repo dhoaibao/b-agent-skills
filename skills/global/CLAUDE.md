@@ -1,40 +1,40 @@
-# b-agents — OpenCode Rules
+# b-skills — Claude Code Global Rules
 
-This file defines global OpenCode runtime rules. For repo-level agent authoring conventions, see the root `AGENTS.md`.
+This file defines global Claude Code runtime rules. For repo-level skill authoring conventions, see the root `CLAUDE.md`.
 
-## OpenCode workflow
+## Claude Code workflow
 
-Four agents covering the full development cycle:
+Four skills covering the full development cycle:
 
-| Agent | Role |
+| Skill | Role |
 |---|---|
-| `@b-plan` | Think before coding — decompose tasks, evaluate approaches, produce plan file |
-| `@b-research` | All external knowledge — library docs, comparisons, multi-source research |
-| `@b-debug` | Full-loop debugging — trace, confirm root cause, fix, verify |
-| `@b-review` | Pre-PR review — logic correctness, requirements, edge cases, test adequacy |
+| `/b-plan` | Think before coding — decompose tasks, evaluate approaches, produce plan file |
+| `/b-research` | All external knowledge — library docs, comparisons, multi-source research |
+| `/b-debug` | Full-loop debugging — trace, confirm root cause, fix, verify |
+| `/b-review` | Pre-PR review — logic correctness, requirements, edge cases, test adequacy |
 
 **Typical flow:**
 ```
-b-plan → [implement manually] → b-review → commit
-b-research (any time you need docs or comparisons)
-b-debug (any time something breaks)
+/b-plan → [implement manually] → /b-review → commit
+/b-research (any time you need docs or comparisons)
+/b-debug (any time something breaks)
 ```
 
-## Invoking agents
+## Invoking skills
 
-All agents are configured with `mode: subagent` — invoke them via **@ mention**:
+Type `/` followed by the skill name in Claude Code:
 
 ```
-@b-plan add rate limiting to the API
-@b-research how to use Prisma transactions
-@b-research compare BullMQ vs Bee-Queue
-@b-debug webhook not triggering despite correct URL
-@b-review
+/b-plan add rate limiting to the API
+/b-research how to use Prisma transactions
+/b-research compare BullMQ vs Bee-Queue
+/b-debug webhook not triggering despite correct URL
+/b-review
 ```
 
 ## Mandatory MCP toolset usage
 
-> **Iron rule**: when an MCP is connected and available, its toolset **MUST** be used. Using native tools (Glob/Grep/Read/Bash/webfetch) when the equivalent MCP is available is a violation — not a preference. Native tools are **last-resort fallbacks only**.
+> **Iron rule**: when an MCP is connected and available, its toolset **MUST** be used. Using native tools (Glob/Grep/Read/Bash/WebFetch) when the equivalent MCP is available is a violation — not a preference. Native tools are **last-resort fallbacks only**.
 
 **How to check MCP availability**: treat each MCP as available unless a call returns a connection error. Do not pre-emptively skip MCPs based on assumptions.
 
@@ -66,7 +66,7 @@ When jcodemunch is connected: **never** use Glob, Grep, or Read to explore or un
 | Understanding a class hierarchy | `get_class_hierarchy(repo, "ClassName")` |
 | Finding related code | `get_related_symbols(repo, symbol_id)` |
 
-**jcodemunch preflight** — run at the start of any agent that needs to understand existing code:
+**jcodemunch preflight** — run at the start of any skill that needs to understand existing code:
 
 1. `resolve_repo(path="<absolute project root>")` — look up the cached repo map.
    - If a repo identifier is returned: **do not trust it yet**. Verify index health with `get_repo_outline(repo=<id>)`.
@@ -79,7 +79,7 @@ When jcodemunch is connected: **never** use Glob, Grep, or Read to explore or un
    - If re-index still disagrees with the current filesystem, invalidate the cache and treat jcodemunch results as unreliable for this workspace.
    - If the workspace is empty, or post-invalidation indexing still returns `file_count = 0`, do **not** infer code structure from cache; switch to filesystem-native checks and report the workspace as empty.
 2. `suggest_queries(repo=<id>)` — surface entry points, key symbols, and language distribution only after the index passes the validation above.
-3. `get_ranked_context(repo=<id>, query="<agent-specific task query>", token_budget=4000)` — pack the most relevant symbols/files into a bounded context window only after the index passes the validation above.
+3. `get_ranked_context(repo=<id>, query="<skill-specific task query>", token_budget=4000)` — pack the most relevant symbols/files into a bounded context window only after the index passes the validation above.
 
 **Read-order heuristic**:
 1. `search_symbols` / `search_text`
@@ -92,7 +92,7 @@ When jcodemunch is connected: **never** use Glob, Grep, or Read to explore or un
 - Batch symbol reads when possible (`get_symbol_source(symbol_ids[])`, `get_context_bundle`).
 - Use `search_text` for strings/config/errors; use `search_symbols` for code entities.
 
-**Session reuse**: if another agent already ran this preflight in this session, reuse the repo identifier only if that earlier run explicitly confirmed the index matched the current filesystem. Otherwise, validate again before reuse.
+**Session reuse**: if another skill already ran this preflight in this session, reuse the repo identifier only if that earlier run explicitly confirmed the index matched the current filesystem. Otherwise, validate again before reuse.
 
 **Always use `incremental=true`**: ensures file deletion detection and reduces re-index time.
 
@@ -105,23 +105,23 @@ When jcodemunch is connected: **never** use Glob, Grep, or Read to explore or un
 
 ### Web search — Brave Search + Firecrawl (REQUIRED when available)
 
-When brave-search or firecrawl is connected: **never** use `webfetch` directly.
+When brave-search or firecrawl is connected: **never** use `WebFetch` directly.
 
 **Mandatory substitution table:**
 
 | Native tool / action | ✅ MUST use instead |
 |---|---|
-| `webfetch(url)` to search for info | `brave_web_search(query)` → then `firecrawl_scrape(url)` |
-| `webfetch(url)` to read a known page | `firecrawl_scrape(url, formats=["markdown"])` |
+| `WebFetch(url)` to search for info | `brave_web_search(query)` → then `firecrawl_scrape(url)` |
+| `WebFetch(url)` to read a known page | `firecrawl_scrape(url, formats=["markdown"])` |
 | Manually guessing and fetching URLs | `firecrawl_map(url, search=...)` to discover the right URL first |
-| Repeated `webfetch` for multi-page coverage | `firecrawl_crawl(url, limit=N)` |
+| Repeated `WebFetch` for multi-page coverage | `firecrawl_crawl(url, limit=N)` |
 | News / current events lookup | `brave_news_search(query, freshness=...)` |
 
 **Search-first rule**: always call `brave_web_search` first, then `firecrawl_scrape` on the top 1–3 results.
 
 **Fallback chain** *(only when MCPs are unavailable)*:
 - brave-search unavailable → use `firecrawl_search` (combined search+scrape).
-- firecrawl unavailable → use `webfetch` as last resort.
+- firecrawl unavailable → use `WebFetch` as last resort.
 
 ---
 
@@ -142,7 +142,7 @@ When context7 is connected: **never** rely on training knowledge for library API
 
 **Fallback** *(only when context7 is unavailable)*:
 1. Try `firecrawl_scrape` on the official docs URL.
-2. If scrape fails: invoke `b-research` to retrieve docs.
+2. If scrape fails: invoke `/b-research` to retrieve docs.
 3. Never fall back to training-data assumptions.
 
 ---
@@ -175,8 +175,8 @@ MCP toolset  >  specialized native tool  >  general native tool  >  Bash command
 |---|---|---|---|
 | Read a source file | `jcodemunch:get_symbol_source` / `get_file_outline` | `jcodemunch:get_file_content` / `Read` tool | `cat` via Bash |
 | Find a function | `jcodemunch:search_symbols` | `Grep` tool | `grep` via Bash |
-| Search the web | `brave_web_search` | `firecrawl_search` | `webfetch` |
-| Scrape a URL | `firecrawl_scrape` | `webfetch` | — |
+| Search the web | `brave_web_search` | `firecrawl_search` | `WebFetch` |
+| Scrape a URL | `firecrawl_scrape` | `WebFetch` | — |
 | Library API lookup | `context7:query-docs` | `firecrawl_scrape(docs URL)` | training knowledge (❌ avoid) |
 | Complex reasoning | `sequentialthinking` | numbered prose with explicit steps | inline prose (❌ avoid) |
 

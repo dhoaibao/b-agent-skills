@@ -1,10 +1,13 @@
 ---
 name: b-debug
-description: Systematic hypothesis-driven debugging — trace execution paths, form ranked hypotheses, confirm root cause, then fix and verify by default. Use when user says "debug", "bug", "lỗi", "không chạy", "fix this", or pastes an error message.
-mode: subagent
-model: opencode-go/glm-5.1
+description: >
+  Systematic hypothesis-driven debugging — trace execution paths, form ranked hypotheses,
+  confirm root cause, then fix and verify by default. Use when the user says "debug", "bug",
+  "lỗi", "không chạy", "fix this", or pastes an error message.
+  Unlike b-plan (decide approach) or b-research (lookup info), b-debug traces, confirms, and
+  fixes broken code.
+effort: high
 ---
-
 
 # b-debug
 
@@ -13,9 +16,9 @@ $ARGUMENTS
 Systematic, hypothesis-driven bug tracing: understand code structure first, form
 ranked hypotheses, locate root cause, then fix and verify. Never jump straight to patching.
 
-Default contract: when invoked by another agent or directly by the user, `b-debug`
-must complete the full loop **trace → confirm root cause → fix → verify** unless the
-caller explicitly asks for diagnosis-only, root-cause-only, or investigation-only output.
+Default contract: when invoked, `b-debug` must complete the full loop
+**trace → confirm root cause → fix → verify** unless the user explicitly asks for
+diagnosis-only, root-cause-only, or investigation-only output.
 Do not stop after reporting the cause if a safe, minimal fix is available.
 
 If `$ARGUMENTS` is provided, treat it as the error message or symptom — skip asking for symptoms in Step 1 and proceed directly with what was given.
@@ -54,7 +57,7 @@ From `sequential-thinking` MCP server:
 - `sequentialthinking` — structured reasoning to form and rank hypotheses.
 
 From `context7` MCP server *(optional)*:
-- `resolve-library-id` + `query-docs` — verify correct library API behavior when a hypothesis points to API misuse or version mismatch. Faster than invoking full b-research for a single API question.
+- `resolve-library-id` + `query-docs` — verify correct library API behavior when a hypothesis points to API misuse or version mismatch. Faster than invoking full /b-research for a single API question.
 
 From `brave-search` MCP server *(optional)*:
 - `brave_web_search` — look up known library errors, GitHub issues, changelogs.
@@ -65,9 +68,9 @@ From `firecrawl` MCP server *(optional)*:
 
 If jcodemunch is unavailable, or re-indexing still returns `file_count = 0`: use Glob/Grep/Read to map files manually, proceed with Steps 2.1–2.4. Always note: "⚠️ jcodemunch unavailable — analysis based on Glob/Grep/Read; cross-file tracking incomplete."
 If sequential-thinking is unavailable: reason through hypotheses inline, document steps explicitly in response. Format fallback as: `Hypothesis N → Evidence for → Evidence against → Cheapest verification → Confirmed/Rejected`.
-If context7 is unavailable: invoke b-research for library API questions instead.
+If context7 is unavailable: invoke /b-research for library API questions instead.
 
-Graceful degradation: ✅ Possible — if jcodemunch unavailable, use Glob/Grep/Read for file analysis. Quality is reduced but the agent remains functional.
+Graceful degradation: ✅ Possible — if jcodemunch unavailable, use Glob/Grep/Read for file analysis. Quality is reduced but the skill remains functional.
 
 ## Steps
 
@@ -92,7 +95,7 @@ or "recent changes" is often the fastest path to root cause.
 
 Use `jcodemunch` to trace the execution path in this order:
 
-0. **jcodemunch preflight** — run the standard preflight (see `global/AGENTS.md § jcodemunch preflight`) with query = "[symptom or error text]". Use the highest-ranked symbols/files to choose the best entry point and reduce blind tracing.
+0. **jcodemunch preflight** — run the standard preflight (see `~/.claude/CLAUDE.md` § jcodemunch preflight) with query = "[symptom or error text]". Use the highest-ranked symbols/files to choose the best entry point and reduce blind tracing.
 1. `get_context_bundle` on the chosen entry point (route handler, CLI command, event listener) — get full context of the starting point
 2. `find_references` on the relevant function — trace all callers and callees across files
 3. `get_blast_radius` on the suspected module — understand what depends on it
@@ -133,7 +136,7 @@ Do **not** call `sequentialthinking` if the stack trace or code path already ide
 **Library error shortcut**: If the error message or stack trace references a specific library or framework:
 - Use `brave_web_search` with the exact error message in quotes to find known issues, GitHub issues, or changelog entries.
 - If results include a GitHub issue page, Stack Overflow answer, or changelog URL that looks relevant → call `firecrawl_scrape` on the top 1–2 most relevant URLs before verifying hypotheses. Use `formats: ["markdown"]`. Cap at 2 URLs. If the page returns empty or <200 words → call `firecrawl_map` on the domain root to find the correct URL, then retry scrape on the mapped URL. If still empty, proceed with snippets only.
-- If results point to an API misuse → call `resolve-library-id` + `query-docs` with the specific method/behavior in question. This is faster than b-research for a single API question. Escalate to b-research only if context7 has no index for the library.
+- If results point to an API misuse → call `resolve-library-id` + `query-docs` with the specific method/behavior in question. This is faster than /b-research for a single API question. Escalate to /b-research only if context7 has no index for the library.
 - Do this before verifying hypotheses — it may eliminate wrong hypotheses immediately and save significant time.
 
 **Error string search**: If the error message text is short and specific → call `search_text(is_regex=false, pattern="[exact error string]")` to find all places in the codebase that produce or handle this error. This often reveals the true origin faster than tracing the call graph.
@@ -148,7 +151,7 @@ Test hypotheses starting from the most likely:
 - Check config/env values if hypothesis points there.
 - Use `get_file_outline` first when narrowing within a large file; then `get_symbol_source` or `get_context_bundle` to re-examine the exact suspicious function.
 - Use `get_related_symbols` on a suspicious function to discover other functions with similar logic — useful when the bug pattern may exist in multiple places.
-- If the hypothesis points to library API misuse: call `resolve-library-id` + `query-docs` directly to verify the correct method signature, parameter order, or behavior. Escalate to b-research only if context7 has no index.
+- If the hypothesis points to library API misuse: call `resolve-library-id` + `query-docs` directly to verify the correct method signature, parameter order, or behavior. Escalate to /b-research only if context7 has no index.
 - **Regression detection**: if the bug appeared after a recent change, use `get_symbol_diff` to compare the current symbol against an older indexed state (requires two index snapshots)
 
 **Dynamic verification** — if static analysis is insufficient to confirm root cause (plausible hypothesis but not provable from code alone):
@@ -187,7 +190,7 @@ After applying the fix:
 - State what behavior should now change and how to confirm it.
 - **Detect test command** from the project: check `package.json` scripts, `pytest.ini`, `Makefile`, `Cargo.toml`, or equivalent. Suggest the specific command scoped to the affected module — e.g. `npm test -- --testPathPattern=auth`, `pytest tests/test_auth.py`, `go test ./internal/auth/...`. Do not just say "run your tests".
 - If the fix involved a config/env change, remind the user to restart the process.
-- If the fix changed more than 2 files or introduced new functions/modules → suggest running `b-review` before committing to catch any logic or requirements gaps the fix may have introduced.
+- If the fix changed more than 2 files or introduced new functions/modules → suggest running `/b-review` before committing to catch any logic or requirements gaps the fix may have introduced.
 - Do not end at "root cause found". Close the loop by stating the applied fix and the exact verification step unless the caller explicitly requested diagnosis-only mode.
 
 ---
@@ -231,6 +234,6 @@ Note any silent catch blocks or unexpected stops in the path.
 - Always map the full execution path first — the bug is often not where it surfaces.
 - If 2+ hypotheses seem equally likely, verify the cheaper one first.
 - Silent failure points (swallowed exceptions, missing logs) are the most common cause of "no error but not working" bugs — check these first.
-- If the fix requires understanding a library's behavior: use context7 first (`resolve-library-id` + `query-docs`); escalate to b-research only if context7 has no index for that library.
+- If the fix requires understanding a library's behavior: use context7 first (`resolve-library-id` + `query-docs`); escalate to /b-research only if context7 has no index for that library.
 - Keep fixes minimal — one bug, one fix.
 - Never trigger destructive git commands — no `git push`, `git pull`, `git commit`, `git reset`, `git revert`, `git clean -f`, or `git checkout -- <file>`.

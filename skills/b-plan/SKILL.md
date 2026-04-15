@@ -2,13 +2,12 @@
 name: b-plan
 description: >
   Think before coding. Decompose non-trivial tasks into ordered steps, evaluate approaches,
-  surface risks, and produce an execution-ready plan file. ALWAYS use when the user says
+  surface risks, and produce an execution-ready plan file. ALWAYS invoke when the user says
   "plan", "thiết kế", "how should I approach", "lên kế hoạch", "nên bắt đầu từ đâu",
   or the task spans more than 2 files or has unclear scope.
   Unlike b-debug (fix broken) or b-research (lookup info), b-plan owns the decision of
   what to build and in what order.
-mode: subagent
-model: opencode-go/glm-5.1
+effort: high
 ---
 
 # b-plan
@@ -16,7 +15,7 @@ model: opencode-go/glm-5.1
 $ARGUMENTS
 
 Think before coding. Lock scope, evaluate approaches, decompose into ordered steps,
-surface risks and unknowns — then produce a clear plan file before any implementation.
+surface risks and unknowns, then produce a clear plan file before any implementation.
 
 If `$ARGUMENTS` is provided, treat it as the task description — skip asking "what do you want to build?" in Step 1 and proceed directly with the stated task. Ask only for missing context (constraints, greenfield vs existing, issue URL).
 
@@ -44,7 +43,7 @@ If `$ARGUMENTS` is provided, treat it as the task description — skip asking "w
 
 If sequential-thinking is unavailable: reason through plans and trade-offs inline with explicit numbered steps. Format fallback as: `Goal → Constraints → Options → Decision → Ordered steps → Open questions`.
 If jcodemunch is unavailable, or re-indexing still returns `file_count = 0`: use Glob/Read to inspect key files. Note: "⚠️ jcodemunch unavailable — cross-file tracking incomplete."
-If context7 or brave-search is unavailable: delegate to b-research.
+If context7 or brave-search is unavailable: delegate to /b-research.
 If firecrawl is unavailable: store the Issue URL as a plain reference without scraping.
 
 Graceful degradation: ✅ Possible — core planning works without MCPs using inline reasoning and Glob/Read.
@@ -71,7 +70,7 @@ Confirm what is being built before scanning any code.
 - Any blockers? (Missing infrastructure, incompatible dependencies, architectural gaps.)
 - Effort estimate: S (hours) / M (1–2 days) / L (3–5 days) / XL (1–2 weeks) / XXL (weeks+).
 - If blockers found: state clearly. If no workaround exists, do not proceed until resolved.
-- If XL–XXL AND unfamiliar pattern or unverified library: stop and run b-research first.
+- If XL–XXL AND unfamiliar pattern or unverified library: stop and run /b-research first.
 
 **Issue/ticket** *(optional)*:
 - Ask once: "Issue/ticket URL or ID? (Leave blank to skip.)"
@@ -88,7 +87,7 @@ Confirm what is being built before scanning any code.
 
 Use jcodemunch to understand what already exists before planning:
 
-- Run the standard preflight (see `global/AGENTS.md § jcodemunch preflight`) with query = "[requested change description]". If the reused index is stale, re-index first, then continue.
+- Run the standard preflight (see `~/.claude/CLAUDE.md` § jcodemunch preflight) with query = "[requested change description]". If the reused index is stale, re-index first, then continue.
 - `get_file_tree(path_prefix="src/")` — scoped directory view for the affected area.
 - `get_repo_outline` — overall structure, module boundaries.
 - `get_file_outline(file_paths=[...])` — batch-inspect files the plan will touch.
@@ -145,7 +144,7 @@ Flag anything unresolved before handing off the plan:
 **Resolve inline when cheap:**
 - Single library method / yes-no capability → call `resolve-library-id` + `query-docs`. Append `→ Confirmed: [finding]`.
 - 2-option quick comparison → call `brave_web_search`, resolve inline.
-- Complex or multi-source → delegate to b-research (mark as Unknown, don't block the plan).
+- Complex or multi-source → delegate to /b-research (mark as Unknown, don't block the plan).
 
 An unresolved unknown is a risk. Name it now.
 
@@ -153,10 +152,10 @@ An unresolved unknown is a risk. Name it now.
 
 ### Step 6 — Write plan
 
-Write to `.opencode/b-plans/[task-slug].md` in the **current project root only**.
+Write to `.claude/b-plans/[task-slug].md` in the **current project root only**.
 
 - `task-slug` = kebab-case, e.g. `add-retry-logic`, `refactor-auth-module`.
-- Create `.opencode/b-plans/` if it doesn't exist.
+- Create `.claude/b-plans/` if it doesn't exist.
 - Show the exact saved path after writing.
 
 Present a short summary (scope + step count) and ask for confirmation. Update and re-confirm if the user requests changes.
@@ -205,7 +204,7 @@ Always English, regardless of the user's query language.
 - [Risk]: [mitigation or fallback]
 
 ## Unknowns *(resolve before starting)*
-- Need b-research: [topic] — [what to verify]
+- Need /b-research: [topic] — [what to verify]
 - Need decision: [question for user]
 - Assuming: [assumption that may not hold]
 ```
@@ -214,7 +213,7 @@ Always English, regardless of the user's query language.
 
 ## Rules
 
-- Always write to `.opencode/b-plans/` — never leave the plan only in chat.
+- Always write to `.claude/b-plans/` — never leave the plan only in chat.
 - Always write plan files in English.
 - Do not implement in the same session as planning.
 - Steps must be ordered by dependency — wrong order causes cascading failures.

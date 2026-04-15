@@ -1,10 +1,13 @@
 ---
 name: b-review
-description: Pre-PR code review — verify logic correctness, requirements fulfillment, edge case coverage, and test adequacy before opening a pull request. Use when user says "review before PR", "kiểm tra logic", or after implementation is done.
-mode: subagent
-model: opencode-go/glm-5.1
+description: >
+  Pre-PR code review — verify logic correctness, requirements fulfillment, edge case coverage,
+  and test adequacy before opening a pull request. Use when the user says "review before PR",
+  "kiểm tra logic", or after implementation is done.
+  Unlike b-debug (fix broken) or b-research (lookup info), b-review validates what was built
+  against what was intended.
+effort: medium
 ---
-
 
 # b-review
 
@@ -75,16 +78,16 @@ If the diff is large (>500 lines changed), ask the user which area to focus on f
 
 Determine what the code was *supposed* to do:
 
-1. **Check for plan file** — look for `.opencode/b-plans/[task-slug].md`. If found, read the `## Steps` section and the original scope statement. This is the primary requirements source.
+1. **Check for plan file** — look for `.claude/b-plans/[task-slug].md`. If found, read the `## Steps` section and the original scope statement. This is the primary requirements source.
 
    1b. **Issue enrichment** *(runs only when a plan file was found in step 1)*: scan the plan file header for an `**Issue**:` field.
-   - If the value starts with `http`: call `firecrawl_scrape` with `url=[value]` and `formats: ["markdown"]`. Trim the result to 500 words and append to the requirements baseline as: `**Issue context** (from [URL]):
+    - If the value starts with `http`: call `firecrawl_scrape` with `url=[value]` and `formats: ["markdown"]`. Trim the result to 500 words and append to the requirements baseline as: `**Issue context** (from [URL]):
 [scraped content]`. If the scrape returns <200 characters or an HTTP auth/403 error: skip silently and note in output: "Issue URL requires authentication — using URL as context reference only: [value]."
-   - If the value is a ticket ID (does not start with `http`): display it in the review output header as: `**Issue reference**: [value]`. No fetch attempted.
-   - If the `**Issue**:` field is absent or empty: skip this sub-step entirely.
+    - If the value is a ticket ID (does not start with `http`): display it in the review output header as: `**Issue reference**: [value]`. No fetch attempted.
+    - If the `**Issue**:` field is absent or empty: skip this sub-step entirely.
 
 2. **Check $ARGUMENTS** — if provided:
-   - If `$ARGUMENTS` ends in `.md` → use `Read` to verify the file exists. If it exists, treat it as the primary requirements source (same as a plan file found in `.opencode/b-plans/`).
+   - If `$ARGUMENTS` ends in `.md` → use `Read` to verify the file exists. If it exists, treat it as the primary requirements source (same as a plan file found in `.claude/b-plans/`).
    - If `$ARGUMENTS` does not end in `.md` → treat it as a text description of requirements.
 3. **Ask the user** — if neither is available, ask: "What was this change supposed to accomplish? What does 'done' look like?" Initial ask, then one re-prompt if vague — two questions maximum.
 
@@ -101,7 +104,7 @@ The review is only as good as the requirements baseline. Do not review without i
 
 ### Step 3 — Logic correctness review
 
-Run the standard jcodemunch preflight (see `global/AGENTS.md § jcodemunch preflight`) with query = "[diff scope + requirements baseline summary]". If the reused index is stale, re-index first, then continue. Call `get_changed_symbols` to map the diff to named symbols, `get_blast_radius` on the top changed symbols to understand downstream impact, and `get_impact_preview` when a changed symbol sits on a service boundary or shared helper. Use `get_file_outline` on the changed files before opening source, then `get_symbol_source` / `get_context_bundle` only for the highest-risk symbols. Add `find_references` when the diff changes a shared helper or exported boundary. If jcodemunch is unavailable, or re-indexing still returns `file_count = 0`, fall back to direct Read on changed files. Always note: "⚠️ jcodemunch unavailable — blast-radius analysis unavailable."
+Run the standard jcodemunch preflight (see `~/.claude/CLAUDE.md` § jcodemunch preflight) with query = "[diff scope + requirements baseline summary]". If the reused index is stale, re-index first, then continue. Call `get_changed_symbols` to map the diff to named symbols, `get_blast_radius` on the top changed symbols to understand downstream impact, and `get_impact_preview` when a changed symbol sits on a service boundary or shared helper. Use `get_file_outline` on the changed files before opening source, then `get_symbol_source` / `get_context_bundle` only for the highest-risk symbols. Add `find_references` when the diff changes a shared helper or exported boundary. If jcodemunch is unavailable, or re-indexing still returns `file_count = 0`, fall back to direct Read on changed files. Always note: "⚠️ jcodemunch unavailable — blast-radius analysis unavailable."
 
 **Impact-first review rule**: when `get_changed_symbols` returns named symbols, prioritize review depth on (a) symbols with the largest blast radius, (b) symbols at service boundaries, and (c) symbols implementing explicit requirements from Step 2. Raw line-count alone should not determine review depth.
 
