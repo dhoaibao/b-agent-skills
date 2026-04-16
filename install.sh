@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # install.sh — Bootstrap or update b-skills on any machine
 # Usage:
-#   First time : curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agents/main/install.sh | bash
-#   Update     : curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agents/main/install.sh | bash
+#   First time : curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-skills/main/install.sh | bash
+#   Update     : curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-skills/main/install.sh | bash
 
 set -euo pipefail
 
-REPO="https://github.com/dhoaibao/b-agents.git"
+REPO="https://github.com/dhoaibao/b-skills.git"
 LOCAL_REPO="$HOME/.b-skills"
 SKILLS_SRC="$LOCAL_REPO/skills"
 CLAUDE_SKILLS_DST="$HOME/.claude/skills"
