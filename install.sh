@@ -210,6 +210,92 @@ PYEOF
   echo "⚠️  Remember to set any missing API keys in the config file before using the MCPs."
 fi
 
+# ── 6. Auto-setup Claude Code hooks for Serena ───────────────────────────────
+_HOOKS_CONFIG='{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "mcp__serena__*",
+        "hooks": [
+          { "type": "command", "command": "serena-hooks auto-approve --client=claude-code" }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          { "type": "command", "command": "serena-hooks activate --client=claude-code" }
+        ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          { "type": "command", "command": "serena-hooks remind --client=claude-code" }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          { "type": "command", "command": "serena-hooks cleanup --client=claude-code" }
+        ]
+      }
+    ]
+  }
+}'
+
+_install_hooks() {
+  local config_file="$HOME/.claude/settings.json"
+  mkdir -p "$(dirname "$config_file")"
+
+  if [ -f "$config_file" ]; then
+    local existing
+    existing=$(cat "$config_file")
+    # Merge hooks into existing config (don't overwrite other hooks)
+    local merged
+    merged=$(python3 - <<'PYEOF'
+import json, sys, os
+
+existing_raw = os.environ.get("EXISTING", "{}")
+try:
+    existing = json.loads(existing_raw)
+except json.JSONDecodeError:
+    existing = {}
+
+hooks_new = json.loads(os.environ.get("HOOKS_CONFIG", "{}")).get("hooks", {})
+
+if "hooks" not in existing:
+    existing["hooks"] = {}
+
+for hook_type, hook_entries in hooks_new.items():
+    if hook_type not in existing["hooks"]:
+        existing["hooks"][hook_type] = []
+    # Deduplicate by command — don't add if already present
+    existing_cmds = {h.get("command", "") for h in existing["hooks"][hook_type]}
+    for entry in hook_entries:
+        if entry.get("command", "") not in existing_cmds:
+            existing["hooks"][hook_type].append(entry)
+
+print(json.dumps(existing, indent=2))
+PYEOF
+)
+    echo "$merged" > "$config_file"
+  else
+    echo "$_HOOKS_CONFIG" > "$config_file"
+  fi
+  echo "✅ Serena hooks written to $config_file"
+}
+
+read -rp "Install Claude Code hooks for Serena (recommended)? [Y/n]: " install_hooks </dev/tty
+install_hooks="${install_hooks:-Y}"
+if [[ "$install_hooks" =~ ^[Yy]$ ]]; then
+  EXISTING=$(cat "$HOME/.claude/settings.json" 2>/dev/null || echo "{}")
+  HOOKS_CONFIG="$_HOOKS_CONFIG" EXISTING="$EXISTING" _install_hooks
+  echo "✅ Serena hooks installed — restart Claude Code for them to take effect."
+fi
+
 # ── 5. Done ──────────────────────────────────────────────────────────────────
 echo ""
 echo "✅ b-skills installed successfully."

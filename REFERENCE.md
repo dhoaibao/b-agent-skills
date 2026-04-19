@@ -13,9 +13,7 @@ surface risks, and produce an execution-ready plan file.
 
 **Core behavior**
 - Uses `sequential-thinking` to decompose work and rank approaches.
-- For existing-code tasks, uses Serena project activation plus targeted symbol/file reads.
-- Activates the current project before scanning existing code.
-- Follows Serena's planning sequence: activate → discover → overview → references → narrow reads.
+- For existing-code tasks, follows a strict symbol-first read-order: activate → discover → overview → references → narrow reads.
 - Uses `get_symbols_overview` before opening symbol bodies, then reads only the exact symbols needed.
 - Uses sequential-thinking for both approach selection and ordered execution steps, with action-oriented output.
 - Evaluates multiple approaches and documents the chosen one in `## Decision`.
@@ -79,13 +77,13 @@ Systematic, hypothesis-driven debugging with full-loop execution by default.
 **Core behavior**
 - Uses Serena to map execution path, references, suspicious symbols, and exact files.
 - Activates the current project before tracing the code path.
-- Follows Serena's debugging sequence: activate → locate symbol → overview → references/patterns → narrow reads → symbolic fix.
+- Follows a strict read-order: activate → find symbol → overview → references/patterns → narrow reads → symbolic fix. Never jumps to full-file reads without narrowing first.
 - Narrows with `get_symbols_overview` before opening full symbol source where possible.
 - Uses `sequential-thinking` to rank hypotheses.
 - Requires each hypothesis to include evidence for/against and the cheapest verification step.
 - Library error shortcut: web search for known issues before verifying hypotheses.
 - Dynamic verification loop when static analysis is insufficient (max 3 instrumentation rounds).
-- After confirming root cause, implements the minimal fix and states exact verification steps.
+- After confirming root cause, implements the minimal fix using symbol-aware tools and states exact verification steps.
 
 **Default contract**: `trace → confirm root cause → fix → verify`
 Diagnosis-only is allowed only when the caller explicitly requests it.
@@ -117,7 +115,7 @@ observability on new entry points.
 - Reads git diff and builds requirements baseline from plan file, `$ARGUMENTS`, or user clarification.
 - Uses Serena to prioritize review depth by changed symbols, references, and affected files.
 - Activates the current project before reviewing changed symbols.
-- Follows Serena's review sequence: diff → symbol mapping → overview → references → narrow reads.
+- Follows a strict read-order: find symbol → find referencing symbols → overview → narrow reads. Never jumps straight from diff to full file reads.
 - Reviews changed files outline-first, then opens only high-risk symbols/source paths.
 - Uses `sequential-thinking` only when blocker/suggestion classification is genuinely ambiguous, not by default.
 - Always checks **injection vectors**, even on very small diffs.

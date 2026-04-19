@@ -185,6 +185,63 @@ MCP toolset  >  specialized native tool  >  general native tool  >  Bash command
 
 ---
 
+## Setup
+
+### MCP verification
+Run `/mcp` in Claude Code and confirm all MCPs show as connected. If a MCP is missing or fails to connect, reinstall it.
+
+### Serena hooks (strongly recommended)
+Claude Code's dynamic tool loading causes **agent drift** — the agent forgets to use Serena's tools after a few tool calls. Fix this with hooks.
+
+Add to `~/.claude/settings.json` (or `~/.claude.json` if that's your settings file):
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "mcp__serena__*",
+        "hooks": [
+          { "type": "command", "command": "serena-hooks auto-approve --client=claude-code" }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          { "type": "command", "command": "serena-hooks activate --client=claude-code" }
+        ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          { "type": "command", "command": "serena-hooks remind --client=claude-code" }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          { "type": "command", "command": "serena-hooks cleanup --client=claude-code" }
+        ]
+      }
+    ]
+  }
+}
+```
+
+What the hooks do:
+- **`activate`** — activates the project and re-reads Serena's instructions at session start. Eliminates the need to manually activate on every session.
+- **`remind`** — nudges the agent to use Serena's symbolic tools when it makes too many consecutive `grep`/`read_file` calls without using any Serena tool.
+- **`auto-approve`** — auto-approves Serena tool calls in `acceptEdits` mode so blanket edit approvals cover symbol-level edits.
+- **`cleanup`** — cleans up hook session data when the session ends.
+
+If hooks cause issues (e.g. repeated reminders), remove the specific hook causing the loop. The `PreToolUse` hooks on `mcp__serena__*` are the most impactful; the others are additive.
+
+---
+
 ## Git safety
 
 Never run these commands autonomously:

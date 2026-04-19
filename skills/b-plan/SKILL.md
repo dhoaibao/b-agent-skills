@@ -85,16 +85,15 @@ Confirm what is being built before scanning any code.
 
 ### Step 2 — Scan existing code *(existing-code tasks only)*
 
-Use Serena to understand what already exists before planning:
+Use Serena to understand what already exists before planning. Follow this exact order — do not skip to `read_file`:
 
-- Activate the current project first (`activate_project`); if onboarding has not been performed, run `check_onboarding_performed` then `onboarding`.
-- `list_dir` / `find_file` — scoped directory view for the affected area.
-- `find_symbol` — locate the main symbols involved in the requested change.
-- `get_symbols_overview` — inspect the files the plan will touch.
-- `find_referencing_symbols` — confirm which callers or dependent symbols are affected.
-- Only if overviews are insufficient: `read_file` for the exact file sections on the proposed execution path.
+1. **Activate project** — call `activate_project`. If `check_onboarding_performed` returns false, call `onboarding` first.
+2. **Discover symbols** — call `find_symbol` on the main symbol or module name involved in the change. Use `search_for_pattern` for exact strings (config keys, error messages, repeated patterns).
+3. **Inspect structure** — call `get_symbols_overview` on each relevant file to see which symbols are worth reading.
+4. **Trace references** — call `find_referencing_symbols` on the key symbol(s) to confirm which callers and dependents are affected.
+5. **Read narrowly** — only if the above still leaves ambiguity: call `read_file` on the exact symbol body or file section on the proposed execution path.
 
-**Goal**: reference real paths and symbols. A plan that references wrong file names or non-existent functions fails at execution.
+**Goal**: reference real paths and symbols. A plan that references wrong file names or non-existent functions fails at execution. Never paste full file contents into the plan — only the names and line references that matter.
 
 ---
 

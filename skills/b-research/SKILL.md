@@ -82,6 +82,7 @@ Classify the user's query into **one of four types** before doing anything else.
 > **Session optimization**: If Context7 has already been queried for this library in the current session, reuse those findings — do not call it again.
 
 **Version detection** — before querying docs, attempt to find the exact installed version:
+- Activate the current project (`activate_project`) so Serena can read project files correctly.
 - Check `package.json`, `pyproject.toml`, `requirements.txt` in the project root.
 - If version contains a range (`^`, `~`, `>=`, `*`), check the lockfile for the exact resolved version.
 - If no manifest found, proceed without version constraint and note: `⚠️ No manifest found — docs may not match installed version.`

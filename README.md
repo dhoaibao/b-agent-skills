@@ -41,10 +41,33 @@ See [REFERENCE.md](REFERENCE.md) for full details — triggers, output format, r
 
 | MCP | Role |
 |---|---|
+| `serena` | Symbol-first code retrieval, cross-file references, symbolic editing — the primary analysis layer for all skills |
 | `context7` | Live, version-accurate library docs |
 | `brave-search` | Real web search |
 | `firecrawl` | Full page scraping |
-| `serena` | Code structure, symbol-first retrieval, references, symbolic editing |
-| `sequential-thinking` | Structured reasoning |
+| `sequential-thinking` | Structured reasoning for multi-hypothesis decisions |
 
 Verify all 5 are connected in Claude Code (`/mcp`).
+
+### Serena setup (strongly recommended)
+
+Claude Code's dynamic tool loading causes **agent drift** — the agent may forget to use Serena's tools after a few tool calls. Fix this by adding hooks to `~/.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      { "matcher": "mcp__serena__*", "hooks": [{ "type": "command", "command": "serena-hooks auto-approve --client=claude-code" }] }
+    ],
+    "SessionStart": [
+      { "matcher": "", "hooks": [{ "type": "command", "command": "serena-hooks activate --client=claude-code" }] },
+      { "matcher": "", "hooks": [{ "type": "command", "command": "serena-hooks remind --client=claude-code" }] }
+    ],
+    "Stop": [
+      { "matcher": "", "hooks": [{ "type": "command", "command": "serena-hooks cleanup --client=claude-code" }] }
+    ]
+  }
+}
+```
+
+Or run `install.sh` and choose **Y** when prompted — hooks are installed automatically.

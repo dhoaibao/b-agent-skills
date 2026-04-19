@@ -91,12 +91,14 @@ or "recent changes" is often the fastest path to root cause.
 
 Use `serena` to trace the execution path in this order:
 
-0. **Serena preflight** — activate the current project. If onboarding has not been performed, run onboarding before tracing symbols.
+0. **Serena preflight** — activate the current project. If onboarding has not been performed, call `onboarding` before tracing. Reuse existing project context if already activated in this session, but confirm the workspace is still correct.
 1. `find_symbol` on the chosen entry point (route handler, CLI command, event listener) — locate the best starting symbol.
 2. `get_symbols_overview` on the relevant file — confirm which symbols are worth reading.
 3. `find_referencing_symbols` on the relevant function — trace callers/usages across files.
 4. `search_for_pattern` on the error string, config key, or suspicious behavior — expose parallel failure points faster than manual tracing.
 5. `read_file` on any function or file section that still looks suspicious — inspect the exact implementation.
+
+**Read-order rule**: never jump to `read_file` before completing steps 1–4. Narrowing with symbols and references first typically eliminates 80% of what you'd get from a full-file read — and it's more accurate.
 
 From this, identify:
 - All layers the request/data passes through (middleware, validators, handlers, services, DB)

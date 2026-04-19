@@ -104,9 +104,17 @@ The review is only as good as the requirements baseline. Do not review without i
 
 ### Step 3 — Logic correctness review
 
-Activate the current project first. If onboarding has not been performed, run onboarding. Then use `find_symbol` to map changed names to real symbols, `find_referencing_symbols` on the top changed symbols to understand downstream impact, `get_symbols_overview` on the changed files before opening source, and `read_file` only for the highest-risk symbol bodies or file sections. Add `search_for_pattern` when the diff changes a shared helper, exported boundary, or repeated pattern. Do not jump straight from `git diff` to full-file reads when Serena can narrow first. If Serena is unavailable, fall back to direct Read on changed files. Always note: "⚠️ Serena unavailable — symbol-aware impact analysis unavailable."
+Activate the current project first. If onboarding has not been performed, run onboarding. Then follow this exact read-order — never jump straight from `git diff` to full-file reads:
 
-**Impact-first review rule**: when Serena identifies named symbols and referencing call sites, prioritize review depth on (a) symbols with the broadest references, (b) symbols at service boundaries, and (c) symbols implementing explicit requirements from Step 2. Raw line-count alone should not determine review depth.
+1. `find_symbol` on changed names — map them to real symbols in the codebase.
+2. `find_referencing_symbols` on top changed symbols — understand downstream impact.
+3. `get_symbols_overview` on changed files before opening source — inspect structure first.
+4. `read_file` only for the highest-risk symbol bodies or file sections — narrow reads, not full files.
+5. `search_for_pattern` when the diff changes a shared helper, exported boundary, or repeated pattern.
+
+If Serena is unavailable: use `Read` tool to inspect changed files directly. Always note: "⚠️ Serena unavailable — symbol-aware impact analysis unavailable."
+
+**Impact-first review rule**: prioritize review depth on (a) symbols with the broadest references, (b) symbols at service boundaries, and (c) symbols implementing explicit requirements from Step 2. Raw line-count alone should not determine review depth.
 
 Read the changed code (prefer `get_symbols_overview` → targeted `read_file`; use Read only as fallback) and check:
 
