@@ -104,110 +104,51 @@ install_mcps="${install_mcps:-N}"
 
 if [[ "$install_mcps" =~ ^[Yy]$ ]]; then
   echo ""
-  echo "Enter API keys (leave blank to skip / keep existing):"
+  echo "Enter API keys (leave blank to skip):"
   read -rsp "  BRAVE_API_KEY: " brave_key </dev/tty; echo ""
-  read -rp  "  FIRECRAWL_API_URL (default: https:/firecrawl-api.dhbao.dev/): " firecrawl_url </dev/tty
-  firecrawl_url="${firecrawl_url:-https:/firecrawl-api.dhbao.dev/}"
-  firecrawl_key="SELF_HOST"
-
-  _merge_mcp_config() {
-    local config_file="$1"
-    local brave_key="$2"
-    local firecrawl_key="$3"
-    local firecrawl_url="$4"
-
-    mkdir -p "$(dirname "$config_file")"
-
-    local existing="{}"
-    if [ -f "$config_file" ]; then
-      existing=$(cat "$config_file")
-    fi
-
-    _MCP_BRAVE_KEY="$brave_key" \
-    _MCP_FIRECRAWL_KEY="$firecrawl_key" \
-    _MCP_FIRECRAWL_URL="$firecrawl_url" \
-    _MCP_EXISTING="$existing" \
-    python3 - <<'PYEOF'
-import json, os
-
-existing = json.loads(os.environ["_MCP_EXISTING"])
-brave_key = os.environ.get("_MCP_BRAVE_KEY", "")
-firecrawl_key = os.environ.get("_MCP_FIRECRAWL_KEY", "")
-firecrawl_url = os.environ.get("_MCP_FIRECRAWL_URL", "")
-
-mcpServers = existing.get("mcpServers", {})
-
-# sequential-thinking — no key needed
-mcpServers["sequential-thinking"] = {
-    "command": "npx",
-    "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
-}
-
-# context7 — remote, no key needed
-mcpServers["context7"] = {
-    "type": "url",
-    "url": "https://mcp.context7.com/mcp"
-}
-
-# serena — no key needed
-mcpServers["serena"] = {
-    "command": "uvx",
-    "args": [
-        "-p", "3.13",
-        "--from", "git+https://github.com/oraios/serena",
-        "serena", "start-mcp-server",
-        "--context", "claude-code",
-        "--project-from-cwd"
-    ]
-}
-
-# brave-search — update key only if provided
-if "brave-search" not in mcpServers:
-    mcpServers["brave-search"] = {
-        "command": "npx",
-        "args": ["-y", "@modelcontextprotocol/server-brave-search"],
-        "env": {"BRAVE_API_KEY": brave_key or "YOUR_API_KEY"}
-    }
-elif brave_key:
-    mcpServers["brave-search"].setdefault("env", {})["BRAVE_API_KEY"] = brave_key
-
-# firecrawl — update keys only if provided
-if "firecrawl" not in mcpServers:
-    mcpServers["firecrawl"] = {
-        "command": "npx",
-        "args": ["-y", "firecrawl-mcp"],
-        "env": {
-            "FIRECRAWL_API_KEY": firecrawl_key or "YOUR_API_KEY",
-            "FIRECRAWL_API_URL": firecrawl_url
-        }
-    }
-else:
-    env = mcpServers["firecrawl"].setdefault("env", {})
-    if firecrawl_key:
-        env["FIRECRAWL_API_KEY"] = firecrawl_key
-    if firecrawl_url:
-        env["FIRECRAWL_API_URL"] = firecrawl_url
-
-existing["mcpServers"] = mcpServers
-print(json.dumps(existing, indent=2))
-PYEOF
-  }
-
-  _write_mcp_config() {
-    local config_file="$1"
-    local new_config
-    if new_config=$(_merge_mcp_config "$config_file" "$brave_key" "$firecrawl_key" "$firecrawl_url") && [ -n "$new_config" ]; then
-      echo "$new_config" > "$config_file"
-      echo "✅ MCP config written to $config_file"
-    else
-      echo "⚠️  Failed to update $config_file — skipping"
-    fi
-  }
-
-  _write_mcp_config "$HOME/.claude/settings.json"
+  read -rp  "  FIRECRAWL_API_URL (default: https://api.firecrawl.dev/): " firecrawl_url </dev/tty
+  firecrawl_url="${firecrawl_url:-https://api.firecrawl.dev/}"
+  read -rsp "  FIRECRAWL_API_KEY: " firecrawl_key </dev/tty; echo ""
 
   echo ""
-  echo "⚠️  Remember to set any missing API keys in the config file before using the MCPs."
+
+  # sequential-thinking
+  echo "➕ Adding sequential-thinking..."
+  claude mcp add -s user sequential-thinking npx -- -y @modelcontextprotocol/server-sequential-thinking \
+    && echo "✅ sequential-thinking added" || echo "⚠️  Failed to add sequential-thinking"
+
+  # brave-search
+  if [ -n "$brave_key" ]; then
+    echo "➕ Adding brave-search..."
+    claude mcp add brave-search -s user -e BRAVE_API_KEY="$brave_key" -- npx -y @brave/brave-search-mcp-server \
+      && echo "✅ brave-search added" || echo "⚠️  Failed to add brave-search"
+  else
+    echo "⏭️  Skipping brave-search (no API key provided)"
+  fi
+
+  # firecrawl
+  if [ -n "$firecrawl_key" ]; then
+    echo "➕ Adding firecrawl..."
+    claude mcp add firecrawl -s user \
+      -e FIRECRAWL_API_URL="$firecrawl_url" \
+      -e FIRECRAWL_API_KEY="$firecrawl_key" \
+      -- npx -y firecrawl-mcp \
+      && echo "✅ firecrawl added" || echo "⚠️  Failed to add firecrawl"
+  else
+    echo "⏭️  Skipping firecrawl (no API key provided)"
+  fi
+
+  # context7
+  echo ""
+  echo "ℹ️  Context7: run the following command to set it up interactively:"
+  echo "   npx ctx7@latest setup"
+
+  # serena
+  echo ""
+  echo "ℹ️  Serena: run the following commands to install and initialize:"
+  echo "   uv tool install -p 3.13 serena-agent@latest --prerelease=allow"
+  echo "   serena init"
+  echo "   (If uv is not installed: curl -LsSf https://astral.sh/uv/install.sh | sh)"
 fi
 
 # ── 6. Auto-setup Claude Code hooks for Serena ───────────────────────────────
