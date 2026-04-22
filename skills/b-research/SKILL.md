@@ -8,6 +8,7 @@ description: >
   Unlike b-debug (fix broken) or b-plan (decide approach), b-research retrieves and synthesizes
   external knowledge.
 effort: high
+model: private/gemini-3.1-pro-high
 ---
 
 # b-research

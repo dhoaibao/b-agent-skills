@@ -7,6 +7,7 @@ description: >
   Unlike b-debug (fix broken) or b-research (lookup info), b-review validates what was built
   against what was intended.
 effort: medium
+model: private/claude-sonnet-4-6
 ---
 
 # b-review

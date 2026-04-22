@@ -7,6 +7,7 @@ description: >
   Unlike b-plan (decide approach) or b-research (lookup info), b-debug traces, confirms, and
   fixes broken code.
 effort: high
+model: private/claude-sonnet-4-6
 ---
 
 # b-debug
