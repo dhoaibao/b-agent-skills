@@ -12,9 +12,13 @@ Think before coding. Decompose tasks into ordered steps, evaluate competing appr
 surface risks, and produce an execution-ready plan file.
 
 **Core behavior**
+- Supports **quick mode** for scoped daily tasks: concise chat plan, approval, then same-session implementation may proceed.
+- Supports **full mode** for unclear, high-risk, multi-layer, or broad-impact tasks: write an execution-ready plan file before implementation.
+- Chooses quick vs full automatically from task complexity, announces the selected mode and why, and asks the user only when speed vs durable handoff is a genuine preference trade-off.
+- Escalates quick → full when discovery reveals broad references, unclear requirements, structural decisions, external API uncertainty, or deployment risk.
 - Uses `sequential-thinking` to decompose work and rank approaches.
-- For existing-code tasks, follows a strict symbol-first read-order: activate → discover → overview → references → narrow reads.
-- Uses `get_symbols_overview` before opening symbol bodies, then reads only the exact symbols needed.
+- For existing-code tasks, follows a strict supported-Serena read-order: onboarding check → symbol discovery → overview → references → narrow native reads only when needed.
+- Uses `get_symbols_overview` before opening source bodies, then reads only the exact sections needed.
 - Uses sequential-thinking for both approach selection and ordered execution steps, with action-oriented output.
 - Evaluates multiple approaches and documents the chosen one in `## Decision`.
 - Includes a feasibility gate for uncertain or large-scope tasks.
@@ -28,13 +32,15 @@ how should I approach refactoring the auth module?
 ```
 
 **Output**
-- Writes a plan file to `.claude/b-plans/[task-slug].md`.
-- Includes: `## Decision` (approach chosen + alternatives rejected), ordered checkbox steps,
+- Quick mode: returns a concise 2–5 step chat plan with a verification step.
+- Full mode: writes a plan file to `.claude/b-plans/[task-slug].md`.
+- Full-mode plans include: `## Decision` (approach chosen + alternatives rejected), ordered checkbox steps,
   dependencies, risks, unknowns, and optional `## Feasibility`.
-- Plan files are always in English.
+- Saved plan files are always in English.
 
 **Key rules**
-- Do not implement in the same session as planning.
+- Do not implement until the user approves the plan; after approval, implementation may proceed in the same session.
+- Full mode must write to `.claude/b-plans/`; quick mode may stay in chat unless the user asks for a saved plan.
 - The feasibility gate only confirms blockers and scope; it does not replace `/b-research` for deep unknowns.
 - All unresolved unknowns must be surfaced in the plan — never deferred silently.
 
@@ -75,10 +81,10 @@ tra cứu cách dùng thư viện Prisma
 Systematic, hypothesis-driven debugging with full-loop execution by default.
 
 **Core behavior**
-- Uses Serena to map execution path, references, suspicious symbols, and exact files.
-- Activates the current project before tracing the code path.
-- Follows a strict read-order: activate → find symbol → overview → references/patterns → narrow reads → symbolic fix. Never jumps to full-file reads without narrowing first.
-- Narrows with `get_symbols_overview` before opening full symbol source where possible.
+- Uses supported Serena tools to map execution path, references, suspicious symbols, and file structure.
+- Initializes Serena project knowledge with onboarding check before tracing when needed.
+- Follows a strict read-order: find symbol → overview → references → native exact-string search/read only when needed → symbolic fix. Never jumps to full-file reads without narrowing first.
+- Narrows with `get_symbols_overview` before opening source where possible.
 - Uses `sequential-thinking` to rank hypotheses.
 - Requires each hypothesis to include evidence for/against and the cheapest verification step.
 - Library error shortcut: web search for known issues before verifying hypotheses.
@@ -113,8 +119,8 @@ observability on new entry points.
 
 **Core behavior**
 - Reads git diff and builds requirements baseline from plan file, `$ARGUMENTS`, or user clarification.
-- Uses Serena to prioritize review depth by changed symbols, references, and affected files.
-- Activates the current project before reviewing changed symbols.
+- Uses supported Serena tools to prioritize review depth by changed symbols, references, and affected files.
+- Initializes Serena project knowledge with onboarding check before reviewing changed symbols when needed.
 - Follows a strict read-order: find symbol → find referencing symbols → overview → narrow reads. Never jumps straight from diff to full file reads.
 - Reviews changed files outline-first, then opens only high-risk symbols/source paths.
 - Uses `sequential-thinking` only when blocker/suggestion classification is genuinely ambiguous, not by default.
@@ -150,10 +156,21 @@ Logic findings → Requirements coverage table → Edge cases / test adequacy �
 ### Standard feature flow
 ```
 1. /b-plan [task]
-2. /b-research [library]     (if needed before implementing)
-3. [implement manually, step by step]
-4. /b-review [task]
-5. commit
+2. Approve the quick chat plan or full saved plan
+3. Implement from the approved plan/protocol, step by step
+4. Run the targeted checks from each step's "Done when"
+5. /b-review [task]
+6. commit
+```
+
+### Implementation protocol
+```
+1. Read the approved chat plan or .claude/b-plans/[task].md
+2. Follow confirmed decisions and planned touch points
+3. Execute steps in dependency order
+4. Verify each step with its "Done when" check or the narrowest relevant test/typecheck
+5. Stop and ask if a new product/behavior decision appears
+6. Run /b-review for non-trivial changes before committing
 ```
 
 ### Debug flow

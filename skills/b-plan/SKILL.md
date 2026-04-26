@@ -27,6 +27,13 @@ If `$ARGUMENTS` is provided, treat it as the task description — skip asking "w
 - Refactoring, architecture changes, or new feature integration.
 - User says: "plan", "thiết kế", "how should I approach X", "lên kế hoạch", "nên bắt đầu từ đâu".
 
+## Planning modes
+
+- **Quick mode** — for scoped daily tasks: clear end state, low risk, usually ≤2 files, no DB/schema migration, no public API contract change, no security-sensitive behavior. Produce a concise chat plan with 2–5 steps, ask for approval, then implementation may proceed in the same session.
+- **Full mode** — for unclear, high-risk, multi-layer, or >2-file work. Follow all steps below and write a plan file to `.claude/b-plans/` before implementation.
+- **Mode selection rule** — choose the mode yourself from task complexity; do not ask the user to choose by default. Announce the selected mode and why in one sentence. Ask the user only when both modes are genuinely valid and preference matters.
+- **Escalate quick → full** when code discovery reveals broad references, unclear requirements, a structural decision, external API uncertainty, or deployment risk.
+
 ## When NOT to use
 
 - Simple single-file edit or ≤2-step task → do it directly.
@@ -36,7 +43,7 @@ If `$ARGUMENTS` is provided, treat it as the task description — skip asking "w
 ## Tools required
 
 - `sequentialthinking` — from `sequential-thinking` MCP server (required for Steps 3–4: approach evaluation and decomposition).
-- `activate_project`, `check_onboarding_performed`, `onboarding`, `find_file`, `list_dir`, `find_symbol`, `get_symbols_overview`, `find_referencing_symbols`, `search_for_pattern`, `read_file`, `rename_symbol` — from `serena` MCP server *(required for modify-existing-code tasks; optional for pure greenfield)*.
+- `check_onboarding_performed`, `onboarding`, `find_symbol`, `get_symbols_overview`, `find_referencing_symbols`, `rename_symbol` — from `serena` MCP server *(required for supported symbol-aware modify-existing-code tasks; optional for pure greenfield)*.
 - `resolve-library-id`, `query-docs` — from `context7` MCP server *(optional, for inline library verification in Step 5 — simple lookups only)*.
 - `brave_web_search` — from `brave-search` MCP server *(optional, for tool/approach comparison in Step 5 — simple lookups only)*.
 - `firecrawl_scrape` — from `firecrawl` MCP server *(optional, for scraping Issue/ticket URL in Step 1)*.
@@ -54,6 +61,23 @@ Graceful degradation: ✅ Possible — core planning works without MCPs using in
 
 Confirm what is being built before scanning any code.
 
+**Choose planning mode first**:
+- Choose **quick mode** when the task is clearly scoped, low risk, usually ≤2 files, and has no DB/schema migration, public API contract change, security-sensitive behavior, or unclear external dependency.
+- Choose **full mode** for everything else.
+- Do not ask the user to choose quick vs full by default; make the call yourself from task complexity.
+- Announce the selected mode and why in one sentence before planning.
+- Ask the user only when both modes are genuinely valid and the trade-off is user preference (speed vs durable handoff).
+- If quick-mode discovery finds broad impact or unclear decisions, stop and escalate to full mode.
+
+**Quick mode flow**:
+- Restate scope in one sentence.
+- Produce a concise 2–5 step chat plan with a verification step.
+- Ask for approval.
+- After approval, implementation may proceed in the same session.
+- Do not ask for issue/ticket URL unless the user already mentioned one or the task references a ticket.
+
+**Full mode flow** continues below.
+
 **If the task is clearly scoped** (user already described the full feature, no ambiguity):
 - Restate the scope in one sentence and ask the user to confirm.
 - If confirmed, move directly to Issue URL and greenfield/existing check below.
@@ -70,7 +94,7 @@ Confirm what is being built before scanning any code.
 **Decision accumulation** *(running record throughout all steps)*: Each time a user answer, a codebase finding, or an approach choice settles a behavioral or design question, immediately record it as a numbered confirmed decision. These compile into `## Confirmed decisions` in the plan. Format each entry as a single, unambiguous, implementation-actionable statement — no hedging, no "consider", no "may". Example: `"Realtime update must update the existing VoiceCall matched by VendorCallKey; if soft-deleted, insert a new row instead."`
 
 **Feasibility check** *(run inline when scope is non-trivial — not a separate step)*:
-- Does the current architecture support this? Use Serena symbol/file discovery (`list_dir`, `find_file`, `find_symbol`, `find_referencing_symbols`) or Glob/Read if unavailable.
+- Does the current architecture support this? Use Serena symbol discovery and reference tracing (`find_symbol`, `get_symbols_overview`, `find_referencing_symbols`) where supported; use native file listing/search/Read for file discovery, exact strings, prose, or config.
 - Any blockers? (Missing infrastructure, incompatible dependencies, architectural gaps.)
 - Effort estimate: S (hours) / M (1–2 days) / L (3–5 days) / XL (1–2 weeks) / XXL (weeks+).
 - If blockers found: state clearly. If no workaround exists, do not proceed until resolved.
@@ -89,13 +113,13 @@ Confirm what is being built before scanning any code.
 
 ### Step 2 — Scan existing code *(existing-code tasks only)*
 
-Use Serena to understand what already exists before planning. Follow this exact order — do not skip to `read_file`:
+Use Serena for supported symbol-aware discovery before planning. Follow this exact order for code-symbol work:
 
-1. **Activate project** — call `activate_project`. If `check_onboarding_performed` returns false, call `onboarding` first.
-2. **Discover symbols** — call `find_symbol` on the main symbol or module name involved in the change. Use `search_for_pattern` for exact strings (config keys, error messages, repeated patterns).
-3. **Inspect structure** — call `get_symbols_overview` on each relevant file to see which symbols are worth reading.
-4. **Trace references** — call `find_referencing_symbols` on the key symbol(s) to confirm which callers and dependents are affected.
-5. **Read narrowly** — only if the above still leaves ambiguity: call `read_file` on the exact symbol body or file section on the proposed execution path.
+1. **Initialize project knowledge** — call `check_onboarding_performed`. If it returns false, call `onboarding` once.
+2. **Discover symbols** — call `find_symbol` on the main function, class, command, handler, or module symbol involved in the change.
+3. **Inspect structure** — call `get_symbols_overview` on each relevant source file to see which symbols are worth reading.
+4. **Trace references** — call `find_referencing_symbols` on key exported/shared symbols to confirm callers and dependents.
+5. **Read narrowly** — only if the above still leaves ambiguity: use native `Read` on the exact source section, prose, or config needed. Use native Bash search for exact strings because Serena pattern search is not exposed.
 
 **Goal**: reference real paths and symbols. A plan that references wrong file names or non-existent functions fails at execution. Never paste full file contents into the plan — only the names and line references that matter.
 
@@ -170,13 +194,15 @@ Flag anything unresolved before handing off the plan:
 
 ### Step 6 — Write plan
 
-Write to `.claude/b-plans/[task-slug].md` in the **current project root only**.
+**Quick mode**: keep the plan in chat unless the user asks for a saved plan. Present the concise step list and ask for approval. After approval, implementation may proceed in the same session.
+
+**Full mode**: write to `.claude/b-plans/[task-slug].md` in the **current project root only**.
 
 - `task-slug` = kebab-case, e.g. `add-retry-logic`, `refactor-auth-module`.
 - Create `.claude/b-plans/` if it doesn't exist.
 - Show the exact saved path after writing.
 
-Present a short summary (scope + step count) and ask for confirmation. Update and re-confirm if the user requests changes.
+Present a short summary (scope + step count) and ask for confirmation. Update and re-confirm if the user requests changes. After the user approves, implementation may proceed in the same session unless the user wants a separate handoff.
 
 ---
 
@@ -245,9 +271,10 @@ Always English, regardless of the user's query language.
 
 ## Rules
 
-- Always write to `.claude/b-plans/` — never leave the plan only in chat.
-- Always write plan files in English.
-- Do not implement in the same session as planning.
+- Full mode must write to `.claude/b-plans/` — never leave full-mode plans only in chat.
+- Quick mode may stay in chat unless the user asks for a saved plan.
+- Always write saved plan files in English.
+- Do not implement until the user approves the plan. After approval, implementation may proceed in the same session.
 - Steps must be ordered by dependency — wrong order causes cascading failures.
 - Keep steps atomic — one clear action per step.
 - Surface risks and assumptions proactively.

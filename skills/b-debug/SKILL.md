@@ -40,14 +40,13 @@ If `$ARGUMENTS` explicitly limits scope to investigation-only, honor that limit 
 ## Tools required
 
 From `serena` MCP server:
-- `activate_project` — activate the current project before tracing code.
 - `check_onboarding_performed` / `onboarding` — initialize project knowledge when needed.
 - `find_symbol` — locate the entry point or suspicious symbol.
-- `get_symbols_overview` — inspect file structure before opening bodies.
+- `get_symbols_overview` — inspect file structure before opening source.
 - `find_referencing_symbols` — trace callers/usages of a function or class.
-- `search_for_pattern` — search for exact error strings or suspicious patterns across the codebase.
-- `read_file` — inspect the exact file chunk when symbolic tools are insufficient.
-- `replace_symbol_body`, `replace_content`, `insert_before_symbol`, `insert_after_symbol`, `rename_symbol` — apply the minimal fix once root cause is confirmed.
+- `replace_symbol_body`, `insert_before_symbol`, `insert_after_symbol`, `rename_symbol`, `safe_delete_symbol` — apply symbol-level fixes once root cause is confirmed.
+
+Use native Bash search for exact error strings, config keys, and repeated patterns. Use native `Read` for narrow source chunks after Serena identifies relevant symbols/files.
 
 From `sequential-thinking` MCP server:
 - `sequentialthinking` — structured reasoning to form and rank hypotheses.
@@ -87,18 +86,16 @@ or "recent changes" is often the fastest path to root cause.
 
 ### Step 2 — Map the code structure
 
-> **Session optimization**: If Serena has already activated the current project in this session, reuse that project context — but confirm you are still in the correct workspace before tracing further.
-
 Use `serena` to trace the execution path in this order:
 
-0. **Serena preflight** — activate the current project. If onboarding has not been performed, call `onboarding` before tracing. Reuse existing project context if already activated in this session, but confirm the workspace is still correct.
+0. **Serena preflight** — call `check_onboarding_performed`; if onboarding has not been performed, call `onboarding` before tracing.
 1. `find_symbol` on the chosen entry point (route handler, CLI command, event listener) — locate the best starting symbol.
 2. `get_symbols_overview` on the relevant file — confirm which symbols are worth reading.
 3. `find_referencing_symbols` on the relevant function — trace callers/usages across files.
-4. `search_for_pattern` on the error string, config key, or suspicious behavior — expose parallel failure points faster than manual tracing.
-5. `read_file` on any function or file section that still looks suspicious — inspect the exact implementation.
+4. Use native Bash search on the error string, config key, or suspicious behavior — Serena pattern search is not exposed in this environment.
+5. Use native `Read` on any function or file section that still looks suspicious — inspect the exact implementation.
 
-**Read-order rule**: never jump to `read_file` before completing steps 1–4. Narrowing with symbols and references first typically eliminates 80% of what you'd get from a full-file read — and it's more accurate.
+**Read-order rule**: never jump to native `Read` before completing the supported Serena symbol and reference steps unless the target is prose/config or no relevant symbol exists. Narrowing with symbols and references first typically eliminates 80% of what you'd get from a full-file read — and it's more accurate.
 
 From this, identify:
 - All layers the request/data passes through (middleware, validators, handlers, services, DB)
@@ -136,7 +133,7 @@ Do **not** call `sequentialthinking` if the stack trace or code path already ide
 - If results point to an API misuse → call `resolve-library-id` + `query-docs` with the specific method/behavior in question. This is faster than /b-research for a single API question. Escalate to /b-research only if context7 has no index for the library.
 - Do this before verifying hypotheses — it may eliminate wrong hypotheses immediately and save significant time.
 
-**Error string search**: If the error message text is short and specific → call `search_for_pattern` with the exact error string to find all places in the codebase that produce or handle this error. This often reveals the true origin faster than tracing the call graph.
+**Error string search**: If the error message text is short and specific → use native Bash search with the exact error string to find all places in the codebase that produce or handle this error. This often reveals the true origin faster than tracing the call graph.
 
 ---
 
@@ -146,8 +143,8 @@ Test hypotheses starting from the most likely:
 
 - Add targeted logging at the suspected choke point (not scattered everywhere)
 - Check config/env values if hypothesis points there.
-- Use `get_symbols_overview` first when narrowing within a large file; then `read_file` to re-examine the exact suspicious function.
-- Use `find_referencing_symbols` or `search_for_pattern` when the bug pattern may exist in multiple places.
+- Use `get_symbols_overview` first when narrowing within a large file; then native `Read` to re-examine the exact suspicious function.
+- Use `find_referencing_symbols` for semantic references or native Bash search when the bug pattern may exist in multiple text locations.
 - If the hypothesis points to library API misuse: call `resolve-library-id` + `query-docs` directly to verify the correct method signature, parameter order, or behavior. Escalate to /b-research only if context7 has no index.
 - **Regression detection**: if the bug appeared after a recent change, compare the current symbol/file content against the recent git diff before changing code.
 
@@ -174,7 +171,7 @@ State clearly: *"Root cause: [X] because [Y]"* before writing any fix.
 Now that root cause is confirmed, the default behavior is to implement the minimal safe fix immediately — not to hand the fix back to the caller as a separate follow-up.
 
 - Write the minimal fix — don't refactor unrelated code in the same change.
-- Prefer Serena symbolic edits in this order: `replace_symbol_body` → `insert_before_symbol` / `insert_after_symbol` → `rename_symbol`; use `replace_content` only when symbolic edits cannot express the exact patch safely.
+- Prefer Serena symbolic edits in this order: `replace_symbol_body` → `insert_before_symbol` / `insert_after_symbol` → `rename_symbol` / `safe_delete_symbol`; use native `Edit` when the fix is a small line-level patch inside a larger symbol.
 - If the fix touches a non-obvious API or behavior, add a comment explaining why.
 - If the bug reveals a broader pattern (e.g. same silent-catch pattern exists in 3 other places), flag it to the user as a separate follow-up — don't fix everything at once.
 - After applying the fix, keep the change scoped to the confirmed symbol/file only.

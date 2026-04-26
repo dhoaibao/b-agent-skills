@@ -21,17 +21,19 @@ Four skills covering the full development cycle:
 
 | Skill | When to use |
 |---|---|
-| `/b-plan` | Think before coding — task decomposition, approach evaluation, plan file |
+| `/b-plan` | Think before coding — quick/full planning, task decomposition, approach evaluation, plan file when needed |
 | `/b-research` | All external knowledge — library docs, comparisons, multi-source research |
 | `/b-debug` | Full-loop debugging — trace, confirm root cause, fix, verify |
 | `/b-review` | Pre-PR review — logic, requirements, edge cases, test adequacy |
 
 **Typical flow:**
 ```
-/b-plan [task] → [implement manually] → /b-review → commit
+/b-plan [task] → approve plan → implement from plan/protocol → run targeted checks → /b-review → commit
 /b-research [question]  (any time you need docs or comparisons)
 /b-debug [symptom]      (any time something breaks)
 ```
+
+`/b-plan` supports **quick mode** for scoped daily tasks and **full mode** for unclear, high-risk, or multi-layer work. After the user approves a plan, implementation may continue in the same session.
 
 See [REFERENCE.md](REFERENCE.md) for full details — triggers, output format, rules, and skill distinctions.
 
@@ -41,7 +43,7 @@ See [REFERENCE.md](REFERENCE.md) for full details — triggers, output format, r
 
 | MCP | Role |
 |---|---|
-| `serena` | Symbol-first code retrieval, cross-file references, symbolic editing — the primary analysis layer for all skills |
+| `serena` | Symbol discovery, structure overview, reference tracing, symbol-level edits, and Serena memory — the primary semantic code layer where supported |
 | `context7` | Live, version-accurate library docs |
 | `brave-search` | Real web search |
 | `firecrawl` | Full page scraping, structured data extraction |

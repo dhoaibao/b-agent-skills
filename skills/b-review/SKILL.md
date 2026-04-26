@@ -38,7 +38,7 @@ If `$ARGUMENTS` is provided, parse flags first, then treat the remainder as a po
 
 - `Bash` — to read git diff and changed file list.
 - `sequentialthinking` — from `sequential-thinking` MCP server — structured review reasoning.
-- `activate_project`, `check_onboarding_performed`, `onboarding`, `find_symbol`, `get_symbols_overview`, `find_referencing_symbols`, `search_for_pattern`, `read_file` — from `serena` MCP server *(preferred for symbol-aware review; use fallback only if Serena is unavailable)*
+- `check_onboarding_performed`, `onboarding`, `find_symbol`, `get_symbols_overview`, `find_referencing_symbols` — from `serena` MCP server *(preferred for symbol-aware review; use native Read/Bash search for unsupported file and exact-string operations)*
 - `firecrawl_scrape` — from `firecrawl` MCP server *(optional, for fetching issue/ticket URL content when an `**Issue**:` URL is present in the plan file)*
 - `resolve-library-id` + `query-docs` — from `context7` MCP server *(optional, for verifying library API calls in changed code — catches wrong method signatures, deprecated APIs, misused parameters)*
 - `brave_web_search` — from `brave-search` MCP server *(optional, for CVE/known-vulnerability lookup when a risky security pattern is found in changed code)*
@@ -105,19 +105,19 @@ The review is only as good as the requirements baseline. Do not review without i
 
 ### Step 3 — Logic correctness review
 
-Activate the current project first. If onboarding has not been performed, run onboarding. Then follow this exact read-order — never jump straight from `git diff` to full-file reads:
+Initialize Serena project knowledge first: call `check_onboarding_performed`; if onboarding has not been performed, run `onboarding`. Then follow this exact read-order — never jump straight from `git diff` to full-file reads for code-symbol changes:
 
 1. `find_symbol` on changed names — map them to real symbols in the codebase.
 2. `find_referencing_symbols` on top changed symbols — understand downstream impact.
 3. `get_symbols_overview` on changed files before opening source — inspect structure first.
-4. `read_file` only for the highest-risk symbol bodies or file sections — narrow reads, not full files.
-5. `search_for_pattern` when the diff changes a shared helper, exported boundary, or repeated pattern.
+4. Native `Read` only for the highest-risk symbol bodies or file sections — narrow reads, not full files.
+5. Native Bash search when the diff changes a shared helper, exported boundary, exact string, config key, or repeated pattern.
 
 If Serena is unavailable: use `Read` tool to inspect changed files directly. Always note: "⚠️ Serena unavailable — symbol-aware impact analysis unavailable."
 
 **Impact-first review rule**: prioritize review depth on (a) symbols with the broadest references, (b) symbols at service boundaries, and (c) symbols implementing explicit requirements from Step 2. Raw line-count alone should not determine review depth.
 
-Read the changed code (prefer `get_symbols_overview` → targeted `read_file`; use Read only as fallback) and check:
+Read the changed code (prefer `get_symbols_overview` → targeted native `Read`; use full-file Read only as fallback) and check:
 
 **Control flow**
 - Are all branches of conditionals handled? (if/else, switch cases, error paths)

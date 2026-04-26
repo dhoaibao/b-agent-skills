@@ -15,10 +15,18 @@ Four skills covering the full development cycle:
 
 **Typical flow:**
 ```
-/b-plan → [implement manually] → /b-review → commit
+/b-plan → approve plan → implement from plan/protocol → run targeted checks → /b-review → commit
 /b-research (any time you need docs or comparisons)
 /b-debug (any time something breaks)
 ```
+
+**Implementation protocol** *(after a plan is approved)*:
+1. Read the approved chat plan or `.claude/b-plans/[task].md` before editing.
+2. Follow confirmed decisions and planned touch points; do not reopen settled decisions unless blocked.
+3. Execute steps in dependency order and keep changes surgical.
+4. Verify each step using its `Done when` check or the narrowest relevant test/typecheck.
+5. Stop and ask if implementation reveals a new product/behavior decision.
+6. After implementation, run `/b-review` for non-trivial changes before committing.
 
 ## Invoking skills
 
@@ -42,80 +50,65 @@ Type `/` followed by the skill name in Claude Code:
 
 ### Code intelligence — Serena MCP (REQUIRED when available)
 
-When Serena is connected: **never** use Glob, Grep, or Read as your first move to understand a codebase.
+When Serena is connected: use it for the operations it actually supports in this environment: symbol discovery, file structure overview, reference tracing, whole-symbol edits, safe symbol deletion, renames, and Serena memories. Do not document or call Serena tools that are not exposed in the current toolset.
 
-**Working style rule**: use Serena to activate the project, narrow by symbol/file, then read narrowly.
-- Start with `activate_project` for the current workspace.
-- If onboarding has not been performed, run `check_onboarding_performed` and `onboarding` once.
-- Prefer `find_symbol` before `get_symbols_overview`.
-- Prefer `get_symbols_overview` before `read_file`.
-- Use `find_referencing_symbols` before broad manual searches when following impact across files.
-- Use `search_for_pattern` for exact strings, error text, or repeated implementation patterns.
-- For edits, prefer symbol-aware tools first: `replace_symbol_body`, `insert_before_symbol`, `insert_after_symbol`, `rename_symbol`, then `replace_content` only when symbolic edits are insufficient.
-
-**Serena tool categories** (context `claude-code` enables all standard tools):
+**Supported Serena toolset in this suite:**
 
 | Category | Tools |
 |---|---|
-| **symbol_tools** | `find_symbol`, `find_referencing_symbols`, `get_symbols_overview`, `replace_symbol_body`, `insert_before_symbol`, `insert_after_symbol`, `rename_symbol`, `safe_delete_symbol` |
-| **file_tools** | `find_file`, `list_dir`, `read_file`, `create_text_file`, `replace_content`, `search_for_pattern` |
-| **config_tools** | `activate_project`, `get_current_config` |
-| **workflow_tools** | `initial_instructions`, `check_onboarding_performed`, `onboarding` |
-| **memory_tools** | `list_memories`, `read_memory`, `write_memory`, `edit_memory`, `delete_memory`, `rename_memory` |
+| **workflow** | `initial_instructions`, `check_onboarding_performed`, `onboarding` |
+| **symbol read** | `find_symbol`, `get_symbols_overview`, `find_referencing_symbols` |
+| **symbol edit** | `replace_symbol_body`, `insert_before_symbol`, `insert_after_symbol`, `rename_symbol`, `safe_delete_symbol` |
+| **memory** | `list_memories`, `read_memory`, `write_memory`, `edit_memory`, `delete_memory`, `rename_memory` |
 
-Optional tools (disabled by default, may be available): `restart_language_server`, `delete_lines`, `insert_at_line`, `replace_lines`, `open_dashboard`, `remove_project`.
+**Unsupported Serena capabilities in this environment**: file listing/discovery, file reads, exact-string search, config inspection, generic file creation, and arbitrary text replacement are not exposed through Serena. Use native `Read`, `Edit`, `Write`, or Bash search for those gaps.
 
-**Mandatory substitution table — no exceptions when Serena is available:**
+**Working style rule**: use Serena first when the task is about code symbols or cross-file impact.
+- Start with `check_onboarding_performed`; if onboarding is missing, call `onboarding` before deeper exploration.
+- Use `find_symbol` to locate known functions, classes, commands, handlers, or methods.
+- Use `get_symbols_overview` to inspect a relevant file's top-level structure before reading full source.
+- Use `find_referencing_symbols` before broad manual searches when following callers, dependents, or impact.
+- Use native `Read` only after Serena identifies the relevant file/symbol or when the file is prose/config/non-code.
+- Use native Bash search for exact strings, error text, config keys, or repeated patterns because Serena pattern search is not exposed.
+- For edits, prefer supported symbol-aware tools first: `replace_symbol_body`, `insert_before_symbol`, `insert_after_symbol`, `rename_symbol`, `safe_delete_symbol`. Use native `Edit` for line-level patches inside a larger symbol or prose/config changes.
 
-| Native tool / action | ✅ MUST use instead (Serena) |
-|---|---|
-| `Glob("**/*.ts")` to find files | `find_file` / `list_dir` |
-| `Read("src/foo.ts")` to read a file | `get_symbols_overview` → `read_file` |
-| `Grep("functionName")` to find a symbol | `find_symbol` |
-| `Grep("import.*foo")` to trace usages | `find_referencing_symbols` |
-| `Grep("foo(")` to find call sites | `find_referencing_symbols` / `search_for_pattern` |
-| Reading file structure by hand | `get_symbols_overview` |
-| Checking if a symbol is used | `find_referencing_symbols` |
-| Searching for error strings/config keys | `search_for_pattern` |
-| Manual symbol-body edits | `replace_symbol_body` |
-| Manual rename across files | `rename_symbol` |
-| Creating new files | `create_text_file` |
-| Listing directory contents | `list_dir` |
+**Direct native-tool exceptions** *(because Serena lacks file/search tools here)*: native `Read`, `Edit`, `Write`, and Bash search are acceptable after sensitivity checks when:
+- The task needs file listing, file discovery, exact string search, or config/prose inspection.
+- The user explicitly names a small file to inspect.
+- The file is non-code prose (`*.md`, `*.txt`) where symbol tools add no value.
+- The file is a small manifest/config needed for orientation (`package.json`, `pyproject.toml`, `Cargo.toml`, `Makefile`, non-secret YAML/TOML/JSON).
+- Serena has identified the relevant file/symbol and a narrow source read is still needed.
 
-**Serena preflight** — run at the start of any skill that needs to understand existing code:
+These exceptions do not apply to sensitive files (`.env*`, credentials, secrets, tokens) or broad source-code exploration when supported Serena symbol tools can answer the question.
 
-1. `activate_project` for the current workspace path.
-2. `check_onboarding_performed` — if onboarding is missing, run `onboarding` before deeper exploration.
-3. `get_current_config` when tool availability or context looks wrong.
-4. Start discovery with `find_symbol`, `find_file`, or `list_dir` based on the task.
+**Mandatory substitution table — use Serena when the operation is supported:**
+
+| Task | ✅ Use Serena | Use native tools when |
+|---|---|---|
+| Locate a known symbol | `find_symbol` | The target is not a code symbol or the language server cannot resolve it |
+| Inspect file structure | `get_symbols_overview` | The file is prose/config or unsupported by Serena |
+| Trace usages/callers | `find_referencing_symbols` | You need raw text matches instead of semantic references |
+| Replace an entire function/class/method | `replace_symbol_body` | You only need a few line-level edits inside a larger symbol |
+| Insert code before/after a known symbol | `insert_before_symbol` / `insert_after_symbol` | The insertion point is not symbol-relative |
+| Rename a symbol across references | `rename_symbol` | The rename is textual/prose-only |
+| Delete a symbol safely | `safe_delete_symbol` | The deletion is not a code symbol |
+| Store/read durable Serena context | memory tools | The information is ephemeral task state |
 
 **Best-practice Serena workflow**:
-1. `activate_project`
-2. `check_onboarding_performed` → `onboarding` if needed
-3. `find_symbol` / `find_file` / `search_for_pattern`
-4. `get_symbols_overview`
-5. `find_referencing_symbols`
-6. `read_file` only for the exact symbol/file section still needed
-7. Edit with `replace_symbol_body` / `insert_before_symbol` / `insert_after_symbol` / `rename_symbol`
-8. Use `replace_content` only when Serena's symbolic tools cannot express the exact change safely
-
-**Serena memory system** — Serena has a built-in file-based memory system. Prefer it over external memory when appropriate:
-- `list_memories` → check what memories exist
-- `read_memory` → read a specific memory
-- `write_memory` → save project/user/feedback context
-- `edit_memory`, `rename_memory`, `delete_memory` → maintain memories
+1. `check_onboarding_performed` → `onboarding` if needed.
+2. `find_symbol` for the likely entry point or changed symbol.
+3. `get_symbols_overview` on relevant files to understand structure.
+4. `find_referencing_symbols` on exported/public/shared symbols to map impact.
+5. Use native `Read` narrowly only for source bodies/prose/config still needed after symbol discovery.
+6. Edit with supported symbol tools for whole-symbol changes; use native `Edit` for smaller line patches.
+7. Use Serena memory tools only for durable project/user/feedback/reference context, not temporary task notes.
 
 **Token-efficiency rule**:
-- Do not open full files by default.
-- Use symbol overview first, then only the exact symbol/file section you need.
-- Use `search_for_pattern` for strings/config/errors; use `find_symbol` for code entities.
+- Do not open full source files by default.
+- Use symbol search/overview/references first, then only the exact source or prose section still needed.
+- Use native string search for exact error messages, config keys, and repeated text patterns.
 
-**Session reuse**: if Serena already activated the current project in this session, reuse that context only after confirming you are still in the same workspace.
-
-**Fallback** *(only when Serena is unavailable or the project cannot be activated cleanly)*: use `Glob` + `Grep` + `Read`. Always note one of:
-- "⚠️ Serena unavailable — analysis based on Glob/Grep/Read; cross-file tracking incomplete."
-- "⚠️ Serena project activation failed — falling back to filesystem-native checks."
-- "⚠️ workspace is empty — no code structure available for Serena analysis."
+**Fallback** *(only when Serena is unavailable or cannot analyze the language/file)*: use native Bash search + `Read`. Note: "⚠️ Serena unavailable or unsupported for this file — analysis used native file/search tools; semantic cross-file tracking may be incomplete."
 
 ---
 
@@ -133,7 +126,12 @@ When brave-search or firecrawl is connected: **never** use `WebFetch` directly.
 | Repeated `WebFetch` for multi-page coverage | `firecrawl_crawl(url, limit=N)` |
 | News / current events lookup | `brave_news_search(query, freshness=...)` |
 
-**Search-first rule**: always call `brave_web_search` first, then `firecrawl_scrape` on the top 1–3 results.
+**Search-first rule**: call `brave_web_search` first, then `firecrawl_scrape` on the top 1–3 results, unless a direct-scrape exception applies.
+
+**Direct-scrape exceptions**: call `firecrawl_scrape` directly when:
+- The user provides a URL to inspect.
+- A skill explicitly requires direct scrape of a known official/source URL (for example, official changelog or release notes).
+- The correct URL was already discovered via `firecrawl_map`, prior search results, or repo documentation in the same task.
 
 **Fallback chain** *(only when MCPs are unavailable)*:
 - brave-search unavailable → use `firecrawl_search` (combined search+scrape).
@@ -189,12 +187,12 @@ MCP toolset  >  specialized native tool  >  general native tool  >  Bash command
 
 | Task | 1st choice (MUST) | 2nd choice | Last resort |
 |---|---|---|---|
-| Read a source file | `serena:get_symbols_overview` / `read_file` | `Read` tool | `cat` via Bash |
-| Find a function | `serena:find_symbol` | `Grep` tool | `grep` via Bash |
-| Edit existing symbol | `serena:replace_symbol_body` / `insert_before_symbol` / `insert_after_symbol` / `rename_symbol` | `apply_patch` | line-edit via shell |
-| Create a new file | `serena:create_text_file` | `Write` tool | `>` via Bash |
-| List directory | `serena:list_dir` | `Bash ls` | — |
-| Find files by pattern | `serena:find_file` | `Glob` | `find` via Bash |
+| Inspect code structure | `serena:get_symbols_overview` | `Read` tool | `cat` via Bash |
+| Find a function/class/method | `serena:find_symbol` | native search | `grep` via Bash |
+| Trace symbol references | `serena:find_referencing_symbols` | native search | `grep` via Bash |
+| Edit existing whole symbol | `serena:replace_symbol_body` / `insert_before_symbol` / `insert_after_symbol` / `rename_symbol` | `Edit` tool | line-edit via shell |
+| Delete a symbol safely | `serena:safe_delete_symbol` | manual reference check + `Edit` | line-edit via shell |
+| Create/read/list/search files | native `Write` / `Read` / Bash search | — | shell fallback |
 | Search the web | `brave_web_search` | `firecrawl_search` | `WebFetch` |
 | Scrape a URL | `firecrawl_scrape` | `WebFetch` | — |
 | Library API lookup | `context7:query-docs` | `firecrawl_scrape(docs URL)` | training knowledge (❌ avoid) |
@@ -247,7 +245,7 @@ Add the following hooks to `~/.claude/settings.json`:
 ```
 
 What the hooks do:
-- **`remind`** — nudges the agent to use Serena's symbolic tools when it makes too many consecutive `grep`/`read_file` calls without using any Serena tool.
+- **`remind`** — nudges the agent to use Serena's symbolic tools when it makes too many consecutive `grep`/native reads calls without using any Serena tool.
 - **`auto-approve`** — auto-approves Serena tool calls in `acceptEdits` mode so blanket edit approvals cover symbol-level edits.
 - **`cleanup`** — cleans up hook session data when the session ends.
 
