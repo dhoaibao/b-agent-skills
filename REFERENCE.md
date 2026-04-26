@@ -48,7 +48,7 @@ All external knowledge in one skill: library docs lookups and deep multi-source 
 - Classifies query into VERSION / COMPARE / NEWS / HOWTO/API.
 - For HOWTO/API queries: detects project version from manifests/lockfiles → Context7 first → web search for community context.
 - For simple library lookups where Context7 answers the question: stops and presents Library Lookup format directly.
-- For broad queries: Brave Search → Firecrawl scrape → quality gate → synthesis report.
+- For broad queries: Brave Search → Firecrawl scrape → structured data extraction (when query asks about specific fields) → quality gate → synthesis report.
 - Uses `sequential-thinking` only when conflicting sources materially change the recommendation.
 - Prefers 3 high-quality sources over 5 mixed-quality ones.
 

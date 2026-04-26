@@ -46,6 +46,7 @@ If `$ARGUMENTS` is provided, treat it as the research question — proceed direc
 - `firecrawl_scrape` — from `firecrawl` MCP server (required, scrape individual pages)
 - `firecrawl_search` — from `firecrawl` MCP server *(optional, single-call search+scrape fallback when `brave_web_search` returns <3 results)*
 - `firecrawl_map` — from `firecrawl` MCP server *(optional, discover correct URLs when `firecrawl_scrape` returns empty content)*
+- `firecrawl_extract` — from `firecrawl` MCP server *(optional, for structured data extraction — HOWTO/API type when user asks about specific fields, prices, parameters, or specs; more efficient than scrape + manual parsing)*
 - `firecrawl_crawl` + `firecrawl_check_crawl_status` — from `firecrawl` MCP server *(optional, async deep multi-page crawl for documentation sites)*
 - `resolve-library-id` + `query-docs` — from `context7` MCP server *(optional, for library/framework API topics)*
 - `sequentialthinking` — from `sequential-thinking` MCP server *(optional, for structured conflict resolution)*
@@ -159,6 +160,7 @@ Apply the strategy for the query type identified in Step 1:
 
 - Call `firecrawl_scrape` on all selected URLs **in parallel** (single message, multiple tool calls)
 - Use `formats: ["markdown"]`, `onlyMainContent: true` to get clean content without boilerplate.
+- **Structured data queries** — if the user asks about specific fields (prices, API parameters, field names, feature lists), prefer `firecrawl_extract` with a JSON schema instead of scrape + manual parsing. Call `firecrawl_extract` in parallel on the same URLs as a replacement or complement to `firecrawl_scrape`.
 - **Fallback for JS-heavy pages** (SPAs, Mintlify/GitBook docs, React-rendered pages): if content is empty or <200 words after one retry with `waitFor: 5000` → skip and note in report as "could not scrape — JS-rendered or access denied".
 - If a page returns rate-limit or 403 → skip it and note in report.
 - Default max: **3 URLs** scraped per session (quality > quantity). Exception: **5 URLs** for COMPARE queries (ensure balanced coverage of both options — 2–3 per side).

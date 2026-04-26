@@ -44,7 +44,7 @@ See [REFERENCE.md](REFERENCE.md) for full details — triggers, output format, r
 | `serena` | Symbol-first code retrieval, cross-file references, symbolic editing — the primary analysis layer for all skills |
 | `context7` | Live, version-accurate library docs |
 | `brave-search` | Real web search |
-| `firecrawl` | Full page scraping |
+| `firecrawl` | Full page scraping, structured data extraction |
 | `sequential-thinking` | Structured reasoning for multi-hypothesis decisions |
 
 Verify all 5 are connected in Claude Code (`/mcp`).
