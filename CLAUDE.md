@@ -8,7 +8,8 @@ Guidelines for creating, editing, and maintaining Claude Code skills in this rep
 - `skills/b-research/SKILL.md` — Library docs and multi-source research
 - `skills/b-debug/SKILL.md` — Hypothesis-driven debugging
 - `skills/b-review/SKILL.md` — Pre-PR code review
-- `skills/global/CLAUDE.md` — Global rules (installed to `~/.claude/CLAUDE.md`)
+- `skills/global/CLAUDE.md` — Behavioral rules (installed to `~/.claude/CLAUDE.md`)
+- `skills/global/REFERENCE.md` — Operational reference (MCP details, setup, session mgmt)
 
 ---
 
@@ -142,12 +143,13 @@ All skills live in `skills/<name>/SKILL.md`. When changing skill files:
 | **Update** skill | Edit `skills/<name>/SKILL.md` directly |
 | **Delete** skill | Delete `skills/<name>/SKILL.md` (and the directory if empty) |
 
-**`skills/global/CLAUDE.md` sync** — update `skills/global/CLAUDE.md` (global rules) in the same commit when any of these change:
+**`skills/global/` sync** — update both `skills/global/CLAUDE.md` and `skills/global/REFERENCE.md` in the same commit when any of these change:
 
-| Change | Section to update |
-|---|---|
-| Skill added or removed | Skill table in `skills/global/CLAUDE.md` |
-| Git safety rules change | `## Git safety` in `skills/global/CLAUDE.md` |
+| Change | File to update | Section to update |
+|---|---|---|
+| Skill added or removed | `REFERENCE.md` | Skill table |
+| Git safety rules change | `CLAUDE.md` or `REFERENCE.md` | `## Git safety` |
+| MCP tool details change | `REFERENCE.md` | `## MCP Tool Details` |
 
 ---
 
