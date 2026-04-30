@@ -38,7 +38,8 @@ If `$ARGUMENTS` is provided, treat it as the task description — skip asking "w
 
 - Simple single-file edit or ≤2-step task → do it directly.
 - Something is broken → use **b-debug**.
-- Quick fact or library lookup → use **b-research**.
+- Quick fact or library lookup → use **b-lookup**.
+- Mechanical refactoring → use **b-refactor**.
 
 ## Tools required
 
@@ -206,7 +207,7 @@ Present a short summary (scope + step count) and ask for confirmation. Update an
 
 ---
 
-## Plan file format
+## Output format
 
 Always English, regardless of the user's query language.
 

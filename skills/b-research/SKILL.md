@@ -3,7 +3,7 @@ name: b-research
 description: >
   Research, library docs lookup, and multi-source synthesis. ALWAYS invoke when the user says
   "research", "tìm hiểu", "deep dive", "so sánh", "tổng hợp", "how to use X", "cách dùng",
-  "tra cứu", "does X support Y", or needs library API docs, comparisons, or reports.
+  or needs library API docs, comparisons, or reports.
   Covers both quick library lookups (Context7-first) and full multi-source research.
   Unlike b-debug (fix broken) or b-plan (decide approach), b-research retrieves and synthesizes
   external knowledge.
@@ -35,7 +35,7 @@ If `$ARGUMENTS` is provided, treat it as the research question — proceed direc
 
 ## When NOT to use
 
-- Quick one-fact lookup (latest version, price, single answer) → call `brave_web_search` or `brave_news_search` directly
+- Quick one-fact lookup (latest version, price, single answer) → use **b-lookup**
 - Daily news digest → call `brave_news_search` directly and format a digest
 - Debugging a broken library call → use **b-debug**
 

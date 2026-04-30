@@ -32,6 +32,7 @@ If `$ARGUMENTS` is provided, parse flags first, then treat the remainder as a po
 ## When NOT to use
 
 - Something is broken → use **b-debug**
+- Write or fix tests → use **b-test**
 - Need library API details before writing code → use **b-research**
 
 ## Tools required

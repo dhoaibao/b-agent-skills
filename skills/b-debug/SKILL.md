@@ -35,6 +35,7 @@ If `$ARGUMENTS` explicitly limits scope to investigation-only, honor that limit 
 ## When NOT to use
 
 - Building a new feature or multi-file change → use **b-plan**
+- Test-specific failure (assertion, mock, setup, async timing) → use **b-test**
 - Need library API details before writing code → use **b-research**
 
 ## Tools required

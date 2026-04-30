@@ -262,6 +262,35 @@ If hooks cause issues (e.g. repeated reminders), remove the specific hook causin
 
 ---
 
+## Session management
+
+### Compaction
+
+After ~20 tool calls or when Claude Code responses feel degraded (slower, less precise,
+repetitive), call `/compact` to free context window.
+
+**After compaction, re-initialize**:
+1. Re-read the active plan file (if any) from `.claude/b-plans/`
+2. Call `check_onboarding_performed` — if false, call `onboarding` to re-index the project
+3. Re-read any relevant skill instructions if the current task depends on them
+
+### State handoff between sessions
+
+When ending a session with work in progress:
+1. Run `git status` to see what's changed
+2. If there are uncommitted changes: `git diff` → summarize in a brief note to the user
+3. If a plan file exists: remind the user of the next step from the plan
+4. If Serena memories were written: they persist across sessions automatically
+
+### Avoiding context window exhaustion
+
+- Do not paste full file contents into chat unless necessary
+- Use Serena's symbol tools instead of reading entire files
+- For large diffs: focus on changed symbols only, not full files
+- If a task requires >15 tool calls: consider splitting into smaller sub-tasks or using `/compact`
+
+---
+
 ## Git safety
 
 Never run these commands autonomously:
