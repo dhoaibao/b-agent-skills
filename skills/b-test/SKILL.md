@@ -35,7 +35,7 @@ is empty.
 - Runtime bug in production code → use **b-debug**
 - Need a plan for a feature → use **b-plan**
 - Review code before PR → use **b-review**
-- Quick library API lookup → use **b-lookup**
+- Quick library API lookup → use **b-research**
 
 ## Tools required
 
@@ -139,7 +139,7 @@ Write tests that cover:
 - Regression prevention (would catch a revert of the current change)
 
 Use `insert_before_symbol` or `insert_after_symbol` to add tests within existing describe
-blocks. Use `create_text_file` for a new test file.
+blocks. Use the repo's supported file-writing tools to create a new test file when no suitable file exists.
 
 **Framework-specific conventions**:
 - Jest/Vitest: `describe/it`, `beforeEach`, `mock()`

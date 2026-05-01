@@ -32,7 +32,7 @@ If `$ARGUMENTS` is provided, treat it as the refactoring instruction. Proceed di
 - New feature or unclear scope → use **b-plan**
 - Runtime bug or test failure → use **b-debug**
 - Review after implementation → use **b-review**
-- Quick library API lookup → use **b-lookup**
+- Quick library API lookup → use **b-research**
 - Open-ended research → use **b-research**
 
 ## Tools required
@@ -76,20 +76,18 @@ Graceful degradation: ⚠️ Partial — mechanical refactoring still possible w
 
 ### Step 2 — Plan transformation
 
-Map the mechanical steps for the requested transformation:
+Choose the mechanical transformation pattern that matches the request:
 
-| Transformation | Typical steps |
-|---|---|
-| **Rename** | 1. `rename_symbol` on the target. 2. Run tests. 3. Verify. |
-| **Extract method** | 1. `replace_symbol_body` on the caller to call the new function. 2. `insert_before_symbol` to add the new function. 3. Run tests. |
-| **Inline variable** | 1. `replace_symbol_body` on the using function to substitute the expression. 2. `safe_delete_symbol` on the variable. 3. Run tests. |
-| **Move to new file** | 1. `replace_symbol_body` or `insert_after_symbol` to declare in the new file. 2. Update imports. 3. `safe_delete_symbol` from the old file. 4. Run tests. |
-| **Delete dead code** | 1. `find_referencing_symbols` to confirm zero usages. 2. `safe_delete_symbol`. 3. Run tests. |
-| **Split large function** | 1. `insert_before_symbol` to add helper functions. 2. `replace_symbol_body` to call helpers. 3. Run tests. |
+- **Rename** → use `rename_symbol`, then run verification.
+- **Extract method** → add the new helper with `insert_before_symbol`, then update the caller with `replace_symbol_body`.
+- **Inline variable** → substitute the expression with `replace_symbol_body`, then remove the symbol with `safe_delete_symbol`.
+- **Move to new file** → insert or replace the declaration in the destination, update imports, then delete from the old location.
+- **Delete dead code** → confirm zero usages, then use `safe_delete_symbol`.
+- **Split large function** → insert helpers first, then update the original function to call them.
 
 If the refactor affects >3 files or crosses package boundaries:
-- Use `sequentialthinking` to evaluate the rollback risk and plan the safest order.
-- Consider splitting into phases (Step 1: rename; Step 2: move; Step 3: extract).
+- Use `sequentialthinking` to evaluate rollback risk and choose the safest order.
+- Consider splitting into phases such as rename → move → extract.
 
 ---
 
@@ -186,6 +184,8 @@ After every mechanical step, run the relevant tests:
   is the most common source of refactoring bugs.
 - Prefer `rename_symbol` over manual `Edit` for renames — it updates all references atomically.
 - Prefer `safe_delete_symbol` over manual deletion — it prevents accidental removal of still-used code.
+- Apply edits from the inside out — inner helpers first, then outer callers.
+- If code moves across files, update imports after the symbol-level changes are done.
 - Do not refactor and add new features in the same session — split into two tasks.
 - If the refactor affects >5 files: use `sequentialthinking` to evaluate rollback strategy.
 - Run compilation check after every mechanical step — do not wait until the end.

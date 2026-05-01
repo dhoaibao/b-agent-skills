@@ -16,7 +16,8 @@ surface risks, and produce an execution-ready plan file.
 - Supports **full mode** for unclear, high-risk, multi-layer, or broad-impact tasks: write an execution-ready plan file before implementation.
 - Chooses quick vs full automatically from task complexity, announces the selected mode and why, and asks the user only when speed vs durable handoff is a genuine preference trade-off.
 - Escalates quick → full when discovery reveals broad references, unclear requirements, structural decisions, external API uncertainty, or deployment risk.
-- Uses `sequential-thinking` to decompose work and rank approaches.
+- Uses `sequential-thinking` to decompose work and rank approaches when available; otherwise reasons inline with the same structure.
+- If Serena is unavailable, falls back to Bash/Read for narrow code inspection with reduced cross-file confidence.
 - For existing-code tasks, follows a strict supported-Serena read-order: onboarding check → symbol discovery → overview → references → narrow native reads only when needed.
 - Uses `get_symbols_overview` before opening source bodies, then reads only the exact sections needed.
 - Uses sequential-thinking for both approach selection and ordered execution steps, with action-oriented output.
@@ -36,6 +37,7 @@ how should I approach refactoring the auth module?
 - Full mode: writes a plan file to `.claude/b-plans/[task-slug].md`.
 - Full-mode plans include: `## Decision` (approach chosen + alternatives rejected), ordered checkbox steps,
   dependencies, risks, unknowns, and optional `## Feasibility`.
+- Final plans must be self-contained enough that a fresh agent can execute them without clarifying questions.
 - Saved plan files are always in English.
 
 **Key rules**
@@ -54,6 +56,7 @@ All external knowledge in one skill: auto-detects quick lookup vs full multi-sou
 - Starts with mode detection: quick lookup for single-fact questions, full mode for comparisons, cited reports, recency, or page-reading.
 - For library/framework API questions: Context7 first.
 - In quick mode: answers in 1–3 sentences with a minimal example, capped at 2 tool calls, and never scrapes.
+- Starts with quick mode when plausible, then escalates automatically to full mode if the answer needs more than 2 tool calls, more than 1 source, or any page scraping.
 - If quick mode is insufficient, escalates automatically to full mode instead of asking the user to switch skills.
 - In full mode: classifies query into VERSION / COMPARE / NEWS / HOWTO/API → Brave Search → Firecrawl scrape/extract → quality gate → synthesis report.
 - Uses `sequential-thinking` only when conflicting sources materially change the recommendation.
@@ -85,6 +88,7 @@ Systematic, hypothesis-driven debugging with full-loop execution by default.
 
 **Core behavior**
 - Uses supported Serena tools to map execution path, references, suspicious symbols, and file structure.
+- If Serena is unavailable, falls back to Bash/Read with reduced cross-file confidence.
 - Initializes Serena project knowledge with onboarding check before tracing when needed.
 - Follows a strict read-order: find symbol → overview → references → native exact-string search/read only when needed → symbolic fix. Never jumps to full-file reads without narrowing first.
 - Narrows with `get_symbols_overview` before opening source where possible.
@@ -161,7 +165,7 @@ Test-driven development, test debugging, and test coverage evaluation.
 **Core behavior**
 - Discovers test files and framework via Bash, then inspects structure with Serena symbol tools.
 - For failing tests: reads test + source, identifies assertion/mock/setup/async issue.
-- For new tests: maps source symbols, lists branches and edge cases, generates tests.
+- For new tests: maps source symbols, lists branches and edge cases, and adds tests in existing files or creates a new test file with supported repo tools when needed.
 - Runs tests via Bash after every change to confirm fix or coverage improvement.
 - Distinguishes test-specific failures from runtime bugs (test failure != production bug).
 - Uses `sequentialthinking` for test strategy only when unit vs integration is ambiguous.
@@ -198,6 +202,7 @@ Legacy compatibility alias for `b-research` quick mode.
 - Hidden from normal invocation and not auto-triggered.
 - Exists only so older habits or explicit `/b-lookup` calls still work.
 - Uses the same quick-mode behavior as `b-research`: Context7 first for library questions, one Brave fallback, no scraping.
+- Carries its own minimal tool contract and graceful-degradation behavior, but remains compatibility-only.
 - If the answer needs multiple sources or page reads, escalate to `b-research` full mode.
 
 **Recommended entry point**: use `/b-research` for both quick lookups and deep research.
@@ -224,6 +229,7 @@ Source: Context7(library-id) / Brave Search
 - Do not auto-invoke this skill.
 - Do not present this as the preferred user-facing choice.
 - Never scrape or crawl here; escalate to /b-research full mode if needed.
+- Output stays in the same quick-answer format as b-research quick mode.
 
 ---
 

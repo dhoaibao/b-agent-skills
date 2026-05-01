@@ -75,7 +75,7 @@ If the diff is large (>500 lines changed), ask the user which area to focus on f
 ### Step 2 — Establish requirements baseline
 
 **Small-change fast path** — check diff scope from Step 1 first:
-- If diff is **≤50 lines AND ≤2 files** → small-change mode: accept any non-empty requirements baseline (one sentence is sufficient). Skip the vague-response enforcement loop below. Proceed directly with whatever context the user provides.
+- If diff is **≤50 lines AND ≤2 files** → small-change mode: accept any non-empty requirements baseline (one sentence is sufficient), but the baseline must still state the intended behavior. Skip the vague-response enforcement loop below once that minimum baseline exists.
 - If diff is **>50 lines OR >2 files** → full enforcement applies (continue with the standard process below).
 
 Determine what the code was *supposed* to do:
@@ -209,9 +209,9 @@ If tests are missing for a requirement or critical edge case: flag as a finding,
 
 1. **Entry-point logging** — is there at least one structured log call at the handler entry point? A single log at entry is sufficient.
 2. **Error capture** — are errors caught and logged or re-raised? Check for try/catch/except blocks that swallow errors silently (no log, no re-raise).
-3. **Metric emission** — if the new code implies a metric (new endpoint → request count/latency), is a metric emitted? Advisory — flag as suggestion, not a blocker.
+3. **Metric emission** — if the new code clearly implies a useful metric (for example a new endpoint or background job), is one emitted? Advisory — flag as suggestion, not a blocker.
 
-Flag any gaps as findings in the review output. Non-blocking gaps go under Suggestions; a new critical path left completely opaque goes under Blockers.
+Flag any gaps as findings in the review output. Non-blocking gaps go under Suggestions; only treat missing observability as a blocker when a new critical path would otherwise be effectively opaque during failures.
 
 ---
 
@@ -292,4 +292,4 @@ Suggestions (non-blocking):
 - If logic is too complex to understand without running it, say so — do not guess.
 - Keep the diff scope in mind: a 3-line fix needs a lighter review than a 200-line feature.
 - If requirements are not fulfillable with the current implementation, state clearly: "Requirement X is not met — the implementation does Y instead of Z".
-- Never trigger destructive git commands — no `git push`, `git pull`, `git commit`, `git reset`, `git revert`, `git clean -f`, or `git checkout -- <file>`.
+- Never trigger destructive git commands.

@@ -28,6 +28,12 @@ If `$ARGUMENTS` is provided, treat it as the lookup question — answer in quick
 - New user-facing lookups → use **b-research**
 - Multi-source research, comparisons, or anything that needs scraping → use **b-research**
 
+## Tools required
+
+- Same as `b-research` quick mode: `resolve-library-id`, `query-docs`, and `brave_web_search`
+
+Graceful degradation: ⚠️ Partial — if quick mode cannot answer with Context7 and/or one Brave search, escalate to `/b-research` full mode.
+
 ## Behavior
 
 - Use the same quick-mode flow as `b-research`.
@@ -35,6 +41,21 @@ If `$ARGUMENTS` is provided, treat it as the lookup question — answer in quick
 - Single Brave search fallback.
 - No scraping, crawling, or synthesis.
 - Return a direct 1–3 sentence answer with a minimal example.
+
+## Output format
+
+```
+### `[Library or Topic]` — `[question]`
+
+[1–3 sentence direct answer]
+
+**Example:**
+```[lang]
+// minimal working example
+```
+
+**Source**: Context7 (`library-id`) / Brave Search
+```
 
 ## Rules
 

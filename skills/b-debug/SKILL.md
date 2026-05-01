@@ -16,10 +16,8 @@ $ARGUMENTS
 Systematic, hypothesis-driven bug tracing: understand code structure first, form
 ranked hypotheses, locate root cause, then fix and verify. Never jump straight to patching.
 
-Default contract: when invoked, `b-debug` must complete the full loop
-**trace → confirm root cause → fix → verify** unless the user explicitly asks for
-diagnosis-only, root-cause-only, or investigation-only output.
-Do not stop after reporting the cause if a safe, minimal fix is available.
+Default behavior is the full loop: **trace → confirm root cause → fix → verify**.
+Only stop earlier when the user explicitly asks for diagnosis-only, root-cause-only, or investigation-only output. Do not stop after reporting the cause if a safe, minimal fix is available.
 
 If `$ARGUMENTS` is provided, treat it as the error message or symptom — skip asking for symptoms in Step 1 and proceed directly with what was given.
 If `$ARGUMENTS` explicitly limits scope to investigation-only, honor that limit and stop after Step 4.
@@ -62,11 +60,11 @@ From `firecrawl` MCP server *(optional)*:
 - `firecrawl_scrape` — scrape full content of relevant GitHub issue pages, Stack Overflow answers, or changelogs found via web search.
 - `firecrawl_map` — map all URLs on a site when `firecrawl_scrape` returns empty content (JS-rendered or incorrect URL); use to discover the correct URL before retrying scrape.
 
-If Serena is unavailable: use Glob/Grep/Read to map files manually, proceed with Steps 2.1–2.4. Always note: "⚠️ Serena unavailable — analysis based on Glob/Grep/Read; cross-file tracking incomplete."
+If Serena is unavailable: use Bash search and `Read` to map files manually, proceed with Steps 2.1–2.4. Always note: "⚠️ Serena unavailable — analysis based on Bash/Read; cross-file tracking incomplete."
 If sequential-thinking is unavailable: reason through hypotheses inline, document steps explicitly in response. Format fallback as: `Hypothesis N → Evidence for → Evidence against → Cheapest verification → Confirmed/Rejected`.
 If context7 is unavailable: invoke /b-research for library API questions instead.
 
-Graceful degradation: ✅ Possible — if Serena unavailable, use Glob/Grep/Read for file analysis. Quality is reduced but the skill remains functional.
+Graceful degradation: ✅ Possible — if Serena is unavailable, use Bash/Read for file analysis. Quality is reduced but the skill remains functional.
 
 ## Steps
 
@@ -232,4 +230,4 @@ Note any silent catch blocks or unexpected stops in the path.
 - Silent failure points (swallowed exceptions, missing logs) are the most common cause of "no error but not working" bugs — check these first.
 - If the fix requires understanding a library's behavior: use context7 first (`resolve-library-id` + `query-docs`); escalate to /b-research only if context7 has no index for that library.
 - Keep fixes minimal — one bug, one fix.
-- Never trigger destructive git commands — no `git push`, `git pull`, `git commit`, `git reset`, `git revert`, `git clean -f`, or `git checkout -- <file>`.
+- Never trigger destructive git commands.

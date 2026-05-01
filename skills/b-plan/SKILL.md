@@ -38,23 +38,23 @@ If `$ARGUMENTS` is provided, treat it as the task description — skip asking "w
 
 - Simple single-file edit or ≤2-step task → do it directly.
 - Something is broken → use **b-debug**.
-- Quick fact or library lookup → use **b-lookup**.
+- Quick fact or library lookup → use **b-research**.
 - Mechanical refactoring → use **b-refactor**.
 
 ## Tools required
 
-- `sequentialthinking` — from `sequential-thinking` MCP server (required for Steps 3–4: approach evaluation and decomposition).
+- `sequentialthinking` — from `sequential-thinking` MCP server *(optional, for Steps 3–4: approach evaluation and decomposition when available)*.
 - `check_onboarding_performed`, `onboarding`, `find_symbol`, `get_symbols_overview`, `find_referencing_symbols`, `rename_symbol` — from `serena` MCP server *(required for supported symbol-aware modify-existing-code tasks; optional for pure greenfield)*.
 - `resolve-library-id`, `query-docs` — from `context7` MCP server *(optional, for inline library verification in Step 5 — simple lookups only)*.
 - `brave_web_search` — from `brave-search` MCP server *(optional, for tool/approach comparison in Step 5 — simple lookups only)*.
 - `firecrawl_scrape` — from `firecrawl` MCP server *(optional, for scraping Issue/ticket URL in Step 1)*.
 
 If sequential-thinking is unavailable: reason through plans and trade-offs inline with explicit numbered steps. Format fallback as: `Goal → Constraints → Options → Decision → Ordered steps → Open questions`.
-If Serena is unavailable: use Glob/Read to inspect key files. Note: "⚠️ Serena unavailable — cross-file tracking incomplete."
+If Serena is unavailable: use Bash search and `Read` to inspect key files. Note: "⚠️ Serena unavailable — cross-file tracking incomplete."
 If context7 or brave-search is unavailable: delegate to /b-research.
 If firecrawl is unavailable: store the Issue URL as a plain reference without scraping.
 
-Graceful degradation: ✅ Possible — core planning works without MCPs using inline reasoning and Glob/Read.
+Graceful degradation: ✅ Possible — core planning works without MCPs using inline reasoning plus Bash/Read.
 
 ## Steps
 
@@ -62,22 +62,9 @@ Graceful degradation: ✅ Possible — core planning works without MCPs using in
 
 Confirm what is being built before scanning any code.
 
-**Choose planning mode first**:
-- Choose **quick mode** when the task is clearly scoped, low risk, usually ≤2 files, and has no DB/schema migration, public API contract change, security-sensitive behavior, or unclear external dependency.
-- Choose **full mode** for everything else.
-- Do not ask the user to choose quick vs full by default; make the call yourself from task complexity.
-- Announce the selected mode and why in one sentence before planning.
-- Ask the user only when both modes are genuinely valid and the trade-off is user preference (speed vs durable handoff).
-- If quick-mode discovery finds broad impact or unclear decisions, stop and escalate to full mode.
-
-**Quick mode flow**:
-- Restate scope in one sentence.
-- Produce a concise 2–5 step chat plan with a verification step.
-- Ask for approval.
-- After approval, implementation may proceed in the same session.
-- Do not ask for issue/ticket URL unless the user already mentioned one or the task references a ticket.
-
-**Full mode flow** continues below.
+Apply the planning mode selected above:
+- In **quick mode**, restate scope in one sentence, produce a concise 2–5 step chat plan with a verification step, ask for approval, and proceed in the same session after approval. Do not ask for issue/ticket URL unless the user already mentioned one or the task references a ticket.
+- In **full mode**, continue with the rest of this workflow and write the plan file in Step 6.
 
 **If the task is clearly scoped** (user already described the full feature, no ambiguity):
 - Restate the scope in one sentence and ask the user to confirm.
@@ -99,7 +86,7 @@ Confirm what is being built before scanning any code.
 - Any blockers? (Missing infrastructure, incompatible dependencies, architectural gaps.)
 - Effort estimate: S (hours) / M (1–2 days) / L (3–5 days) / XL (1–2 weeks) / XXL (weeks+).
 - If blockers found: state clearly. If no workaround exists, do not proceed until resolved.
-- If XL–XXL AND unfamiliar pattern or unverified library: stop and run /b-research first.
+- If the task looks XL–XXL and depends on an unfamiliar pattern or unverified library, stop and run /b-research first.
 
 **Issue/ticket** *(optional)*:
 - Ask once: "Issue/ticket URL or ID? (Leave blank to skip.)"
@@ -282,4 +269,3 @@ Always English, regardless of the user's query language.
 - Split into phases if 10+ steps.
 - Never trigger destructive git commands.
 - **Never self-infer ambiguous requirements** — if a decision requires user input, ask immediately during planning. A plan built on silent assumptions is not a complete plan.
-- **Handoff standard: 90%+** — the final plan must be self-contained enough that a fresh agent with zero prior context can implement every step correctly without asking clarifying questions. Include exact paths, symbol names, current state, and verifiable done-when criteria in every step.

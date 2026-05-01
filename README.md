@@ -1,6 +1,6 @@
 # b-skills
 
-A lean 6-skill suite for **Claude Code**.
+A lean 6-skill suite for **Claude Code**, plus one hidden legacy compatibility alias.
 
 The suite is optimized around **symbol-first code analysis (Serena MCP)** and **selective structured reasoning (Sequential Thinking only when ambiguity or trade-offs justify it)**.
 It uses Serena's best-practice flow: **activate project → symbol/file discovery → symbol overview → references → narrow reads → symbolic edits** before any skill trusts code context.
@@ -17,7 +17,7 @@ Then **restart Claude Code** to load the skills.
 
 ## Overview
 
-Six primary skills covering the full development cycle:
+Six primary skills covering the full development cycle. The repo still contains 7 skill files because `b-lookup` remains as a hidden legacy alias to `b-research` quick mode:
 
 | Skill | When to use |
 |---|---|

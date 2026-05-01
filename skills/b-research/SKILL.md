@@ -32,15 +32,12 @@ If `$ARGUMENTS` is provided, treat it as the research question — proceed direc
 
 ## Tools required
 
-- `resolve-library-id`, `query-docs` — from `context7` MCP server (primary for library/framework API questions)
-- `brave_web_search` — from `brave-search` MCP server (required for web search)
-- `brave_news_search` — from `brave-search` MCP server *(required for NEWS-type full-mode queries)*
-- `firecrawl_scrape` — from `firecrawl` MCP server *(required for full-mode page reads and cited synthesis)*
-- `firecrawl_search` — from `firecrawl` MCP server *(optional, fallback when Brave returns too few relevant results)*
-- `firecrawl_map` — from `firecrawl` MCP server *(optional, discover correct URLs when scrape misses JS-rendered content)*
-- `firecrawl_extract` — from `firecrawl` MCP server *(optional, structured extraction for fields, prices, params, or specs)*
-- `firecrawl_crawl` + `firecrawl_check_crawl_status` — from `firecrawl` MCP server *(optional, deep docs crawl for multi-page coverage)*
-- `sequentialthinking` — from `sequential-thinking` MCP server *(optional, resolve materially conflicting sources)*
+- **Quick mode primary**: `resolve-library-id`, `query-docs` — from `context7` MCP server for library/framework API questions
+- **Search**: `brave_web_search` — from `brave-search` MCP server
+- **NEWS full mode**: `brave_news_search` — from `brave-search` MCP server
+- **Full-mode page reads**: `firecrawl_scrape` — from `firecrawl` MCP server
+- **Full-mode fallbacks**: `firecrawl_search`, `firecrawl_map`, `firecrawl_extract`, `firecrawl_crawl`, `firecrawl_check_crawl_status`
+- **Conflict resolution**: `sequentialthinking` — from `sequential-thinking` MCP server *(optional)*
 
 If context7 is unavailable: continue with Brave for library questions.
 If brave-search is unavailable:
@@ -212,6 +209,7 @@ Keep it short. No citations list, no report structure, no recommendations unless
 ## Rules
 
 - Never ask the user to choose between lookup vs research — b-research decides or escalates itself.
+- Start with quick mode when it plausibly fits, then escalate automatically if the answer needs more than 2 tool calls, more than 1 source, or any page scraping.
 - Quick mode caps at 2 tool calls before escalating or answering.
 - Never scrape in quick mode.
 - Always attempt Context7 first for library/framework API questions.
