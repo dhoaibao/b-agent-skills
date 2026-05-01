@@ -26,10 +26,11 @@ If `$ARGUMENTS` is provided, treat it as the refactoring instruction. Proceed di
   "simplify", "clean up", "tách hàm", "đổi tên".
 - Mechanical code transformation that preserves behavior.
 - Improving code structure without changing functionality.
+- Best when the target change is already concrete: rename, extract, move, inline, or delete with a known scope.
 
 ## When NOT to use
 
-- New feature or unclear scope → use **b-plan**
+- New feature, broad refactor, or unclear scope → use **b-plan** first
 - Runtime bug or test failure → use **b-debug**
 - Review after implementation → use **b-review**
 - Quick library API lookup → use **b-research**

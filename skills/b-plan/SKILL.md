@@ -33,13 +33,14 @@ If `$ARGUMENTS` is provided, treat it as the task description — skip asking "w
 - **Full mode** — for unclear, high-risk, multi-layer, or >2-file work. Follow all steps below and write a plan file to `.claude/b-plans/` before implementation.
 - **Mode selection rule** — choose the mode yourself from task complexity; do not ask the user to choose by default. Announce the selected mode and why in one sentence. Ask the user only when both modes are genuinely valid and preference matters.
 - **Escalate quick → full** when code discovery reveals broad references, unclear requirements, a structural decision, external API uncertainty, or deployment risk.
+- Broad or unclear refactors stay with `b-plan` until they are reduced to concrete mechanical transformations that can be handed off to `b-refactor`.
 
 ## When NOT to use
 
 - Simple single-file edit or ≤2-step task → do it directly.
 - Something is broken → use **b-debug**.
 - Quick fact or library lookup → use **b-research**.
-- Mechanical refactoring → use **b-refactor**.
+- Mechanical refactoring with a clear target already defined → use **b-refactor**.
 
 ## Tools required
 

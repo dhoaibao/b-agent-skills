@@ -37,7 +37,7 @@ Six primary skills covering the full development cycle. The repo still contains 
 /b-refactor [target]    (mechanical code transformation)
 ```
 
-`/b-plan` supports **quick mode** for scoped daily tasks and **full mode** for unclear, high-risk, or multi-layer work. After the user approves a plan, implementation may continue in the same session.
+`/b-plan` supports **quick mode** for scoped daily tasks and **full mode** for unclear, high-risk, or multi-layer work. It should also own broad or unclear refactors until they are reduced to concrete mechanical steps, at which point `/b-refactor` becomes the safer executor. After the user approves a plan, implementation may continue in the same session.
 
 See [REFERENCE.md](REFERENCE.md) for full details — triggers, output format, rules, and skill distinctions.
 

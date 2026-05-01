@@ -16,6 +16,7 @@ surface risks, and produce an execution-ready plan file.
 - Supports **full mode** for unclear, high-risk, multi-layer, or broad-impact tasks: write an execution-ready plan file before implementation.
 - Chooses quick vs full automatically from task complexity, announces the selected mode and why, and asks the user only when speed vs durable handoff is a genuine preference trade-off.
 - Escalates quick → full when discovery reveals broad references, unclear requirements, structural decisions, external API uncertainty, or deployment risk.
+- Keeps ownership of broad or unclear refactors until the work is reduced to concrete rename/extract/move/inline steps that can be handed off to `b-refactor`.
 - Uses `sequential-thinking` to decompose work and rank approaches when available; otherwise reasons inline with the same structure.
 - If Serena is unavailable, falls back to Bash/Read for narrow code inspection with reduced cross-file confidence.
 - For existing-code tasks, follows a strict supported-Serena read-order: onboarding check → symbol discovery → overview → references → narrow native reads only when needed.
@@ -241,6 +242,7 @@ Code refactoring with impact analysis and safe mechanical transformation.
 - Maps full impact radius with find_referencing_symbols before touching any code.
 - Requires green test baseline before refactoring — warns if tests are already failing.
 - Uses Serena's symbol-aware tools (rename_symbol, safe_delete_symbol, replace_symbol_body) for cross-file safe edits.
+- Assumes the target transformation is already concrete; broad or unclear refactors should go through `b-plan` first.
 - Executes in dependency order (inner helpers first, outer callers last).
 - Verifies after every step: compilation → tests → git diff.
 - For large refactors (>3 files or crossing package boundaries): uses sequentialthinking to plan phases.
