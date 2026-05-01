@@ -158,7 +158,79 @@ if [ -f "$CLAUDE_GLOBAL_SRC" ]; then
   echo "🔗 Global CLAUDE.md → $CLAUDE_GLOBAL_DST"
 fi
 
-# ── 4. Install / update MCP servers ──────────────────────────────────────────
+# ── 4. Auto-setup Claude Code hooks for Serena ───────────────────────────────
+_HOOKS_CONFIG='{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          { "type": "command", "command": "serena-hooks remind --client=claude-code" }
+        ]
+      },
+      {
+        "matcher": "mcp__serena__*",
+        "hooks": [
+          { "type": "command", "command": "serena-hooks auto-approve --client=claude-code" }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          { "type": "command", "command": "serena-hooks activate --client=claude-code" }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          { "type": "command", "command": "serena-hooks cleanup --client=claude-code" }
+        ]
+      }
+    ]
+  }
+}'
+
+_install_hooks() {
+  if ! _merge_settings_json "$_HOOKS_CONFIG" hooks; then
+    echo "⚠️  Failed to merge Serena hooks into $HOME/.claude/settings.json" >&2
+    return 1
+  fi
+
+  echo "✅ Serena hooks written to $HOME/.claude/settings.json"
+}
+
+_install_hooks
+echo "✅ Serena hooks installed — restart Claude Code for them to take effect."
+
+# ── 5. Auto-setup MCP tool permissions ──────────────────────────────────────
+_PERMISSIONS_CONFIG='{
+  "permissions": {
+    "allow": [
+      "mcp__serena__*",
+      "mcp__context7__*",
+      "mcp__brave-search__*",
+      "mcp__firecrawl__*",
+      "mcp__sequential-thinking__*"
+    ]
+  }
+}'
+
+_install_permissions() {
+  if ! _merge_settings_json "$_PERMISSIONS_CONFIG" permissions; then
+    echo "⚠️  Failed to merge MCP permissions into $HOME/.claude/settings.json" >&2
+    return 1
+  fi
+
+  echo "✅ MCP permissions written to $HOME/.claude/settings.json"
+}
+
+_install_permissions
+
+# ── 6. Install / update MCP servers ──────────────────────────────────────────
 echo ""
 echo "Do you want to install / update MCP servers?"
 echo "  (Adds context7, brave-search, firecrawl, serena, sequential-thinking)"
@@ -215,79 +287,7 @@ if [[ "$install_mcps" =~ ^[Yy]$ ]]; then
   echo "   (If uv is not installed: curl -LsSf https://astral.sh/uv/install.sh | sh)"
 fi
 
-# ── Auto-setup Claude Code hooks for Serena ───────────────────────────────
-_HOOKS_CONFIG='{
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "",
-        "hooks": [
-          { "type": "command", "command": "serena-hooks remind --client=claude-code" }
-        ]
-      },
-      {
-        "matcher": "mcp__serena__*",
-        "hooks": [
-          { "type": "command", "command": "serena-hooks auto-approve --client=claude-code" }
-        ]
-      }
-    ],
-    "SessionStart": [
-      {
-        "matcher": "",
-        "hooks": [
-          { "type": "command", "command": "serena-hooks activate --client=claude-code" }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "matcher": "",
-        "hooks": [
-          { "type": "command", "command": "serena-hooks cleanup --client=claude-code" }
-        ]
-      }
-    ]
-  }
-}'
-
-_install_hooks() {
-  if ! _merge_settings_json "$_HOOKS_CONFIG" hooks; then
-    echo "⚠️  Failed to merge Serena hooks into $HOME/.claude/settings.json" >&2
-    return 1
-  fi
-
-  echo "✅ Serena hooks written to $HOME/.claude/settings.json"
-}
-
-_install_hooks
-echo "✅ Serena hooks installed — restart Claude Code for them to take effect."
-
-# ── 7. Auto-setup MCP tool permissions ──────────────────────────────────────
-_PERMISSIONS_CONFIG='{
-  "permissions": {
-    "allow": [
-      "mcp__serena__*",
-      "mcp__context7__*",
-      "mcp__brave-search__*",
-      "mcp__firecrawl__*",
-      "mcp__sequential-thinking__*"
-    ]
-  }
-}'
-
-_install_permissions() {
-  if ! _merge_settings_json "$_PERMISSIONS_CONFIG" permissions; then
-    echo "⚠️  Failed to merge MCP permissions into $HOME/.claude/settings.json" >&2
-    return 1
-  fi
-
-  echo "✅ MCP permissions written to $HOME/.claude/settings.json"
-}
-
-_install_permissions
-
-# ── 5. Done ──────────────────────────────────────────────────────────────────
+# ── 7. Done ──────────────────────────────────────────────────────────────────
 echo ""
 echo "✅ b-skills installed successfully."
 echo "   Skills:    $CLAUDE_SKILLS_DST/"
