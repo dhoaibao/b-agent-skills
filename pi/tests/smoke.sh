@@ -187,7 +187,7 @@ expect(t.commandDecision('rtk --skip-env git reset --hard').decision === 'deny',
 expect(t.commandDecision("rtk run -c 'git reset --hard'").decision === 'ask', 'rtk run -c must fail closed as opaque');
 expect(t.commandDecision('rtk g\\it reset --hard').decision === 'deny', 'escaped command name must not bypass reset denial');
 expect(t.commandDecision(['rtk g', '\\', '\n', 'it reset --hard'].join('')).decision === 'deny', 'line-continuation command name must not bypass reset denial');
-expect(t.commandDecision('rtk proxy c\\at src/main.ts').decision === 'allow', 'modern shell-tool alternatives remain optional');
+expect(t.commandDecision('rtk proxy c\\at src/main.ts').decision === 'allow', 'baseline fallback remains allowed when the preferred modern tool is unavailable or inappropriate');
 expect(t.commandDecision('rtk proxy grep needle src/main.ts').decision === 'allow', 'rtk proxy must satisfy RTK requirement');
 expect(t.commandDecision('sudo git push --force origin main').decision === 'deny', 'sudo force push must deny');
 expect(t.commandDecision('/usr/bin/env X=1 git reset --hard').decision === 'deny', 'path-qualified env must not bypass reset denial');
@@ -210,6 +210,25 @@ for (const command of [
 ]) {
   expect(t.commandDecision(command).decision === 'ask', `${command} can discard work and must ask`);
 }
+for (const command of [
+  'rtk git add .',
+  'rtk git branch feature',
+  'rtk git fetch origin',
+  'rtk git reset HEAD src/main.ts',
+  'rtk git stash push',
+  'rtk git tag v1',
+  'rtk git worktree remove ../other',
+]) expect(t.commandDecision(command).decision === 'ask', `${command} mutates repository or worktree state and must ask`);
+for (const command of [
+  'rtk git branch',
+  'rtk git branch -a',
+  'rtk git branch --contains HEAD',
+  'rtk git log -1',
+  'rtk git remote -v',
+  'rtk git stash list',
+  'rtk git status --short',
+  "rtk git tag --list 'v*'",
+]) expect(t.commandDecision(command).decision === 'allow', `${command} is read-only and may allow via RTK`);
 expect(t.commandDecision('rm -rf /tmp/x').decision === 'ask', 'rm -rf must ask');
 expect(t.commandDecision('rm -r /tmp/x').decision === 'ask', 'recursive rm must ask');
 for (const command of ['dd if=/dev/zero of=/dev/sda', 'mkfs.ext4 /dev/sda', 'chmod -R 777 .', 'chown -R root .', 'kill -9 1']) {
@@ -229,7 +248,7 @@ for (const command of [
   'sed -n 1p src/main.ts',
   'awk {print} src/main.ts',
   'python3 -m json.tool package.json',
-]) expect(t.commandDecision(command).decision === 'allow', `${command} must allow; modern shell-tool alternatives are optional`);
+]) expect(t.commandDecision(command).decision === 'allow', `${command} must remain an allowed fallback; modern-tool preference is prompt-level`);
 for (const [command, label] of [
   ['npm add lodash', 'npm add'], ['npm remove lodash', 'npm remove'], ['npm --silent install lodash', 'npm option install'], ['npm ci', 'npm ci'],
   ['/usr/bin/npm --silent install lodash', 'path-qualified npm option install'],
@@ -250,6 +269,35 @@ for (const command of ['npm view lodash', 'pnpm list', 'cargo search serde']) {
 for (const command of ['rtk npm view lodash', 'rtk pnpm list', 'rtk cargo search serde', 'rtk pytest -q']) {
   expect(t.commandDecision(command).decision === 'allow', `${command} must preserve supported RTK use`);
 }
+for (const command of ['rtk npx eslint .', 'rtk npm test', 'rtk npm run build', 'rtk pnpm exec vite']) {
+  expect(t.commandDecision(command).decision === 'ask', `${command} executes opaque package code and must ask`);
+}
+for (const command of [
+  'rtk gh pr create',
+  'rtk gh pr checkout 42',
+  'rtk gh workflow run ci.yml',
+  'rtk glab mr merge 42',
+  'rtk aws s3 rm s3://bucket/key',
+  'rtk psql database',
+  'rtk kubectl apply -f deployment.yaml',
+  'rtk kubectl delete pods get',
+  'rtk oc rollout restart deployment/app',
+  'rtk docker run image',
+  'rtk docker run image ps',
+  'rtk curl -X POST https://example.com',
+  'rtk wget --post-data=x https://example.com',
+]) expect(t.commandDecision(command).decision === 'ask', `${command} may mutate external or shared state and must ask`);
+for (const command of [
+  'rtk gh pr view 42',
+  'rtk gh run view 42',
+  'rtk glab mr list',
+  'rtk kubectl get pods',
+  'rtk oc logs pod/app',
+  'rtk docker ps',
+  'rtk docker compose logs',
+  'rtk curl https://example.com',
+  'rtk wget https://example.com',
+]) expect(t.commandDecision(command).decision === 'allow', `${command} is read-only and may allow via RTK`);
 for (const command of ['yarn why lodash', 'bun --version']) {
   expect(t.commandDecision(command).decision === 'allow', `${command} must allow when RTK does not support it`);
   expect(t.commandDecision(`rtk proxy ${command}`).decision === 'allow', `rtk proxy ${command} must preserve safety classification`);
@@ -305,9 +353,10 @@ expect(t.commandDecision("bash -c 'git reset --hard'").decision === 'ask', 'bash
 expect(t.commandDecision("sh -c 'git push --force'").decision === 'ask', 'sh -c must ask');
 expect(t.commandDecision("node -e \"require('fs').rmSync('.')\"").decision === 'ask', 'node -e must ask');
 expect(t.commandDecision('python3 -c "import os; os.system(\'git reset --hard\')"').decision === 'ask', 'python -c must ask');
-for (const command of ['bash ./untrusted.sh', 'python3 ./untrusted.py', 'node app.js', 'python3 -m untrusted_module', './untrusted.sh', '../untrusted.sh']) {
+for (const command of ['bash ./untrusted.sh', 'python3 ./untrusted.py', 'node app.js', 'python3 -m untrusted_module', './untrusted.sh', '../untrusted.sh', '/tmp/untrusted', '/tmp/rtk git status', 'sudo /tmp/untrusted', 'rtk /usr/bin/../../tmp/untrusted', 'rtk ~/untrusted']) {
   expect(t.commandDecision(command).decision === 'ask', `${command} must gate opaque code execution`);
 }
+expect(t.commandDecision('/usr/bin/printf x').decision === 'allow', 'trusted absolute system executable may allow');
 expect(t.isInterpreterOpaque(['bash', '-c', 'git reset --hard']) === true, 'isInterpreterOpaque bash -c');
 expect(t.isInterpreterOpaque(['bash', './untrusted.sh']) === true, 'isInterpreterOpaque script file');
 expect(t.commandDecision('bash --version').decision === 'allow', 'unsupported raw shell executable may allow');

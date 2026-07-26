@@ -2,7 +2,7 @@
  * b-agentic first-party permission extension for Pi.
  *
  * Enforces kernel safety gates via Pi's tool_call event:
- * - ask: commits, pushes, pulls, reverts, dependency writes, long-lived services, rm -rf
+ * - ask: commits, external/shared mutations, opaque execution, dependency writes, services, rm -rf
  * - deny: destructive git history/worktree rewrites and selected docker prune/rm families
  * - block write/edit to secret and repository-control paths
  * - allow metadata discovery plus classified read-only and safe conditional-read MCP operations
@@ -14,7 +14,7 @@
 
 import { realpathSync, statSync } from "node:fs";
 import { isIP } from "node:net";
-import { dirname, isAbsolute, relative } from "node:path";
+import { dirname, isAbsolute, relative, resolve } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 type Decision = "allow" | "ask" | "deny";
@@ -613,8 +613,20 @@ function isInterpreterOpaque(tokens: string[]): boolean {
   return false;
 }
 
-function isRelativeExecutablePath(tokens: string[]): boolean {
-  return tokens[0]?.startsWith("./") || tokens[0]?.startsWith("../");
+function isOpaqueExecutablePath(rawTokens: string[]): boolean {
+  const trustedRoots = ["/bin", "/sbin", "/usr/bin", "/usr/sbin", "/usr/local/bin", "/opt/homebrew/bin"];
+  const isOpaque = (executable: string | undefined): boolean => {
+    if (!executable) return false;
+    if (executable.startsWith("~") || executable.startsWith("./") || executable.startsWith("../")) return true;
+    if (!isAbsolute(executable)) return false;
+    const normalizedExecutable = resolve(executable);
+    return !trustedRoots.some((root) =>
+      normalizedExecutable === root || normalizedExecutable.startsWith(`${root}/`)
+    );
+  };
+  const firstExecutable = rawTokens.find((token) => !/^[A-Za-z_][A-Za-z0-9_]*=/.test(token));
+  const unwrappedExecutable = unwrapTokens(rawTokens).tokens[0];
+  return isOpaque(firstExecutable) || isOpaque(unwrappedExecutable);
 }
 
 function unwrapTokens(tokens: string[]): { tokens: string[]; wrappers: Set<string>; opaque: boolean } {
@@ -818,7 +830,7 @@ function packageOperation(tokens: string[]): { operation: string | null; opaque:
 }
 
 function hasOpaquePackageOptions(tokens: string[]): boolean {
-  return new Set(["npm", "pnpm", "yarn", "bun", "cargo", "go", "pip", "pip3", "poetry", "uv"]).has(tokens[0])
+  return new Set(["npm", "npx", "pnpm", "yarn", "bun", "cargo", "go", "pip", "pip3", "poetry", "uv"]).has(tokens[0])
     && packageOperation(tokens).opaque;
 }
 
@@ -842,6 +854,106 @@ function hasDependencyWrite(tokens: string[]): boolean {
     return tokens.slice(2).some((token) => token === "install" || token === "uninstall" || token === "sync");
   }
   return writes[manager]?.has(operation) ?? false;
+}
+
+function hasOpaquePackageExecution(tokens: string[]): boolean {
+  const manager = tokens[0];
+  if (manager === "npx") return true;
+  const { operation } = packageOperation(tokens);
+  if (!manager || !operation) return false;
+  const executionOperations: Record<string, Set<string>> = {
+    npm: new Set(["exec", "rebuild", "run", "run-script", "test", "start"]),
+    bun: new Set(["run", "test", "x"]),
+  };
+  if (executionOperations[manager]?.has(operation)) return true;
+  if (manager === "pnpm" || manager === "yarn") {
+    const nonExecutionOperations = new Set([
+      "audit", "help", "info", "licenses", "list", "outdated", "root", "search", "view", "why",
+    ]);
+    return !nonExecutionOperations.has(operation);
+  }
+  return false;
+}
+
+function hasExternalOrSharedMutationRisk(tokens: string[]): boolean {
+  const command = tokens[0];
+  if (!command) return false;
+
+  if (["aws", "psql"].includes(command)) return true;
+
+  if (["npm", "pnpm", "yarn", "bun"].includes(command)) {
+    const registryMutationMarkers = new Set([
+      "access", "deprecate", "dist-tag", "link", "owner", "publish", "star", "token",
+      "unlink", "unpublish", "unstar", "version",
+    ]);
+    if (tokens.slice(1).some((token) => registryMutationMarkers.has(token))) return true;
+    if (tokens.includes("config") && tokens.slice(tokens.indexOf("config") + 1).some((token) => ["delete", "set"].includes(token))) return true;
+  }
+
+  if (command === "gh" || command === "glab") {
+    const mutationMarkers = new Set([
+      "api", "approve", "archive", "auth", "cancel", "checkout", "clone", "close", "comment",
+      "create", "delete", "disable", "edit", "enable", "fork", "merge", "ready", "reopen",
+      "request-changes", "set", "transfer", "unarchive", "upload",
+    ]);
+    if (tokens.slice(1).some((token) => mutationMarkers.has(token))) return true;
+    if (command === "gh" && tokens[1] === "workflow" && tokens[2] === "run") return true;
+    const readOnlyMarkers = new Set([
+      "checks", "diff", "get", "help", "list", "logs", "search", "show", "status", "trace",
+      "verify", "version", "view", "watch",
+    ]);
+    return !tokens.slice(1).some((token) => readOnlyMarkers.has(token));
+  }
+
+  if (command === "kubectl" || command === "oc") {
+    const mutationOperations = new Set([
+      "annotate", "apply", "attach", "autoscale", "certificate", "cordon", "cp", "create",
+      "delete", "drain", "edit", "exec", "expose", "label", "patch", "replace", "rollout",
+      "run", "scale", "set", "taint", "uncordon",
+    ]);
+    if (tokens.slice(1).some((token) => mutationOperations.has(token))) return true;
+    const readOnlyOperations = new Set([
+      "api-resources", "api-versions", "auth", "cluster-info", "describe", "diff",
+      "explain", "get", "logs", "top", "version", "wait",
+    ]);
+    return !tokens.slice(1).some((token) => readOnlyOperations.has(token));
+  }
+
+  if (command === "docker") {
+    const mutationOperations = new Set([
+      "attach", "build", "commit", "cp", "create", "exec", "import", "kill", "load",
+      "login", "logout", "pause", "pull", "push", "rename", "restart", "rm", "rmi", "run",
+      "save", "start", "stop", "tag", "unpause", "update",
+    ]);
+    if (tokens[1] === "compose") {
+      const composeMutationOperations = new Set([
+        "build", "cp", "create", "down", "exec", "kill", "pause", "pull", "push", "restart",
+        "rm", "run", "start", "stop", "unpause", "up", "watch",
+      ]);
+      if (tokens.slice(2).some((token) => composeMutationOperations.has(token))) return true;
+      return !tokens.slice(2).some((token) => new Set(["config", "images", "logs", "ls", "ps", "top"]).has(token));
+    }
+    if (tokens.slice(1).some((token) => mutationOperations.has(token))) return true;
+    const readOnlyOperations = new Set([
+      "diff", "events", "history", "images", "info", "inspect", "logs", "ls", "port",
+      "ps", "stats", "top", "version",
+    ]);
+    return !tokens.slice(1).some((token) => readOnlyOperations.has(token));
+  }
+
+  if (command === "curl") {
+    return tokens.slice(1).some((token) =>
+      /^(?:-d|-F|-T|-X|--data(?:-|$)|--form(?:-|$)|--request(?:=|$)|--upload-file(?:=|$))/.test(token)
+    );
+  }
+
+  if (command === "wget") {
+    return tokens.slice(1).some((token) =>
+      /^(?:--method(?:=|$)|--post-data(?:=|$)|--post-file(?:=|$)|--body-data(?:=|$)|--body-file(?:=|$))/.test(token)
+    );
+  }
+
+  return false;
 }
 
 function matchesPrefix(tokens: string[], pattern: string[]): boolean {
@@ -944,6 +1056,43 @@ function isGitDestructiveWorktreeOrStashOperation(tokens: string[]): boolean {
   return tokens[1] === "stash" && tokens.slice(2).some((token) => ["clear", "drop", "pop"].includes(token));
 }
 
+function hasGitMutationRisk(tokens: string[]): boolean {
+  if (tokens[0] !== "git") return false;
+  const operation = tokens[1];
+  if (!operation) return false;
+  const readOnlyOperations = new Set([
+    "annotate", "blame", "cat-file", "count-objects", "describe", "diff", "diff-tree",
+    "for-each-ref", "fsck", "grep", "help", "log", "ls-files", "ls-remote", "ls-tree",
+    "merge-base", "name-rev", "reflog", "rev-list", "rev-parse", "shortlog", "show",
+    "show-ref", "status", "verify-commit", "verify-tag", "version", "whatchanged",
+  ]);
+  if (readOnlyOperations.has(operation)) return false;
+  if (operation === "branch" || operation === "tag") {
+    const rest = tokens.slice(2);
+    const mutationFlags = new Set([
+      "-c", "-C", "-d", "-D", "-f", "-m", "-M", "-s", "-u",
+      "--annotate", "--copy", "--create-reflog", "--delete", "--edit-description",
+      "--force", "--move", "--set-upstream-to", "--sign", "--unset-upstream",
+    ]);
+    if (rest.some((token) => mutationFlags.has(token))) return true;
+    const listMode = rest.some((token) => token === "-l" || token === "--list");
+    const valueOptions = new Set([
+      "--contains", "--format", "--merged", "--no-contains", "--no-merged", "--points-at", "--sort",
+    ]);
+    for (let i = 0; i < rest.length; i += 1) {
+      if (valueOptions.has(rest[i])) {
+        i += 1;
+      } else if (!rest[i].startsWith("-") && !listMode) {
+        return true;
+      }
+    }
+    return false;
+  }
+  if (operation === "stash") return !new Set(["list", "show"]).has(tokens[2] || "list");
+  if (operation === "remote") return !new Set(["-v", "get-url", "show"]).has(tokens[2] || "show");
+  return true;
+}
+
 function isRtkWrapped(rawTokens: string[]): boolean {
   return unwrapTokens(rawTokens).wrappers.has("rtk");
 }
@@ -1023,14 +1172,6 @@ function segmentDecision(segment: string): { decision: Decision; reason: string 
     };
   }
 
-  // Interpreter wrappers and relative executable paths hide code from static matching.
-  if (isInterpreterOpaque(tokens) || isRelativeExecutablePath(stripWrappers(rawTokens))) {
-    return {
-      decision: "ask",
-      reason: "Requires approval: opaque script or executable invocation",
-    };
-  }
-
   if (hasShellExecutionProxy(tokens)) {
     return {
       decision: "ask",
@@ -1082,6 +1223,14 @@ function segmentDecision(segment: string): { decision: Decision; reason: string 
     }
   }
 
+  // Interpreter wrappers and executable paths outside trusted system roots hide code from static matching.
+  if (isInterpreterOpaque(tokens) || isOpaqueExecutablePath(rawTokens)) {
+    return {
+      decision: "ask",
+      reason: "Requires approval: opaque script or executable invocation",
+    };
+  }
+
   if (isRmRecursive(tokens)) {
     return {
       decision: "ask",
@@ -1098,8 +1247,20 @@ function segmentDecision(segment: string): { decision: Decision; reason: string 
     }
   }
 
+  if (hasGitMutationRisk(tokens)) {
+    return { decision: "ask", reason: "Requires approval: Git operation may mutate repository or worktree state" };
+  }
+
   if (hasDependencyWrite(tokens)) {
     return { decision: "ask", reason: "Requires approval: dependency write" };
+  }
+
+  if (hasOpaquePackageExecution(tokens)) {
+    return { decision: "ask", reason: "Requires approval: package command executes opaque code" };
+  }
+
+  if (hasExternalOrSharedMutationRisk(tokens)) {
+    return { decision: "ask", reason: "Requires approval: external or shared-environment operation may mutate state" };
   }
 
   for (const pattern of ASK_COMMANDS) {
@@ -1749,7 +1910,10 @@ export const __test__ = {
   hasShellControlSyntax,
   hasUnbalancedQuotes,
   isInterpreterOpaque,
-  isRelativeExecutablePath,
+  isOpaqueExecutablePath,
+  hasOpaquePackageExecution,
+  hasExternalOrSharedMutationRisk,
+  hasGitMutationRisk,
   isRtkWrapped,
   hasOpaqueWrapper,
   isStandaloneEnvCommand,
