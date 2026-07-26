@@ -80,6 +80,15 @@ def scenario_skill_path(args: argparse.Namespace, scenario: dict) -> Path:
     return ROOT / "skills" / skill_name / "SKILL.md"
 
 
+def system_addendum(args: argparse.Namespace, skill_path: Path) -> str:
+    parts = [args.kernel.read_text()]
+    if not args.routing:
+        # Explicit-skill scenarios disable tools, so inject the full body instead
+        # of relying on progressive disclosure through the read tool.
+        parts.append(skill_path.read_text())
+    return "\n\n".join(parts)
+
+
 def pi_command(args: argparse.Namespace, prompt: str, skill_path: Path) -> list[str]:
     command = [
         "pi",
@@ -89,25 +98,40 @@ def pi_command(args: argparse.Namespace, prompt: str, skill_path: Path) -> list[
         "--no-prompt-templates",
         "--no-context-files",
         "--append-system-prompt",
-        str(args.kernel),
+        system_addendum(args, skill_path),
     ]
     if args.routing:
         command.extend(["--tools", "read"])
-        for skill_path in sorted((ROOT / "skills").glob("*/SKILL.md")):
-            command.extend(["--skill", str(skill_path)])
+        for available_skill in sorted((ROOT / "skills").glob("*/SKILL.md")):
+            command.extend(["--skill", str(available_skill)])
         prompt = (
             "Select exactly one available b-agentic skill for the request, load its SKILL.md, "
             "and follow it without editing files. Start the final response with 'SKILL: <name>'.\n\n"
             + prompt
         )
     else:
-        command.extend(["--no-tools", "--skill", str(skill_path)])
+        command.append("--no-tools")
     if args.model:
         command.extend(["--model", args.model])
     if args.thinking:
         command.extend(["--thinking", args.thinking])
     command.extend(["--print", prompt])
     return command
+
+
+def validate_command_construction(args: argparse.Namespace, scenarios: list[dict]) -> None:
+    kernel_text = args.kernel.read_text()
+    for scenario in scenarios:
+        skill_path = scenario_skill_path(args, scenario)
+        command = pi_command(args, scenario["prompt"], skill_path)
+        addendum = command[command.index("--append-system-prompt") + 1]
+        if kernel_text not in addendum or str(args.kernel) == addendum:
+            raise ValueError("Pi command does not inject the kernel contents")
+        if args.routing:
+            if "--tools" not in command or "read" not in command:
+                raise ValueError("routing command must allow read for skill progressive disclosure")
+        elif skill_path.read_text() not in addendum or "--no-tools" not in command:
+            raise ValueError(f"Pi command does not inject explicit skill contents: {skill_path}")
 
 
 def main() -> int:
@@ -142,7 +166,12 @@ def main() -> int:
         return 2
 
     if args.validate_inputs:
-        print(f"Prompt-effectiveness inputs valid ({len(scenarios)} scenarios).")
+        try:
+            validate_command_construction(args, scenarios)
+        except ValueError as exc:
+            print(f"invalid command construction: {exc}", file=sys.stderr)
+            return 2
+        print(f"Prompt-effectiveness inputs and command construction valid ({len(scenarios)} scenarios).")
         return 0
 
     environment = os.environ.copy()
