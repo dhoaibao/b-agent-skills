@@ -327,6 +327,7 @@ expect(t.commandDecision('printf x\nprintf y').decision === 'allow', 'unsupporte
 expect(t.commandDecision('cat .env').decision === 'ask', 'bare protected-path read must ask');
 expect(t.commandDecision('cat .env.local').decision === 'ask', 'root-relative protected-path read must ask');
 expect(t.commandDecision('cat /tmp/.env.production').decision === 'ask', 'absolute protected-path read must ask');
+expect(t.commandDecision('printf EXAMPLE=value > .env.example').decision === 'allow', 'public env template writes must allow');
 expect(t.commandDecision('rtk cat ./config/../.env.local').decision === 'ask', 'rtk-wrapped protected-path read must ask');
 expect(t.commandDecision('rtk rg SECRET .env').decision === 'ask', 'RTK-supported command must gate protected paths');
 expect(t.commandDecision('ls src && cat credentials.json').decision === 'ask', 'compound protected-path read must ask');
@@ -366,6 +367,9 @@ expect(t.commandDecision('rtk proxy bash --version').decision === 'allow', 'rtk 
 expect(t.isProtectedPath('.env') === true, '.env protected');
 expect(t.isProtectedPath('.env.local') === true, 'root-relative .env variant protected');
 expect(t.isProtectedPath('/tmp/.env.production') === true, 'absolute .env variant protected');
+expect(t.isProtectedPath('.env.example') === false, 'public env template must not be protected');
+expect(t.isProtectedPath('.ssh/.env.example') === true, 'env template within SSH directory must remain protected');
+expect(t.isProtectedPath('.aws/.env.example') === true, 'env template within AWS directory must remain protected');
 expect(t.isProtectedPath('src/app.env') === true, 'app.env protected');
 expect(t.isProtectedPath('secrets.json') === true, 'secrets. marker');
 expect(t.isProtectedPath('.git/config') === true, '.git path protected');
@@ -373,6 +377,9 @@ expect(t.isProtectedPath('src/main.ts') === false, 'normal path not protected');
 expect(t.nativePathDecision('read', '.env').decision === 'ask', 'protected native read must ask for approval');
 expect(t.nativePathDecision('write', '.env').decision === 'deny', 'protected native write must remain blocked');
 expect(t.nativePathDecision('edit', '.env').decision === 'deny', 'protected native edit must remain blocked');
+expect(t.nativePathDecision('write', '.env.example').decision === 'allow', 'public env template writes must allow');
+expect(t.nativePathDecision('write', '.ssh/.env.example').decision === 'deny', 'SSH directory env template writes must remain blocked');
+expect(t.nativePathDecision('write', '.aws/.env.example').decision === 'deny', 'AWS directory env template writes must remain blocked');
 expect(t.nativePathDecision('read', 'src/main.ts').decision === 'allow', 'normal native read must allow');
 const protectedPathFixture = mkdtempSync(path.join(os.tmpdir(), 'b-agentic-protected-path-'));
 try {

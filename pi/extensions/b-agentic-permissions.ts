@@ -1358,6 +1358,9 @@ function isProtectedPath(pathValue: string): boolean {
   const base = normalized.split("/").pop() || normalized;
   for (const marker of PROTECTED_PATH_MARKERS) {
     if (marker.startsWith(".") && !marker.includes("/")) {
+      // Public environment templates contain placeholders, not credentials.
+      // Skip only the dotenv marker so protected parent directories still match.
+      if (marker === ".env" && base === ".env.example") continue;
       if (
         base === marker ||
         base.startsWith(`${marker}.`) ||
