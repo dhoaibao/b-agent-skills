@@ -5,14 +5,11 @@ description: >
   AGENTS.md plus a minimal CLAUDE.md shim that routes readers to
   AGENTS.md. Grounds the docs in repo evidence, preserves user-owned
   content, and keeps the output slim.
-argument-hint: "[repo-root-or-subtree]"
 ---
 
 <!-- Generated from skills/registry.yaml and skills/b-init/prompt.md. Edit those sources, not this file. -->
 
 # b-init
-
-$ARGUMENTS
 
 Initialize or refresh repo-local agent instruction docs. `AGENTS.md` is canonical. `CLAUDE.md` is a thin redirect shim.
 

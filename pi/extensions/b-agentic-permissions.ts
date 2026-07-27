@@ -1616,6 +1616,15 @@ function isSafeFirecrawlScrapeOptions(input: Record<string, unknown>): boolean {
   return hasOnlyKeys(input, allowed) && input.storeInCache !== true;
 }
 
+function isSafeFirecrawlSearch(input: Record<string, unknown>): boolean {
+  const known = MCP_CONDITIONAL_ARGUMENTS["firecrawl:firecrawl_search"];
+  return hasOnlyKeys(input, new Set(known)) &&
+    typeof input.query === "string" && Boolean(input.query.trim()) &&
+    Number.isInteger(input.limit) && input.limit > 0 && input.limit <= 10 &&
+    (input.scrapeOptions === undefined ||
+      (isPlainObject(input.scrapeOptions) && isSafeFirecrawlScrapeOptions(input.scrapeOptions)));
+}
+
 function isSafeFirecrawlMap(input: Record<string, unknown>): boolean {
   const known = MCP_CONDITIONAL_ARGUMENTS["firecrawl:firecrawl_map"];
   return hasOnlyKeys(input, new Set(known)) &&
@@ -1644,9 +1653,7 @@ function isConditionallyTrustedTool(server: string, base: string, input: unknown
   }
 
   if (server === "firecrawl" && base === "firecrawl_search") {
-    const allowed = new Set(["query", "limit", "tbs", "filter", "location", "includeDomains", "excludeDomains", "sources", "categories", "scrapeOptions", "enterprise"]);
-    if (!hasOnlyKeys(input, allowed) || typeof input.query !== "string" || !input.query.trim()) return false;
-    return input.scrapeOptions === undefined || (isPlainObject(input.scrapeOptions) && isSafeFirecrawlScrapeOptions(input.scrapeOptions));
+    return isSafeFirecrawlSearch(input);
   }
 
   if (server === "firecrawl" && base === "firecrawl_scrape") {

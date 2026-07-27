@@ -4,14 +4,11 @@ description: >
   Analyze tracked, staged, and untracked working-tree changes; propose
   cohesive commits; then stage and create approved commits on the current
   branch without pushing.
-argument-hint: "[change-context]"
 ---
 
 <!-- Generated from skills/registry.yaml and skills/b-commit/prompt.md. Edit those sources, not this file. -->
 
 # b-commit
-
-$ARGUMENTS
 
 Create approved, cohesive commits from the current working tree, or draft one message for an existing staged change, without pushing.
 

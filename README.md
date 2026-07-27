@@ -40,7 +40,7 @@ Interactive installs prepare Pi and RTK; Serena and CodeGraph remain optional in
 
 During interactive installs, the installer can prompt to download and run the RTK install script from its `master` branch. If `rtk` is already installed, the installer asks separately before upgrading it; the existing installation satisfies the prerequisite. Scripted upgrades require `B_AGENTIC_INSTALL_RTK=Y`. This is a remote shell script; only use it if you trust the RTK repository. RTK is required for b-agentic sessions; installation fails if it cannot be installed.
 
-Once installed, b-agentic runs command families supported by `rtk --help` through RTK and runs unsupported commands directly. RTK does not bypass approval for commits, dependency writes, services, or other dangerous commands; explicit destructive commands are denied, and protected paths or opaque execution remain approval-gated. The Pi runtime enforces RTK only for supported native command families:
+Once installed, b-agentic runs command families supported by `rtk --help` through RTK and runs unsupported commands directly. RTK does not bypass approval for commits, dependency writes, services, or other dangerous commands; explicit destructive commands are denied, and protected paths or opaque shell and interpreter inputs remain approval-gated. Build and test tools can execute code from the current repository, so this permission layer is not a process sandbox. Use Pi's sandbox integration or an isolated environment when running genuinely untrusted code. The Pi runtime enforces RTK only for supported native command families:
 
 ```bash
 rtk git status
@@ -82,7 +82,7 @@ Use CodeGraph for architectural flows, call graphs, impact radius, route-to-hand
 
 Pi discovers native skills from `~/.pi/agent/skills/` and MCP configuration from `~/.pi/agent/mcp.json` through `pi-mcp-adapter`. b-agentic preserves user-owned configuration and reports every managed change.
 
-Pi has no native permission model, so b-agentic installs a first-party `tool_call` extension at `~/.pi/agent/extensions/b-agentic-permissions.ts`. The extension auto-approves MCP metadata discovery plus classified read-only and safe conditional-read operations. Managed mutations, local uploads, lifecycle actions, auth, user/unknown MCP servers, and other custom tools require approval and fail closed without UI. Protected paths and opaque execution remain approval-gated; explicit destructive shell commands are denied. Pi MCP requires the community adapter `pi-mcp-adapter` (prompted interactively, or `B_AGENTIC_INSTALL_PI_MCP_ADAPTER=Y` noninteractively). The optional `pi-observational-memory` package provides long-session compaction continuity; it is prompted interactively or installed noninteractively with `B_AGENTIC_INSTALL_PI_OBSERVATIONAL_MEMORY=Y`, and should be the sole automatic memory/compaction layer. Uninstall removes managed config/extension files but not any package. Pi enforces managed MCP and RTK policy from `references/mcp_operations.yaml` and `references/kernel.template.md`.
+Pi has no native permission model, so b-agentic installs a first-party `tool_call` extension at `~/.pi/agent/extensions/b-agentic-permissions.ts`. The extension auto-approves MCP metadata discovery plus classified read-only and safe conditional-read operations. Managed mutations, local uploads, lifecycle actions, auth, user/unknown MCP servers, and other custom tools require approval and fail closed without UI. Protected paths and opaque shell and interpreter inputs remain approval-gated; explicit destructive shell commands are denied. The extension is a command-policy guard, not a process sandbox: approved build and test tools may execute repository-controlled code. Pi MCP requires the community adapter `pi-mcp-adapter` (prompted interactively, or `B_AGENTIC_INSTALL_PI_MCP_ADAPTER=Y` noninteractively). The optional `pi-observational-memory` package provides long-session compaction continuity; it is prompted interactively or installed noninteractively with `B_AGENTIC_INSTALL_PI_OBSERVATIONAL_MEMORY=Y`, and should be the sole automatic memory/compaction layer. Uninstall removes managed config/extension files but not any package. Pi enforces managed MCP and RTK policy from `references/mcp_operations.yaml` and `references/kernel.template.md`.
 
 ## Skills
 
@@ -103,15 +103,17 @@ Pi has no native permission model, so b-agentic installs a first-party `tool_cal
 | `b-pr-summary` | Ship | Write general PR copy for recent commits or commits ahead of cached origin |
 <!-- generated:skills-table:end -->
 
-Typical flow:
+Pi can route natural-language requests to these skills automatically. To invoke one explicitly, use Pi's native `/skill:<name>` command:
 
 ```text
-b-plan [goal] -> approve -> b-implement -> b-test -> b-review -> b-commit -> b-pr-summary [commit-count]
-b-research [external facts]
-b-design [frontend design standard]
-b-debug [runtime bug]
-b-browser [UI/e2e evidence]
-b-refactor [behavior-preserving transform]
+/skill:b-plan [goal] -> approve -> /skill:b-implement -> /skill:b-test -> /skill:b-review
+/skill:b-commit
+/skill:b-pr-summary [commit-count]
+/skill:b-research [external facts]
+/skill:b-design [frontend design standard]
+/skill:b-debug [runtime bug]
+/skill:b-browser [UI/e2e evidence]
+/skill:b-refactor [behavior-preserving transform]
 ```
 
 ## MCPs

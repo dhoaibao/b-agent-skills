@@ -260,7 +260,6 @@ def metadata_terms(skill: dict) -> tuple[list[str], set[str]]:
     phrases: list[str] = []
     word_set: set[str] = set()
 
-    command = skill.get("command", {})
     prompt = skill.get("prompt", {})
     routing = skill.get("routing") or {}
 
@@ -268,8 +267,6 @@ def metadata_terms(skill: dict) -> tuple[list[str], set[str]]:
         skill.get("name"),
         skill.get("phase"),
         skill.get("use"),
-        command.get("alias"),
-        command.get("description"),
         prompt.get("description"),
         routing.get("intent"),
     ]:

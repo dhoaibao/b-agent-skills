@@ -28,7 +28,6 @@ SKILL_SUPPORT_PATH_TOKEN = "{{skill_support_path}}"
 TEMPLATE_TOKEN_RE = re.compile(r"\{\{[a-z0-9_]+\}\}")
 
 PROMPT_FRONTMATTER_FIELDS = [
-    ("argument_hint", "argument-hint"),
     ("when_to_use", "when_to_use"),
     ("user_invocable", "user-invocable"),
 ]
@@ -117,7 +116,6 @@ def validate_skills(skills: list[dict]) -> list[str]:
     validate_kernel_template(errors)
     skill_dirs = {path.parent.name for path in (ROOT / "skills").glob("*/prompt.md")}
     names: list[str] = []
-    aliases: list[str] = []
 
     for index, skill in enumerate(skills, start=1):
         if not isinstance(skill, dict):
@@ -126,17 +124,6 @@ def validate_skills(skills: list[dict]) -> list[str]:
         name = ensure_string(skill.get("name"), f"skills[{index}].name", errors)
         phase = ensure_string(skill.get("phase"), f"skills[{index}].phase", errors)
         use = ensure_string(skill.get("use"), f"skills[{index}].use", errors)
-        command = skill.get("command")
-        if not isinstance(command, dict):
-            errors.append(f"skills[{index}].command: expected object")
-            continue
-        alias = ensure_string(command.get("alias"), f"skills[{index}].command.alias", errors)
-        ensure_string(command.get("description"), f"skills[{index}].command.description", errors)
-        if not isinstance(command.get("exposed"), bool):
-            errors.append(f"skills[{index}].command.exposed: expected boolean")
-        target = command.get("target", "request")
-        if target not in {"request", "workflow"}:
-            errors.append(f"skills[{index}].command.target: expected 'request' or 'workflow', found {target!r}")
 
         routing = skill.get("routing")
         if routing is not None:
@@ -154,10 +141,6 @@ def validate_skills(skills: list[dict]) -> list[str]:
         validate_skill_prompt_source(skill, errors)
         if name:
             names.append(name)
-        if alias and command.get("exposed"):
-            aliases.append(alias)
-        if name and alias and name != alias:
-            errors.append(f"skills[{index}]: command.alias {alias!r} must match skill name {name!r}")
         if phase == "Ship" and routing is not None:
             errors.append(f"skills[{index}]: ship-only skills must omit routing metadata")
         if phase != "Ship" and routing is None:
@@ -167,8 +150,6 @@ def validate_skills(skills: list[dict]) -> list[str]:
 
     if len(names) != len(set(names)):
         errors.append("skills/registry.yaml: duplicate skill names")
-    if len(aliases) != len(set(aliases)):
-        errors.append("skills/registry.yaml: duplicate exposed command aliases")
     missing = sorted(skill_dirs - set(names))
     extra = sorted(set(names) - skill_dirs)
     if missing or extra:

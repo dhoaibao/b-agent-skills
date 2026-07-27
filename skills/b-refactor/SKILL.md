@@ -6,14 +6,11 @@ description: >
   move, inline, delete dead code, or simplify a specific target. Vague
   cleanups go to b-plan first. Unlike b-plan, which decides what to build,
   b-refactor owns mechanical edits.
-argument-hint: "[refactor-target]"
 ---
 
 <!-- Generated from skills/registry.yaml and skills/b-refactor/prompt.md. Edit those sources, not this file. -->
 
 # b-refactor
-
-$ARGUMENTS
 
 Run concrete behavior-preserving transforms: rename, extract, move, inline, simplify, or delete.
 

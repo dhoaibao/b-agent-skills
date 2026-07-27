@@ -4,14 +4,11 @@ description: >
   Analyze a specified number of latest local commits, or commits ahead of
   the local cached origin branch ref when no count is given, and write
   evidence-backed PR title and description.
-argument-hint: "[commit-count]"
 ---
 
 <!-- Generated from skills/registry.yaml and skills/b-pr-summary/prompt.md. Edit those sources, not this file. -->
 
 # b-pr-summary
-
-$ARGUMENTS
 
 Write general PR copy for a specified number of latest commits, or commits ahead of the local cached `origin/<current-branch>` ref when no count is provided.
 
@@ -31,8 +28,8 @@ Write general PR copy for a specified number of latest commits, or commits ahead
 
 ## Steps
 
-1. If `$ARGUMENTS` is provided, require it to be one positive commit count, such as `b-pr-summary 3`, then inspect exactly that many commits from `HEAD`. Block if the branch has fewer commits or the count is invalid.
-2. If no count is provided, resolve the current branch and inspect the local `origin/<current-branch>` tracking ref without fetching. Block if that ref does not exist; otherwise select `origin/<current-branch>..HEAD`. Block if the range is empty.
+1. If the user supplies a commit count with the request, require it to be one positive integer, such as `/skill:b-pr-summary 3`, then inspect exactly that many commits from `HEAD`. Block if the branch has fewer commits or the count is invalid.
+2. If the user supplies no count, resolve the current branch and inspect the local `origin/<current-branch>` tracking ref without fetching. Block if that ref does not exist; otherwise select `origin/<current-branch>..HEAD`. Block if the range is empty.
 3. Using Bash, inspect the selected commits, their messages, changed files, and diffs.
 4. Write a PR title of at most 72 characters that represents the combined change, not a single commit message.
 5. Summarize the overall purpose and key changes across the selected commits. Group related details; do not repeat each commit log mechanically.

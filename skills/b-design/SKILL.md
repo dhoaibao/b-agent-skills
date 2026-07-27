@@ -8,14 +8,11 @@ description: >
   future frontend implementation. Unlike b-implement, it writes design
   guidance rather than UI code; unlike b-browser, it does not collect
   final browser evidence.
-argument-hint: "[design-source-or-goal]"
 ---
 
 <!-- Generated from skills/registry.yaml and skills/b-design/prompt.md. Edit those sources, not this file. -->
 
 # b-design
-
-$ARGUMENTS
 
 Create or refresh `docs/DESIGN.md`, the repo-local frontend design standard. Do not implement UI code.
 

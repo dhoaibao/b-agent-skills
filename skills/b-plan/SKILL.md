@@ -5,14 +5,11 @@ description: >
   requests and fuzzy problem statements by investigating enough to compare
   options, choose a path, and write ordered steps. Unlike b-implement,
   b-plan does not change code.
-argument-hint: "[task]"
 ---
 
 <!-- Generated from skills/registry.yaml and skills/b-plan/prompt.md. Edit those sources, not this file. -->
 
 # b-plan
-
-$ARGUMENTS
 
 Figure out what to do when the task is unclear, then turn the chosen path into the smallest executable plan. Do not implement.
 

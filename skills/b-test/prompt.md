@@ -1,7 +1,5 @@
 # b-test
 
-$ARGUMENTS
-
 Own code-level and simulated-DOM tests: add coverage, fix test-only failures, and avoid confusing red tests with product bugs.
 
 ## When to use

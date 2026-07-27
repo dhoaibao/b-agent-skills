@@ -8,14 +8,11 @@ description: >
   assertions, missing mocks, fixture or setup issues, and coverage gaps.
   Real-browser, visual, browser-session, and e2e verification belongs to
   b-browser.
-argument-hint: "[test-task-or-failure]"
 ---
 
 <!-- Generated from skills/registry.yaml and skills/b-test/prompt.md. Edit those sources, not this file. -->
 
 # b-test
-
-$ARGUMENTS
 
 Own code-level and simulated-DOM tests: add coverage, fix test-only failures, and avoid confusing red tests with product bugs.
 

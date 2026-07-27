@@ -1,7 +1,5 @@
 # b-refactor
 
-$ARGUMENTS
-
 Run concrete behavior-preserving transforms: rename, extract, move, inline, simplify, or delete.
 
 ## When to use

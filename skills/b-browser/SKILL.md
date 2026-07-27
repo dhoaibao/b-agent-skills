@@ -5,14 +5,11 @@ description: >
   Puppeteer, WebDriver, visual, screenshot, browser-session, live UI, and
   e2e checks. Unlike b-test, b-browser owns real-browser UI evidence, not
   simulated-DOM unit, integration, or contract tests.
-argument-hint: "[browser-or-e2e-request]"
 ---
 
 <!-- Generated from skills/registry.yaml and skills/b-browser/prompt.md. Edit those sources, not this file. -->
 
 # b-browser
-
-$ARGUMENTS
 
 Own real-browser, visual, screenshot, live UI, browser-session, and e2e evidence.
 

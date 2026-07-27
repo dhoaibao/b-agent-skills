@@ -1,7 +1,5 @@
 # b-init
 
-$ARGUMENTS
-
 Initialize or refresh repo-local agent instruction docs. `AGENTS.md` is canonical. `CLAUDE.md` is a thin redirect shim.
 
 ## When to use

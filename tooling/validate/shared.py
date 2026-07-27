@@ -205,7 +205,6 @@ b_debug_metadata = " ".join(
     str(value)
     for value in (
         b_debug.get("use", ""),
-        (b_debug.get("command") or {}).get("description", ""),
         (b_debug.get("prompt") or {}).get("description", ""),
     )
 )

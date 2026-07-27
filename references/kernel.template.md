@@ -63,10 +63,8 @@ Pi enforces this policy and protected shell-path gates in its first-party `tool_
 
 ## Shell commands
 
-Use `rtk` for command families it supports; run unsupported commands directly. RTK does not bypass approval for dangerous commands; explicit destructive commands are denied, while protected or opaque inputs remain approval-gated. For example: `rtk git status`, `rtk rg pattern`, `rtk ls`, `rtk find`, `rtk docker ps`, and `rtk pytest -q`.
+Use `rtk` for command families it supports; run unsupported commands directly. RTK does not bypass approval for dangerous commands; explicit destructive commands are denied, while protected paths and opaque shell or interpreter inputs remain approval-gated. Build and test tools may execute repository-controlled code; this policy is not a process sandbox. For example: `rtk git status`, `rtk rg pattern`, `rtk ls`, `rtk find`, `rtk docker ps`, and `rtk pytest -q`.
 
 Prefer modern shell tools where they improve the task: `rg` over `grep`, `fd`/`fdfind` over `find`, `bat`/`batcat` over `cat`, `eza`/`exa` over `ls`, `sd` over `sed` and `awk`, and `jq` over `python -m json.tool`. Do not require these replacements when a default shell tool is more appropriate or already available.
 
 If `rtk` is missing for a supported command family, stop and report the missing prerequisite.
-
-Skill argument injection: `$ARGUMENTS` is the shared argument token. Treat unresolved `$ARGUMENTS` as no arguments provided.

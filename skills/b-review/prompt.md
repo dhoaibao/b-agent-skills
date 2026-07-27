@@ -1,7 +1,5 @@
 # b-review
 
-$ARGUMENTS
-
 Review changed code or b-agentic itself for blockers, regressions, security risk, and missing coverage. Findings first.
 
 Flags: `--skip-tests`, `--baseline=<path|url>`, `--range=<ref>..<ref>`, `--audit-suite`.

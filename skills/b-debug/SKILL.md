@@ -9,14 +9,11 @@ description: >
   should hand off cleanly instead of guessing. Unlike b-test, b-debug owns
   runtime behavior failures, not test-mechanic issues such as wrong
   assertions, mocks, or fixtures.
-argument-hint: "[symptom-or-error]"
 ---
 
 <!-- Generated from skills/registry.yaml and skills/b-debug/prompt.md. Edit those sources, not this file. -->
 
 # b-debug
-
-$ARGUMENTS
 
 Find the real cause of broken behavior, then fix it minimally only when the user authorized a fix. Hand off cleanly if the problem turns out to be planning or external knowledge instead.
 

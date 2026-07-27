@@ -1,7 +1,5 @@
 # b-design
 
-$ARGUMENTS
-
 Create or refresh `docs/DESIGN.md`, the repo-local frontend design standard. Do not implement UI code.
 
 ## When to use

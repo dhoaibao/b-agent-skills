@@ -6,14 +6,11 @@ description: >
   and clear. Applies the next small step, verifies it, and hands back to
   planning or research instead of guessing when new ambiguity appears.
   Unlike b-plan, b-implement changes code.
-argument-hint: "[plan-path-or-task]"
 ---
 
 <!-- Generated from skills/registry.yaml and skills/b-implement/prompt.md. Edit those sources, not this file. -->
 
 # b-implement
-
-$ARGUMENTS
 
 Make the scoped change in the smallest coherent step, and hand back to planning or research instead of guessing when new ambiguity appears.
 

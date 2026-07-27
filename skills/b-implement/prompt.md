@@ -1,7 +1,5 @@
 # b-implement
 
-$ARGUMENTS
-
 Make the scoped change in the smallest coherent step, and hand back to planning or research instead of guessing when new ambiguity appears.
 
 ## When to use

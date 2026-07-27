@@ -1,7 +1,5 @@
 # b-commit
 
-$ARGUMENTS
-
 Create approved, cohesive commits from the current working tree, or draft one message for an existing staged change, without pushing.
 
 ## When to use

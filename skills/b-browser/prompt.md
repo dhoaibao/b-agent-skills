@@ -1,7 +1,5 @@
 # b-browser
 
-$ARGUMENTS
-
 Own real-browser, visual, screenshot, live UI, browser-session, and e2e evidence.
 
 ## When to use

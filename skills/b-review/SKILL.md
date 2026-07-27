@@ -6,14 +6,11 @@ description: >
   self-audits when explicitly requested or invoked with `--audit-suite`.
   Do NOT invoke for general repo audits, UI/design review, plan review, or
   research synthesis review.
-argument-hint: "[--range=<ref>..<ref>] [--baseline=<path|url>] [--skip-tests] [--audit-suite]"
 ---
 
 <!-- Generated from skills/registry.yaml and skills/b-review/prompt.md. Edit those sources, not this file. -->
 
 # b-review
-
-$ARGUMENTS
 
 Review changed code or b-agentic itself for blockers, regressions, security risk, and missing coverage. Findings first.
 

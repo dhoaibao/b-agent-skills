@@ -1,7 +1,5 @@
 # b-plan
 
-$ARGUMENTS
-
 Figure out what to do when the task is unclear, then turn the chosen path into the smallest executable plan. Do not implement.
 
 ## When to use

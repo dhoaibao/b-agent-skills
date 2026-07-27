@@ -1,7 +1,5 @@
 # b-debug
 
-$ARGUMENTS
-
 Find the real cause of broken behavior, then fix it minimally only when the user authorized a fix. Hand off cleanly if the problem turns out to be planning or external knowledge instead.
 
 ## When to use

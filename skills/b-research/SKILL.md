@@ -7,14 +7,11 @@ description: >
   depth, answers with sources, and hands off to implementation when the
   next action is obvious. Unlike b-debug or b-plan, it fetches docs and
   web information rather than tracing code or choosing implementation.
-argument-hint: "[question-or-source]"
 ---
 
 <!-- Generated from skills/registry.yaml and skills/b-research/prompt.md. Edit those sources, not this file. -->
 
 # b-research
-
-$ARGUMENTS
 
 Fetch outside truth at the lightest reliable depth, with sourced evidence and a clear next step when action naturally follows.
 
@@ -42,7 +39,7 @@ Fetch outside truth at the lightest reliable depth, with sourced evidence and a 
 1. Classify the question and required source quality.
 2. Pin version from resolved lockfiles (e.g., package-lock.json, poetry.lock, Cargo.lock, pnpm-lock.yaml) or go.mod when API details matter. Use manifests (e.g., package.json, pyproject.toml) only as a fallback, and state the uncertainty when versions are not pinned.
 3. Use Context7 first for versioned library/framework APIs when suitable.
-4. Use Firecrawl search first for public web discovery and current sources when library docs alone do not answer the question.
+4. Use Firecrawl search first for public web discovery and current sources when library docs alone do not answer the question. Set an explicit result limit of at most 10.
 5. Use Firecrawl for bounded extraction from known public URLs. Ask before deep autonomous research, broad crawls, or private/internal material.
 6. Use Brave when you need a second search lens, broader public discovery, or Brave-specific source types such as news.
 7. For academic/paper-grounded questions or prior-art/issue history, use Firecrawl's paper and GitHub search tools directly instead of generic web search.
