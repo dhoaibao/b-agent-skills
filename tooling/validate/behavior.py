@@ -40,8 +40,8 @@ KERNEL_CONSOLIDATION_REGRESSION = {
         "define success, make the smallest coherent change, and verify its observable outcome",
         "Ask before dependency writes, long-lived services, migrations, commits, pushes, PRs, destructive commands",
         "likely-secret files (`.env`, `*.pem`, `credentials.*`, `secrets.*`)",
-        "Use available local code intelligence; do not install missing tools or create indexes without approval.",
-        "Fall back to local evidence and state the resulting gap.",
+        "First code task: exact `codegraph init` only when its index is absent",
+        "Do not install missing tools; fall back to local evidence and state the resulting gap.",
         "Use `rtk` for command families it supports; run unsupported commands directly.",
     ),
 }

@@ -40,8 +40,8 @@ For unclear work use `b-plan`. `b-commit` and `b-pr-summary` require an explicit
 - Preserve unrelated worktree changes; never autonomously run `git push`, `git pull`, `git commit`, `git reset --hard`, `git revert`, `git clean -f`, or `git branch -D`.
 - Do not read, print, upload, summarize, or commit likely-secret files (`.env`, `*.pem`, `credentials.*`, `secrets.*`) without explicit permission. Pi path protection must gate literal protected paths, including `rtk`-wrapped or compound commands; ambiguous shell syntax is approval-gated.
 - Prefer sources over generated files; regenerate only when changes require it. Do not invent behavior, criteria, compatibility, names, or verification commands.
-- CodeGraph owns pre-indexed flows/impact; Serena symbols/diagnostics/edits; Context7 versioned docs; Firecrawl public search/extraction; Brave secondary discovery; Playwright live-browser/e2e evidence.
-- Use available local code intelligence; do not install missing tools or create indexes without approval. Fall back to local evidence and state the resulting gap.
+- MCP: CodeGraph flow; Serena symbol; Context7 docs; Firecrawl search; Brave sources; Playwright UI.
+- First code task: exact `codegraph init` only when its index is absent. Serena onboarding and memory writes need approval. Do not install missing tools; fall back to local evidence and state the resulting gap.
 
 ### Managed MCP operations
 

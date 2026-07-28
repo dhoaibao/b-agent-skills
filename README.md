@@ -76,7 +76,7 @@ If `uv` is missing, the installer prompts to install it from `https://astral.sh/
 
 b-agentic writes a default [CodeGraph](https://github.com/colbymchenry/codegraph) MCP entry that runs `codegraph serve --mcp` with `CODEGRAPH_TELEMETRY=0`. In interactive sessions, the installer can prompt to install CodeGraph with `curl -fsSL https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh | sh`; if CodeGraph is already installed, the installer asks before running `codegraph upgrade`. Scripted upgrades require `B_AGENTIC_INSTALL_CODEGRAPH=Y`. Run `codegraph init` in each repository where you want a local pre-indexed code graph.
 
-Use CodeGraph for architectural flows, call graphs, impact radius, route-to-handler discovery, and affected-test discovery. Use Serena for symbol declarations, references, diagnostics, and symbol-aware edits. Use local reads/search to verify exact edited content.
+b-agentic initializes CodeGraph on its first relevant code task when the local index is absent, then uses it for architectural flows, call graphs, impact radius, route-to-handler discovery, and affected-test discovery. It uses Serena for symbol declarations, references, diagnostics, and symbol-aware edits; Serena onboarding and persistent memory writes require approval. Missing CLIs are not installed automatically. Use local reads/search to verify exact edited content.
 
 ## Pi integration
 
@@ -127,7 +127,7 @@ The installer writes recommended MCP entries for:
 - Brave Search: secondary public/current discovery and alternate source finding.
 - Playwright: live browser, visual, console/network, and e2e evidence.
 
-The installer does not start MCP servers, install `pnpm dlx` packages ahead of time, run `codegraph init`, or run Serena onboarding. It reports local MCP readiness blockers such as missing binaries or API keys. Use `scripts/mcp-doctor.sh --session-tools` to verify the active session has RTK. When live network/process activity is approved, `scripts/mcp-doctor.sh --probe-schemas` explicitly starts or connects to each configured server and compares its current tool inventory with the canonical operation policy.
+The installer does not eagerly start MCP servers, install `pnpm dlx` packages, or initialize repositories. b-agentic runs `codegraph init` only when its local index is absent; Serena onboarding requires approval. It does not install missing CLIs. It reports local MCP readiness blockers such as missing binaries or API keys. Use `scripts/mcp-doctor.sh --session-tools` to verify the active session has RTK. When live network/process activity is approved, `scripts/mcp-doctor.sh --probe-schemas` explicitly starts or connects to each configured server and compares its current tool inventory with the canonical operation policy.
 
 ## Repository Layout
 

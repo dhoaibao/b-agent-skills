@@ -108,6 +108,26 @@ for skill_name, markers in prompt_regression_contracts.items():
         if marker not in text:
             errors.append(f"skills/{skill_name}/prompt.md: missing behavior regression anchor {marker!r}")
 
+# Regression: MCPs were named but agents had no durable selection, sequencing, or
+# first-use bootstrap workflow. Keep the checks narrow so prompts remain editable.
+MCP_WORKFLOW_REGRESSION = {
+    "observed_failure": "MCP capabilities were listed without actionable roles or first-use setup.",
+    "intended_behavior": "Every managed MCP has a distinct task-appropriate role; CodeGraph and Serena bootstrap only when needed.",
+    "anchors": {
+        "b-plan": ["initialize an absent CodeGraph index"],
+        "b-debug": ["versioned dependency suspects"],
+        "b-test": ["versioned framework semantics"],
+        "b-browser": ["existing CI/script evidence; approved navigation"],
+        "b-research": ["independent corroboration", "Firecrawl's paper and GitHub search tools"],
+        "b-review": ["specialized public source type"],
+    },
+}
+for skill_name, markers in MCP_WORKFLOW_REGRESSION["anchors"].items():
+    text = read_text(ROOT / "skills" / skill_name / "prompt.md")
+    for marker in markers:
+        if marker not in text:
+            errors.append(f"skills/{skill_name}/prompt.md: missing MCP workflow anchor {marker!r}")
+
 principles_path = ROOT / "tests" / "behavior" / "principles.json"
 principles_fixture = load_json(principles_path)
 principle_names = {

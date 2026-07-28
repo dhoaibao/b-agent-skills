@@ -28,16 +28,17 @@ Own real-browser, visual, screenshot, live UI, browser-session, and e2e evidence
 ## Tool guidance
 
 - `bash` - run existing approved browser/e2e commands.
-- `playwright` - live navigation, snapshots, screenshots, console/network, and browser state.
-- `serena` - map browser failures to source ownership.
+- `playwright` - approved live navigation, then snapshots, console/network, and requested screenshot evidence.
+- `codegraph` - initialize an absent local index on confirmed cross-file product failures.
+- `serena` - map browser failures to exact source ownership; ask before onboarding or persistent memory writes.
 
 ## Steps
 
 1. Classify the request: direct command, supplied evidence, live exploration, or readiness gap.
 2. Prefer supplied/CI evidence or existing repo scripts (run via Bash) before live browser operation.
-3. Ask before starting dev servers, installing tools, persisting sessions, or unsafe arbitrary browser code.
-4. Collect evidence with the narrowest sufficient command or Playwright interaction, tied to the requested UI state, route, console/network behavior, or screenshot. In headless or CI environments, ensure display servers (e.g., xvfb-run) or headless configurations are used.
-5. Classify failures as product, harness/setup, environment, auth/session, external-service, flaky/timing, or tool-unavailable. Use Serena to map browser failures to source ownership.
+3. Ask before starting dev servers, installing tools, persisting sessions, navigation, screenshots, or unsafe arbitrary browser code.
+4. Collect Playwright evidence in order for the requested UI state: existing CI/script evidence; approved navigation to the requested state; snapshot; focused console/network evidence; then a requested approved screenshot. In headless or CI environments, ensure display servers (e.g., xvfb-run) or headless configurations are used.
+5. Classify failures as product, harness/setup, environment, auth/session, external-service, flaky/timing, or tool-unavailable. For confirmed product failures, initialize an absent CodeGraph index, use CodeGraph for flow, then Serena for source ownership.
 6. Clean up browser state, artifacts, and lingering processes where applicable.
 
 ## Output format

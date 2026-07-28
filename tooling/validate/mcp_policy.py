@@ -65,7 +65,6 @@ def validate_policy_shape(policy: dict, errors: list[str]) -> None:
                 errors.append(f"references/mcp_operations.yaml: tool {server}:{tool} has unknown class {classification!r}")
             if classification == CONDITIONAL_READ:
                 conditional_tools.add(f"{server}:{tool}")
-
     conditional_arguments = policy.get("conditional_arguments")
     if not isinstance(conditional_arguments, dict) or set(conditional_arguments) != conditional_tools:
         found = sorted(conditional_arguments) if isinstance(conditional_arguments, dict) else []

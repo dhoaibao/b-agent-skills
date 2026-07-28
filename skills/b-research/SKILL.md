@@ -31,8 +31,8 @@ Fetch outside truth at the lightest reliable depth, with sourced evidence and a 
 ## Tool guidance
 
 - `context7` - versioned official library/framework docs.
-- `firecrawl` - primary public web search, known public URLs, structured extraction, maps, structured fields, and paper/GitHub-issue lookup when the question is research-paper- or code-history-shaped.
-- `brave-search` - secondary public/current discovery and alternate source finding when useful.
+- `firecrawl` - primary bounded public search, known public URLs, extraction, and paper/GitHub-history lookup.
+- `brave-search` - independent corroboration and specialized news, local, image, or video discovery.
 
 ## Steps
 
@@ -41,8 +41,8 @@ Fetch outside truth at the lightest reliable depth, with sourced evidence and a 
 3. Use Context7 first for versioned library/framework APIs when suitable.
 4. Use Firecrawl search first for public web discovery and current sources when library docs alone do not answer the question. Set an explicit result limit of at most 10.
 5. Use Firecrawl for bounded extraction from known public URLs. Ask before deep autonomous research, broad crawls, or private/internal material.
-6. Use Brave when you need a second search lens, broader public discovery, or Brave-specific source types such as news.
-7. For academic/paper-grounded questions or prior-art/issue history, use Firecrawl's paper and GitHub search tools directly instead of generic web search.
+6. Use Brave when you need independent corroboration or a specialized public source type such as news, local results, images, or video.
+7. For academic/paper-grounded questions or prior-art/issue history, use Firecrawl's paper and GitHub search tools directly instead of generic web search. Do not submit Firecrawl feedback, start crawls/agents, or handle private material without approval.
 8. Synthesize only from gathered evidence and cite sources.
 9. When the research points directly to a local code or config change, state that the next step belongs in **b-implement**; when uncertainty remains, say what is still unknown.
 

@@ -181,7 +181,6 @@ def render_mcp_runtime_policy(policy: dict) -> str:
     conditional_arguments = policy.get("conditional_arguments", {})
     if not isinstance(conditional_arguments, dict):
         raise SystemExit(f"{MCP_OPERATIONS_PATH}: missing conditional_arguments map")
-
     runtime_sets = {
         "serena": "SERENA_TRUSTED_TOOLS",
         "codegraph": "CODEGRAPH_TRUSTED_TOOLS",

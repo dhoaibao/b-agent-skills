@@ -31,15 +31,16 @@ Find the real cause of broken behavior, then fix it minimally only when the user
 ## Tool guidance
 
 - `bash` - reproduce errors, run diagnostics, profilers, and checks.
-- `codegraph` - call paths, dependency flows, and impact radius when indexed.
-- `serena` - trace symbols, call sites, implementations, and focused fixes.
+- `codegraph` - initialize an absent local index on first relevant use, then trace call paths, flows, and impact.
+- `serena` - trace symbols, call sites, implementations, diagnostics, and focused fixes; ask before onboarding or persistent memory writes.
+- `context7` - versioned dependency/API behavior only when a library suspect remains after local evidence.
 
 ## Steps
 
 1. Build a feedback loop (using Bash to run commands) that can show the bug: failing test, CLI repro, HTTP script, browser script, trace replay, throwaway harness, fuzz/property loop, or bisect harness.
 2. Capture exact symptom, expected vs actual behavior, repro rate, determinism, and environment. Read repo context only when it materially affects the diagnosis.
 3. Rank suspects from stack traces, diagnostics, recent changes, config, data shape, call paths, and the feedback loop.
-4. Use CodeGraph for cross-file call paths or impact radius when indexed; otherwise use Serena plus local search.
+4. For cross-file code suspects, initialize an absent CodeGraph index; use CodeGraph for call paths or impact, then Serena for exact symbols and diagnostics. Use Context7 only for versioned dependency suspects.
 5. Confirm root cause before fixing. Use probes only when cheaper evidence is insufficient and remove them.
 6. If the user asked only to diagnose, explain, or investigate, report the confirmed cause and stop without editing production code.
 7. If the request authorizes a fix, apply the smallest change that addresses the confirmed cause.

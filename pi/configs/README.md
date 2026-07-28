@@ -59,8 +59,7 @@ that listens for `tool_call` events and:
   commands may run directly, and `rtk proxy` is unwrapped for the same safety
   classification as its effective command; allows MCP metadata
   discovery and only the explicitly classified read-only operations of managed MCP servers without prompts
-- confines autonomous Serena symbol reads to the current repository and asks
-  for Serena local mutations; asks for Firecrawl external-mutation or
+- confines autonomous Serena symbol reads to the current repository and asks for Serena onboarding, memory writes, and other local mutations; asks for Firecrawl external-mutation or
   local-upload tools (agent/crawl/interact/monitor/feedback/parse), Playwright
   page-mutating tools (click/type/upload/evaluate/…), screenshots (the server
   persists a default file even without a filename), MCP auth bootstrap,

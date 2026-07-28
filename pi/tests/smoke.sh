@@ -170,6 +170,34 @@ expect(t.commandDecision('/usr/bin/git reset --hard').decision === 'deny', 'path
 expect(t.commandDecision('/usr/bin/npm install lodash').decision === 'ask', 'path-qualified npm install must ask');
 expect(t.commandDecision('/bin/rm -rf /tmp/x').decision === 'ask', 'path-qualified rm -rf must ask');
 expect(t.commandDecision('/usr/bin/printf x').decision === 'allow', 'unsupported raw command must allow');
+const originalCwd = process.cwd();
+const codegraphFixture = mkdtempSync(path.join(os.tmpdir(), 'b-agentic-codegraph-'));
+const indexedCodegraphFixture = mkdtempSync(path.join(os.tmpdir(), 'b-agentic-codegraph-indexed-'));
+try {
+  process.chdir(codegraphFixture);
+  expect(t.commandDecision('codegraph init').decision === 'allow', 'exact CodeGraph initialization must allow only while its index is absent');
+  expect(t.commandDecision('./codegraph init').decision === 'ask', 'relative CodeGraph executable must require approval');
+  expect(t.commandDecision('/tmp/codegraph init').decision === 'ask', 'path-qualified CodeGraph executable must require approval');
+  expect(t.commandDecision('sudo codegraph init').decision === 'ask', 'sudo CodeGraph initialization must require approval');
+  expect(t.commandDecision('PATH=./bin codegraph init').decision === 'ask', 'PATH-assigned CodeGraph initialization must require approval');
+  expect(t.commandDecision('env PATH=./bin codegraph init').decision === 'ask', 'env PATH-assigned CodeGraph initialization must require approval');
+  expect(t.commandDecision('LD_PRELOAD=/tmp/payload.so codegraph init').decision === 'ask', 'runtime-injected CodeGraph initialization must require approval');
+  expect(t.commandDecision('env LD_PRELOAD=/tmp/payload.so codegraph init').decision === 'ask', 'env runtime-injected CodeGraph initialization must require approval');
+  expect(t.commandDecision('env -i codegraph init').decision === 'ask', 'env-wrapped CodeGraph initialization must require approval');
+  expect(t.commandDecision('PATH=./bin; codegraph init').decision === 'ask', 'compound PATH-modified CodeGraph initialization must require approval');
+  mkdirSync(path.join(indexedCodegraphFixture, '.codegraph'));
+  writeFileSync(path.join(indexedCodegraphFixture, '.codegraph', 'codegraph.db'), 'index');
+  expect(t.commandDecision(`env -C ${indexedCodegraphFixture} codegraph init`).decision === 'ask', 'env -C CodeGraph initialization must require approval');
+  mkdirSync(path.join(codegraphFixture, '.codegraph'));
+  writeFileSync(path.join(codegraphFixture, '.codegraph', 'codegraph.db'), 'index');
+  expect(t.commandDecision('codegraph init').decision === 'ask', 'existing CodeGraph index must require approval to initialize again');
+} finally {
+  process.chdir(originalCwd);
+  rmSync(codegraphFixture, { recursive: true, force: true });
+  rmSync(indexedCodegraphFixture, { recursive: true, force: true });
+}
+expect(t.commandDecision('codegraph init --force').decision === 'ask', 'CodeGraph initialization variants must require approval');
+expect(t.commandDecision('codegraph status').decision === 'ask', 'CodeGraph commands outside first-use initialization must require approval');
 expect(t.commandDecision("git -c alias.wipe='reset --hard' wipe").decision === 'ask', 'inline Git alias invocation must ask');
 expect(t.commandDecision('env X=1 npm install lodash').decision === 'ask', 'env-wrapped npm install must ask');
 for (const command of ['env', 'env -i', 'env X=1']) {
@@ -416,6 +444,10 @@ expect(await t.confirmOrBlock({ hasUI: true, ui: { confirm: async () => false } 
 expect(t.isMcpOrCustomTool('bash') === false, 'bash is specialized');
 expect(t.isMcpOrCustomTool('mcp', { search: 'symbol' }) === false, 'MCP metadata search is autonomous');
 expect(t.isMcpOrCustomTool('mcp', { tool: 'serena_read_memory' }) === false, 'managed read-only tool is autonomous');
+expect(t.isMcpOrCustomTool('mcp', { tool: 'serena_onboarding', args: '{}' }) === true, 'Serena onboarding requires approval because first-use state is not locally enforceable');
+expect(t.isMcpOrCustomTool('mcp', { tool: 'serena_onboarding', args: '{"unexpected":true}' }) === true, 'Serena onboarding arguments require approval');
+expect(t.isMcpOrCustomTool('mcp', { tool: 'serena_write_memory', args: JSON.stringify({ memory_name: 'core', content: 'repo map' }) }) === true, 'foundational Serena memory writes require approval');
+expect(t.isMcpOrCustomTool('mcp', { tool: 'serena_write_memory', args: JSON.stringify({ memory_name: 'task_note', content: 'do not persist' }) }) === true, 'non-foundational Serena memory writes require approval');
 expect(t.isMcpOrCustomTool('mcp', { tool: 'serena_replace_content' }) === true, 'managed Serena mutation requires approval');
 expect(t.isMcpOrCustomTool('mcp', { tool: 'firecrawl_parse' }) === true, 'managed Firecrawl upload requires approval');
 expect(t.isMcpOrCustomTool('mcp', { tool: 'playwright_browser_click' }) === true, 'managed Playwright action requires approval');

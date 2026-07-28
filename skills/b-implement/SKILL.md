@@ -30,9 +30,9 @@ Make the scoped change in the smallest coherent step, and hand back to planning 
 ## Tool guidance
 
 - `bash` - inspect git state, diffs, and verification output.
-- `codegraph` - architecture, call graph, and affected-test evidence when indexed.
-- `serena` - symbol-aware code edits and diagnostics.
-- `context7` - narrow third-party API checks when needed.
+- `codegraph` - initialize an absent local index on first relevant use, then map architecture, calls, and affected tests.
+- `serena` - inspect symbols, edit code, and run diagnostics; ask before onboarding or persistent memory writes.
+- `context7` - narrow versioned third-party API checks when needed.
 
 ## Steps
 
@@ -40,9 +40,9 @@ Make the scoped change in the smallest coherent step, and hand back to planning 
 2. Run `rtk git status --short` via Bash and preserve unrelated changes.
 3. Read relevant repo context only when it materially affects the scoped change.
 4. State expected files/symbols, invariant behavior, and success criteria; infer narrow criteria only when obvious.
-5. Use CodeGraph for cross-file impact or affected-test mapping when indexed; otherwise use Serena plus local search.
-6. Edit the smallest coherent slice and match the existing local style. Use Serena for symbol work and native edits for prose/config/string changes.
-7. Run the narrowest useful verification (using Context7 for third-party API checks if the implementation relies on them) that proves the requested observable outcome.
+5. For cross-file code work, initialize an absent CodeGraph index; use CodeGraph for impact or affected tests, then Serena for exact symbols, references, and diagnostics. Otherwise use local search.
+6. Edit the smallest coherent slice and match the existing local style. Use Serena for approved symbol work and native edits for prose/config/string changes.
+7. Run the narrowest useful verification (using Context7 for versioned third-party API checks if the implementation relies on them) that proves the requested observable outcome.
 8. If verification exposes an in-scope defect without new ambiguity or scope drift, correct it and rerun the required check. Otherwise stop rather than guessing.
 9. Inspect the diff and report changes, verification, and remaining gaps.
 10. If new uncertainty, missing external facts, or scope drift appears, stop and hand back to **b-plan** or **b-research** instead of silently expanding the task.

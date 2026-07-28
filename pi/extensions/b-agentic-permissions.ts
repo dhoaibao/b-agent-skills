@@ -12,7 +12,7 @@
  * env/sudo wrappers, and git option prefixes. Fails closed without UI.
  */
 
-import { realpathSync, statSync } from "node:fs";
+import { existsSync, realpathSync, statSync } from "node:fs";
 import { isIP } from "node:net";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
@@ -1124,6 +1124,14 @@ function hasShellExecutionProxy(tokens: string[]): boolean {
   );
 }
 
+function needsCodegraphInitialization(): boolean {
+  return !existsSync(resolve(process.cwd(), ".codegraph", "codegraph.db"));
+}
+
+function hasEnvironmentBootstrapModifier(rawTokens: string[]): boolean {
+  return rawTokens.some((token) => /^[A-Za-z_][A-Za-z0-9_]*\+?=/.test(token) || baseName(token) === "env");
+}
+
 function segmentDecision(segment: string): { decision: Decision; reason: string } {
   const rawTokens = tokenize(segment);
   const tokens = normalizeTokens(rawTokens);
@@ -1157,7 +1165,8 @@ function segmentDecision(segment: string): { decision: Decision; reason: string 
 
   // Inline aliases can execute arbitrary shell payloads. Parse neither their
   // definitions nor bodies; fail closed when the configured alias is invoked.
-  const unwrappedTokens = stripWrappers(rawTokens);
+  const rawUnwrappedTokens = stripWrappers(rawTokens);
+  const unwrappedTokens = [...rawUnwrappedTokens];
   if (unwrappedTokens[0]) unwrappedTokens[0] = baseName(unwrappedTokens[0]);
   if (hasInlineGitAliasInvocation(unwrappedTokens)) {
     return {
@@ -1170,6 +1179,12 @@ function segmentDecision(segment: string): { decision: Decision; reason: string 
       decision: "ask",
       reason: "Requires approval: unrecognized pre-operation option is opaque",
     };
+  }
+
+  // The sole autonomous CodeGraph shell bootstrap is exact, local index creation.
+  if (tokens[0] === "codegraph") {
+    if (rawTokens.length === 2 && rawTokens[0] === "codegraph" && rawTokens[1] === "init" && needsCodegraphInitialization()) return { decision: "allow", reason: "" };
+    return { decision: "ask", reason: "Requires approval: CodeGraph command outside absent-index initialization" };
   }
 
   if (hasShellExecutionProxy(tokens)) {
@@ -1311,6 +1326,14 @@ function commandDecision(command: string): { decision: Decision; reason: string 
   }
 
   const segments = splitShellSegments(trimmed);
+  const environmentModified = segments.some((segment) => hasEnvironmentBootstrapModifier(tokenize(segment)));
+  const hasCodegraphInit = segments.some((segment) => {
+    const tokens = normalizeTokens(tokenize(segment));
+    return tokens[0] === "codegraph" && tokens[1] === "init";
+  });
+  if (environmentModified && hasCodegraphInit) {
+    return { decision: "ask", reason: "Requires approval: CodeGraph initialization with environment modification" };
+  }
   let worst: { decision: Decision; reason: string } = { decision: "allow", reason: "" };
   const rank = { allow: 0, ask: 1, deny: 2 };
 
@@ -1708,8 +1731,7 @@ function gatewayToolArguments(input: Record<string, unknown>): unknown {
 }
 
 /**
- * Trust only managed MCP operations classified as read-only, or conditional-read
- * operations whose arguments pass their corresponding safety checks.
+ * Trust only read-only operations and validated conditional reads.
  */
 function isTrustedManagedTool(server: string, toolName: string, input?: unknown): boolean {
   if (!isManagedServer(server)) return false;
