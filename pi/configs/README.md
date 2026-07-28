@@ -26,6 +26,10 @@ For long-session compaction continuity, b-agentic can install the optional
 `B_AGENTIC_INSTALL_PI_OBSERVATIONAL_MEMORY=Y`. Use it as the sole automatic
 memory/compaction layer rather than combining it with another such extension.
 
+b-agentic can also install the optional `@narumitw/pi-usage` extension.
+Interactive installs prompt before running `pi install npm:@narumitw/pi-usage`;
+noninteractive installs require `B_AGENTIC_INSTALL_PI_USAGE=Y`.
+
 Uninstall removes b-agentic-managed MCP config and the permission extension; it
 does not remove any of these packages.
 

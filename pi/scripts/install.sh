@@ -24,6 +24,8 @@ readonly PI_MCP_ADAPTER_SPEC="npm:pi-mcp-adapter"
 readonly PI_MCP_ADAPTER_PACKAGE="pi-mcp-adapter"
 readonly PI_OBSERVATIONAL_MEMORY_SPEC="npm:pi-observational-memory"
 readonly PI_OBSERVATIONAL_MEMORY_PACKAGE="pi-observational-memory"
+readonly PI_USAGE_SPEC="npm:@narumitw/pi-usage"
+readonly PI_USAGE_PACKAGE="@narumitw/pi-usage"
 readonly MCP_ROOT_KEY="mcpServers"
 readonly MCP_PLACEHOLDER_STYLE="claude"
 readonly MCP_CONTEXT7_SECTION="headers"
@@ -43,6 +45,8 @@ INSTALL_PI_MCP_ADAPTER_ACTION="skip"
 INSTALL_PI_MCP_ADAPTER_STATE="missing"
 INSTALL_PI_OBSERVATIONAL_MEMORY_ACTION="skip"
 INSTALL_PI_OBSERVATIONAL_MEMORY_STATE="missing"
+INSTALL_PI_USAGE_ACTION="skip"
+INSTALL_PI_USAGE_STATE="missing"
 
 runtime_warn_missing_cli() {
 	command -v pi >/dev/null 2>&1 || warn "Pi CLI 'pi' not found; files will still be installed for Pi to discover later."
@@ -53,6 +57,9 @@ runtime_warn_missing_cli() {
 	fi
 	if command -v pi >/dev/null 2>&1 && ! pi_observational_memory_installed; then
 		warn "pi-observational-memory not installed; long-session compaction continuity is unavailable."
+	fi
+	if command -v pi >/dev/null 2>&1 && ! pi_usage_installed; then
+		warn "@narumitw/pi-usage not installed; Pi usage reporting is unavailable."
 	fi
 }
 
@@ -109,6 +116,10 @@ pi_mcp_adapter_installed() {
 
 pi_observational_memory_installed() {
 	pi_package_installed "$PI_OBSERVATIONAL_MEMORY_PACKAGE"
+}
+
+pi_usage_installed() {
+	pi_package_installed "$PI_USAGE_PACKAGE"
 }
 
 install_pi_mcp_adapter_enabled() {
@@ -188,6 +199,66 @@ install_pi_observational_memory_enabled() {
 		;;
 	*) die "invalid B_AGENTIC_INSTALL_PI_OBSERVATIONAL_MEMORY value: $value" ;;
 	esac
+}
+
+install_pi_usage_enabled() {
+	local value="${B_AGENTIC_INSTALL_PI_USAGE:-auto}"
+	case "$value" in
+	n | N | no | NO | No | false | FALSE | 0) return 1 ;;
+	y | Y | yes | YES | Yes | true | TRUE | 1) return 0 ;;
+	auto | AUTO | Auto)
+		if pi_usage_installed; then
+			return 1
+		fi
+		if [ -r /dev/tty ] && [ -w /dev/tty ]; then
+			prompt_yes_no "Install Pi Usage ($PI_USAGE_PACKAGE)? [y/N]" N
+			return $?
+		fi
+		return 1
+		;;
+	*) die "invalid B_AGENTIC_INSTALL_PI_USAGE value: $value" ;;
+	esac
+}
+
+maybe_install_pi_usage() {
+	if pi_usage_installed; then
+		INSTALL_PI_USAGE_ACTION="present"
+		INSTALL_PI_USAGE_STATE="ready"
+		log "Pi Usage $PI_USAGE_PACKAGE already installed"
+		return 0
+	fi
+
+	if ! command -v pi >/dev/null 2>&1; then
+		INSTALL_PI_USAGE_ACTION="skip"
+		INSTALL_PI_USAGE_STATE="missing-cli"
+		warn "Pi CLI missing; cannot install $PI_USAGE_PACKAGE"
+		return 0
+	fi
+
+	if ! install_pi_usage_enabled; then
+		INSTALL_PI_USAGE_ACTION="skip"
+		INSTALL_PI_USAGE_STATE="missing"
+		warn "Skipping $PI_USAGE_PACKAGE install; set B_AGENTIC_INSTALL_PI_USAGE=Y or accept the interactive prompt"
+		return 0
+	fi
+
+	if dry_run_enabled; then
+		printf '[dry-run] pi install %s\n' "$PI_USAGE_SPEC" >&2
+		INSTALL_PI_USAGE_ACTION="install"
+		INSTALL_PI_USAGE_STATE="dry-run"
+		return 0
+	fi
+
+	log "Installing $PI_USAGE_PACKAGE"
+	if pi install "$PI_USAGE_SPEC"; then
+		INSTALL_PI_USAGE_ACTION="install"
+		INSTALL_PI_USAGE_STATE="ready"
+		log "Installed $PI_USAGE_PACKAGE"
+	else
+		INSTALL_PI_USAGE_ACTION="failed"
+		INSTALL_PI_USAGE_STATE="missing"
+		warn "Failed to install $PI_USAGE_PACKAGE; Pi usage reporting remains unavailable"
+	fi
 }
 
 maybe_install_pi_observational_memory() {
@@ -283,6 +354,7 @@ runtime_install_extra_assets() {
 runtime_install_configs() {
 	maybe_install_pi_mcp_adapter
 	maybe_install_pi_observational_memory
+	maybe_install_pi_usage
 	run_install_triplet_stage "Installing Pi permission extension" install_permissions_extension "skip" "none" "none" \
 		INSTALL_EXTENSION_ACTION INSTALL_EXTENSION_STATE INSTALL_EXTENSION_BACKUP
 	run_install_triplet_stage "Merging MCP config" install_mcp_config "skip" "none" "none" \
@@ -316,6 +388,8 @@ runtime_write_manifest() {
 		MCP_ADAPTER_STATE="$INSTALL_PI_MCP_ADAPTER_STATE" \
 		PI_OBSERVATIONAL_MEMORY_ACTION="$INSTALL_PI_OBSERVATIONAL_MEMORY_ACTION" \
 		PI_OBSERVATIONAL_MEMORY_STATE="$INSTALL_PI_OBSERVATIONAL_MEMORY_STATE" \
+		PI_USAGE_ACTION="$INSTALL_PI_USAGE_ACTION" \
+		PI_USAGE_STATE="$INSTALL_PI_USAGE_STATE" \
 		PI_AGENT_DIR="$PI_AGENT_DIR" \
 		MCP_CONFIG_DST="$MCP_CONFIG_DST" \
 		EXTENSION_DST="$EXTENSION_DST" \
@@ -344,6 +418,8 @@ manifest = {
     'mcpAdapterState': os.environ['MCP_ADAPTER_STATE'],
     'piObservationalMemoryAction': os.environ['PI_OBSERVATIONAL_MEMORY_ACTION'],
     'piObservationalMemoryState': os.environ['PI_OBSERVATIONAL_MEMORY_STATE'],
+    'piUsageAction': os.environ['PI_USAGE_ACTION'],
+    'piUsageState': os.environ['PI_USAGE_STATE'],
     'paths': {
         'piAgentDir': os.environ['PI_AGENT_DIR'],
         'mcpConfig': os.environ['MCP_CONFIG_DST'],
@@ -374,6 +450,7 @@ runtime_print_install_report() {
 	report_item "mcp" "$INSTALL_MCP_ACTION -> $MCP_CONFIG_DST"
 	report_item "mcp-adapter" "$INSTALL_PI_MCP_ADAPTER_ACTION ($INSTALL_PI_MCP_ADAPTER_STATE)"
 	report_item "pi-observational-memory" "$INSTALL_PI_OBSERVATIONAL_MEMORY_ACTION ($INSTALL_PI_OBSERVATIONAL_MEMORY_STATE)"
+	report_item "pi-usage" "$INSTALL_PI_USAGE_ACTION ($INSTALL_PI_USAGE_STATE)"
 	report_item "references" "sync -> $REFERENCES_DST"
 	report_item "templates" "sync -> $TEMPLATES_DST"
 	report_item "manifest" "write -> $MANIFEST_DST"
@@ -390,6 +467,10 @@ runtime_print_install_report() {
 	if [ "$INSTALL_PI_OBSERVATIONAL_MEMORY_STATE" != "ready" ]; then
 		report_section "Pi Observational Memory"
 		report_item "status" "optional: install $PI_OBSERVATIONAL_MEMORY_PACKAGE with 'pi install $PI_OBSERVATIONAL_MEMORY_SPEC' or B_AGENTIC_INSTALL_PI_OBSERVATIONAL_MEMORY=Y"
+	fi
+	if [ "$INSTALL_PI_USAGE_STATE" != "ready" ]; then
+		report_section "Pi Usage"
+		report_item "status" "optional: install $PI_USAGE_PACKAGE with 'pi install $PI_USAGE_SPEC' or B_AGENTIC_INSTALL_PI_USAGE=Y"
 	fi
 	print_install_report_next_steps "Pi"
 }
@@ -417,7 +498,7 @@ runtime_uninstall_configs() {
 			warn "preserving modified Pi permission extension: $extension_path"
 		fi
 	fi
-	# Intentionally leave pi-mcp-adapter and pi-observational-memory packages installed.
+	# Intentionally leave pi-mcp-adapter, pi-observational-memory, and pi-usage packages installed.
 }
 
 runtime_uninstall_extra_assets() { :; }

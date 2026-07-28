@@ -57,13 +57,16 @@ run_pi_smoke_cases() {
 		B_AGENTIC_INSTALL_CODEGRAPH=N \
 		B_AGENTIC_INSTALL_PI_MCP_ADAPTER=Y \
 		B_AGENTIC_INSTALL_PI_OBSERVATIONAL_MEMORY=Y \
+		B_AGENTIC_INSTALL_PI_USAGE=Y \
 		bash "$ROOT_DIR/install.sh" >/dev/null 2>&1
 	assert_file "$sandbox_adapter/home/.pi/agent/b-agentic/install.json"
 	assert_contains "$sandbox_adapter/home/.pi/agent/b-agentic/install.json" '"mcpAdapterState": "ready"'
 	assert_contains "$sandbox_adapter/home/.pi/agent/b-agentic/install.json" '"piObservationalMemoryState": "ready"'
+	assert_contains "$sandbox_adapter/home/.pi/agent/b-agentic/install.json" '"piUsageState": "ready"'
 	assert_file "$sandbox_adapter/smoke-bin/pi-install.log"
 	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:pi-mcp-adapter'
 	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:pi-observational-memory'
+	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:@narumitw/pi-usage'
 
 	# Preserve user-owned kernel.
 	mkdir -p "$sandbox_preserve/home/.pi/agent"

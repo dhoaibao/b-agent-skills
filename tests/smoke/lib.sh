@@ -109,6 +109,10 @@ if [ "${1:-}" = "list" ]; then
     printf 'npm:pi-observational-memory\n'
     found=1
   fi
+  if [ -f "$log_dir/pi-usage-installed" ]; then
+    printf 'npm:@narumitw/pi-usage\n'
+    found=1
+  fi
   [ "$found" -eq 1 ] || printf '(no packages)\n'
   exit 0
 fi
@@ -119,6 +123,9 @@ if [ "${1:-}" = "install" ]; then
   fi
   if [ "${2:-}" = "npm:pi-observational-memory" ]; then
     : > "$log_dir/pi-observational-memory-installed"
+  fi
+  if [ "${2:-}" = "npm:@narumitw/pi-usage" ]; then
+    : > "$log_dir/pi-usage-installed"
   fi
   exit 0
 fi
@@ -181,6 +188,7 @@ run_install_status() {
 		B_AGENTIC_INSTALL_CODEGRAPH=N \
 		B_AGENTIC_INSTALL_PI_MCP_ADAPTER=N \
 		B_AGENTIC_INSTALL_PI_OBSERVATIONAL_MEMORY=N \
+		B_AGENTIC_INSTALL_PI_USAGE=N \
 		bash "$ROOT_DIR/install.sh" "$@" >/dev/null 2>&1
 	rc=$?
 	set -e
@@ -211,6 +219,7 @@ run_install_status_in_cwd() {
 			B_AGENTIC_INSTALL_CODEGRAPH=N \
 			B_AGENTIC_INSTALL_PI_MCP_ADAPTER=N \
 			B_AGENTIC_INSTALL_PI_OBSERVATIONAL_MEMORY=N \
+			B_AGENTIC_INSTALL_PI_USAGE=N \
 			bash "$ROOT_DIR/install.sh" "$@" >/dev/null 2>&1
 	)
 	rc=$?
@@ -246,6 +255,7 @@ env["B_AGENTIC_INSTALL_SERENA"] = "N"
 env["B_AGENTIC_INSTALL_CODEGRAPH"] = "N"
 env["B_AGENTIC_INSTALL_PI_MCP_ADAPTER"] = "N"
 env["B_AGENTIC_INSTALL_PI_OBSERVATIONAL_MEMORY"] = "N"
+env["B_AGENTIC_INSTALL_PI_USAGE"] = "N"
 
 pid, fd = pty.fork()
 if pid == 0:
@@ -308,6 +318,7 @@ env["B_AGENTIC_INSTALL_SERENA"] = "N"
 env["B_AGENTIC_INSTALL_CODEGRAPH"] = "N"
 env["B_AGENTIC_INSTALL_PI_MCP_ADAPTER"] = "N"
 env["B_AGENTIC_INSTALL_PI_OBSERVATIONAL_MEMORY"] = "N"
+env["B_AGENTIC_INSTALL_PI_USAGE"] = "N"
 
 pid, fd = pty.fork()
 if pid == 0:
