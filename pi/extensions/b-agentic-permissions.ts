@@ -336,7 +336,6 @@ const PLAYWRIGHT_TRUSTED_TOOLS = new Set([
   "browser_console_messages",
   "browser_find",
   "browser_hover",
-  "browser_navigate_back",
   "browser_network_request",
   "browser_network_requests",
   "browser_resize",
@@ -356,6 +355,7 @@ const RTK_REQUIRED_COMMANDS = new Set([
   "jest", "vitest", "prisma", "tsc", "next", "lint", "prettier", "format",
   "playwright", "cargo", "npm", "npx", "curl", "ruff", "pytest", "mypy",
   "rake", "rubocop", "rspec", "pip", "go", "gt", "golangci-lint", "gradlew", "mvn",
+  "ecs", "paratest", "pest", "php", "phpstan", "phpunit", "pint", "sbt", "uv",
 ]);
 
 /** Interpreters that execute opaque code or script files; always approval-required. */

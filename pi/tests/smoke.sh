@@ -308,16 +308,17 @@ const rtkSupportedCommands = [
   'jest', 'vitest', 'prisma', 'tsc', 'next', 'lint', 'prettier', 'format',
   'playwright', 'cargo', 'npm', 'npx', 'curl', 'ruff', 'pytest', 'mypy',
   'rake', 'rubocop', 'rspec', 'pip', 'go', 'gt', 'golangci-lint', 'gradlew', 'mvn',
+  'ecs', 'paratest', 'pest', 'php', 'phpstan', 'phpunit', 'pint', 'sbt', 'uv',
 ];
 for (const command of rtkSupportedCommands) {
   expect(t.RTK_REQUIRED_COMMANDS.has(command), `${command} must be covered by the RTK policy`);
   expect(t.commandDecision(`${command} --version`).decision === 'ask', `${command} must require RTK`);
 }
 expect(t.commandDecision('pip show requests').decision === 'ask', 'pip must require RTK');
-for (const command of ['poetry show', 'uv --version', 'printf x']) {
+for (const command of ['poetry show', 'printf x']) {
   expect(t.commandDecision(command).decision === 'allow', `${command} must allow when RTK does not support it`);
 }
-for (const command of ['rtk proxy poetry show', 'rtk proxy uv --version', 'rtk proxy printf x']) {
+for (const command of ['rtk proxy poetry show', 'rtk proxy printf x']) {
   expect(t.commandDecision(command).decision === 'allow', `${command} must preserve safety classification`);
 }
 expect(t.commandDecision('printf x\ngit reset --hard').decision === 'deny', 'newline-separated reset --hard must deny');
@@ -416,6 +417,7 @@ expect(t.isMcpOrCustomTool('mcp', { tool: 'serena_replace_content' }) === true, 
 expect(t.isMcpOrCustomTool('mcp', { tool: 'firecrawl_parse' }) === true, 'managed Firecrawl upload requires approval');
 expect(t.isMcpOrCustomTool('mcp', { tool: 'playwright_browser_click' }) === true, 'managed Playwright action requires approval');
 expect(t.isMcpOrCustomTool('mcp', { tool: 'playwright_browser_navigate', args: JSON.stringify({ url: 'https://example.com' }) }) === true, 'public Playwright navigation requires approval');
+expect(t.isMcpOrCustomTool('mcp', { tool: 'playwright_browser_navigate_back' }) === true, 'Playwright back navigation requires approval');
 expect(t.isMcpOrCustomTool('mcp', { tool: 'playwright_browser_navigate', args: JSON.stringify({ url: 'https://example.com/redirect?target=http://127.0.0.1' }) }) === true, 'public redirect URLs require approval before they can reach private services');
 expect(t.isMcpOrCustomTool('mcp', { tool: 'playwright_browser_navigate', args: JSON.stringify({ url: 'http://localhost:3000' }) }) === true, 'local Playwright navigation requires approval');
 expect(t.isMcpOrCustomTool('mcp', { tool: 'playwright_browser_take_screenshot', args: '{}' }) === true, 'Playwright screenshot requires approval because the server persists a default file');
