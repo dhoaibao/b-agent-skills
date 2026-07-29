@@ -27,13 +27,13 @@ Create approved, cohesive commits from the current working tree, or draft one me
 
 ## Tool guidance
 
-- `bash` - inspect Git status and diffs, stage exact paths, and create commits after confirmation.
+- `bash` - `rtk git status --short`, `rtk git diff` / `rtk git diff --cached`, stage exact paths, and create commits after confirmation.
 
 ## Steps
 
 1. If the user asks for PR copy for staged changes, return `BLOCKED: commit staged changes before generating PR copy` and stop. Do not inspect commit history or stage or commit changes.
 2. If the user asks only for a commit message, inspect only the existing staged diff. Block if it is empty or mixes unrelated concerns; otherwise apply step 7, output the message, and stop without staging or committing.
-3. Using Bash, run `rtk git status --short`; inspect staged and unstaged diffs, and inspect untracked files only when their paths are not likely-secret files.
+3. Using Bash, run `rtk git status --short` and `rtk git diff` / `rtk git diff --cached`; inspect untracked files only when their paths are not likely-secret files.
 4. Record the initial index and working-tree snapshot. Do not read, stage, or commit likely-secret files without explicit permission.
 5. Propose the smallest set of cohesive commit groups. Treat a pre-existing staged set as user-curated: preserve it as one group and do not reset or reorganize it without explicit approval.
 6. Block if a group mixes unrelated concerns, a protected file needs permission, or a file cannot be assigned confidently.

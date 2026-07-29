@@ -27,8 +27,8 @@ Own real-browser, visual, screenshot, live UI, browser-session, and e2e evidence
 
 ## Tool guidance
 
-- `bash` - run existing approved browser/e2e commands.
-- `playwright` - approved live navigation, then snapshots, console/network, and requested screenshot evidence.
+- `bash` - existing approved browser/e2e commands (`rtk playwright` when using the CLI runner).
+- `playwright` - approval-gated `browser_navigate` / interactions; then `browser_snapshot`, `browser_find`, `browser_console_messages`, `browser_network_requests` / `browser_network_request`; `browser_take_screenshot` only when requested (approval-gated local artifact).
 - `codegraph` - initialize an absent local index on confirmed cross-file product failures.
 - `serena` - map browser failures to exact source ownership; ask before onboarding or persistent memory writes.
 
@@ -37,7 +37,7 @@ Own real-browser, visual, screenshot, live UI, browser-session, and e2e evidence
 1. Classify the request: direct command, supplied evidence, live exploration, or readiness gap.
 2. Prefer supplied/CI evidence or existing repo scripts (run via Bash) before live browser operation.
 3. Ask before starting dev servers, installing tools, persisting sessions, navigation, screenshots, or unsafe arbitrary browser code.
-4. Collect Playwright evidence in order for the requested UI state: existing CI/script evidence; approved navigation to the requested state; snapshot; focused console/network evidence; then a requested approved screenshot. In headless or CI environments, ensure display servers (e.g., xvfb-run) or headless configurations are used.
+4. Collect Playwright evidence in order for the requested UI state: existing CI/script evidence; approved navigation to the requested state (plus approved interactions when needed); `browser_snapshot` (and `browser_find` when locating controls); focused console plus network list/detail; then a requested approved screenshot. Do not claim readiness from a generic page load. In headless or CI environments, use headless config or display servers (e.g., xvfb-run).
 5. Classify failures as product, harness/setup, environment, auth/session, external-service, flaky/timing, or tool-unavailable. For confirmed product failures, initialize an absent CodeGraph index, use CodeGraph for flow, then Serena for source ownership.
 6. Clean up browser state, artifacts, and lingering processes where applicable.
 

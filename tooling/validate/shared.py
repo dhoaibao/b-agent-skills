@@ -118,15 +118,67 @@ MCP_WORKFLOW_REGRESSION = {
         "b-debug": ["versioned dependency suspects"],
         "b-test": ["versioned framework semantics"],
         "b-browser": ["existing CI/script evidence; approved navigation"],
-        "b-research": ["independent corroboration", "Firecrawl's paper and GitHub search tools"],
-        "b-review": ["specialized public source type"],
+        "b-research": ["independent corroboration", "research_*"],
+        "b-review": ["specialized Brave tools"],
     },
 }
 for skill_name, markers in MCP_WORKFLOW_REGRESSION["anchors"].items():
     text = read_text(ROOT / "skills" / skill_name / "prompt.md")
     for marker in markers:
         if marker not in text:
-            errors.append(f"skills/{skill_name}/prompt.md: missing MCP workflow anchor {marker!r}")
+            errors.append(
+                f"skills/{skill_name}/prompt.md: missing MCP workflow anchor {marker!r}; "
+                f"observed failure: {MCP_WORKFLOW_REGRESSION['observed_failure']}"
+            )
+
+# Regression: suite audit found skills under-specified Pi native file tools, optional
+# recall, Serena symbol mutations, and specialized research/browser surfaces that
+# policy already classifies. Narrow anchors only — not full prompt wording locks.
+PROMPT_TOOL_LEVERAGE_REGRESSION = {
+    "observed_failure": (
+        "Skill prompts under-specified Pi read/edit/write/recall and specialized MCP "
+        "surfaces already classified by mcp_operations/permissions."
+    ),
+    "intended_behavior": (
+        "Skills teach Pi native file tools, optional recall, Serena symbol mutations, "
+        "Firecrawl research_*, specialized Brave modalities, ordered Playwright evidence, "
+        "and consistent rtk git usage where git is primary."
+    ),
+    "anchors": {
+        "b-implement": [
+            "prefer Pi native file tools",
+            "rename_symbol",
+            "replace_symbol_body",
+            "compacted observational-memory ids",
+        ],
+        "b-refactor": [
+            "rename_symbol",
+            "replace_symbol_body",
+            "safe_delete_symbol",
+        ],
+        "b-debug": ["approval-gated symbol edits", "compacted repro"],
+        "b-research": [
+            "research_search_papers",
+            "research_search_github",
+            "brave_news_search",
+        ],
+        "b-review": ["specialized Brave tools", "rtk git"],
+        "b-browser": ["browser_snapshot", "browser_find", "browser_network_requests"],
+        "b-commit": ["rtk git status --short", "rtk git diff"],
+        "b-pr-summary": ["rtk git log", "rtk git show"],
+        "b-plan": ["Pi read", "compacted prior planning"],
+    },
+    # Runtime companions: pi/tests/smoke.sh recall specialized + firecrawl
+    # skipTlsVerification rejection; permissions RTK_OPTIONAL_COMMANDS.
+}
+for skill_name, markers in PROMPT_TOOL_LEVERAGE_REGRESSION["anchors"].items():
+    text = read_text(ROOT / "skills" / skill_name / "prompt.md")
+    for marker in markers:
+        if marker not in text:
+            errors.append(
+                f"skills/{skill_name}/prompt.md: missing tool-leverage anchor {marker!r}; "
+                f"observed failure: {PROMPT_TOOL_LEVERAGE_REGRESSION['observed_failure']}"
+            )
 
 principles_path = ROOT / "tests" / "behavior" / "principles.json"
 principles_fixture = load_json(principles_path)
@@ -236,11 +288,16 @@ for required in ["authorized", "Diagnosis-only requests stop"]:
         )
 
 MCP_SERVERS = {"serena", "codegraph", "context7", "brave-search", "firecrawl", "playwright"}
-LOCAL_TOOLS = {"bash"}
+LOCAL_TOOLS = {"bash", "read", "edit", "write", "recall"}
 KNOWN_TOOLS = MCP_SERVERS | LOCAL_TOOLS
 
 
 def tool_guidance_tokens(prompt_text: str) -> list[str]:
+    """Return tool ids from Tool guidance bullets.
+
+    Accepts a leading compound id such as `read`/`edit`/`write` before the
+    description dash so first-party Pi tools can be listed together.
+    """
     tokens: list[str] = []
     in_section = False
     for line in prompt_text.splitlines():
@@ -248,9 +305,9 @@ def tool_guidance_tokens(prompt_text: str) -> list[str]:
             in_section = line.strip() == "## Tool guidance"
             continue
         if in_section and line.lstrip().startswith("- "):
-            match = re.match(r"\s*-\s+`([^`]+)`", line)
+            match = re.match(r"\s*-\s+((?:`[^`]+`(?:\s*/\s*)?)+)", line)
             if match:
-                tokens.append(match.group(1))
+                tokens.extend(re.findall(r"`([^`]+)`", match.group(1)))
     return tokens
 
 
@@ -262,6 +319,10 @@ TOKEN_TO_DISPLAY_NAME = {
     "firecrawl": "Firecrawl",
     "playwright": "Playwright",
     "bash": "Bash",
+    "read": "read",
+    "edit": "edit",
+    "write": "write",
+    "recall": "recall",
 }
 
 referenced_servers: set[str] = set()
@@ -331,9 +392,17 @@ for forbidden in ["state-machine.md", "decisions.md", "index.md", "Strict govern
     if forbidden in kernel_template:
         errors.append(f"references/kernel.template.md: removed kernel concept remains: {forbidden!r}")
 
-if "Use `rtk` for command families it supports; run unsupported commands directly." not in kernel_template:
+if "Use `rtk` for high-noise command families it supports" not in kernel_template:
     errors.append(
-        "references/kernel.template.md: RTK must cover only command families it supports"
+        "references/kernel.template.md: RTK must cover high-noise command families it supports"
+    )
+if "Prefer modern shell tools when available" not in kernel_template:
+    errors.append(
+        "references/kernel.template.md: modern shell-tool preference must remain explicit"
+    )
+if "RTK never bypasses these approvals" not in kernel_template:
+    errors.append(
+        "references/kernel.template.md: RTK must not be described as bypassing approvals"
     )
 
 # The kernel owns the RTK requirement and modern shell-tool preferences.

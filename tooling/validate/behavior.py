@@ -42,8 +42,27 @@ KERNEL_CONSOLIDATION_REGRESSION = {
         "likely-secret files (`.env`, `*.pem`, `credentials.*`, `secrets.*`)",
         "First code task: exact `codegraph init` only when its index is absent",
         "Do not install missing tools; fall back to local evidence and state the resulting gap.",
-        "Use `rtk` for command families it supports; run unsupported commands directly.",
     ),
+}
+
+# Regression: suite audit found modern-tool preference contradicted by RTK-required
+# discovery families, and kernel rule 4 implied RTK bypassed approval asks.
+SHELL_POLICY_REGRESSION = {
+    "observed_failure": (
+        "Kernel preferred modern discovery tools while RTK still required ls/find/grep/rg, "
+        "and approval guidance implied RTK bypassed asks for dangerous work."
+    ),
+    "intended_behavior": (
+        "Prefer bare modern discovery tools; require RTK only for high-noise families; "
+        "RTK never bypasses approvals."
+    ),
+    "required_clauses": (
+        "RTK never bypasses these approvals",
+        "Prefer modern shell tools when available",
+        "Use `rtk` for high-noise command families it supports",
+    ),
+    # Runtime companions (not re-asserted here): pi/tests/smoke.sh bare ls/grep allow,
+    # RTK_OPTIONAL_COMMANDS classification, session_readiness required-vs-optional drift.
 }
 
 
@@ -233,6 +252,49 @@ FIXTURES = [
         prompt="Run a b-agentic suite self-audit with --audit-suite.",
         expected="b-review",
     ),
+    # Trigger-tightening regressions (suite audit: bare add/build/error/docs over-routed).
+    Fixture(
+        name="finish the implementation phrasing stays implement",
+        prompt="Please finish the implementation of the approved checkout step.",
+        expected="b-implement",
+        not_expected=("b-plan", "b-debug"),
+    ),
+    Fixture(
+        name="make the change phrasing stays implement",
+        prompt="Make the change described in the approved plan for the parser.",
+        expected="b-implement",
+        not_expected=("b-plan",),
+    ),
+    Fixture(
+        name="build the feature phrasing stays implement",
+        prompt="Build the feature for export CSV as approved.",
+        expected="b-implement",
+        not_expected=("b-plan", "b-browser"),
+    ),
+    Fixture(
+        name="runtime error phrasing stays debug",
+        prompt="Diagnose this runtime error in checkout.",
+        expected="b-debug",
+        not_expected=("b-test", "b-implement"),
+    ),
+    Fixture(
+        name="product bug phrasing stays debug",
+        prompt="There is a product bug in tax calculation.",
+        expected="b-debug",
+        not_expected=("b-test",),
+    ),
+    Fixture(
+        name="readme approach without external lookup stays plan",
+        prompt="How should I approach updating the outdated README install section?",
+        expected="b-plan",
+        not_expected=("b-research", "b-implement"),
+    ),
+    Fixture(
+        name="external documentation phrasing stays research",
+        prompt="Read external documentation for Stripe webhooks.",
+        expected="b-research",
+        not_expected=("b-plan",),
+    ),
 ]
 
 
@@ -370,15 +432,30 @@ def validate_runtime_contract(skills: list[dict], errors: list[str]) -> None:
                 )
 
 
-def validate_kernel_consolidation_regression(errors: list[str]) -> None:
+def validate_clause_regression(name: str, regression: dict, errors: list[str]) -> None:
     kernel = routing_table_text()
-    for clause in KERNEL_CONSOLIDATION_REGRESSION["required_clauses"]:
+    for clause in regression["required_clauses"]:
         if clause not in kernel:
             errors.append(
-                "kernel consolidation regression: missing required clause "
-                f"{clause!r}; observed failure: "
-                f"{KERNEL_CONSOLIDATION_REGRESSION['observed_failure']}"
+                f"{name}: missing required clause {clause!r}; observed failure: "
+                f"{regression['observed_failure']}"
             )
+
+
+def validate_kernel_consolidation_regression(errors: list[str]) -> None:
+    validate_clause_regression(
+        "kernel consolidation regression",
+        KERNEL_CONSOLIDATION_REGRESSION,
+        errors,
+    )
+
+
+def validate_shell_policy_regression(errors: list[str]) -> None:
+    validate_clause_regression(
+        "shell policy regression",
+        SHELL_POLICY_REGRESSION,
+        errors,
+    )
 
 
 def main() -> int:
@@ -388,6 +465,7 @@ def main() -> int:
 
     validate_runtime_contract(skills, errors)
     validate_kernel_consolidation_regression(errors)
+    validate_shell_policy_regression(errors)
 
     for fixture in FIXTURES:
         if fixture.expected not in skill_names:

@@ -173,9 +173,10 @@ def remove_managed_json_config(current_path: Path, template_path: Path, original
 
     cleaned = cleanup(current, incoming, original)
     mcp_labels = {
-        ".claude.json": "mcpServers",
-        "mcp_config.json": "mcpServers",
+        # Pi primary config plus legacy filenames that may still hold merged servers.
         "mcp.json": "mcpServers",
+        "mcp_config.json": "mcpServers",
+        ".claude.json": "mcpServers",
     }
     mcp_key = mcp_labels.get(label)
     if mcp_key is not None:

@@ -27,7 +27,8 @@ Initialize or refresh repo-local agent instruction docs. `AGENTS.md` is canonica
 
 ## Tool guidance
 
-- `bash` - inspect repo files, commands, and diffs.
+- `bash` - repo layout via `eza`/`fd`, commands, and `rtk git` diffs/status.
+- `read`/`edit`/`write` - create or refresh `AGENTS.md` / `CLAUDE.md`.
 - `serena` - inspect structure when file ownership or code layout affects the guide.
 
 ## Steps
@@ -46,7 +47,7 @@ Initialize or refresh repo-local agent instruction docs. `AGENTS.md` is canonica
    ...
    <!-- b-init-managed:end -->
    ```
-5. If the target file contains these markers, update only the managed block. Preserve user-owned notes above or below it. If it contains substantial unmarked content, ask before replacing it wholesale.
+5. If the target file contains these markers, update only the managed block with edit/write. Preserve user-owned notes above or below it. If it contains substantial unmarked content, ask before replacing it wholesale.
 6. Write concise `AGENTS.md` sections grounded in repo evidence:
    - Repository purpose: one short paragraph on what the repo ships or maintains.
    - Working rules: local conventions, edit boundaries, and approval expectations.

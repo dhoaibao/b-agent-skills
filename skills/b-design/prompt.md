@@ -17,7 +17,8 @@ Create or refresh `docs/DESIGN.md`, the repo-local frontend design standard. Do 
 
 ## Tool guidance
 
-- `bash` - inspect repo files, git state, docs, and diffs.
+- `bash` - `rtk git status --short`, diffs, and modern discovery (`rg`, `fd`, `eza`).
+- `read`/`edit`/`write` - inspect sources and update only `docs/DESIGN.md` unless broader docs were approved.
 - `serena` - inspect frontend structure when code ownership or component patterns affect the standard.
 
 ## Steps
@@ -26,7 +27,7 @@ Create or refresh `docs/DESIGN.md`, the repo-local frontend design standard. Do 
 2. Run `rtk git status --short` via Bash for repo work and preserve unrelated changes.
 3. Inspect the lightest useful evidence: existing design docs, frontend components, tokens, CSS, layout files, screenshots, and repo conventions. Use Serena when the standard depends on code structure. Do not invent a design system when evidence is thin.
 4. If analyzing images, separate observed facts from inferred rules. Treat exact dimensions, counts, colors, and spatial alignment as approximate unless supported by source files or browser evidence.
-5. Create or update only `docs/DESIGN.md` unless the user explicitly approved a broader documentation change. Preserve useful existing content, remove generic filler, and mark unresolved product choices as open questions.
+5. Create or update only `docs/DESIGN.md` with edit/write unless the user explicitly approved a broader documentation change. Preserve useful existing content, remove generic filler, and mark unresolved product choices as open questions.
 6. Keep the document implementation-facing and concise. Prefer rules an agent can apply while coding over design theory.
 7. Include exact tokens only when supported by repo evidence. Include a short verification checklist that later **b-implement** and **b-browser** work can use.
 8. Verify referenced paths exist where possible, then inspect the diff for unsupported claims and ceremony.

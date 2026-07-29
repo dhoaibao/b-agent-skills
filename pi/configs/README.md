@@ -55,7 +55,7 @@ that listens for `tool_call` events and:
   interpreter modules/script files (`bash script.sh`, `node app.js`,
   `python -m package`, …), and relative executable paths whose code is opaque
   to static matching
-- requires RTK for every native command family listed by `rtk --help`; unsupported
+- requires RTK for high-noise native command families (git, package/test/build runners, docker/kubectl, curl/wget, and similar); local discovery may use bare modern tools; unsupported
   commands may run directly, and `rtk proxy` is unwrapped for the same safety
   classification as its effective command; allows MCP metadata
   discovery and only the explicitly classified read-only operations of managed MCP servers without prompts

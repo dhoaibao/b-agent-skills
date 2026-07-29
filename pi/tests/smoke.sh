@@ -219,7 +219,11 @@ expect(t.commandDecision("rtk run -c 'git reset --hard'").decision === 'ask', 'r
 expect(t.commandDecision('rtk g\\it reset --hard').decision === 'deny', 'escaped command name must not bypass reset denial');
 expect(t.commandDecision(['rtk g', '\\', '\n', 'it reset --hard'].join('')).decision === 'deny', 'line-continuation command name must not bypass reset denial');
 expect(t.commandDecision('rtk proxy c\\at src/main.ts').decision === 'allow', 'baseline fallback remains allowed when the preferred modern tool is unavailable or inappropriate');
-expect(t.commandDecision('rtk proxy grep needle src/main.ts').decision === 'allow', 'rtk proxy must satisfy RTK requirement');
+expect(t.commandDecision('rtk proxy grep needle src/main.ts').decision === 'allow', 'rtk proxy preserves safety classification for optional discovery');
+expect(t.commandDecision('grep needle src/main.ts').decision === 'allow', 'bare grep remains allowed; modern rg is prompt-level preference');
+expect(t.commandDecision('rg needle src/main.ts').decision === 'allow', 'bare rg discovery must allow without RTK');
+expect(t.commandDecision('fd -t f main.ts').decision === 'allow', 'bare fd discovery must allow without RTK');
+expect(t.commandDecision('eza -la').decision === 'allow', 'bare eza discovery must allow without RTK');
 expect(t.commandDecision('sudo git push --force origin main').decision === 'deny', 'sudo force push must deny');
 expect(t.commandDecision('/usr/bin/env X=1 git reset --hard').decision === 'deny', 'path-qualified env must not bypass reset denial');
 expect(t.commandDecision('/usr/bin/sudo git push --force origin main').decision === 'deny', 'path-qualified sudo must not bypass force-push denial');
@@ -265,15 +269,15 @@ expect(t.commandDecision('rm -r /tmp/x').decision === 'ask', 'recursive rm must 
 for (const command of ['dd if=/dev/zero of=/dev/sda', 'mkfs.ext4 /dev/sda', 'chmod -R 777 .', 'chown -R root .', 'kill -9 1']) {
   expect(t.commandDecision(command).decision === 'ask', `${command} must ask`);
 }
-expect(t.commandDecision('ls -la').decision === 'ask', 'direct supported command must require RTK');
-expect(t.commandDecision('rtk ls -la').decision === 'allow', 'rtk ls must allow');
+expect(t.commandDecision('ls -la').decision === 'allow', 'bare ls discovery must allow without RTK');
+expect(t.commandDecision('find . -name "*.ts"').decision === 'allow', 'bare find discovery must allow without RTK');
+expect(t.commandDecision('rtk ls -la').decision === 'allow', 'optional rtk ls must allow');
 expect(t.commandDecision('env X=1 rtk ls -la').decision === 'allow', 'env-wrapped rtk ls must allow');
 expect(t.commandDecision('command rtk ls -la').decision === 'allow', 'command-wrapped rtk ls must allow');
 expect(t.commandDecision('sudo rtk ls -la').decision === 'allow', 'sudo-wrapped rtk ls must allow');
 expect(t.commandDecision('env -u FOO rtk ls -la').decision === 'allow', 'env -u wrapped rtk ls must allow');
 expect(t.commandDecision('env -S ls').decision === 'ask', 'env -S legacy command must be approval-gated');
 expect(t.commandDecision('env -S "grep needle src/main.ts"').decision === 'ask', 'env -S command string must be approval-gated');
-expect(t.commandDecision('grep needle src/main.ts').decision === 'ask', 'direct supported command must require RTK');
 for (const command of [
   'cat src/main.ts',
   'sed -n 1p src/main.ts',
@@ -333,18 +337,26 @@ for (const command of ['yarn why lodash', 'bun --version']) {
   expect(t.commandDecision(command).decision === 'allow', `${command} must allow when RTK does not support it`);
   expect(t.commandDecision(`rtk proxy ${command}`).decision === 'allow', `rtk proxy ${command} must preserve safety classification`);
 }
-const rtkSupportedCommands = [
-  'ls', 'tree', 'git', 'gh', 'glab', 'aws', 'psql', 'pnpm', 'find', 'diff',
-  'dotnet', 'docker', 'kubectl', 'oc', 'grep', 'rg', 'wget', 'wc',
+const rtkRequiredCommands = [
+  'git', 'gh', 'glab', 'aws', 'psql', 'pnpm',
+  'dotnet', 'docker', 'kubectl', 'oc', 'wget',
   'jest', 'vitest', 'prisma', 'tsc', 'next', 'lint', 'prettier', 'format',
   'playwright', 'cargo', 'npm', 'npx', 'curl', 'ruff', 'pytest', 'mypy',
   'rake', 'rubocop', 'rspec', 'pip', 'go', 'gt', 'golangci-lint', 'gradlew', 'mvn',
   'ecs', 'paratest', 'pest', 'php', 'phpstan', 'phpunit', 'pint', 'sbt', 'uv',
 ];
-for (const command of rtkSupportedCommands) {
-  expect(t.RTK_REQUIRED_COMMANDS.has(command), `${command} must be covered by the RTK policy`);
+const rtkOptionalCommands = ['ls', 'tree', 'find', 'diff', 'grep', 'rg', 'wc'];
+for (const command of rtkRequiredCommands) {
+  expect(t.RTK_REQUIRED_COMMANDS.has(command), `${command} must be RTK-required`);
   expect(t.commandDecision(`${command} --version`).decision === 'ask', `${command} must require RTK`);
 }
+for (const command of rtkOptionalCommands) {
+  expect(t.RTK_OPTIONAL_COMMANDS.has(command), `${command} must be classified as optional RTK`);
+  expect(!t.RTK_REQUIRED_COMMANDS.has(command), `${command} must not be RTK-required`);
+  expect(t.commandDecision(`${command} --version`).decision === 'allow', `${command} may run without RTK`);
+}
+expect(t.SPECIALIZED_TOOLS.has('recall'), 'recall must be a first-party specialized tool');
+expect(t.isMcpOrCustomTool('recall', { id: 'aaaaaaaaaaaa' }) === false, 'recall must not require custom-tool approval');
 expect(t.commandDecision('pip show requests').decision === 'ask', 'pip must require RTK');
 for (const command of ['poetry show', 'printf x']) {
   expect(t.commandDecision(command).decision === 'allow', `${command} must allow when RTK does not support it`);
@@ -469,6 +481,8 @@ expect(t.isMcpOrCustomTool('mcp', { tool: 'user_tool', server: 'user-server' }) 
 expect(t.isMcpOrCustomTool('some-extension-tool') === true, 'unknown tool is custom');
 expect(t.isTrustedManagedTool('firecrawl', 'new_tool') === false, 'unlisted managed tool is not trusted');
 expect(t.isTrustedManagedTool('firecrawl', 'firecrawl_search', { query: 'Pi coding agent', limit: 10 }) === true, 'bounded Firecrawl search is trusted');
+expect(t.isTrustedManagedTool('firecrawl', 'firecrawl_scrape', { url: 'https://example.org' }) === true, 'public Firecrawl scrape is trusted');
+expect(t.isTrustedManagedTool('firecrawl', 'firecrawl_scrape', { url: 'https://example.org', skipTlsVerification: true }) === false, 'Firecrawl scrape with TLS verification disabled must require approval');
 expect(t.isTrustedManagedTool('firecrawl', 'firecrawl_search', { query: 'Pi coding agent' }) === false, 'Firecrawl search without an explicit bound requires approval');
 expect(t.isTrustedManagedTool('firecrawl', 'firecrawl_search', { query: 'Pi coding agent', limit: 11 }) === false, 'Firecrawl search above the local bound requires approval');
 expect(t.isTrustedManagedTool('firecrawl', 'firecrawl_search', { query: 'Pi coding agent', limit: 0 }) === false, 'empty Firecrawl search bounds require approval');

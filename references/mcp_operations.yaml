@@ -5,7 +5,7 @@
   "classes": {
     "read-only": {
       "policy": "Auto-approved for managed servers",
-      "notes": "Bounded search/extraction and observational browser evidence only."
+      "notes": "Bounded search/extraction and observational browser evidence."
     },
     "conditional-read": {
       "policy": "Auto-approved for safe arguments",
@@ -17,11 +17,11 @@
     },
     "external-mutation": {
       "policy": "Approval required",
-      "notes": "Creates or changes remote state, including sessions, pages, and submitted feedback."
+      "notes": "Creates or changes remote state (sessions, pages, feedback)."
     },
     "monitor-lifecycle": {
       "policy": "Approval required",
-      "notes": "Firecrawl monitor create/update/delete/run/list/get/check families."
+      "notes": "Firecrawl monitor create/update/delete/run/list/get/check."
     },
     "local-mutation": {
       "policy": "Approval required",
@@ -29,7 +29,7 @@
     },
     "auth": {
       "policy": "Approval required",
-      "notes": "MCP OAuth/auth bootstrap actions."
+      "notes": "MCP OAuth/auth bootstrap."
     }
   },
   "servers": {

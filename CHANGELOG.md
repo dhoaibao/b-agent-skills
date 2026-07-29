@@ -4,6 +4,25 @@ All notable shipped revisions of b-agentic are recorded here. Released version h
 
 ## Unreleased
 
+### Changed
+
+- Shell/RTK policy (Option B):
+  - Observed failure: kernel preferred modern discovery tools while RTK still required `ls`/`find`/`grep`/`rg`, and approval guidance implied RTK bypassed asks.
+  - Intended behavior: prefer bare modern discovery tools; require RTK only for high-noise families; RTK never bypasses approvals.
+  - Regression: `SHELL_POLICY_REGRESSION` in `tooling/validate/behavior.py`; shared kernel clause checks; `pi/tests/smoke.sh` bare discovery allow + `RTK_OPTIONAL_COMMANDS`; `session_readiness` required-vs-optional drift.
+- Safety holes from suite audit:
+  - Observed failure: Pi `recall` fell through custom-tool approval; Firecrawl scrape could auto-approve with `skipTlsVerification: true`.
+  - Intended behavior: `recall` is first-party specialized; TLS-disabled scrapes require approval.
+  - Regression: `pi/tests/smoke.sh` recall specialized + Firecrawl TLS rejection fixtures.
+- Skill tool leverage:
+  - Observed failure: skills under-specified Pi `read`/`edit`/`write`/`recall` and specialized MCP surfaces already classified by policy.
+  - Intended behavior: teach native file tools, optional recall, Serena symbol mutations, Firecrawl `research_*`, specialized Brave modalities, ordered Playwright evidence, and consistent `rtk git` where git is primary.
+  - Regression: `PROMPT_TOOL_LEVERAGE_REGRESSION` anchors in `tooling/validate/shared.py` (with existing `MCP_WORKFLOW_REGRESSION`).
+- Routing trigger tightening:
+  - Observed failure: bare triggers such as `add`/`build`/`error`/`docs` over-routed unrelated requests.
+  - Intended behavior: prefer multi-word intent phrases; drop bare `docs`.
+  - Regression: trigger-tightening fixtures in `tooling/validate/behavior.py` (finish/make/build-the-feature, runtime error, product bug, README approach stays plan, external documentation stays research).
+
 ### Removed
 
 - Remove the unused Python package metadata in `pyproject.toml`; immutable Git tags remain the release version source.

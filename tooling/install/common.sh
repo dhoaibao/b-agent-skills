@@ -783,7 +783,8 @@ except Exception:
 value = data.get(root_key, {}).get(server, {}).get(section, {}).get(key)
 if not isinstance(value, str) or not value:
     sys.exit(1)
-if placeholder_style == 'claude':
+if placeholder_style in ('env-brace', 'claude'):
+    # 'claude' retained as a legacy alias for ${VAR} placeholders.
     sys.exit(1 if value.startswith('${') else 0)
 sys.exit(1)
 PY

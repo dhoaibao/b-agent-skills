@@ -31,16 +31,18 @@ Flags: `--skip-tests`, `--baseline=<path|url>`, `--range=<ref>..<ref>`, `--audit
 
 ## Tool guidance
 
-- `bash` - inspect status, diff, logs, and narrow verification.
+- `bash` - `rtk git status` / `rtk git diff`, logs, and narrow verification; modern discovery via `rg`/`fd` when needed.
+- `read` - open changed files directly.
 - `codegraph` - initialize an absent local index on first relevant use, then inspect changed flows, calls, and affected tests.
 - `serena` - inspect changed symbols, references, diagnostics, and boundaries; ask before onboarding or persistent memory writes.
-- `brave-search` - one narrow independent public lookup when a specialized public source type, including news/local/image/video, matters.
+- `brave-search` - one narrow independent public lookup; use specialized Brave tools only when news/local/image/video/place evidence matters.
+- `recall` - recover compacted audit or prior-review memory ids when present.
 
 ## Steps
 
 1. Scope the review: working tree, range, baseline, or suite-audit surface (using Bash to run `rtk git status` or `rtk git diff`).
 2. Choose baseline. Without baseline, do a risk review and do not claim requirements coverage.
-3. Read repo context only when it materially affects the review.
+3. Read repo context only when it materially affects the review; use recall for compacted prior review ids when present.
 4. For changed code, initialize an absent CodeGraph index; use CodeGraph for flows and affected tests, then Serena for exact references and diagnostics. Use Brave only when public semantics materially affect a finding.
 5. Inspect highest-risk changed symbols and boundaries first.
 6. Check tests, edge cases, security, operability, evidence quality, hidden assumptions, unnecessary diff, and over-abstraction.

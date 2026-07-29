@@ -18,8 +18,8 @@ Fetch outside truth at the lightest reliable depth, with sourced evidence and a 
 ## Tool guidance
 
 - `context7` - versioned official library/framework docs.
-- `firecrawl` - primary bounded public search, known public URLs, extraction, and paper/GitHub-history lookup.
-- `brave-search` - independent corroboration and specialized news, local, image, or video discovery.
+- `firecrawl` - primary bounded public search (`firecrawl_search` limit ≤10), scrape/map/extract for known public URLs, and `research_search_papers` / `research_inspect_paper` / `research_read_paper` / `research_related_papers` / `research_search_github` for papers or prior-art/issue history.
+- `brave-search` - independent web corroboration; use `brave_news_search`, `brave_local_search`, `brave_image_search`, `brave_video_search`, `brave_place_search`, `brave_summarizer`, or `brave_llm_context` only when that modality is required.
 
 ## Steps
 
@@ -28,8 +28,8 @@ Fetch outside truth at the lightest reliable depth, with sourced evidence and a 
 3. Use Context7 first for versioned library/framework APIs when suitable.
 4. Use Firecrawl search first for public web discovery and current sources when library docs alone do not answer the question. Set an explicit result limit of at most 10.
 5. Use Firecrawl for bounded extraction from known public URLs. Ask before deep autonomous research, broad crawls, or private/internal material.
-6. Use Brave when you need independent corroboration or a specialized public source type such as news, local results, images, or video.
-7. For academic/paper-grounded questions or prior-art/issue history, use Firecrawl's paper and GitHub search tools directly instead of generic web search. Do not submit Firecrawl feedback, start crawls/agents, or handle private material without approval.
+6. Use Brave web search for independent corroboration. Switch to Brave's specialized tools only when the question needs news, local, image, video, place, summarizer, or llm-context results.
+7. For academic/paper-grounded questions or prior-art/issue history, call Firecrawl `research_*` tools directly instead of generic web search. Do not submit Firecrawl feedback, start crawls/agents, or handle private material without approval.
 8. Synthesize only from gathered evidence and cite sources.
 9. When the research points directly to a local code or config change, state that the next step belongs in **b-implement**; when uncertainty remains, say what is still unknown.
 

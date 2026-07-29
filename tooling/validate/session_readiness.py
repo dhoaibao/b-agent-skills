@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[2]
 RTK_POLICY = ROOT / "pi" / "extensions" / "b-agentic-permissions.ts"
 # RTK commands that operate on RTK itself or generic command streams rather
 # than proxying a same-named native command family. New commands must be
-# reviewed and added here or to RTK_REQUIRED_COMMANDS.
+# reviewed and added here, to RTK_REQUIRED_COMMANDS, or RTK_OPTIONAL_COMMANDS.
 RTK_NON_NATIVE_COMMANDS = {
     "read", "smart", "err", "test", "json", "deps", "env", "summary", "log",
     "gain", "cc-economics", "config", "init", "discover", "session", "telemetry",
@@ -28,12 +28,22 @@ RTK_NON_NATIVE_COMMANDS = {
 }
 
 
+def _parse_rtk_command_set(text: str, const_name: str) -> set[str]:
+    match = re.search(rf"const {const_name} = new Set\(\[(.*?)\]\);", text, re.DOTALL)
+    if not match:
+        raise ValueError(f"{const_name} is missing or unparsable")
+    return set(re.findall(r'"([^"]+)"', match.group(1)))
+
+
 def configured_rtk_families(path: Path = RTK_POLICY) -> set[str]:
     text = path.read_text()
-    match = re.search(r"const RTK_REQUIRED_COMMANDS = new Set\(\[(.*?)\]\);", text, re.DOTALL)
-    if not match:
-        raise ValueError("RTK_REQUIRED_COMMANDS is missing or unparsable")
-    return set(re.findall(r'"([^"]+)"', match.group(1)))
+    required = _parse_rtk_command_set(text, "RTK_REQUIRED_COMMANDS")
+    optional = _parse_rtk_command_set(text, "RTK_OPTIONAL_COMMANDS")
+    return required | optional
+
+
+def required_rtk_families(path: Path = RTK_POLICY) -> set[str]:
+    return _parse_rtk_command_set(path.read_text(), "RTK_REQUIRED_COMMANDS")
 
 
 def available_rtk_families(help_text: str) -> set[str]:
@@ -46,13 +56,14 @@ def check_rtk_policy() -> tuple[bool, str]:
         if completed.returncode:
             return False, "blocked: rtk --help failed; cannot verify command-policy compatibility"
         configured = configured_rtk_families()
+        required = required_rtk_families()
     except (OSError, ValueError) as exc:
         return False, f"blocked: cannot verify RTK command policy: {exc}"
     available = available_rtk_families(completed.stdout)
-    missing = sorted(configured - available)
+    missing = sorted(required - available)
     uncovered = sorted(available - configured - RTK_NON_NATIVE_COMMANDS)
     if missing:
-        return False, f"blocked: RTK command-policy drift; configured families unavailable: {', '.join(missing)}"
+        return False, f"blocked: RTK command-policy drift; required families unavailable: {', '.join(missing)}"
     if uncovered:
         return False, f"blocked: RTK command-policy drift; unclassified families: {', '.join(uncovered)}"
     return True, "RTK command policy compatible"
@@ -99,8 +110,12 @@ def self_test() -> int:
         print("RTK help fixture unexpectedly failed", file=sys.stderr)
         return 1
     configured = configured_rtk_families()
-    if ({"git", "pytest"} - configured - RTK_NON_NATIVE_COMMANDS):
-        print("covered RTK family fixture unexpectedly failed", file=sys.stderr)
+    required = required_rtk_families()
+    if ({"git", "pytest"} - required):
+        print("required RTK family fixture unexpectedly failed", file=sys.stderr)
+        return 1
+    if not ({"ls", "rg"} <= configured - required):
+        print("optional discovery RTK family fixture unexpectedly failed", file=sys.stderr)
         return 1
     if not ({"new-native-family"} - configured - RTK_NON_NATIVE_COMMANDS):
         print("unclassified RTK family fixture unexpectedly passed", file=sys.stderr)

@@ -91,15 +91,16 @@ const PROTECTED_PATH_MARKERS = [
 
 /**
  * Built-in Pi tools with specialized policy.
- * Legacy discovery tools (grep/find/ls) are handled below so they cannot
- * bypass the kernel's RTK and shell-tool policy. Managed MCP operations are
- * approved only when their canonical classification is safe.
+ * Legacy discovery tools (grep/find/ls) are blocked so agents use bash with
+ * modern shell tools (rg/fd/eza) per the kernel. recall is first-party memory
+ * lookup. Managed MCP operations are approved only when classified safe.
  */
 const SPECIALIZED_TOOLS = new Set([
   "bash",
   "write",
   "edit",
   "read",
+  "recall",
   "grep",
   "find",
   "ls",
@@ -348,14 +349,22 @@ const PLAYWRIGHT_TRUSTED_TOOLS = new Set([
 const WRAPPER_COMMANDS = new Set(["rtk", "sudo", "command", "nohup", "nice", "time", "env"]);
 /** RTK subcommands that execute another command and must expose it to policy matching. */
 const RTK_EXECUTION_WRAPPERS = new Set(["proxy", "err", "test", "summary", "run"]);
-/** Native command families exposed by `rtk --help`. Agents must use RTK for supported families. */
+/**
+ * High-noise native families that must go through RTK when used.
+ * Local discovery (ls/find/grep/rg/tree/diff/wc) stays optional so agents can
+ * prefer bare modern tools (eza/fd/rg/bat) per the kernel.
+ */
 const RTK_REQUIRED_COMMANDS = new Set([
-  "ls", "tree", "git", "gh", "glab", "aws", "psql", "pnpm", "find", "diff",
-  "dotnet", "docker", "kubectl", "oc", "grep", "rg", "wget", "wc",
+  "git", "gh", "glab", "aws", "psql", "pnpm",
+  "dotnet", "docker", "kubectl", "oc", "wget",
   "jest", "vitest", "prisma", "tsc", "next", "lint", "prettier", "format",
   "playwright", "cargo", "npm", "npx", "curl", "ruff", "pytest", "mypy",
   "rake", "rubocop", "rspec", "pip", "go", "gt", "golangci-lint", "gradlew", "mvn",
   "ecs", "paratest", "pest", "php", "phpstan", "phpunit", "pint", "sbt", "uv",
+]);
+/** RTK-native families that remain classified but are not RTK-mandatory. */
+const RTK_OPTIONAL_COMMANDS = new Set([
+  "ls", "tree", "find", "diff", "grep", "rg", "wc",
 ]);
 
 /** Interpreters that execute opaque code or script files; always approval-required. */
@@ -1639,7 +1648,9 @@ function isSafeFirecrawlScrapeOptions(input: Record<string, unknown>): boolean {
     "skipTlsVerification", "removeBase64Images", "location", "storeInCache", "zeroDataRetention",
     "maxAge", "lockdown", "proxy",
   ]);
-  return hasOnlyKeys(input, allowed) && input.storeInCache !== true;
+  return hasOnlyKeys(input, allowed) &&
+    input.storeInCache !== true &&
+    input.skipTlsVerification !== true;
 }
 
 function isSafeFirecrawlSearch(input: Record<string, unknown>): boolean {
@@ -1899,12 +1910,11 @@ export default function (pi: ExtensionAPI) {
       return undefined;
     }
 
-    // The kernel requires RTK for supported discovery families; do not let
-    // direct built-ins bypass that policy.
+    // Prefer bash + modern shell tools (rg/fd/eza) over Pi discovery builtins.
     if (event.toolName === "grep" || event.toolName === "find" || event.toolName === "ls") {
       return {
         block: true,
-        reason: "Blocked direct discovery tool: use the corresponding RTK command",
+        reason: "Blocked direct discovery tool: use bash with rg/fd/eza (or grep/find/ls)",
       };
     }
 
@@ -1973,6 +1983,7 @@ export const __test__ = {
   DANGEROUS_ASK_COMMANDS,
   DENY_COMMANDS,
   RTK_REQUIRED_COMMANDS,
+  RTK_OPTIONAL_COMMANDS,
   RTK_EXECUTION_WRAPPERS,
   isProjectConfinedPath,
 };

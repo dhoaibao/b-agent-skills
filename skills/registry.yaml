@@ -33,11 +33,12 @@
       "routing": {
         "intent": "External docs, API facts, versions, comparisons",
         "triggers": [
-          "docs",
-          "library",
-          "API",
-          "compare",
-          "look up"
+          "library docs",
+          "API docs",
+          "look up",
+          "compare APIs",
+          "versioned docs",
+          "external documentation"
         ]
       },
       "prompt": {
@@ -77,10 +78,11 @@
         "intent": "Implement approved or clearly scoped work",
         "triggers": [
           "implement",
-          "add",
-          "build",
-          "execute",
-          "finish"
+          "make the change",
+          "apply the plan",
+          "code the fix",
+          "finish the implementation",
+          "build the feature"
         ]
       },
       "prompt": {
@@ -115,12 +117,14 @@
         "intent": "Mechanical rename, extract, move, inline, simplify, delete dead code",
         "triggers": [
           "rename",
-          "extract",
-          "move",
+          "extract function",
+          "extract method",
+          "move symbol",
           "inline",
-          "simplify",
+          "simplify code",
           "delete dead code",
-          "remove dead code"
+          "remove dead code",
+          "behavior-preserving"
         ]
       },
       "prompt": {
@@ -136,12 +140,13 @@
         "triggers": [
           "bug",
           "broken",
-          "error",
           "stack trace",
           "\"not working\"",
+          "runtime error",
           "regression",
           "product regression",
-          "product bug"
+          "product bug",
+          "diagnose"
         ]
       },
       "prompt": {

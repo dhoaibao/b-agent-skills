@@ -40,12 +40,14 @@ Interactive installs prepare Pi and RTK; Serena and CodeGraph remain optional in
 
 During interactive installs, the installer can prompt to download and run the RTK install script from its `master` branch. If `rtk` is already installed, the installer asks separately before upgrading it; the existing installation satisfies the prerequisite. Scripted upgrades require `B_AGENTIC_INSTALL_RTK=Y`. This is a remote shell script; only use it if you trust the RTK repository. RTK is required for b-agentic sessions; installation fails if it cannot be installed.
 
-Once installed, b-agentic runs command families supported by `rtk --help` through RTK and runs unsupported commands directly. RTK does not bypass approval for commits, dependency writes, services, or other dangerous commands; explicit destructive commands are denied, and protected paths or opaque shell and interpreter inputs remain approval-gated. Build and test tools can execute code from the current repository, so this permission layer is not a process sandbox. Use Pi's sandbox integration or an isolated environment when running genuinely untrusted code. The Pi runtime enforces RTK only for supported native command families:
+Once installed, agents prefer modern shell tools for local discovery (`rg`, `fd`/`fdfind`, `eza`/`exa`, `bat`/`batcat`, `sd`, `jq`) and use RTK for high-noise families it supports (git, package/test/build runners, docker/kubectl, curl/wget, and similar). Unsupported commands run directly. RTK does not bypass approval for commits, dependency writes, services, or other dangerous commands; explicit destructive commands are denied, and protected paths or opaque shell and interpreter inputs remain approval-gated. Build and test tools can execute code from the current repository, so this permission layer is not a process sandbox. Use Pi's sandbox integration or an isolated environment when running genuinely untrusted code. Examples:
 
 ```bash
+rg pattern src
+fd -t f '.ts$'
+eza -la
 rtk git status
 rtk cargo test
-rtk npm run build
 rtk pytest -q
 ```
 
