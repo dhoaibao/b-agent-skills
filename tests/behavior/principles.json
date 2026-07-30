@@ -83,8 +83,8 @@
       "skill": "b-test",
       "observed_failure": "The b-test prompt forced a handoff to b-implement and back for every red-green step, adding phase ceremony to explicitly requested TDD.",
       "intended_behavior": "Allow b-test to complete a tightly scoped red-green loop when the user explicitly requests TDD, while routing ordinary production fixes to b-implement.",
-      "prompt": "Use b-test and work TDD-style. Add one failing public-interface test, make only the minimal production change needed to pass it, and verify the behavior. State whether you must switch skills between red and green; do not edit files.",
-      "must": ["Keep the explicitly requested red-green loop in b-test", "Limit production changes to the minimum needed by the failing behavior test", "Verify the test passes"],
+      "prompt": "Use b-test and work TDD-style. State the red-green flow for adding one failing public-interface test, making only the minimal production change needed to pass it, and verifying the behavior. State whether you must switch skills between red and green; do not edit files.",
+      "must": ["Keep the explicitly requested red-green loop in b-test", "Limit production changes to the minimum needed by the failing behavior test", "State that the test would be verified after the minimal production change"],
       "avoid": ["Require a ceremonial skill handoff between red and green", "Expand production scope beyond the tested behavior"]
     },
     {

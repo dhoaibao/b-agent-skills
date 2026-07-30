@@ -159,13 +159,13 @@ scripts/mcp-doctor.sh --probe-schemas  # explicit live server/network probe
 scripts/skill-doctor.sh
 ```
 
-Prompt effectiveness is an opt-in, human-scored check because it makes potentially billable model calls and is nondeterministic. Validate its default inputs without model calls, then pin the model and thinking level when comparing a baseline with a candidate:
+Prompt effectiveness is an opt-in, human-scored check because it makes potentially billable model calls and is nondeterministic. Validate its default inputs without model calls, then pin the provider, model, and thinking level when comparing a baseline with a candidate:
 
 ```bash
 python3 pi/tests/prompt_effectiveness.py --validate-inputs
-python3 pi/tests/prompt_effectiveness.py --allow-model-calls --model=<model> --thinking=<level> --label=baseline > baseline.json
+python3 pi/tests/prompt_effectiveness.py --allow-model-calls --provider=<provider> --model=<model> --thinking=<level> --label=baseline > baseline.json
 python3 pi/tests/prompt_effectiveness.py --routing --validate-inputs
-python3 pi/tests/prompt_effectiveness.py --routing --allow-model-calls --model=<model> --thinking=<level> --label=baseline-routing > baseline-routing.json
+python3 pi/tests/prompt_effectiveness.py --routing --allow-model-calls --provider=<provider> --model=<model> --thinking=<level> --label=baseline-routing > baseline-routing.json
 ```
 
 The validation suite and doctors prove generated sync, install safety, Pi config shape, skill payloads, MCP operation policy regression, and local MCP readiness blockers. The default routing check is a static heuristic over skill registry metadata. The opt-in `--routing` effectiveness lane loads every native skill with read-only tools and records the model's reported selection; both effectiveness modes require human review against their included rubrics.

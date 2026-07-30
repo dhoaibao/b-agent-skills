@@ -45,6 +45,7 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Evaluate native selection across every b-agentic skill instead of one explicit skill.",
     )
+    parser.add_argument("--provider", help="Pin the Pi provider for reproducible comparisons.")
     parser.add_argument("--model", help="Pin a Pi model for reproducible comparisons.")
     parser.add_argument("--thinking", help="Pin the Pi thinking level.")
     parser.add_argument("--scenario", action="append", default=[], help="Run only this scenario ID; repeatable.")
@@ -111,6 +112,8 @@ def pi_command(args: argparse.Namespace, prompt: str, skill_path: Path) -> list[
         )
     else:
         command.append("--no-tools")
+    if args.provider:
+        command.extend(["--provider", args.provider])
     if args.model:
         command.extend(["--model", args.model])
     if args.thinking:
@@ -127,6 +130,8 @@ def validate_command_construction(args: argparse.Namespace, scenarios: list[dict
         addendum = command[command.index("--append-system-prompt") + 1]
         if kernel_text not in addendum or str(args.kernel) == addendum:
             raise ValueError("Pi command does not inject the kernel contents")
+        if args.provider and command[command.index("--provider") + 1] != args.provider:
+            raise ValueError("Pi command does not pin the requested provider")
         if args.routing:
             if "--tools" not in command or "read" not in command:
                 raise ValueError("routing command must allow read for skill progressive disclosure")
@@ -210,6 +215,7 @@ def main() -> int:
     report = {
         "label": args.label,
         "runtime": "pi",
+        "provider": args.provider or "runtime-default",
         "model": args.model or "runtime-default",
         "thinking": args.thinking or "runtime-default",
         "fixture_version": fixture["version"],
