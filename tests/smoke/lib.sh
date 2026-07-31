@@ -113,7 +113,11 @@ if [ "${1:-}" = "list" ]; then
     printf 'npm:@narumitw/pi-usage\n'
     found=1
   fi
-  [ "$found" -eq 1 ] || printf '(no packages)\n'
+  [ "$found" -eq 1 ] || printf 'No packages installed.\n'
+  exit 0
+fi
+if [ "${1:-}" = "update" ] && [ "${2:-}" = "--extensions" ]; then
+  printf 'update --extensions\n' >> "$log_dir/pi-install.log"
   exit 0
 fi
 if [ "${1:-}" = "install" ]; then

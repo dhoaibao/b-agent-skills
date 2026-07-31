@@ -41,6 +41,7 @@ run_pi_smoke_cases() {
 	assert_contains "$sandbox/home/.pi/agent/extensions/b-agentic-permissions.ts" 'tool_call'
 	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"mcpAdapterState": "missing"'
 	assert_contains "$sandbox/home/.pi/agent/AGENTS.md" 'b-agentic-managed'
+	assert_no_path "$sandbox/smoke-bin/pi-install.log"
 
 	# Optional Pi packages via env opt-in (mock pi records installs).
 	# expect_install_status hardcodes env; invoke installer directly for package opt-ins.
@@ -67,6 +68,7 @@ run_pi_smoke_cases() {
 	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:pi-mcp-adapter'
 	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:pi-observational-memory'
 	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:@narumitw/pi-usage'
+	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'update --extensions'
 
 	# Preserve user-owned kernel.
 	mkdir -p "$sandbox_preserve/home/.pi/agent"

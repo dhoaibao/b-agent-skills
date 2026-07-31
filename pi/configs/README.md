@@ -29,6 +29,8 @@ memory/compaction layer rather than combining it with another such extension.
 b-agentic can also install the optional `@narumitw/pi-usage` extension.
 Interactive installs prompt before running `pi install npm:@narumitw/pi-usage`;
 noninteractive installs require `B_AGENTIC_INSTALL_PI_USAGE=Y`.
+After checking `pi list`, the installer runs `pi update --extensions` when
+Pi extensions are installed.
 
 Uninstall removes b-agentic-managed MCP config and the permission extension; it
 does not remove any of these packages.

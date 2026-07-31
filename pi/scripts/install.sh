@@ -122,6 +122,24 @@ pi_usage_installed() {
 	pi_package_installed "$PI_USAGE_PACKAGE"
 }
 
+pi_extensions_installed() {
+	if ! command -v pi >/dev/null 2>&1; then
+		return 1
+	fi
+	local listing
+	listing="$(
+		HOME="${HOME}" \
+			PI_CODING_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}" \
+			pi list 2>/dev/null || true
+	)"
+	case "$listing" in
+	"" | "No packages installed." | "No packages installed")
+		return 1
+		;;
+	esac
+	return 0
+}
+
 install_pi_mcp_adapter_enabled() {
 	local value="${B_AGENTIC_INSTALL_PI_MCP_ADAPTER:-auto}"
 	case "$value" in
@@ -302,8 +320,8 @@ maybe_install_pi_observational_memory() {
 	fi
 }
 
-runtime_install_config_stage_count() { # permission extension + MCP merge + prompted keys
-	printf '3'
+runtime_install_config_stage_count() { # extension update + permission extension + MCP merge + prompted keys
+	printf '4'
 }
 
 install_permissions_extension() {
@@ -351,10 +369,34 @@ runtime_install_extra_assets() {
 	:
 }
 
+update_pi_extensions() {
+	if ! command -v pi >/dev/null 2>&1; then
+		log "Pi CLI missing; skipping Pi extension update"
+		return 0
+	fi
+	if ! pi_extensions_installed; then
+		log "No Pi extensions installed; skipping pi update --extensions"
+		return 0
+	fi
+	if dry_run_enabled; then
+		printf '[dry-run] pi update --extensions\n' >&2
+		return 0
+	fi
+
+	log "Updating installed Pi extensions with pi update --extensions"
+	if pi update --extensions; then
+		log "Pi extension update completed"
+	else
+		warn "Pi extension update failed; continuing"
+	fi
+	return 0
+}
+
 runtime_install_configs() {
 	maybe_install_pi_mcp_adapter
 	maybe_install_pi_observational_memory
 	maybe_install_pi_usage
+	run_stage "Updating Pi extensions" update_pi_extensions
 	run_install_triplet_stage "Installing Pi permission extension" install_permissions_extension "skip" "none" "none" \
 		INSTALL_EXTENSION_ACTION INSTALL_EXTENSION_STATE INSTALL_EXTENSION_BACKUP
 	run_install_triplet_stage "Merging MCP config" install_mcp_config "skip" "none" "none" \
