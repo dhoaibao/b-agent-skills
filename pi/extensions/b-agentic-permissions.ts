@@ -65,6 +65,8 @@ const DANGEROUS_ASK_COMMANDS: string[][] = [
   ["docker", "compose", "down"], ["kubectl", "delete"],
 ];
 
+const COMPOUND_SOURCE_CODE_FILENAME = /^[^.]+\..+\.(?:[cm]?[jt]sx?|py|rb|go|rs|java|kt|kts|c(?:c|pp|xx)?|h(?:pp)?|cs|php|swift|scala|vue|svelte|astro)$/i;
+
 const PROTECTED_PATH_MARKERS = [
   ".env",
   "credentials.",
@@ -1413,7 +1415,10 @@ function isProtectedPath(pathValue: string): boolean {
     // Match secret-like names at a path-component boundary. A substring
     // match would incorrectly classify code such as provider-secrets.service.ts.
     if (marker === "credentials." || marker === "secrets.") {
-      if (segments.some((segment) => segment.startsWith(marker))) {
+      // Preserve literal secret files such as credentials.ts, but allow
+      // compound source filenames such as credentials.service.ts.
+      if (segments.some((segment) =>
+        segment.startsWith(marker) && !COMPOUND_SOURCE_CODE_FILENAME.test(segment))) {
         return true;
       }
       continue;
