@@ -418,8 +418,12 @@ expect(t.isProtectedPath('.ssh/.env.example') === true, 'env template within SSH
 expect(t.isProtectedPath('.aws/.env.example') === true, 'env template within AWS directory must remain protected');
 expect(t.isProtectedPath('src/app.env') === true, 'app.env protected');
 expect(t.isProtectedPath('secrets.json') === true, 'secrets. marker');
+expect(t.isProtectedPath('apps/api/src/modules/provider-secrets/application/provider-secrets.service.ts') === false, 'secret words inside code path must not protect it');
+expect(t.isProtectedPath('apps/api/src/modules/provider-credentials/application/provider-credentials.service.ts') === false, 'credential words inside code path must not protect it');
 expect(t.isProtectedPath('.git/config') === true, '.git path protected');
 expect(t.isProtectedPath('src/main.ts') === false, 'normal path not protected');
+expect(t.nativePathDecision('write', 'apps/api/src/modules/provider-secrets/application/provider-secrets.service.ts').decision === 'allow', 'code path containing secret words must allow writes');
+expect(t.nativePathDecision('write', 'apps/api/src/modules/provider-credentials/application/provider-credentials.service.ts').decision === 'allow', 'code path containing credential words must allow writes');
 expect(t.nativePathDecision('read', '.env').decision === 'ask', 'protected native read must ask for approval');
 expect(t.nativePathDecision('write', '.env').decision === 'deny', 'protected native write must remain blocked');
 expect(t.nativePathDecision('edit', '.env').decision === 'deny', 'protected native edit must remain blocked');
@@ -427,6 +431,17 @@ expect(t.nativePathDecision('write', '.env.example').decision === 'allow', 'publ
 expect(t.nativePathDecision('write', '.ssh/.env.example').decision === 'deny', 'SSH directory env template writes must remain blocked');
 expect(t.nativePathDecision('write', '.aws/.env.example').decision === 'deny', 'AWS directory env template writes must remain blocked');
 expect(t.nativePathDecision('read', 'src/main.ts').decision === 'allow', 'normal native read must allow');
+const serenaCodeFixture = mkdtempSync(path.join(root, 'pi/tests/', '.b-agentic-serena-'));
+try {
+  const providerSecretsService = path.join(serenaCodeFixture, 'provider-secrets.service.ts');
+  const providerCredentialsService = path.join(serenaCodeFixture, 'provider-credentials.service.ts');
+  writeFileSync(providerSecretsService, 'export const providerSecrets = true;');
+  writeFileSync(providerCredentialsService, 'export const providerCredentials = true;');
+  expect(t.isConditionallyTrustedTool('serena', 'serena_get_symbols_overview', { relative_path: providerSecretsService }) === true, 'Serena must trust code paths containing secret words');
+  expect(t.isConditionallyTrustedTool('serena', 'serena_get_symbols_overview', { relative_path: providerCredentialsService }) === true, 'Serena must trust code paths containing credential words');
+} finally {
+  rmSync(serenaCodeFixture, { recursive: true, force: true });
+}
 const protectedPathFixture = mkdtempSync(path.join(os.tmpdir(), 'b-agentic-protected-path-'));
 try {
   const secretPath = path.join(protectedPathFixture, '.env');

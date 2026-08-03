@@ -1387,7 +1387,8 @@ function isProtectedLocalPath(pathValue: string): boolean {
 
 function isProtectedPath(pathValue: string): boolean {
   const normalized = pathValue.replace(/\\/g, "/");
-  const base = normalized.split("/").pop() || normalized;
+  const segments = normalized.split("/");
+  const base = segments[segments.length - 1] || normalized;
   for (const marker of PROTECTED_PATH_MARKERS) {
     if (marker.startsWith(".") && !marker.includes("/")) {
       // Public environment templates contain placeholders, not credentials.
@@ -1403,11 +1404,29 @@ function isProtectedPath(pathValue: string): boolean {
       }
       continue;
     }
-    if (marker.endsWith("/") && base === marker.slice(0, -1)) {
-      return true;
+    if (marker.endsWith("/")) {
+      if (base === marker.slice(0, -1) || normalized.includes(marker)) {
+        return true;
+      }
+      continue;
     }
-    if (normalized.includes(marker) || base.includes(marker)) {
-      return true;
+    // Match secret-like names at a path-component boundary. A substring
+    // match would incorrectly classify code such as provider-secrets.service.ts.
+    if (marker === "credentials." || marker === "secrets.") {
+      if (segments.some((segment) => segment.startsWith(marker))) {
+        return true;
+      }
+      continue;
+    }
+    if (marker.startsWith("id_")) {
+      if (segments.some((segment) =>
+        segment === marker ||
+        segment.startsWith(`${marker}.`) ||
+        segment.startsWith(`${marker}_`) ||
+        segment.startsWith(`${marker}-`))) {
+        return true;
+      }
+      continue;
     }
   }
   return false;
@@ -1617,7 +1636,7 @@ function hasProtectedPathArgument(input: Record<string, unknown>, keys: string[]
     const value = input[key];
     if (typeof value !== "string" || !value) return false;
     const literalized = value.replace(/[!*?{}\[\]]/g, "");
-    return isProtectedLocalPath(value) || isProtectedPath(literalized) || PROTECTED_PATH_MARKERS.some((marker) => value.includes(marker));
+    return isProtectedLocalPath(value) || isProtectedPath(literalized);
   });
 }
 
