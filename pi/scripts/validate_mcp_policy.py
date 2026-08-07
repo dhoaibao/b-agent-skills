@@ -99,7 +99,7 @@ def main() -> int:
     for marker in [
         "isConditionallyTrustedTool(server, base, input)",
         "SERENA_TRUSTED_TOOLS.has(base)",
-        "return false;\n  }\n\n  if (hasTool)",
+        'if (toolName === "mcp")',
     ]:
         if marker not in source:
             errors.append(f"{extension.relative_to(root)}: missing managed-operation gate {marker!r}")

@@ -62,7 +62,6 @@ if extension.exists():
         'splitShellSegments',
         'stripWrappers',
         'isMcpOrCustomTool',
-        'isTrustedManagedMcpCall',
         'isTrustedManagedTool',
         'MANAGED_MCP_SERVERS',
         'MCP_TRUSTED_GATEWAY_OPERATIONS',
@@ -106,12 +105,8 @@ if extension.exists():
     playwright_trusted = re.search(r'PLAYWRIGHT_TRUSTED_TOOLS = new Set\(\[(.*?)\]\)', text, re.DOTALL)
     if playwright_trusted and re.search(r'"browser_click"', playwright_trusted.group(1)):
         errors.append(f'{extension}: browser_click must not be in PLAYWRIGHT_TRUSTED_TOOLS')
-    if 'explicitServer' not in text or 'fromName' not in text:
-        errors.append(f'{extension}: must fail closed on explicit server / tool-name mismatch')
-    if 'hasConnect' not in text or 'hasTool' not in text:
-        errors.append(f'{extension}: must fail closed on mixed connect/tool MCP selectors')
-    if "typeof value.server === \"string\"" not in text or "typeof value.search === \"string\"" not in text:
-        errors.append(f'{extension}: connect mixed-selector gate must cover server/search')
+    if 'if (toolName === "mcp")' not in text or 'return true;' not in text:
+        errors.append(f'{extension}: must keep top-level MCP gateway calls approval-gated')
     if 'Blocked' not in text or 'protected path' not in text:
         errors.append(f'{extension}: must block protected paths')
     # read must share protected-path handling with write/edit

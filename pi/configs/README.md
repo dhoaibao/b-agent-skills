@@ -66,7 +66,7 @@ that listens for `tool_call` events and:
 - requires RTK for high-noise native command families (git, package/test/build runners, docker/kubectl, curl/wget, and similar); local discovery may use bare modern tools; unsupported
   commands may run directly, and `rtk proxy` is unwrapped for the same safety
   classification as its effective command; allows MCP metadata
-  discovery and only the explicitly classified read-only operations of managed MCP servers without prompts; when pi-mcp-adapter is present, its approval broker applies the same policy to proxy, direct, resource, script, and iframe-originated MCP calls
+  discovery and only the explicitly classified read-only operations of managed MCP servers after the top-level approval gate; direct adapter tool names and top-level MCP gateway executions remain top-level approval-gated because Pi shares that namespace with custom tools; when pi-mcp-adapter is present, its approval broker applies the same policy to adapter-owned direct, proxy, resource, script, and iframe-originated MCP calls without prompting twice for the already-approved top-level call
 - confines autonomous Serena symbol reads to the current repository and asks for Serena onboarding, memory writes, and other local mutations; asks for Firecrawl external-mutation or
   local-upload tools (agent/crawl/interact/monitor/feedback/parse), Playwright
   page-mutating tools (click/type/upload/evaluate/…), screenshots (the server

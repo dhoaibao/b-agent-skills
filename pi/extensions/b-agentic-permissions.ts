@@ -5,7 +5,7 @@
  * - ask: commits, external/shared mutations, opaque execution, dependency writes, services, rm -rf
  * - deny: destructive git history/worktree rewrites and selected docker prune/rm families
  * - block write/edit to secret and repository-control paths
- * - allow metadata discovery plus classified read-only and safe conditional-read MCP operations
+ * - allow metadata discovery plus classified read-only and safe conditional-read MCP operations after ownership gating
  * - broker adapter-originated MCP calls, including proxy/direct/resource/script/iframe origins
  * - ask before managed mutations/uploads, user/unknown MCP servers, auth actions, and other custom tools
  *
@@ -1453,41 +1453,6 @@ function isProtectedPath(pathValue: string): boolean {
   return false;
 }
 
-function isTrustedMcpProxyCall(input: unknown): boolean {
-  if (!input || typeof input !== "object" || Array.isArray(input)) {
-    return false;
-  }
-
-  const value = input as {
-    action?: unknown;
-    search?: unknown;
-    describe?: unknown;
-    tool?: unknown;
-    connect?: unknown;
-    server?: unknown;
-  };
-  // Metadata-only calls must contain exactly one metadata selector and no
-  // execution selector. This prevents search/describe from laundering auth.
-  if (
-    typeof value.tool === "string" ||
-    typeof value.connect === "string" ||
-    typeof value.server === "string"
-  ) {
-    return false;
-  }
-  const hasAction = typeof value.action === "string";
-  const hasSearch = typeof value.search === "string";
-  const hasDescribe = typeof value.describe === "string";
-  if ([hasAction, hasSearch, hasDescribe].filter(Boolean).length !== 1) {
-    return false;
-  }
-  if (hasAction) {
-    return MCP_TRUSTED_GATEWAY_OPERATIONS.has(value.action as string);
-  }
-  // Search and describe use cached metadata only; they do not call a server.
-  return MCP_TRUSTED_GATEWAY_OPERATIONS.has(hasSearch ? "search" : "describe");
-}
-
 function normalizeServerId(value: string): string {
   return value.trim().toLowerCase().replace(/_/g, "-");
 }
@@ -1530,44 +1495,6 @@ function managedToolBaseName(toolName: string, server: string): string {
     }
   }
   return name;
-}
-
-/**
- * Resolve managed server id from a direct or namespaced tool name.
- * Supports adapter forms (serena_find_symbol, brave_search_*), mcp__server__tool,
- * and bare server ids.
- */
-function managedServerFromToolName(toolName: string): string | null {
-  if (toolName.startsWith("mcp__")) {
-    const parts = toolName.split("__");
-    if (parts.length >= 2 && isManagedServer(parts[1])) {
-      return normalizeServerId(parts[1]);
-    }
-  }
-
-  const prefixes: Array<[string, string]> = [
-    ["serena_", "serena"],
-    ["codegraph_", "codegraph"],
-    ["context7_", "context7"],
-    ["firecrawl_", "firecrawl"],
-    ["playwright_", "playwright"],
-    ["brave_search_", "brave-search"],
-    ["brave-search_", "brave-search"],
-  ];
-  for (const [prefix, server] of prefixes) {
-    if (toolName === server || toolName.startsWith(prefix)) {
-      return server;
-    }
-  }
-  // Playwright tools often appear as bare browser_* names when directTools is on.
-  if (toolName.startsWith("browser_")) {
-    return "playwright";
-  }
-  // Underscore alias for brave-search when used as a bare server token.
-  if (toolName === "brave_search") {
-    return "brave-search";
-  }
-  return null;
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -1769,18 +1696,6 @@ function isConditionallyTrustedTool(server: string, base: string, input: unknown
   return false;
 }
 
-function gatewayToolArguments(input: Record<string, unknown>): unknown {
-  const encoded = input.args;
-  if (typeof encoded === "string") {
-    try {
-      return JSON.parse(encoded);
-    } catch {
-      return null;
-    }
-  }
-  return isPlainObject(encoded) ? encoded : null;
-}
-
 /**
  * Trust only read-only operations and validated conditional reads.
  */
@@ -1800,135 +1715,17 @@ function isTrustedManagedTool(server: string, toolName: string, input?: unknown)
 }
 
 /**
- * True when the top-level MCP gateway carries a managed execution selector
- * that the adapter broker can own. Direct tool names are intentionally not
- * sufficient evidence of adapter ownership.
- */
-function isBrokerManagedMcpCall(toolName: string, input?: unknown): boolean {
-  // Direct adapter tools share the same Pi tool_call namespace as custom tools,
-  // so their origin cannot be proven from the name alone. Keep those calls on
-  // the top-level gate; the broker still covers direct/resource/iframe calls
-  // that do not pass through a distinguishable top-level MCP gateway call.
-  if (toolName !== "mcp") {
-    return false;
-  }
-  if (!isPlainObject(input) || typeof input.tool !== "string") {
-    return false;
-  }
-  if (
-    typeof input.connect === "string" ||
-    typeof input.action === "string" ||
-    typeof input.search === "string" ||
-    typeof input.describe === "string"
-  ) {
-    return false;
-  }
-
-  const fromName = managedServerFromToolName(input.tool);
-  const explicitServer =
-    typeof input.server === "string" ? normalizeServerId(input.server) : null;
-  if (fromName && explicitServer && fromName !== explicitServer) {
-    return false;
-  }
-  return isManagedServer(fromName || explicitServer || "");
-}
-
-/**
- * True when this call is a trusted managed b-agentic MCP action that should
- * run without a Pi approval prompt. Fail closed on mixed MCP selectors,
- * server/tool origin mismatch, auth bootstrap, and non-managed servers.
- */
-function isTrustedManagedMcpCall(toolName: string, input?: unknown): boolean {
-  if (toolName !== "mcp") {
-    const server = managedServerFromToolName(toolName);
-    if (!server) {
-      return false;
-    }
-    return isTrustedManagedTool(server, toolName, input);
-  }
-
-  if (!input || typeof input !== "object" || Array.isArray(input)) {
-    return false;
-  }
-
-  const value = input as {
-    action?: unknown;
-    server?: unknown;
-    connect?: unknown;
-    tool?: unknown;
-    search?: unknown;
-    describe?: unknown;
-  };
-
-  // OAuth / auth bootstrap remains approval-gated.
-  if (value.action === "auth-start" || value.action === "auth-complete") {
-    return false;
-  }
-
-  const hasConnect = typeof value.connect === "string";
-  const hasTool = typeof value.tool === "string";
-  // Mixed selectors can launder a sensitive tool behind a trusted connect/list.
-  // connect must be the sole selector when present.
-  if (
-    hasConnect &&
-    (hasTool ||
-      typeof value.action === "string" ||
-      typeof value.server === "string" ||
-      typeof value.search === "string" ||
-      typeof value.describe === "string")
-  ) {
-    return false;
-  }
-
-  if (hasConnect) {
-    return false;
-  }
-
-  if (hasTool) {
-    const tool = value.tool as string;
-    const fromName = managedServerFromToolName(tool);
-    const explicitServer =
-      typeof value.server === "string" ? normalizeServerId(value.server) : null;
-
-    // Explicit server and tool-name origin must agree when both are present.
-    if (explicitServer && fromName && explicitServer !== fromName) {
-      return false;
-    }
-    const server = fromName || explicitServer;
-    if (!server || !isManagedServer(server)) {
-      return false;
-    }
-    return isTrustedManagedTool(server, tool, gatewayToolArguments(value as Record<string, unknown>));
-  }
-
-  if (typeof value.server === "string") {
-    return false;
-  }
-
-  return false;
-}
-
-/**
  * Returns true when the top-level tool call needs the custom/MCP approval prompt.
- * Managed MCP gateway executions are delegated to the adapter approval broker;
- * direct names, gateway actions, unmanaged servers, and other custom tools
- * remain top-level gated.
+ * The adapter gateway shares Pi's custom-tool namespace, so every top-level
+ * MCP call remains gated until adapter ownership is independently established.
  */
-function isMcpOrCustomTool(toolName: string, input?: unknown): boolean {
+function isMcpOrCustomTool(toolName: string, _input?: unknown): boolean {
   if (SPECIALIZED_TOOLS.has(toolName)) {
     return false;
   }
+  // Direct names and the top-level gateway can collide with custom tools.
   if (toolName === "mcp") {
-    if (isTrustedMcpProxyCall(input) || isBrokerManagedMcpCall(toolName, input)) {
-      return false;
-    }
-    if (isTrustedManagedMcpCall(toolName, input)) {
-      return false;
-    }
     return true;
-  }
-  if (isBrokerManagedMcpCall(toolName, input) || isTrustedManagedMcpCall(toolName, input)) {
-    return false;
   }
   // Direct non-managed MCP tools or any other non-built-in extension tool require approval.
   return true;
@@ -2003,17 +1800,14 @@ async function confirmOrBlock(
 export default function (pi: ExtensionAPI) {
   let currentContext: ExtensionContext | undefined;
   let activeToolCallName: string | undefined;
-  let activeToolCallInput: unknown;
 
   pi.on("session_start", (_event, ctx) => {
     currentContext = ctx;
     activeToolCallName = undefined;
-    activeToolCallInput = undefined;
   });
 
   pi.on("tool_execution_end", () => {
     activeToolCallName = undefined;
-    activeToolCallInput = undefined;
   });
 
   // pi-mcp-adapter emits this synchronously before executing proxy, direct,
@@ -2034,8 +1828,7 @@ export default function (pi: ExtensionAPI) {
       (activeToolCallName === value.prefixedToolName || activeToolCallName === value.originalToolName);
     const topLevelGatewayCall =
       value.origin === "proxy" &&
-      activeToolCallName === "mcp" &&
-      !isBrokerManagedMcpCall("mcp", activeToolCallInput);
+      activeToolCallName === "mcp";
     if (topLevelDirectCall || topLevelGatewayCall) {
       value.claim(() => "abstain");
       return;
@@ -2046,7 +1839,6 @@ export default function (pi: ExtensionAPI) {
 
   pi.on("tool_call", async (event, ctx) => {
     activeToolCallName = event.toolName;
-    activeToolCallInput = event.input;
     currentContext = ctx;
     if (event.toolName === "bash") {
       const command = String((event.input as { command?: string }).command || "");
@@ -2114,15 +1906,11 @@ export const __test__ = {
   commandDecision,
   isProtectedPath,
   isMcpOrCustomTool,
-  isTrustedMcpProxyCall,
-  isBrokerManagedMcpCall,
-  isTrustedManagedMcpCall,
   isTrustedManagedTool,
   brokerApprovalDecision,
   approvalLabel,
   MCP_TOOL_APPROVAL_REQUEST_EVENT,
   isManagedServer,
-  managedServerFromToolName,
   managedToolBaseName,
   hasAmbiguousShellSyntax,
   hasShellControlSyntax,

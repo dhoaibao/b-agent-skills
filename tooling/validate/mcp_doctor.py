@@ -87,6 +87,27 @@ def validate_config(config: object) -> dict:
     return config
 
 
+def write_suggestion_report(path: Path, report: dict) -> bool:
+    try:
+        path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
+    except OSError as exc:
+        print(f"policy-suggestions-json: blocked: {exc}", file=sys.stderr)
+        return False
+    print(f"policy-suggestions-json: wrote {path}")
+    return True
+
+
+def emit_blocked_suggestions(path: Path | None, server: str, reason: str) -> bool:
+    print(f"policy-suggestion-error server={server} reason={reason}")
+    print("policy-suggestions: blocked; probed=none policy-change-applied=no")
+    if path is None:
+        return True
+    return write_suggestion_report(
+        path,
+        build_suggestion_report([], [], [{"server": server, "reason": reason}]),
+    )
+
+
 def pi_server_status(server: str, config: dict) -> str:
     entry = config.get("mcpServers", {}).get(server)
     if not isinstance(entry, dict):
@@ -151,11 +172,24 @@ def main() -> int:
     config_path = home / ".pi" / "agent" / "mcp.json"
     if not config_path.exists():
         print(f"agent: Pi\nconfig: {config_path}\nstatus: missing Pi config")
-        return 0 if args.allow_degraded else 1
+        report_ok = True
+        if suggestions_requested:
+            report_ok = emit_blocked_suggestions(
+                args.suggestions_json,
+                "<config>",
+                "missing Pi config",
+            )
+        return 0 if args.allow_degraded and report_ok else 1
     try:
         config = validate_config(load_jsonc(config_path.read_text()))
     except (OSError, ValueError) as exc:
         print(f"agent: Pi\nconfig: {config_path}\nstatus: invalid config: {exc}", file=sys.stderr)
+        if suggestions_requested:
+            emit_blocked_suggestions(
+                args.suggestions_json,
+                "<config>",
+                f"invalid config: {exc}",
+            )
         return 1
 
     adapter_ready, adapter_status = pi_mcp_adapter_ready(home)
@@ -246,13 +280,8 @@ def main() -> int:
                 suggestion_probed_servers,
                 suggestion_failures,
             )
-            try:
-                args.suggestions_json.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
-            except OSError as exc:
-                print(f"policy-suggestions-json: blocked: {exc}", file=sys.stderr)
+            if not write_suggestion_report(args.suggestions_json, report):
                 blocked = True
-            else:
-                print(f"policy-suggestions-json: wrote {args.suggestions_json}")
 
     return 0 if args.allow_degraded or not blocked else 1
 

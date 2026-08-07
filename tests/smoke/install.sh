@@ -566,8 +566,23 @@ run_mcp_doctor_case() {
 	local bin_dir="$WORK_DIR/mcp-doctor-bin"
 	local doctor_log="$WORK_DIR/mcp-doctor.log"
 	local invalid_doctor_log="$WORK_DIR/mcp-doctor-invalid.log"
+	local invalid_suggestions_json="$WORK_DIR/mcp-doctor-invalid-suggestions.json"
+	local blocked_suggestions_json="$WORK_DIR/mcp-doctor-blocked-suggestions.json"
 	local rc=0
 	mkdir -p "$sandbox/home" "$bin_dir"
+
+	set +e
+	python3 "$ROOT_DIR/tooling/validate/mcp_doctor.py" \
+		--home "$sandbox/home" \
+		--allow-degraded \
+		--probe-schemas \
+		--suggestions-json "$blocked_suggestions_json" >"$WORK_DIR/mcp-doctor-blocked.log" 2>&1
+	rc=$?
+	set -e
+	[ "$rc" -eq 0 ] || fail "expected blocked MCP suggestions to degrade cleanly, got $rc"
+	assert_file "$blocked_suggestions_json"
+	assert_contains "$blocked_suggestions_json" '"status": "blocked"'
+	assert_contains "$blocked_suggestions_json" '"policy_change_applied": false'
 
 	printf '#!/usr/bin/env bash\nexit 0\n' >"$bin_dir/serena"
 	printf '#!/usr/bin/env bash\nexit 0\n' >"$bin_dir/codegraph"
@@ -628,6 +643,19 @@ EOF
 	[ "$rc" -eq 1 ] || fail "expected malformed Pi MCP config to fail cleanly, got $rc"
 	assert_contains "$invalid_doctor_log" 'status: invalid config: config root must be an object'
 	assert_not_contains "$invalid_doctor_log" 'Traceback'
+
+	set +e
+	python3 "$ROOT_DIR/tooling/validate/mcp_doctor.py" \
+		--home "$sandbox/home" \
+		--allow-degraded \
+		--probe-schemas \
+		--suggestions-json "$invalid_suggestions_json" >"$WORK_DIR/mcp-doctor-invalid-suggestions.log" 2>&1
+	rc=$?
+	set -e
+	[ "$rc" -eq 1 ] || fail "expected malformed Pi MCP config to remain blocking with --allow-degraded, got $rc"
+	assert_file "$invalid_suggestions_json"
+	assert_contains "$invalid_suggestions_json" '"status": "blocked"'
+	assert_contains "$invalid_suggestions_json" '"policy_change_applied": false'
 }
 
 run_existing_tool_upgrade_case() {

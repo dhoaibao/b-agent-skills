@@ -346,6 +346,24 @@ def conditional_schema_records(
     return records
 
 
+def conservative_argument_suggestion(
+    server: str,
+    tool: str,
+    arguments: list[str],
+) -> tuple[str | None, str, str]:
+    if server == "firecrawl" and tool == "firecrawl_search" and set(arguments) == {"highlights"}:
+        return (
+            "conditional-read",
+            "matches the known Firecrawl search highlights option and does not broaden the bounded query surface",
+            "high",
+        )
+    return (
+        None,
+        "manual classification required; unknown arguments must be reviewed before changing conditional-read policy",
+        "manual",
+    )
+
+
 def build_drift_records(
     server: str,
     discovered: dict[str, dict[str, Any]],
@@ -382,15 +400,27 @@ def build_drift_records(
             }
         )
     for schema_record in conditional_schema_records(server, discovered, conditional_arguments):
+        arguments = schema_record["arguments"]
+        operation = "new-arguments" if schema_record["reason"] == "new-arguments" else "schema-unknown"
+        if operation == "new-arguments":
+            proposed_class, reason, confidence = conservative_argument_suggestion(
+                server,
+                schema_record["tool"],
+                arguments,
+            )
+        else:
+            proposed_class = None
+            reason = "manual classification required; the live schema does not expose comparable input properties"
+            confidence = "manual"
         records.append(
             {
                 "server": server,
                 "tool": schema_record["tool"],
-                "operation": "new-arguments",
-                "arguments": schema_record["arguments"],
-                "proposed_class": "conditional-read",
-                "reason": "discovered arguments are not present in the canonical conditional-read schema",
-                "confidence": "high",
+                "operation": operation,
+                "arguments": arguments,
+                "proposed_class": proposed_class,
+                "reason": reason,
+                "confidence": confidence,
                 "policy_change_applied": False,
             }
         )
@@ -503,6 +533,24 @@ def self_test() -> int:
         or any(record["policy_change_applied"] for record in suggestion_records)
     ):
         print("MCP policy suggestion fixture classification failed")
+        return 1
+    unsafe_argument_records = build_drift_records(
+        "firecrawl",
+        {
+            "firecrawl_search": {
+                "inputSchema": {"properties": {"query": {}, "unsafeMode": {}}},
+            },
+        },
+        {"firecrawl_search": "conditional-read"},
+        {"firecrawl:firecrawl_search": {"known": ["query"]}},
+    )
+    unsafe_argument_record = unsafe_argument_records[0]
+    if (
+        unsafe_argument_record["proposed_class"] is not None
+        or unsafe_argument_record["confidence"] != "manual"
+        or "manual classification required" not in unsafe_argument_record["reason"]
+    ):
+        print("MCP policy suggestion safety fixture failed")
         return 1
     partial_report = build_suggestion_report(
         suggestion_records[:1],
