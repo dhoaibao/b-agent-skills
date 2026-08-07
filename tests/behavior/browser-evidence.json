@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "source": "b-browser evidence output prompt regressions",
+  "description": "Human-scored scenarios for approved-path evidence bundles and honest screenshot reporting.",
+  "scenarios": [
+    {
+      "id": "approved-browser-evidence-bundle",
+      "prompt": "Use b-browser to verify a requested live UI state and write an evidence bundle only under the explicitly approved directory /tmp/approved-evidence. Record the URL, snapshot, console and network evidence, cleanup result, and screenshot path only if a screenshot is actually requested and collected.",
+      "must": [
+        "Keep artifacts under the approved browser run directory",
+        "Record URL, snapshot, console, network, and cleanup evidence",
+        "Only record a screenshot path when a screenshot was requested and collected"
+      ],
+      "avoid": [
+        "Writing outside the approved evidence directory",
+        "Claiming screenshot coverage without a screenshot"
+      ]
+    }
+  ]
+}

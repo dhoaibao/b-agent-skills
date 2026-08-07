@@ -44,7 +44,9 @@ Own code-level and simulated-DOM tests: add coverage, fix test-only failures, an
 3. For failing tests, run the narrow target, read the test and exercised source, edit tests only after classifying the failure.
 4. For new tests, cover requested or changed behavior through the highest practical public interface first; add edge cases only when risk requires them.
 5. For explicitly requested TDD, use vertical tracer bullets: add one failing behavior test, make the smallest production change needed to pass it, verify, then continue to the next behavior. Outside explicit TDD, route production changes to **b-implement**.
-6. Run diagnostics when useful, then the narrowest relevant test, and verify the test proves the intended behavior.
+6. Select affected tests before broad suites: when a current CodeGraph index is available, ask it for changed-symbol/file impact and affected tests; otherwise use local search, test discovery, and repository scripts. Run the narrow affected set first, then expand only when the change or risk requires it.
+7. Report the selected tests, whether CodeGraph or fallback discovery supplied them, and any remaining coverage gap. A partial or affected-only run must never be described as full-suite coverage.
+8. Run diagnostics when useful, then the narrowest relevant test, and verify the test proves the intended behavior.
 
 ## Output format
 

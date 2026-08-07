@@ -168,6 +168,8 @@ scripts/mcp-doctor.sh --probe-schemas --suggestions --suggestions-json=/tmp/mcp-
 scripts/skill-doctor.sh
 ```
 
+Browser evidence is opt-in. When requested, b-browser writes only under an explicitly approved local evidence directory, records the requested UI state and collected browser evidence, and never claims screenshot coverage unless a screenshot was collected.
+
 Prompt effectiveness is an opt-in, human-scored check because it makes potentially billable model calls and is nondeterministic. Validate its default inputs without model calls, then pin the provider, model, and thinking level when comparing a baseline with a candidate:
 
 ```bash

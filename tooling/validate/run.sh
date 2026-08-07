@@ -23,6 +23,10 @@ python3 "$ROOT_DIR/tooling/validate/mcp_probe.py" --self-test
 python3 "$ROOT_DIR/tooling/validate/session_readiness.py" --self-test
 python3 "$ROOT_DIR/pi/tests/prompt_effectiveness.py" --validate-inputs
 python3 "$ROOT_DIR/pi/tests/prompt_effectiveness.py" --routing --validate-inputs
+python3 "$ROOT_DIR/pi/tests/prompt_effectiveness.py" --fixtures "$ROOT_DIR/tests/behavior/research.json" --skill "$ROOT_DIR/skills/b-research/SKILL.md" --validate-inputs
+python3 "$ROOT_DIR/pi/tests/prompt_effectiveness.py" --fixtures "$ROOT_DIR/tests/behavior/test-selection.json" --skill "$ROOT_DIR/skills/b-test/SKILL.md" --validate-inputs
+python3 "$ROOT_DIR/pi/tests/prompt_effectiveness.py" --fixtures "$ROOT_DIR/tests/behavior/browser-evidence.json" --skill "$ROOT_DIR/skills/b-browser/SKILL.md" --validate-inputs
+python3 "$ROOT_DIR/tooling/validate/browser_evidence.py" --self-test
 bash "$ROOT_DIR/pi/scripts/validate.sh"
 
 if [ "$run_release" -eq 1 ]; then

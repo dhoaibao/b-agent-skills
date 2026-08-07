@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "source": "b-research bounded orchestration prompt regressions",
+  "description": "Human-scored scenarios for bounded multi-source research, provenance, and fallback behavior.",
+  "scenarios": [
+    {
+      "id": "bounded-parallel-source-synthesis",
+      "prompt": "Use b-research to compare current framework API behavior. Use Context7 first, then bounded primary-source discovery and independent corroboration, with mcpScript fan-out limited to three read-only calls and a per-source result limit.",
+      "must": [
+        "Use Context7 first for versioned framework facts",
+        "Keep any mcpScript fan-out read-only and explicitly bounded",
+        "Use independent corroboration when needed"
+      ],
+      "avoid": [
+        "Unbounded parallel calls",
+        "Private or local material sent to external tools"
+      ]
+    },
+    {
+      "id": "research-source-provenance",
+      "prompt": "Use b-research to synthesize evidence from several public sources. Preserve each URL and relevant version, deduplicate sources, and label direct evidence, corroboration, and unresolved uncertainty.",
+      "must": [
+        "Preserve URL and version provenance",
+        "Deduplicate sources",
+        "Distinguish direct evidence, corroboration, and uncertainty"
+      ],
+      "avoid": [
+        "Presenting unqualified claims without source provenance"
+      ]
+    },
+    {
+      "id": "research-server-fallback",
+      "prompt": "Use b-research for a library question when Context7 is unavailable. Continue with approved Firecrawl or Brave sources, keep the search bounded, and state the resulting coverage gap.",
+      "must": [
+        "Use an approved fallback source",
+        "Keep fallback research bounded",
+        "State the coverage gap caused by the unavailable server"
+      ],
+      "avoid": [
+        "Pretending the unavailable source was consulted",
+        "Sending private repository material to public search"
+      ]
+    }
+  ]
+}

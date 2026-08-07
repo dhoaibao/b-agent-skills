@@ -38,8 +38,9 @@ Own real-browser, visual, screenshot, live UI, browser-session, and e2e evidence
 2. Prefer supplied/CI evidence or existing repo scripts (run via Bash) before live browser operation.
 3. Ask before starting dev servers, installing tools, persisting sessions, navigation, screenshots, or unsafe arbitrary browser code.
 4. Collect Playwright evidence in order for the requested UI state: existing CI/script evidence; approved navigation to the requested state (plus approved interactions when needed); `browser_snapshot` (and `browser_find` when locating controls); focused console plus network list/detail; then a requested approved screenshot. Do not claim readiness from a generic page load. In headless or CI environments, use headless config or display servers (e.g., xvfb-run).
-5. Classify failures as product, harness/setup, environment, auth/session, external-service, flaky/timing, or tool-unavailable. For confirmed product failures, initialize an absent CodeGraph index, use CodeGraph for flow, then Serena for source ownership.
-6. Clean up browser state, artifacts, and lingering processes where applicable.
+5. When evidence output is requested, first confirm an explicitly approved local evidence directory. Keep every artifact under `<approved-dir>/browser/<run-id>/`; reject traversal or absolute paths outside that root. Write `manifest.json` with `requested_state`, `url`, `snapshot_path`, `console_path`, `network_path`, `screenshot_path` (null unless requested and collected), and `cleanup_result`; record the requested UI state, accessibility snapshot, focused console evidence, network evidence, and cleanup result there.
+6. Classify failures as product, harness/setup, environment, auth/session, external-service, flaky/timing, or tool-unavailable. For confirmed product failures, initialize an absent CodeGraph index, use CodeGraph for flow, then Serena for source ownership.
+7. Clean up browser state, artifacts, and lingering processes where applicable. Do not claim screenshot coverage when no screenshot was collected.
 
 ## Output format
 
