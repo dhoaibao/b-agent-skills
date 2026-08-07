@@ -571,7 +571,7 @@ run_mcp_doctor_case() {
 
 	printf '#!/usr/bin/env bash\nexit 0\n' >"$bin_dir/serena"
 	printf '#!/usr/bin/env bash\nexit 0\n' >"$bin_dir/codegraph"
-	printf '#!/usr/bin/env bash\nexit 0\n' >"$bin_dir/pnpm"
+	printf '#!/usr/bin/env bash\nexit 0\n' >"$bin_dir/bunx"
 	cat >"$bin_dir/pi" <<'EOF'
 #!/usr/bin/env bash
 log_dir="$(cd "$(dirname "$0")" && pwd)"
@@ -585,7 +585,7 @@ if [ "${1:-}" = "install" ]; then
 fi
 exit 0
 EOF
-	chmod +x "$bin_dir/serena" "$bin_dir/codegraph" "$bin_dir/pnpm" "$bin_dir/pi"
+	chmod +x "$bin_dir/serena" "$bin_dir/codegraph" "$bin_dir/bunx" "$bin_dir/pi"
 
 	set +e
 	HOME="$sandbox/home" \

@@ -113,6 +113,12 @@ def managed_mcp_server(current_server, incoming_server, server_name):
             _normalize_managed_launcher(
                 normalized,
                 incoming_server,
+                "pnpm",
+                ["dlx", "@brave/brave-search-mcp-server", "--transport", "stdio"],
+            )
+            _normalize_managed_launcher(
+                normalized,
+                incoming_server,
                 "bunx",
                 ["@brave/brave-search-mcp-server", "--transport", "stdio"],
             )
@@ -121,6 +127,11 @@ def managed_mcp_server(current_server, incoming_server, server_name):
                 normalized,
                 incoming_server,
                 ["npx", "-y", "@brave/brave-search-mcp-server", "--transport", "stdio"],
+            )
+            _normalize_managed_launcher(
+                normalized,
+                incoming_server,
+                ["pnpm", "dlx", "@brave/brave-search-mcp-server", "--transport", "stdio"],
             )
             _normalize_managed_launcher(
                 normalized,
@@ -135,14 +146,18 @@ def managed_mcp_server(current_server, incoming_server, server_name):
             env["FIRECRAWL_API_KEY"] = incoming_env.get("FIRECRAWL_API_KEY")
         if env_key == "env":
             _normalize_managed_launcher(normalized, incoming_server, "npx", ["-y", "firecrawl-mcp"])
+            _normalize_managed_launcher(normalized, incoming_server, "pnpm", ["dlx", "firecrawl-mcp"])
             _normalize_managed_launcher(normalized, incoming_server, "bunx", ["firecrawl-mcp"])
         else:
             _normalize_managed_launcher(normalized, incoming_server, ["npx", "-y", "firecrawl-mcp"])
+            _normalize_managed_launcher(normalized, incoming_server, ["pnpm", "dlx", "firecrawl-mcp"])
             _normalize_managed_launcher(normalized, incoming_server, ["bunx", "firecrawl-mcp"])
     elif server_name == "playwright":
         if isinstance(incoming_server.get("command"), str):
             _normalize_managed_launcher(normalized, incoming_server, "npx", ["-y", "@playwright/mcp@latest", "--isolated"])
+            _normalize_managed_launcher(normalized, incoming_server, "pnpm", ["dlx", "@playwright/mcp", "--isolated"])
             _normalize_managed_launcher(normalized, incoming_server, "bunx", ["@playwright/mcp@latest", "--isolated"])
+            _normalize_managed_launcher(normalized, incoming_server, "bunx", ["@playwright/mcp", "--isolated"])
         else:
             _normalize_managed_launcher(
                 normalized,
@@ -152,7 +167,17 @@ def managed_mcp_server(current_server, incoming_server, server_name):
             _normalize_managed_launcher(
                 normalized,
                 incoming_server,
+                ["pnpm", "dlx", "@playwright/mcp", "--isolated"],
+            )
+            _normalize_managed_launcher(
+                normalized,
+                incoming_server,
                 ["bunx", "@playwright/mcp@latest", "--isolated"],
+            )
+            _normalize_managed_launcher(
+                normalized,
+                incoming_server,
+                ["bunx", "@playwright/mcp", "--isolated"],
             )
     return normalized == incoming_server
 

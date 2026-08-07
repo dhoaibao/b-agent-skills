@@ -32,7 +32,7 @@ Useful flags:
 
 MCP servers and RTK are installed from their latest available releases. Run `scripts/mcp-doctor.sh` after setting API keys to verify local readiness. Missing credentials or dependencies fail checks by default; use `--allow-degraded` to inspect status without failing.
 
-Requirements: `bash`, `git`, Python 3.11+, and `pnpm` for MCP entries that use `pnpm dlx`. Pi CLI installation or upgrade is opt-in via the interactive prompt or `B_AGENTIC_INSTALL_PI_CLI=Y`.
+Requirements: `bash`, `git`, Python 3.11+, and Bun (`bunx`) for MCP entries that use Bun. Pi CLI installation or upgrade is opt-in via the interactive prompt or `B_AGENTIC_INSTALL_PI_CLI=Y`.
 
 Interactive installs prepare Pi and RTK; Serena and CodeGraph remain optional installs. When modern shell tools are missing, interactive installs prompt to install them: `rg` over `grep`, `fd` or `fdfind` over `find`, `bat` (or Debian/Ubuntu's `batcat`) over `cat`, `eza` or `exa` over `ls`, `sd` over `sed` or `awk`, and `jq` over `python -m json.tool` for JSON when they improve the task. Set `B_AGENTIC_INSTALL_SHELL_TOOLS=Y` to install them non-interactively.
 
@@ -129,7 +129,7 @@ The installer writes recommended MCP entries for:
 - Brave Search: secondary public/current discovery and alternate source finding.
 - Playwright: live browser, visual, console/network, and e2e evidence.
 
-The installer does not eagerly start MCP servers, install `pnpm dlx` packages, or initialize repositories. b-agentic runs `codegraph init` only when its local index is absent; Serena onboarding requires approval. It does not install missing CLIs. It reports local MCP readiness blockers such as missing binaries or API keys. Use `scripts/mcp-doctor.sh --session-tools` to verify the active session has RTK. When live network/process activity is approved, `scripts/mcp-doctor.sh --probe-schemas` explicitly starts or connects to each configured server and compares its current tool inventory with the canonical operation policy.
+The installer does not eagerly start MCP servers, install `bunx` packages, or initialize repositories. b-agentic runs `codegraph init` only when its local index is absent; Serena onboarding requires approval. It does not install missing CLIs. It reports local MCP readiness blockers such as missing binaries or API keys. Use `scripts/mcp-doctor.sh --session-tools` to verify the active session has RTK. When live network/process activity is approved, `scripts/mcp-doctor.sh --probe-schemas` explicitly starts or connects to each configured server and compares its current tool inventory with the canonical operation policy.
 
 ## Repository Layout
 

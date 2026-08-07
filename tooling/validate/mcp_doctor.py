@@ -85,14 +85,14 @@ def pi_server_status(server: str, config: dict) -> str:
     if server == "context7":
         return "ready: CONTEXT7_API_KEY available" if entry.get("url") == CONTEXT7_URL and os.environ.get("CONTEXT7_API_KEY") else "blocked: invalid context7 config or missing CONTEXT7_API_KEY"
     expected = {
-        "brave-search": ["dlx", "@brave/brave-search-mcp-server", "--transport", "stdio"],
-        "firecrawl": ["dlx", "firecrawl-mcp"],
-        "playwright": ["dlx", "@playwright/mcp", "--isolated"],
+        "brave-search": ["@brave/brave-search-mcp-server", "--transport", "stdio"],
+        "firecrawl": ["firecrawl-mcp"],
+        "playwright": ["@playwright/mcp", "--isolated"],
     }[server]
-    if normalized.command != "pnpm" or normalized.args != expected:
+    if normalized.command != "bunx" or normalized.args != expected:
         return f"blocked: invalid {server} launcher"
-    if not command_ready("pnpm"):
-        return "blocked: install pnpm"
+    if not command_ready("bunx"):
+        return "blocked: install Bun (bunx)"
     if server == "brave-search" and not os.environ.get("BRAVE_API_KEY"):
         return "blocked: set BRAVE_API_KEY"
     if server == "firecrawl" and not os.environ.get("FIRECRAWL_API_KEY"):

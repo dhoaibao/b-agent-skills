@@ -481,6 +481,12 @@ def migrate_managed_values(data):
             migrate_managed_launcher(
                 servers.get('brave-search'),
                 recommended_servers.get('brave-search'),
+                'pnpm',
+                ['dlx', '@brave/brave-search-mcp-server', '--transport', 'stdio'],
+            )
+            migrate_managed_launcher(
+                servers.get('brave-search'),
+                recommended_servers.get('brave-search'),
                 'bunx',
                 ['@brave/brave-search-mcp-server', '--transport', 'stdio'],
             )
@@ -493,6 +499,12 @@ def migrate_managed_values(data):
             migrate_managed_launcher(
                 servers.get('firecrawl'),
                 recommended_servers.get('firecrawl'),
+                'pnpm',
+                ['dlx', 'firecrawl-mcp'],
+            )
+            migrate_managed_launcher(
+                servers.get('firecrawl'),
+                recommended_servers.get('firecrawl'),
                 'bunx',
                 ['firecrawl-mcp'],
             )
@@ -501,6 +513,12 @@ def migrate_managed_values(data):
                 recommended_servers.get('playwright'),
                 'npx',
                 ['-y', '@playwright/mcp@latest', '--isolated'],
+            )
+            migrate_managed_launcher(
+                servers.get('playwright'),
+                recommended_servers.get('playwright'),
+                'pnpm',
+                ['dlx', '@playwright/mcp', '--isolated'],
             )
             migrate_managed_launcher(
                 servers.get('playwright'),
@@ -521,6 +539,11 @@ def migrate_managed_values(data):
         migrate_managed_launcher(
             servers.get('brave-search'),
             recommended_servers.get('brave-search'),
+            ['pnpm', 'dlx', '@brave/brave-search-mcp-server', '--transport', 'stdio'],
+        )
+        migrate_managed_launcher(
+            servers.get('brave-search'),
+            recommended_servers.get('brave-search'),
             ['bunx', '@brave/brave-search-mcp-server', '--transport', 'stdio'],
         )
         migrate_managed_launcher(
@@ -531,12 +554,22 @@ def migrate_managed_values(data):
         migrate_managed_launcher(
             servers.get('firecrawl'),
             recommended_servers.get('firecrawl'),
+            ['pnpm', 'dlx', 'firecrawl-mcp'],
+        )
+        migrate_managed_launcher(
+            servers.get('firecrawl'),
+            recommended_servers.get('firecrawl'),
             ['bunx', 'firecrawl-mcp'],
         )
         migrate_managed_launcher(
             servers.get('playwright'),
             recommended_servers.get('playwright'),
             ['npx', '-y', '@playwright/mcp@latest', '--isolated'],
+        )
+        migrate_managed_launcher(
+            servers.get('playwright'),
+            recommended_servers.get('playwright'),
+            ['pnpm', 'dlx', '@playwright/mcp', '--isolated'],
         )
         migrate_managed_launcher(
             servers.get('playwright'),
@@ -1127,10 +1160,10 @@ context7_readiness_status() {
 
 brave_search_readiness_status() {
   local -a issues=()
-  command -v pnpm >/dev/null 2>&1 || issues+=("install pnpm")
+  command -v bunx >/dev/null 2>&1 || issues+=("install Bun (bunx)")
   mcp_key_available brave-search "$MCP_BRAVE_SECTION" BRAVE_API_KEY || issues+=("set BRAVE_API_KEY")
   if [ "${#issues[@]}" -eq 0 ]; then
-    printf 'ready: pnpm and BRAVE_API_KEY available'
+    printf 'ready: bunx and BRAVE_API_KEY available'
     return 0
   fi
   printf 'blocked: %s' "$(join_readiness_issues "${issues[@]}")"
@@ -1138,20 +1171,20 @@ brave_search_readiness_status() {
 
 firecrawl_readiness_status() {
   local -a issues=()
-  command -v pnpm >/dev/null 2>&1 || issues+=("install pnpm")
+  command -v bunx >/dev/null 2>&1 || issues+=("install Bun (bunx)")
   mcp_key_available firecrawl "$MCP_FIRECRAWL_SECTION" FIRECRAWL_API_KEY || issues+=("set FIRECRAWL_API_KEY")
   if [ "${#issues[@]}" -eq 0 ]; then
-    printf 'ready: pnpm and FIRECRAWL_API_KEY available'
+    printf 'ready: bunx and FIRECRAWL_API_KEY available'
     return 0
   fi
   printf 'blocked: %s' "$(join_readiness_issues "${issues[@]}")"
 }
 
 playwright_readiness_status() {
-  if command -v pnpm >/dev/null 2>&1; then
-    printf 'ready: pnpm available'
+  if command -v bunx >/dev/null 2>&1; then
+    printf 'ready: bunx available'
   else
-    printf 'blocked: install pnpm'
+    printf 'blocked: install Bun (bunx)'
   fi
 }
 

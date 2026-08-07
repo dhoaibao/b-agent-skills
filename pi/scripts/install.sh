@@ -51,7 +51,7 @@ INSTALL_PI_USAGE_STATE="missing"
 runtime_warn_missing_cli() {
 	command -v pi >/dev/null 2>&1 || warn "Pi CLI 'pi' not found; files will still be installed for Pi to discover later."
 	command -v codegraph >/dev/null 2>&1 || warn "codegraph CLI not found; CodeGraph MCP will not start until CodeGraph is installed."
-	command -v pnpm >/dev/null 2>&1 || warn "pnpm not found; MCP servers that use 'pnpm dlx' (Brave, Firecrawl, Playwright) will not start until pnpm is installed."
+	command -v bunx >/dev/null 2>&1 || warn "bunx not found; MCP servers that use bunx (Brave, Firecrawl, Playwright) will not start until Bun is installed."
 	if command -v pi >/dev/null 2>&1 && ! pi_mcp_adapter_installed; then
 		warn "pi-mcp-adapter not installed; MCP servers will not load until the adapter is installed."
 	fi
