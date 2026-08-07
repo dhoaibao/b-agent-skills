@@ -15,10 +15,26 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 try:
-    from tooling.validate.mcp_probe import ProbeError, compare_conditional_schemas, compare_inventory, probe_server
+    from tooling.validate.mcp_probe import (
+        ProbeError,
+        build_drift_records,
+        build_suggestion_report,
+        compare_conditional_schemas,
+        compare_inventory,
+        format_drift_record,
+        probe_server,
+    )
     from tooling.validate.session_readiness import check_session_tools
 except ModuleNotFoundError:
-    from mcp_probe import ProbeError, compare_conditional_schemas, compare_inventory, probe_server
+    from mcp_probe import (
+        ProbeError,
+        build_drift_records,
+        build_suggestion_report,
+        compare_conditional_schemas,
+        compare_inventory,
+        format_drift_record,
+        probe_server,
+    )
     from session_readiness import check_session_tools
 
 
@@ -111,11 +127,25 @@ def main() -> int:
         help="Explicitly start/connect to configured MCP servers and compare live tool IDs with canonical policy.",
     )
     parser.add_argument("--probe-timeout", type=float, default=20.0, help="Per-response live probe timeout in seconds.")
+    parser.add_argument(
+        "--suggestions",
+        action="store_true",
+        help="Emit human-readable review suggestions for explicitly probed schema drift; never changes policy.",
+    )
+    parser.add_argument(
+        "--suggestions-json",
+        type=Path,
+        help="Write machine-readable review suggestions to this path; implies --suggestions.",
+    )
     args = parser.parse_args()
     if args.session_tools:
         ready, detail = check_session_tools()
         print(f"session-tools: {detail}")
         return 0 if ready else 1
+
+    suggestions_requested = args.suggestions or args.suggestions_json is not None
+    if suggestions_requested and not args.probe_schemas:
+        parser.error("--suggestions and --suggestions-json require --probe-schemas")
 
     home = Path(args.home).expanduser()
     config_path = home / ".pi" / "agent" / "mcp.json"
@@ -132,6 +162,9 @@ def main() -> int:
     print(f"agent: Pi\nconfig: {config_path}\nstartup-check: not attempted; validates local launchers, keys, and config shape only")
     print(f"mcp-adapter: {adapter_status}")
     blocked = not adapter_ready
+    suggestion_records: list[dict] = []
+    suggestion_probed_servers: list[str] = []
+    suggestion_failures: list[dict[str, str]] = []
     for server in SUPPORTED_SERVERS:
         status = pi_server_status(server, config)
         print(f"{server}: {status}")
@@ -142,6 +175,8 @@ def main() -> int:
             policy = json.loads(POLICY_PATH.read_text())
         except (OSError, json.JSONDecodeError) as exc:
             print(f"schema-probe: blocked: invalid canonical policy: {exc}")
+            if suggestions_requested:
+                suggestion_failures.append({"server": "<policy>", "reason": str(exc)})
             blocked = True
         else:
             print("schema-probe: explicitly requested; starting/connecting to configured servers")
@@ -150,6 +185,10 @@ def main() -> int:
                 policy_tools = policy.get("servers", {}).get(server, {}).get("tools", {})
                 if not isinstance(entry, dict) or not isinstance(policy_tools, dict):
                     print(f"schema-probe {server}: blocked: missing config or policy entry")
+                    if suggestions_requested:
+                        suggestion_failures.append(
+                            {"server": server, "reason": "missing config or policy entry"}
+                        )
                     blocked = True
                     continue
                 try:
@@ -160,10 +199,23 @@ def main() -> int:
                         discovered,
                         policy.get("conditional_arguments", {}),
                     )
+                    if suggestions_requested:
+                        suggestion_records.extend(
+                            build_drift_records(
+                                server,
+                                discovered,
+                                policy_tools,
+                                policy.get("conditional_arguments", {}),
+                            )
+                        )
                 except ProbeError as exc:
                     print(f"schema-probe {server}: blocked: {exc}")
+                    if suggestions_requested:
+                        suggestion_failures.append({"server": server, "reason": str(exc)})
                     blocked = True
                     continue
+                if suggestions_requested:
+                    suggestion_probed_servers.append(server)
                 state = "drift" if new_tools or absent_tools or schema_drift else "match"
                 print(
                     f"schema-probe {server}: {state}: discovered={len(discovered)} "
@@ -171,6 +223,37 @@ def main() -> int:
                     f"conditional-schema-drift={schema_drift or 'none'}"
                 )
                 blocked = blocked or bool(new_tools or absent_tools or schema_drift)
+
+    if suggestions_requested:
+        if suggestion_records:
+            for record in suggestion_records:
+                print(format_drift_record(record))
+        if suggestion_failures:
+            for failure in suggestion_failures:
+                print(
+                    f"policy-suggestion-error server={failure['server']} reason={failure['reason']}"
+                )
+            print(
+                "policy-suggestions: incomplete; "
+                f"probed={suggestion_probed_servers or 'none'} "
+                "policy-change-applied=no"
+            )
+        elif not suggestion_records:
+            print("policy-suggestions: no schema drift records; policy-change-applied=no")
+        if args.suggestions_json is not None:
+            report = build_suggestion_report(
+                suggestion_records,
+                suggestion_probed_servers,
+                suggestion_failures,
+            )
+            try:
+                args.suggestions_json.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
+            except OSError as exc:
+                print(f"policy-suggestions-json: blocked: {exc}", file=sys.stderr)
+                blocked = True
+            else:
+                print(f"policy-suggestions-json: wrote {args.suggestions_json}")
+
     return 0 if args.allow_degraded or not blocked else 1
 
 

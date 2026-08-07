@@ -280,15 +280,149 @@ def probe_server(entry: dict[str, Any], timeout: float) -> dict[str, dict[str, A
         raise ProbeError(f"{transport} transport failed ({type(exc).__name__})") from exc
 
 
-def policy_upstream_names(server: str, policy_tools: dict[str, str]) -> set[str]:
+def policy_upstream_name(server: str, policy_tool: str) -> str:
     prefix = server.replace("-", "_") + "_"
-    names: set[str] = set()
-    for tool in policy_tools:
-        if server in {"serena", "codegraph", "context7", "brave-search"} and tool.startswith(prefix):
-            names.add(tool[len(prefix):])
-        else:
-            names.add(tool)
-    return names
+    if server in {"serena", "codegraph", "context7", "brave-search"} and policy_tool.startswith(prefix):
+        return policy_tool[len(prefix):]
+    return policy_tool
+
+
+def policy_upstream_names(server: str, policy_tools: dict[str, str]) -> set[str]:
+    return {policy_upstream_name(server, tool) for tool in policy_tools}
+
+
+def policy_class_for_upstream(server: str, upstream_tool: str, policy_tools: dict[str, str]) -> str | None:
+    for policy_tool, operation_class in policy_tools.items():
+        if policy_upstream_name(server, policy_tool) == upstream_tool:
+            return operation_class
+    return None
+
+
+def schema_arguments(tool: object) -> list[str]:
+    if not isinstance(tool, dict):
+        return []
+    schema = tool.get("inputSchema")
+    properties = schema.get("properties") if isinstance(schema, dict) else None
+    return sorted(name for name in properties if isinstance(name, str)) if isinstance(properties, dict) else []
+
+
+def conservative_tool_suggestion(server: str, tool: str) -> tuple[str | None, str, str]:
+    if server == "firecrawl" and tool == "firecrawl_developer_search":
+        return (
+            "read-only",
+            "matches the known Firecrawl developer-search operation used for bounded programming and API research",
+            "high",
+        )
+    return (
+        None,
+        "manual classification required; no conservative known-safe operation pattern matched",
+        "manual",
+    )
+
+
+def conditional_schema_records(
+    server: str,
+    discovered: dict[str, dict[str, Any]],
+    conditional_arguments: dict[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
+    records: list[dict[str, Any]] = []
+    for key, record in conditional_arguments.items():
+        policy_server, _, policy_tool = key.partition(":")
+        if policy_server != server or not isinstance(record, dict):
+            continue
+        upstream_name = policy_upstream_name(server, policy_tool)
+        tool = discovered.get(upstream_name)
+        if not isinstance(tool, dict):
+            continue
+        schema = tool.get("inputSchema")
+        properties = schema.get("properties") if isinstance(schema, dict) else None
+        if not isinstance(properties, dict):
+            records.append({"tool": upstream_name, "arguments": [], "reason": "missing-input-properties"})
+            continue
+        known = set(record.get("known", []))
+        added = sorted(set(properties) - known)
+        if added:
+            records.append({"tool": upstream_name, "arguments": added, "reason": "new-arguments"})
+    return records
+
+
+def build_drift_records(
+    server: str,
+    discovered: dict[str, dict[str, Any]],
+    policy_tools: dict[str, str],
+    conditional_arguments: dict[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
+    new_tools, absent_tools = compare_inventory(server, discovered, policy_tools)
+    records: list[dict[str, Any]] = []
+    for tool in new_tools:
+        proposed_class, reason, confidence = conservative_tool_suggestion(server, tool)
+        records.append(
+            {
+                "server": server,
+                "tool": tool,
+                "operation": "new",
+                "arguments": schema_arguments(discovered.get(tool)),
+                "proposed_class": proposed_class,
+                "reason": reason,
+                "confidence": confidence,
+                "policy_change_applied": False,
+            }
+        )
+    for tool in absent_tools:
+        records.append(
+            {
+                "server": server,
+                "tool": tool,
+                "operation": "absent",
+                "arguments": [],
+                "proposed_class": policy_class_for_upstream(server, tool, policy_tools),
+                "reason": "configured operation was not discovered during the live schema probe",
+                "confidence": "high",
+                "policy_change_applied": False,
+            }
+        )
+    for schema_record in conditional_schema_records(server, discovered, conditional_arguments):
+        records.append(
+            {
+                "server": server,
+                "tool": schema_record["tool"],
+                "operation": "new-arguments",
+                "arguments": schema_record["arguments"],
+                "proposed_class": "conditional-read",
+                "reason": "discovered arguments are not present in the canonical conditional-read schema",
+                "confidence": "high",
+                "policy_change_applied": False,
+            }
+        )
+    return records
+
+
+def format_drift_record(record: dict[str, Any]) -> str:
+    proposed = record.get("proposed_class") or "manual classification required"
+    arguments = record.get("arguments") or []
+    argument_text = f" arguments={arguments}" if arguments else ""
+    return (
+        f"policy-suggestion {record.get('server')}:{record.get('tool')} "
+        f"operation={record.get('operation')} proposed-class={proposed} "
+        f"confidence={record.get('confidence')} reason={record.get('reason')}{argument_text} "
+        "policy-change-applied=no"
+    )
+
+
+def build_suggestion_report(
+    records: list[dict[str, Any]],
+    probed_servers: list[str],
+    failures: list[dict[str, str]],
+) -> dict[str, Any]:
+    status = "complete" if not failures else "partial" if probed_servers else "blocked"
+    return {
+        "schema_version": 1,
+        "status": status,
+        "policy_change_applied": False,
+        "probed_servers": probed_servers,
+        "failed_servers": failures,
+        "records": records,
+    }
 
 
 def compare_inventory(server: str, discovered: object, policy_tools: dict[str, str]) -> tuple[list[str], list[str]]:
@@ -303,23 +437,11 @@ def compare_conditional_schemas(
     conditional_arguments: dict[str, dict[str, Any]],
 ) -> list[str]:
     drift: list[str] = []
-    for key, record in conditional_arguments.items():
-        policy_server, _, policy_tool = key.partition(":")
-        if policy_server != server or not isinstance(record, dict):
-            continue
-        upstream_name = next(iter(policy_upstream_names(server, {policy_tool: "conditional-read"})))
-        tool = discovered.get(upstream_name)
-        if not isinstance(tool, dict):
-            continue
-        schema = tool.get("inputSchema")
-        properties = schema.get("properties") if isinstance(schema, dict) else None
-        if not isinstance(properties, dict):
-            drift.append(f"{policy_tool}:missing-input-properties")
-            continue
-        known = set(record.get("known", []))
-        added = sorted(set(properties) - known)
-        if added:
-            drift.append(f"{policy_tool}:new-arguments={added}")
+    for record in conditional_schema_records(server, discovered, conditional_arguments):
+        if record["reason"] == "missing-input-properties":
+            drift.append(f"{record['tool']}:missing-input-properties")
+        elif record["reason"] == "new-arguments":
+            drift.append(f"{record['tool']}:new-arguments={record['arguments']}")
     return drift
 
 
@@ -344,6 +466,56 @@ def self_test() -> int:
     )
     if conditional_drift != ["browser_tabs:new-arguments=['newMode']"]:
         print("MCP conditional-schema comparison fixture failed")
+        return 1
+    suggestion_records = build_drift_records(
+        "firecrawl",
+        {
+            "firecrawl_search": {
+                "inputSchema": {"properties": {"query": {}, "highlights": {}}},
+            },
+            "firecrawl_developer_search": {
+                "inputSchema": {"properties": {"query": {}, "k": {}, "skills": {}}},
+            },
+            "firecrawl_custom_action": {
+                "inputSchema": {"properties": {"target": {}}},
+            },
+        },
+        {
+            "firecrawl_search": "conditional-read",
+            "firecrawl_agent": "external-mutation",
+        },
+        {"firecrawl:firecrawl_search": {"known": ["query"]}},
+    )
+    if len(suggestion_records) != 4:
+        print("MCP policy suggestion fixture record count failed")
+        return 1
+    developer_record = next(record for record in suggestion_records if record["tool"] == "firecrawl_developer_search")
+    ambiguous_record = next(record for record in suggestion_records if record["tool"] == "firecrawl_custom_action")
+    absent_record = next(record for record in suggestion_records if record["tool"] == "firecrawl_agent")
+    arguments_record = next(record for record in suggestion_records if record["operation"] == "new-arguments")
+    if (
+        developer_record["proposed_class"] != "read-only"
+        or developer_record["confidence"] != "high"
+        or ambiguous_record["proposed_class"] is not None
+        or ambiguous_record["confidence"] != "manual"
+        or absent_record["operation"] != "absent"
+        or arguments_record["arguments"] != ["highlights"]
+        or any(record["policy_change_applied"] for record in suggestion_records)
+    ):
+        print("MCP policy suggestion fixture classification failed")
+        return 1
+    partial_report = build_suggestion_report(
+        suggestion_records[:1],
+        ["firecrawl"],
+        [{"server": "playwright", "reason": "probe timed out"}],
+    )
+    if (
+        partial_report["status"] != "partial"
+        or partial_report["probed_servers"] != ["firecrawl"]
+        or partial_report["failed_servers"][0]["server"] != "playwright"
+        or partial_report["policy_change_applied"]
+    ):
+        print("MCP policy suggestion completeness fixture failed")
         return 1
     encoded = json.dumps(initialize_request(1))
     if '"method": "initialize"' not in encoded or tools_request(2)["method"] != "tools/list":

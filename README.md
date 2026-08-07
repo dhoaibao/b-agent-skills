@@ -137,7 +137,7 @@ The installer writes recommended MCP entries for:
 - Brave Search: secondary public/current discovery and alternate source finding.
 - Playwright: live browser, visual, console/network, and e2e evidence.
 
-The installer does not eagerly start MCP servers, install `bunx` packages, or initialize repositories. b-agentic runs `codegraph init` only when its local index is absent; Serena onboarding requires approval. It does not install missing CLIs. It reports local MCP readiness blockers such as missing binaries or API keys. Use `scripts/mcp-doctor.sh --session-tools` to verify the active session has RTK. When live network/process activity is approved, `scripts/mcp-doctor.sh --probe-schemas` explicitly starts or connects to each configured server and compares its current tool inventory with the canonical operation policy.
+The installer does not eagerly start MCP servers, install `bunx` packages, or initialize repositories. b-agentic runs `codegraph init` only when its local index is absent; Serena onboarding requires approval. It does not install missing CLIs. It reports local MCP readiness blockers such as missing binaries or API keys. Use `scripts/mcp-doctor.sh --session-tools` to verify the active session has RTK. When live network/process activity is approved, `scripts/mcp-doctor.sh --probe-schemas` explicitly starts or connects to each configured server and compares its current tool inventory with the canonical operation policy. Add `--suggestions` for human-readable review records and `--suggestions-json=<path>` for a machine-readable report; suggestion mode never edits the policy or configuration.
 
 ## Repository Layout
 
@@ -164,6 +164,7 @@ scripts/smoke-install.sh
 scripts/mcp-doctor.sh
 scripts/mcp-doctor.sh --allow-degraded
 scripts/mcp-doctor.sh --probe-schemas  # explicit live server/network probe
+scripts/mcp-doctor.sh --probe-schemas --suggestions --suggestions-json=/tmp/mcp-policy-suggestions.json
 scripts/skill-doctor.sh
 ```
 
