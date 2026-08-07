@@ -145,9 +145,19 @@ if (!t) {
   process.exit(1);
 }
 let toolCallHandler;
+let toolExecutionEndHandler;
+let mcpApprovalHandler;
 mod.default({
   on(eventName, handler) {
     if (eventName === 'tool_call') toolCallHandler = handler;
+    if (eventName === 'tool_execution_end') toolExecutionEndHandler = handler;
+  },
+  events: {
+    on(channel, handler) {
+      if (channel === 'pi-mcp-adapter:tool-approval-request') mcpApprovalHandler = handler;
+      return () => {};
+    },
+    emit() {},
   },
 });
 
@@ -159,7 +169,66 @@ function expect(cond, msg) {
 }
 
 expect(typeof toolCallHandler === 'function', 'permission extension must register a tool_call handler');
+expect(typeof toolExecutionEndHandler === 'function', 'permission extension must clear active tool state after execution');
+expect(typeof mcpApprovalHandler === 'function', 'permission extension must register the MCP approval broker');
 const noUiContext = { hasUI: false, ui: { confirm: async () => true } };
+expect(await toolCallHandler({ toolName: 'mcp', input: { server: 'firecrawl', tool: 'firecrawl_agent' } }, noUiContext) === undefined, 'managed MCP gateway execution must defer approval to the adapter broker');
+expect((await toolCallHandler({ toolName: 'firecrawl_firecrawl_agent', input: {} }, noUiContext))?.block === true, 'direct managed-looking tools must retain the top-level approval gate');
+let directClaim;
+mcpApprovalHandler({
+  serverName: 'firecrawl',
+  originalToolName: 'firecrawl_agent',
+  prefixedToolName: 'firecrawl_firecrawl_agent',
+  args: {},
+  origin: 'direct',
+  claim(handler) { directClaim = handler; return true; },
+});
+expect(await directClaim() === 'abstain', 'top-level direct MCP approval must not prompt twice');
+toolExecutionEndHandler({});
+let noUiClaim;
+mcpApprovalHandler({
+  serverName: 'firecrawl',
+  originalToolName: 'firecrawl_agent',
+  prefixedToolName: 'firecrawl_firecrawl_agent',
+  args: {},
+  origin: 'proxy',
+  claim(handler) { noUiClaim = handler; return true; },
+});
+expect(typeof noUiClaim === 'function', 'MCP broker request must be claimed');
+expect(await noUiClaim() === 'deny', 'MCP broker must fail closed without UI');
+let safeClaim;
+mcpApprovalHandler({
+  serverName: 'firecrawl',
+  originalToolName: 'firecrawl_search',
+  prefixedToolName: 'firecrawl_firecrawl_search',
+  args: { query: 'Pi', limit: 10 },
+  origin: 'script',
+  claim(handler) { safeClaim = handler; return true; },
+});
+expect(await safeClaim() === 'allow_once', 'MCP broker must auto-allow classified safe calls');
+let sessionClaim;
+const uiContext = { hasUI: true, ui: { confirm: async () => true, select: async () => 'Allow for session' } };
+await toolCallHandler({ toolName: 'mcp', input: { server: 'firecrawl', tool: 'firecrawl_agent' } }, uiContext);
+mcpApprovalHandler({
+  serverName: 'firecrawl',
+  originalToolName: 'firecrawl_agent',
+  prefixedToolName: 'firecrawl_firecrawl_agent',
+  args: {},
+  origin: 'proxy',
+  claim(handler) { sessionClaim = handler; return true; },
+});
+expect(await sessionClaim() === 'allow_for_session', 'MCP broker must support session-scoped approval');
+expect((await toolCallHandler({ toolName: 'mcp', input: { server: 'user-server', tool: 'user_tool' } }, noUiContext))?.block === true, 'unmanaged MCP gateway calls must retain the top-level approval gate');
+let userGatewayClaim;
+mcpApprovalHandler({
+  serverName: 'user-server',
+  originalToolName: 'user_tool',
+  prefixedToolName: 'user-server_user_tool',
+  args: {},
+  origin: 'proxy',
+  claim(handler) { userGatewayClaim = handler; return true; },
+});
+expect(await userGatewayClaim() === 'abstain', 'top-level unmanaged MCP approval must not prompt twice');
 expect(await toolCallHandler({ toolName: 'bash', input: { command: 'rtk git status --short' } }, noUiContext) === undefined, 'registered handler must allow safe RTK command');
 expect((await toolCallHandler({ toolName: 'bash', input: { command: 'rtk git commit -m x' } }, noUiContext))?.block === true, 'registered handler must fail closed for approval-required RTK command');
 expect((await toolCallHandler({ toolName: 'mcp', input: { connect: 'serena' } }, noUiContext))?.block === true, 'registered handler must fail closed for managed MCP connect');
@@ -485,31 +554,35 @@ expect(await t.confirmOrBlock({ hasUI: true, ui: { confirm: async () => false } 
 expect(t.isMcpOrCustomTool('bash') === false, 'bash is specialized');
 expect(t.isMcpOrCustomTool('mcp', { search: 'symbol' }) === false, 'MCP metadata search is autonomous');
 expect(t.isMcpOrCustomTool('mcp', { tool: 'serena_read_memory' }) === false, 'managed read-only tool is autonomous');
-expect(t.isMcpOrCustomTool('mcp', { tool: 'serena_onboarding', args: '{}' }) === true, 'Serena onboarding requires approval because first-use state is not locally enforceable');
-expect(t.isMcpOrCustomTool('mcp', { tool: 'serena_onboarding', args: '{"unexpected":true}' }) === true, 'Serena onboarding arguments require approval');
-expect(t.isMcpOrCustomTool('mcp', { tool: 'serena_write_memory', args: JSON.stringify({ memory_name: 'core', content: 'repo map' }) }) === true, 'foundational Serena memory writes require approval');
-expect(t.isMcpOrCustomTool('mcp', { tool: 'serena_write_memory', args: JSON.stringify({ memory_name: 'task_note', content: 'do not persist' }) }) === true, 'non-foundational Serena memory writes require approval');
-expect(t.isMcpOrCustomTool('mcp', { tool: 'serena_replace_content' }) === true, 'managed Serena mutation requires approval');
-expect(t.isMcpOrCustomTool('mcp', { tool: 'firecrawl_parse' }) === true, 'managed Firecrawl upload requires approval');
-expect(t.isMcpOrCustomTool('mcp', { tool: 'playwright_browser_click' }) === true, 'managed Playwright action requires approval');
-expect(t.isMcpOrCustomTool('mcp', { tool: 'playwright_browser_navigate', args: JSON.stringify({ url: 'https://example.com' }) }) === true, 'public Playwright navigation requires approval');
-expect(t.isMcpOrCustomTool('mcp', { tool: 'playwright_browser_navigate_back' }) === true, 'Playwright back navigation requires approval');
-expect(t.isMcpOrCustomTool('mcp', { tool: 'playwright_browser_navigate', args: JSON.stringify({ url: 'https://example.com/redirect?target=http://127.0.0.1' }) }) === true, 'public redirect URLs require approval before they can reach private services');
-expect(t.isMcpOrCustomTool('mcp', { tool: 'playwright_browser_navigate', args: JSON.stringify({ url: 'http://localhost:3000' }) }) === true, 'local Playwright navigation requires approval');
-expect(t.isMcpOrCustomTool('mcp', { tool: 'playwright_browser_take_screenshot', args: '{}' }) === true, 'Playwright screenshot requires approval because the server persists a default file');
-expect(t.isMcpOrCustomTool('mcp', { tool: 'playwright_browser_take_screenshot', args: JSON.stringify({ filename: 'shot.png' }) }) === true, 'named Playwright screenshot requires approval');
+expect(t.isMcpOrCustomTool('mcp', { tool: 'serena_onboarding', args: '{}' }) === false, 'managed Serena execution is broker-owned');
+expect(t.isMcpOrCustomTool('mcp', { tool: 'serena_onboarding', args: '{"unexpected":true}' }) === false, 'managed Serena execution is broker-owned');
+expect(t.isMcpOrCustomTool('mcp', { tool: 'serena_write_memory', args: JSON.stringify({ memory_name: 'core', content: 'repo map' }) }) === false, 'managed Serena execution is broker-owned');
+expect(t.isMcpOrCustomTool('mcp', { tool: 'serena_write_memory', args: JSON.stringify({ memory_name: 'task_note', content: 'do not persist' }) }) === false, 'managed Serena execution is broker-owned');
+expect(t.isMcpOrCustomTool('mcp', { tool: 'serena_replace_content' }) === false, 'managed Serena execution is broker-owned');
+expect(t.isMcpOrCustomTool('mcp', { tool: 'firecrawl_parse' }) === false, 'managed Firecrawl execution is broker-owned');
+expect(t.isMcpOrCustomTool('mcp', { tool: 'mcpScript' }) === true, 'MCP scripting remains approval-gated');
+expect(t.isMcpOrCustomTool('mcp', { tool: 'playwright_browser_click' }) === false, 'managed Playwright execution is broker-owned');
+expect(t.isMcpOrCustomTool('mcp', { tool: 'playwright_browser_navigate', args: JSON.stringify({ url: 'https://example.com' }) }) === false, 'managed Playwright execution is broker-owned');
+expect(t.isMcpOrCustomTool('mcp', { tool: 'playwright_browser_navigate_back' }) === false, 'managed Playwright execution is broker-owned');
+expect(t.isMcpOrCustomTool('mcp', { tool: 'playwright_browser_navigate', args: JSON.stringify({ url: 'https://example.com/redirect?target=http://127.0.0.1' }) }) === false, 'managed Playwright execution is broker-owned');
+expect(t.isMcpOrCustomTool('mcp', { tool: 'playwright_browser_navigate', args: JSON.stringify({ url: 'http://localhost:3000' }) }) === false, 'managed Playwright execution is broker-owned');
+expect(t.isMcpOrCustomTool('mcp', { tool: 'playwright_browser_take_screenshot', args: '{}' }) === false, 'managed Playwright execution is broker-owned');
+expect(t.isMcpOrCustomTool('mcp', { tool: 'playwright_browser_take_screenshot', args: JSON.stringify({ filename: 'shot.png' }) }) === false, 'managed Playwright execution is broker-owned');
 expect(t.isMcpOrCustomTool('mcp', { connect: 'serena' }) === true, 'managed MCP connect requires approval');
 expect(t.isMcpOrCustomTool('mcp', { server: 'firecrawl' }) === true, 'managed MCP server listing requires approval');
-expect(t.isMcpOrCustomTool('mcp', { server: 'serena', tool: 'new_serena_tool' }) === true, 'unlisted managed-server tool requires approval');
-expect(t.isMcpOrCustomTool('serena_replace_content') === true, 'direct managed Serena mutation requires approval');
-expect(t.isMcpOrCustomTool('firecrawl_firecrawl_agent') === true, 'direct managed Firecrawl action requires approval');
-expect(t.isMcpOrCustomTool('browser_click') === true, 'direct managed Playwright action requires approval');
+expect(t.isMcpOrCustomTool('mcp', { server: 'serena', tool: 'new_serena_tool' }) === false, 'unlisted managed-server execution is broker-owned');
+expect(t.isMcpOrCustomTool('serena_replace_content') === true, 'direct managed Serena tools retain the top-level approval gate');
+expect(t.isMcpOrCustomTool('firecrawl_firecrawl_agent') === true, 'direct managed Firecrawl tools retain the top-level approval gate');
+expect(t.isMcpOrCustomTool('browser_click') === true, 'direct managed Playwright tools retain the top-level approval gate');
 expect(t.isMcpOrCustomTool('mcp', { server: 'serena', tool: 'firecrawl_agent' }) === true, 'mismatched server/tool fails closed');
 expect(t.isMcpOrCustomTool('mcp', { connect: 'firecrawl', tool: 'firecrawl_agent' }) === true, 'mixed MCP selectors fail closed');
 expect(t.isMcpOrCustomTool('mcp', { tool: 'user_tool', server: 'user-server' }) === true, 'user MCP tool requires approval');
 expect(t.isMcpOrCustomTool('some-extension-tool') === true, 'unknown tool is custom');
 expect(t.isTrustedManagedTool('firecrawl', 'new_tool') === false, 'unlisted managed tool is not trusted');
 expect(t.isTrustedManagedTool('firecrawl', 'firecrawl_search', { query: 'Pi coding agent', limit: 10 }) === true, 'bounded Firecrawl search is trusted');
+expect(t.isTrustedManagedTool('firecrawl', 'firecrawl_search', { query: 'Pi coding agent', limit: 10, highlights: true }) === true, 'Firecrawl search highlights are trusted');
+expect(t.isTrustedManagedTool('firecrawl', 'firecrawl_search', { query: 'Pi coding agent', limit: 10, unexpected: true }) === false, 'unknown Firecrawl search arguments require approval');
+expect(t.isTrustedManagedTool('firecrawl', 'firecrawl_developer_search', { query: 'Pi MCP adapter approval broker', k: 10 }) === true, 'Firecrawl developer search is trusted');
 expect(t.isTrustedManagedTool('firecrawl', 'firecrawl_scrape', { url: 'https://example.org' }) === true, 'public Firecrawl scrape is trusted');
 expect(t.isTrustedManagedTool('firecrawl', 'firecrawl_scrape', { url: 'https://example.org', skipTlsVerification: true }) === false, 'Firecrawl scrape with TLS verification disabled must require approval');
 expect(t.isTrustedManagedTool('firecrawl', 'firecrawl_search', { query: 'Pi coding agent' }) === false, 'Firecrawl search without an explicit bound requires approval');
@@ -525,6 +598,7 @@ expect(t.isProjectConfinedPath(path.join(root, 'pi/extensions/b-agentic-permissi
 expect(t.isProjectConfinedPath(os.tmpdir()) === false, 'outside path must not be project-confined');
 expect(t.isConditionallyTrustedTool('serena', 'serena_get_symbols_overview', { relative_path: os.tmpdir() }) === false, 'Serena reads outside the project require approval');
 expect(t.isTrustedManagedTool('user-server', 'user_tool') === false, 'unmanaged server is not trusted');
+expect(t.approvalLabel('\u001b[31mtool\u0007\u009b') === ' [31mtool  ', 'broker approval labels must strip terminal control characters');
 expect(t.MANAGED_MCP_SERVERS.has('playwright'), 'managed MCP servers present');
 
 console.log('pi permission behavioral fixtures ok');

@@ -86,6 +86,7 @@
     "firecrawl": {
       "tools": {
         "firecrawl_search": "conditional-read",
+        "firecrawl_developer_search": "read-only",
         "firecrawl_scrape": "conditional-read",
         "firecrawl_map": "conditional-read",
         "firecrawl_extract": "conditional-read",
@@ -165,7 +166,7 @@
       "known": ["relative_path", "start_line", "end_line", "min_severity", "max_answer_chars"]
     },
     "firecrawl:firecrawl_search": {
-      "known": ["query", "limit", "tbs", "filter", "location", "includeDomains", "excludeDomains", "sources", "categories", "scrapeOptions", "enterprise"]
+      "known": ["query", "limit", "tbs", "filter", "location", "includeDomains", "excludeDomains", "sources", "categories", "scrapeOptions", "enterprise", "highlights"]
     },
     "firecrawl:firecrawl_scrape": {
       "known": ["url", "formats", "jsonOptions", "queryOptions", "screenshotOptions", "parsers", "pdfOptions", "onlyMainContent", "redactPII", "includeTags", "excludeTags", "waitFor", "actions", "mobile", "skipTlsVerification", "removeBase64Images", "location", "storeInCache", "zeroDataRetention", "maxAge", "lockdown", "proxy", "profile"]

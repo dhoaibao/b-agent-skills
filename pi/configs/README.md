@@ -32,6 +32,12 @@ noninteractive installs require `B_AGENTIC_INSTALL_PI_USAGE=Y`.
 After checking `pi list`, the installer runs `pi update --extensions` when
 Pi extensions are installed.
 
+`pi-observational-memory` V3 does not read V2 settings or memory entries. After
+upgrading from V2, migrate its settings and start a clean Pi session. RTK's
+optional `rtk init --agent pi --global` integration is rewrite-only and does
+not replace b-agentic's permission extension; b-agentic does not install it
+automatically.
+
 Uninstall removes b-agentic-managed MCP config and the permission extension; it
 does not remove any of these packages.
 
@@ -60,7 +66,7 @@ that listens for `tool_call` events and:
 - requires RTK for high-noise native command families (git, package/test/build runners, docker/kubectl, curl/wget, and similar); local discovery may use bare modern tools; unsupported
   commands may run directly, and `rtk proxy` is unwrapped for the same safety
   classification as its effective command; allows MCP metadata
-  discovery and only the explicitly classified read-only operations of managed MCP servers without prompts
+  discovery and only the explicitly classified read-only operations of managed MCP servers without prompts; when pi-mcp-adapter is present, its approval broker applies the same policy to proxy, direct, resource, script, and iframe-originated MCP calls
 - confines autonomous Serena symbol reads to the current repository and asks for Serena onboarding, memory writes, and other local mutations; asks for Firecrawl external-mutation or
   local-upload tools (agent/crawl/interact/monitor/feedback/parse), Playwright
   page-mutating tools (click/type/upload/evaluate/…), screenshots (the server

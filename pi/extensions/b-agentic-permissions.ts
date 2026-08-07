@@ -6,6 +6,7 @@
  * - deny: destructive git history/worktree rewrites and selected docker prune/rm families
  * - block write/edit to secret and repository-control paths
  * - allow metadata discovery plus classified read-only and safe conditional-read MCP operations
+ * - broker adapter-originated MCP calls, including proxy/direct/resource/script/iframe origins
  * - ask before managed mutations/uploads, user/unknown MCP servers, auth actions, and other custom tools
  *
  * Normalizes bare and rtk-wrapped shell commands, compound shell segments,
@@ -15,9 +16,22 @@
 import { existsSync, realpathSync, statSync } from "node:fs";
 import { isIP } from "node:net";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 type Decision = "allow" | "ask" | "deny";
+type McpToolApprovalDecision = "allow_once" | "allow_for_session" | "deny" | "abstain";
+type McpToolApprovalOrigin = "proxy" | "direct" | "script" | "resource" | "iframe";
+type McpToolApprovalRequest = {
+  serverName: string;
+  originalToolName: string;
+  prefixedToolName: string;
+  args: Record<string, unknown>;
+  origin: McpToolApprovalOrigin;
+  signal?: AbortSignal;
+  claim: (handler: () => McpToolApprovalDecision | Promise<McpToolApprovalDecision>) => boolean;
+};
+
+const MCP_TOOL_APPROVAL_REQUEST_EVENT = "pi-mcp-adapter:tool-approval-request";
 
 const ASK_COMMANDS: string[][] = [
   ["git", "commit"],
@@ -200,7 +214,8 @@ const MCP_CONDITIONAL_ARGUMENTS: Record<string, readonly string[]> = {
     "sources",
     "categories",
     "scrapeOptions",
-    "enterprise"
+    "enterprise",
+    "highlights"
   ],
   "playwright:browser_console_messages": [
     "level",
@@ -323,6 +338,7 @@ const BRAVE_SEARCH_TRUSTED_TOOLS = new Set([
 const FIRECRAWL_TRUSTED_TOOLS = new Set([
   "firecrawl_agent_status",
   "firecrawl_check_crawl_status",
+  "firecrawl_developer_search",
   "firecrawl_extract",
   "firecrawl_map",
   "firecrawl_research_inspect_paper",
@@ -1784,6 +1800,40 @@ function isTrustedManagedTool(server: string, toolName: string, input?: unknown)
 }
 
 /**
+ * True when the top-level MCP gateway carries a managed execution selector
+ * that the adapter broker can own. Direct tool names are intentionally not
+ * sufficient evidence of adapter ownership.
+ */
+function isBrokerManagedMcpCall(toolName: string, input?: unknown): boolean {
+  // Direct adapter tools share the same Pi tool_call namespace as custom tools,
+  // so their origin cannot be proven from the name alone. Keep those calls on
+  // the top-level gate; the broker still covers direct/resource/iframe calls
+  // that do not pass through a distinguishable top-level MCP gateway call.
+  if (toolName !== "mcp") {
+    return false;
+  }
+  if (!isPlainObject(input) || typeof input.tool !== "string") {
+    return false;
+  }
+  if (
+    typeof input.connect === "string" ||
+    typeof input.action === "string" ||
+    typeof input.search === "string" ||
+    typeof input.describe === "string"
+  ) {
+    return false;
+  }
+
+  const fromName = managedServerFromToolName(input.tool);
+  const explicitServer =
+    typeof input.server === "string" ? normalizeServerId(input.server) : null;
+  if (fromName && explicitServer && fromName !== explicitServer) {
+    return false;
+  }
+  return isManagedServer(fromName || explicitServer || "");
+}
+
+/**
  * True when this call is a trusted managed b-agentic MCP action that should
  * run without a Pi approval prompt. Fail closed on mixed MCP selectors,
  * server/tool origin mismatch, auth bootstrap, and non-managed servers.
@@ -1859,15 +1909,17 @@ function isTrustedManagedMcpCall(toolName: string, input?: unknown): boolean {
 }
 
 /**
- * Returns true when the tool call should go through the custom/MCP approval prompt.
- * Built-ins, MCP metadata discovery, and classified safe managed operations return false.
+ * Returns true when the top-level tool call needs the custom/MCP approval prompt.
+ * Managed MCP gateway executions are delegated to the adapter approval broker;
+ * direct names, gateway actions, unmanaged servers, and other custom tools
+ * remain top-level gated.
  */
 function isMcpOrCustomTool(toolName: string, input?: unknown): boolean {
   if (SPECIALIZED_TOOLS.has(toolName)) {
     return false;
   }
   if (toolName === "mcp") {
-    if (isTrustedMcpProxyCall(input)) {
+    if (isTrustedMcpProxyCall(input) || isBrokerManagedMcpCall(toolName, input)) {
       return false;
     }
     if (isTrustedManagedMcpCall(toolName, input)) {
@@ -1875,11 +1927,61 @@ function isMcpOrCustomTool(toolName: string, input?: unknown): boolean {
     }
     return true;
   }
-  if (isTrustedManagedMcpCall(toolName, input)) {
+  if (isBrokerManagedMcpCall(toolName, input) || isTrustedManagedMcpCall(toolName, input)) {
     return false;
   }
   // Direct non-managed MCP tools or any other non-built-in extension tool require approval.
   return true;
+}
+
+function approvalPreview(value: unknown): string {
+  let serialized: string;
+  try {
+    serialized = JSON.stringify(value ?? {}, null, 2);
+  } catch {
+    serialized = "[unserializable arguments]";
+  }
+  const sanitized = serialized.replace(/[\u0000-\u001F\u007F-\u009F]/g, " ");
+  return sanitized.length > 700 ? `${sanitized.slice(0, 700)}...` : sanitized;
+}
+
+function approvalLabel(value: string): string {
+  return value.replace(/[\u0000-\u001F\u007F-\u009F]/g, " ");
+}
+
+async function brokerApprovalDecision(
+  request: McpToolApprovalRequest,
+  context: Pick<ExtensionContext, "hasUI" | "ui"> | undefined,
+): Promise<McpToolApprovalDecision> {
+  const server = normalizeServerId(request.serverName);
+  if (isTrustedManagedTool(server, request.originalToolName, request.args)) {
+    return "allow_once";
+  }
+  if (!context?.hasUI) {
+    return "deny";
+  }
+
+  const choice = await context.ui.select(
+    `b-agentic approval: ${approvalLabel(server)} wants to run ${approvalLabel(request.originalToolName)}` +
+      ` (${approvalLabel(request.origin)})\n\nArguments:\n${approvalPreview(request.args)}`,
+    ["Allow once", "Allow for session", "Deny"],
+    request.signal === undefined ? undefined : { signal: request.signal },
+  );
+  if (choice === "Allow once") return "allow_once";
+  if (choice === "Allow for session") return "allow_for_session";
+  return "deny";
+}
+
+function isMcpToolApprovalRequest(value: unknown): value is McpToolApprovalRequest {
+  if (!isPlainObject(value)) return false;
+  return (
+    typeof value.serverName === "string" &&
+    typeof value.originalToolName === "string" &&
+    typeof value.prefixedToolName === "string" &&
+    isPlainObject(value.args) &&
+    typeof value.origin === "string" &&
+    typeof value.claim === "function"
+  );
 }
 
 async function confirmOrBlock(
@@ -1899,7 +2001,53 @@ async function confirmOrBlock(
 }
 
 export default function (pi: ExtensionAPI) {
+  let currentContext: ExtensionContext | undefined;
+  let activeToolCallName: string | undefined;
+  let activeToolCallInput: unknown;
+
+  pi.on("session_start", (_event, ctx) => {
+    currentContext = ctx;
+    activeToolCallName = undefined;
+    activeToolCallInput = undefined;
+  });
+
+  pi.on("tool_execution_end", () => {
+    activeToolCallName = undefined;
+    activeToolCallInput = undefined;
+  });
+
+  // pi-mcp-adapter emits this synchronously before executing proxy, direct,
+  // resource, script, or iframe-originated MCP calls. Keep this integration
+  // structural so b-agentic remains loadable when the adapter is absent.
+  pi.events.on(MCP_TOOL_APPROVAL_REQUEST_EVENT, (value) => {
+    if (!isMcpToolApprovalRequest(value)) return;
+
+    // Direct/resource adapter tools and non-broker-owned gateway calls already
+    // passed through Pi's top-level tool_call gate. Abstain in those narrow
+    // cases to avoid a second prompt; nested mcpScript calls and managed
+    // gateway calls remain broker-owned.
+    const topLevelDirectCall =
+      (value.origin === "direct" || value.origin === "resource") &&
+      activeToolCallName !== undefined &&
+      activeToolCallName !== "mcp" &&
+      activeToolCallName !== "mcpScript" &&
+      (activeToolCallName === value.prefixedToolName || activeToolCallName === value.originalToolName);
+    const topLevelGatewayCall =
+      value.origin === "proxy" &&
+      activeToolCallName === "mcp" &&
+      !isBrokerManagedMcpCall("mcp", activeToolCallInput);
+    if (topLevelDirectCall || topLevelGatewayCall) {
+      value.claim(() => "abstain");
+      return;
+    }
+
+    value.claim(() => brokerApprovalDecision(value, currentContext));
+  });
+
   pi.on("tool_call", async (event, ctx) => {
+    activeToolCallName = event.toolName;
+    activeToolCallInput = event.input;
+    currentContext = ctx;
     if (event.toolName === "bash") {
       const command = String((event.input as { command?: string }).command || "");
       const { decision, reason } = commandDecision(command);
@@ -1967,8 +2115,12 @@ export const __test__ = {
   isProtectedPath,
   isMcpOrCustomTool,
   isTrustedMcpProxyCall,
+  isBrokerManagedMcpCall,
   isTrustedManagedMcpCall,
   isTrustedManagedTool,
+  brokerApprovalDecision,
+  approvalLabel,
+  MCP_TOOL_APPROVAL_REQUEST_EVENT,
   isManagedServer,
   managedServerFromToolName,
   managedToolBaseName,
