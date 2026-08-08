@@ -1,23 +1,8 @@
-function intercomDelegationConfig(): { version: 1; trustedPeers: string[] } | undefined {
-  try {
-    const agentDir = process.env.PI_CODING_AGENT_DIR || resolve(homedir(), ".pi", "agent");
-    const path = resolve(agentDir, "intercom-delegation.json");
-    const config = JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
-    if (config.version !== 1 || !Array.isArray(config.trustedPeers) ||
-      config.trustedPeers.length === 0 || config.trustedPeers.some((peer) => typeof peer !== "string" || !peer) ||
-      Object.keys(config).some((key) => !["version", "trustedPeers"].includes(key))) return undefined;
-    return { version: 1, trustedPeers: config.trustedPeers as string[] };
-  } catch {
-    return undefined;
-  }
-}
-
-function isTrustedIntercomCall(toolName: string, input: unknown): boolean {
-  const config = intercomDelegationConfig();
-  if (toolName !== "intercom" || !config || !isPlainObject(input) || typeof input.action !== "string") return false;
+function isAutoApprovedIntercomCall(toolName: string, input: unknown): boolean {
+  if (toolName !== "intercom" || !isPlainObject(input) || typeof input.action !== "string") return false;
   if (["list-cwd", "status", "pending"].includes(input.action)) return Object.keys(input).length === 1;
-  if (!["send", "ask", "reply"].includes(input.action) || typeof input.to !== "string" || !config.trustedPeers.includes(input.to)) return false;
-  return typeof input.message === "string" && Object.keys(input).every((key) => ["action", "to", "message"].includes(key));
+  if (!["send", "ask", "reply"].includes(input.action) || typeof input.to !== "string" || typeof input.message !== "string") return false;
+  return Object.keys(input).every((key) => ["action", "to", "message"].includes(key));
 }
 
 /**
@@ -35,7 +20,7 @@ function isTrustedIntercomCall(toolName: string, input: unknown): boolean {
  * env/sudo wrappers, and git option prefixes. Fails closed without UI.
  */
 
-import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { existsSync, realpathSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { isIP } from "node:net";
 import { delimiter, dirname, isAbsolute, relative, resolve } from "node:path";
@@ -2105,7 +2090,7 @@ export default function (pi: ExtensionAPI) {
       };
     }
 
-    if (isTrustedIntercomCall(event.toolName, event.input)) {
+    if (isAutoApprovedIntercomCall(event.toolName, event.input)) {
       return undefined;
     }
 
@@ -2133,8 +2118,7 @@ export const __test__ = {
   commandDecision,
   isProtectedPath,
   isMcpOrCustomTool,
-  isTrustedIntercomCall,
-  intercomDelegationConfig,
+  isAutoApprovedIntercomCall,
   isTrustedManagedTool,
   brokerApprovalDecision,
   approvalLabel,

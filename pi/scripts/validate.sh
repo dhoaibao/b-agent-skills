@@ -73,7 +73,7 @@ if extension.exists():
         'splitShellSegments',
         'stripWrappers',
         'isMcpOrCustomTool',
-        'isTrustedIntercomCall',
+        'isAutoApprovedIntercomCall',
         'isTrustedManagedTool',
         'MANAGED_MCP_SERVERS',
         'SERENA_TRUSTED_TOOLS',
@@ -129,7 +129,16 @@ if extension.exists():
 
 if readme.exists():
     text = readme.read_text()
-    for marker in ['pi-mcp-adapter', 'pi-observational-memory', '@narumitw/pi-usage', 'extensions/b-agentic-permissions.ts', 'mcp.json']:
+    for marker in [
+        'pi-mcp-adapter',
+        'pi-observational-memory',
+        '@narumitw/pi-usage',
+        'extensions/b-agentic-permissions.ts',
+        'mcp.json',
+        'that configuration is used solely for automatic delegation semantics',
+        'plain-text `send`/`ask`/`reply` to any explicit local session target',
+        'attachments, `list`, `cancel`, unknown actions/fields',
+    ]:
         if marker not in text:
             errors.append(f'{readme}: missing {marker!r}')
 
