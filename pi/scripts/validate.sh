@@ -29,7 +29,10 @@ if kernel.exists():
         'Safety and tools',
         'Managed MCP operations',
         'When the `intercom` tool is installed with trusted peer configuration',
-        'otherwise main handles the task',
+        'main MUST call `list-cwd`',
+        'unique stable trusted ID',
+        'main MUST send that bounded task to the peer',
+        'otherwise main handles it',
         'Delegated work must not re-delegate',
     ]:
         if marker not in text:
