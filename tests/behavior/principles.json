@@ -100,6 +100,16 @@
       "prompt": "Use b-implement. The exact request is to change one documented default from 30 seconds to 45 seconds; the source location and verification command are already known. State a concise execution approach; do not edit files.",
       "must": ["Proceed with the small scoped change", "Run the known narrow verification"],
       "avoid": ["Require a separate planning phase", "Add unnecessary status or workflow ceremony"]
+    },
+    {
+      "id": "review-stays-read-only",
+      "principle": "goal-driven-execution",
+      "skill": "b-review",
+      "observed_failure": "The b-review prompt said not to edit files but did not make the review phase's read-only boundary explicit enough to prevent directly fixing findings.",
+      "intended_behavior": "Review findings without changing project files or the working tree; hand off any requested fixes to b-implement after the review.",
+      "prompt": "Use b-review. Review the working-tree diff, report any findings, and do not edit files. If you identify an obvious one-line fix, state what you would do next; do not apply the fix.",
+      "must": ["Keep the review read-only", "Report the finding and defer the fix to b-implement"],
+      "avoid": ["Edit or write repository files", "Apply an obvious fix during review"]
     }
   ]
 }

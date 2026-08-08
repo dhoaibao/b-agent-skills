@@ -1,6 +1,6 @@
 # b-review
 
-Review changed code or b-agentic itself for blockers, regressions, security risk, and missing coverage. Findings first.
+Review changed code or b-agentic itself for blockers, regressions, security risk, and missing coverage. Findings first. This is a read-only review phase: never modify source files, tests, configuration, or the working tree.
 
 Flags: `--skip-tests`, `--baseline=<path|url>`, `--range=<ref>..<ref>`, `--audit-suite`.
 
@@ -29,13 +29,14 @@ Flags: `--skip-tests`, `--baseline=<path|url>`, `--range=<ref>..<ref>`, `--audit
 ## Steps
 
 1. Scope the review: working tree, range, baseline, or suite-audit surface (using Bash to run `rtk git status` or `rtk git diff`).
-2. Choose baseline. Without baseline, do a risk review and do not claim requirements coverage.
-3. Read repo context only when it materially affects the review; use recall for compacted prior review ids when present.
-4. For changed code, initialize an absent CodeGraph index; use CodeGraph for flows and affected tests, then Serena for exact references and diagnostics. Use Brave only when public semantics materially affect a finding.
-5. Inspect highest-risk changed symbols and boundaries first.
-6. Check tests, edge cases, security, operability, evidence quality, hidden assumptions, unnecessary diff, and over-abstraction.
-7. Verify evidence proves the intended observable outcome, not only command success (using Brave to look up API semantics if needed).
-8. Emit findings ordered by severity. If none, say so and name residual risk.
+2. Keep the review read-only with respect to project files. Use inspection tools only; do not call `edit` or `write`, mutating symbol tools, apply patches, run formatters or fix commands, or otherwise change source, tests, configuration, or the working tree. If the user wants findings fixed, report them and hand off to **b-implement** after the review; do not fix them in this phase.
+3. Choose baseline. Without baseline, do a risk review and do not claim requirements coverage.
+4. Read repo context only when it materially affects the review; use recall for compacted prior review ids when present.
+5. For changed code, initialize an absent CodeGraph index; use CodeGraph for flows and affected tests, then Serena for exact references and diagnostics. Use Brave only when public semantics materially affect a finding.
+6. Inspect highest-risk changed symbols and boundaries first.
+7. Check tests, edge cases, security, operability, evidence quality, hidden assumptions, unnecessary diff, and over-abstraction.
+8. Verify evidence proves the intended observable outcome, not only command success (using Brave to look up API semantics if needed).
+9. Emit findings ordered by severity. If none, say so and name residual risk.
 
 For `--audit-suite` or explicit b-agentic audits, check kernel slimness, real problem statement, source/generated sync, Pi integration safety, installer safety, MCP leverage, validation evidence, prompt-change evidence, domain-specific behavior in core, ceremony creep, and cleanup candidates. Run `scripts/b-agentic-audit.sh` from the b-agentic checkout for structural checks only. Supplement it with repo inspection for the criteria the script does not automate, and do not treat a passing script as production-readiness proof. Prefer source files over generated assets and lower confidence when Pi behavior is only install-validated.
 
@@ -48,7 +49,7 @@ Findings, checked-and-clean areas, coverage/verification, and verdict: `READY FO
 ## Rules
 
 - Findings come first.
-- Do not edit files during review.
+- Review is strictly read-only with respect to project files: do not edit files, use mutating symbol tools, apply patches, run fixers, or make any other source, test, configuration, or working-tree changes during review.
 - Do not claim `READY FOR PR` without baseline and passing verification evidence.
 - Treat unrelated cleanup, speculative flexibility, and unverified success criteria as review risks.
 - Treat prompt or kernel changes without a concrete failure mode or validation story as review risks.
