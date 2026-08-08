@@ -34,7 +34,7 @@ Own real-browser, visual, screenshot, live UI, browser-session, and e2e evidence
 
 ## Steps
 
-For bounded, read-only multi-page browser observations, the adapter's `mcpScript` can reduce round trips when several MCP calls share one session. Use at most three routes per script and cap each page's extracted result set; it is an observation aid, not a replacement for the ordered browser evidence workflow.
+For bounded, read-only multi-page browser observations, the adapter's approval-gated `mcpScript` can reduce round trips when several MCP calls share one session. Obtain approval before using it, use at most three routes per script, and cap each page's extracted result set; it is an observation aid, not a replacement for the ordered browser evidence workflow.
 
 1. Classify the request: direct command, supplied evidence, live exploration, or readiness gap.
 2. Prefer supplied/CI evidence or existing repo scripts (run via Bash) before live browser operation.

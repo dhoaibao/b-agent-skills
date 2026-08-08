@@ -28,9 +28,9 @@ if kernel.exists():
         'Core Rules',
         'Safety and tools',
         'Managed MCP operations',
-        'main MUST call Intercom `list-cwd`',
-        'main MUST send that bounded task to the peer',
-        'otherwise main handles it',
+        'When the `intercom` tool is installed with trusted peer configuration',
+        'otherwise main handles the task',
+        'Delegated work must not re-delegate',
     ]:
         if marker not in text:
             errors.append(f'{kernel}: missing {marker!r}')
@@ -73,7 +73,6 @@ if extension.exists():
         'isTrustedIntercomCall',
         'isTrustedManagedTool',
         'MANAGED_MCP_SERVERS',
-        'MCP_TRUSTED_GATEWAY_OPERATIONS',
         'SERENA_TRUSTED_TOOLS',
         'CODEGRAPH_TRUSTED_TOOLS',
         'CONTEXT7_TRUSTED_TOOLS',

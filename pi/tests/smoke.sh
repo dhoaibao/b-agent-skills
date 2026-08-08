@@ -201,12 +201,10 @@ if (!t) {
   process.exit(1);
 }
 let toolCallHandler;
-let toolExecutionEndHandler;
 let mcpApprovalHandler;
 mod.default({
   on(eventName, handler) {
     if (eventName === 'tool_call') toolCallHandler = handler;
-    if (eventName === 'tool_execution_end') toolExecutionEndHandler = handler;
   },
   events: {
     on(channel, handler) {
@@ -242,7 +240,6 @@ expect(t.isTrustedIntercomCall('intercom', { action: 'status' }) === false, 'Int
 rmSync(intercomAgentDir, { recursive: true, force: true });
 
 expect(typeof toolCallHandler === 'function', 'permission extension must register a tool_call handler');
-expect(typeof toolExecutionEndHandler === 'function', 'permission extension must clear active tool state after execution');
 expect(typeof mcpApprovalHandler === 'function', 'permission extension must register the MCP approval broker');
 const noUiContext = { hasUI: false, ui: { confirm: async () => true } };
 expect((await toolCallHandler({ toolName: 'mcp', input: { server: 'firecrawl', tool: 'firecrawl_agent' } }, noUiContext))?.block === true, 'managed MCP gateway execution must retain the top-level approval gate');
@@ -259,14 +256,24 @@ mcpApprovalHandler({
   claim(handler) { directClaim = handler; return true; },
 });
 expect(await directClaim() === 'abstain', 'top-level direct MCP approval must not prompt twice');
-toolExecutionEndHandler({});
-let noUiClaim;
+await toolCallHandler({ toolName: 'bash', input: { command: 'rtk git status --short' } }, noUiContext);
+let parallelProxyClaim;
 mcpApprovalHandler({
   serverName: 'firecrawl',
   originalToolName: 'firecrawl_agent',
   prefixedToolName: 'firecrawl_firecrawl_agent',
   args: {},
   origin: 'proxy',
+  claim(handler) { parallelProxyClaim = handler; return true; },
+});
+expect(await parallelProxyClaim() === 'abstain', 'adapter-owned proxy calls must not depend on sibling tool preflight state');
+let noUiClaim;
+mcpApprovalHandler({
+  serverName: 'firecrawl',
+  originalToolName: 'firecrawl_agent',
+  prefixedToolName: 'firecrawl_firecrawl_agent',
+  args: {},
+  origin: 'script',
   claim(handler) { noUiClaim = handler; return true; },
 });
 expect(typeof noUiClaim === 'function', 'MCP broker request must be claimed');
@@ -294,13 +301,12 @@ mcpApprovalHandler({
   claim(handler) { approvedGatewayClaim = handler; return true; },
 });
 expect(await approvedGatewayClaim() === 'abstain', 'approved top-level MCP gateway calls must not prompt twice');
-toolExecutionEndHandler({});
 mcpApprovalHandler({
   serverName: 'firecrawl',
   originalToolName: 'firecrawl_agent',
   prefixedToolName: 'firecrawl_firecrawl_agent',
   args: {},
-  origin: 'proxy',
+  origin: 'script',
   claim(handler) { sessionClaim = handler; return true; },
 });
 expect(await sessionClaim() === 'allow_for_session', 'MCP broker must support session-scoped approval');
@@ -573,6 +579,7 @@ expect(t.commandDecision('rtk proxy printf x\ncat .env').decision === 'ask', 'ne
 expect(t.commandDecision('printf x\nprintf y').decision === 'allow', 'unsupported multiline raw commands must allow when safe');
 expect(t.commandDecision('cat .env').decision === 'ask', 'bare protected-path read must ask');
 expect(t.commandDecision('cat .env.local').decision === 'ask', 'root-relative protected-path read must ask');
+expect(t.commandDecision('cat .envrc').decision === 'ask', '.envrc read must ask');
 expect(t.commandDecision('cat /tmp/.env.production').decision === 'ask', 'absolute protected-path read must ask');
 expect(t.commandDecision('printf EXAMPLE=value > .env.example').decision === 'allow', 'public env template writes must allow');
 expect(t.commandDecision('rtk cat ./config/../.env.local').decision === 'ask', 'rtk-wrapped protected-path read must ask');
@@ -613,6 +620,8 @@ expect(t.commandDecision('rtk proxy bash --version').decision === 'allow', 'rtk 
 // Protected paths
 expect(t.isProtectedPath('.env') === true, '.env protected');
 expect(t.isProtectedPath('.env.local') === true, 'root-relative .env variant protected');
+expect(t.isProtectedPath('.envrc') === true, '.envrc protected');
+expect(t.isProtectedPath('.envrc.local') === true, '.envrc variant protected');
 expect(t.isProtectedPath('/tmp/.env.production') === true, 'absolute .env variant protected');
 expect(t.isProtectedPath('.env.example') === false, 'public env template must not be protected');
 expect(t.isProtectedPath('.ssh/.env.example') === true, 'env template within SSH directory must remain protected');
@@ -638,8 +647,11 @@ expect(t.nativePathDecision('write', 'credentials.types.ts').decision === 'allow
 expect(t.nativePathDecision('write', 'credentials.ts').decision === 'deny', 'literal credential source file must remain blocked');
 expect(t.nativePathDecision('write', 'secrets.ts').decision === 'deny', 'literal secret source file must remain blocked');
 expect(t.nativePathDecision('read', '.env').decision === 'ask', 'protected native read must ask for approval');
+expect(t.nativePathDecision('read', '.envrc').decision === 'ask', '.envrc native read must ask for approval');
 expect(t.nativePathDecision('write', '.env').decision === 'deny', 'protected native write must remain blocked');
+expect(t.nativePathDecision('write', '.envrc').decision === 'deny', '.envrc native write must remain blocked');
 expect(t.nativePathDecision('edit', '.env').decision === 'deny', 'protected native edit must remain blocked');
+expect(t.nativePathDecision('edit', '.envrc').decision === 'deny', '.envrc native edit must remain blocked');
 expect(t.nativePathDecision('write', '.env.example').decision === 'allow', 'public env template writes must allow');
 expect(t.nativePathDecision('write', '.ssh/.env.example').decision === 'deny', 'SSH directory env template writes must remain blocked');
 expect(t.nativePathDecision('write', '.aws/.env.example').decision === 'deny', 'AWS directory env template writes must remain blocked');

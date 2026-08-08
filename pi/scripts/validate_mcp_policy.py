@@ -83,18 +83,6 @@ def main() -> int:
         conditional.update(f"{server}:{tool}" for tool, operation in tools.items() if operation == "conditional-read")
 
     check_set(errors, source, "MCP_CONDITIONAL_TOOLS", conditional, extension, root)
-    gateway = policy.get("gateway_operations", {})
-    if isinstance(gateway, dict):
-        check_set(
-            errors,
-            source,
-            "MCP_TRUSTED_GATEWAY_OPERATIONS",
-            {name for name, operation in gateway.items() if operation == "read-only"},
-            extension,
-            root,
-        )
-    else:
-        errors.append(f"{args.policy}: missing gateway operations")
 
     for marker in [
         "isConditionallyTrustedTool(server, base, input)",

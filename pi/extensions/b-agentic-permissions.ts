@@ -106,6 +106,7 @@ const COMPOUND_SOURCE_CODE_FILENAME = /^[^.]+\..+\.(?:[cm]?[jt]sx?|py|rb|go|rs|j
 
 const PROTECTED_PATH_MARKERS = [
   ".env",
+  ".envrc",
   "credentials.",
   "secrets.",
   ".pem",
@@ -154,13 +155,6 @@ const MANAGED_MCP_SERVERS = new Set([
   "firecrawl",
   "playwright",
   "serena"
-]);
-
-/** Cached gateway operations classified as read-only in mcp_operations.yaml. */
-const MCP_TRUSTED_GATEWAY_OPERATIONS = new Set([
-  "describe",
-  "search",
-  "ui-messages"
 ]);
 
 /** Read operations that are autonomous only for a validated safe argument shape. */
@@ -2021,15 +2015,9 @@ async function confirmOrBlock(
 
 export default function (pi: ExtensionAPI) {
   let currentContext: ExtensionContext | undefined;
-  let activeToolCallName: string | undefined;
 
   pi.on("session_start", (_event, ctx) => {
     currentContext = ctx;
-    activeToolCallName = undefined;
-  });
-
-  pi.on("tool_execution_end", () => {
-    activeToolCallName = undefined;
   });
 
   // pi-mcp-adapter emits this synchronously before executing proxy, direct,
@@ -2038,20 +2026,12 @@ export default function (pi: ExtensionAPI) {
   pi.events.on(MCP_TOOL_APPROVAL_REQUEST_EVENT, (value) => {
     if (!isMcpToolApprovalRequest(value)) return;
 
-    // Direct/resource adapter tools and non-broker-owned gateway calls already
-    // passed through Pi's top-level tool_call gate. Abstain in those narrow
-    // cases to avoid a second prompt; nested mcpScript calls and managed
-    // gateway calls remain broker-owned.
-    const topLevelDirectCall =
-      (value.origin === "direct" || value.origin === "resource") &&
-      activeToolCallName !== undefined &&
-      activeToolCallName !== "mcp" &&
-      activeToolCallName !== "mcpScript" &&
-      (activeToolCallName === value.prefixedToolName || activeToolCallName === value.originalToolName);
-    const topLevelGatewayCall =
-      value.origin === "proxy" &&
-      activeToolCallName === "mcp";
-    if (topLevelDirectCall || topLevelGatewayCall) {
+    // These adapter origins are invoked through a Pi tool call, which is
+    // already approval-gated above. The adapter event itself establishes
+    // ownership, unlike a name match in tool_call. Always abstain here: a
+    // single active-call variable is unsafe when Pi executes sibling calls in
+    // parallel. Nested mcpScript calls and iframe calls remain broker-owned.
+    if (["direct", "resource", "proxy"].includes(value.origin)) {
       value.claim(() => "abstain");
       return;
     }
@@ -2060,7 +2040,6 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.on("tool_call", async (event, ctx) => {
-    activeToolCallName = event.toolName;
     currentContext = ctx;
     if (event.toolName === "bash") {
       const command = String((event.input as { command?: string }).command || "");
@@ -2165,7 +2144,6 @@ export const __test__ = {
   confirmOrBlock,
   SPECIALIZED_TOOLS,
   MANAGED_MCP_SERVERS,
-  MCP_TRUSTED_GATEWAY_OPERATIONS,
   MCP_CONDITIONAL_TOOLS,
   isConditionallyTrustedTool,
   SERENA_TRUSTED_TOOLS,
