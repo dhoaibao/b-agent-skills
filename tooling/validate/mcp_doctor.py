@@ -69,6 +69,18 @@ def normalize_server(entry: dict) -> NormalizedServer:
     return NormalizedServer(command if isinstance(command, str) else None, args if isinstance(args, list) else None)
 
 
+def configured_secret(entry: dict, section: str, key: str) -> bool:
+    values = entry.get(section)
+    if not isinstance(values, dict):
+        return False
+    value = values.get(key)
+    return isinstance(value, str) and bool(value) and not value.startswith("$")
+
+
+def credential_available(entry: dict, section: str, key: str) -> bool:
+    return bool(os.environ.get(key)) or configured_secret(entry, section, key)
+
+
 def pi_mcp_adapter_ready(home: Path) -> tuple[bool, str]:
     if not command_ready("pi"):
         return False, "missing: pi CLI not installed"
@@ -120,7 +132,7 @@ def pi_server_status(server: str, config: dict) -> str:
         valid = normalized.command == "codegraph" and normalized.args == ["serve", "--mcp"]
         return "ready: codegraph command found" if valid and command_ready("codegraph") else "blocked: invalid or unavailable codegraph launcher"
     if server == "context7":
-        return "ready: CONTEXT7_API_KEY available" if entry.get("url") == CONTEXT7_URL and os.environ.get("CONTEXT7_API_KEY") else "blocked: invalid context7 config or missing CONTEXT7_API_KEY"
+        return "ready: CONTEXT7_API_KEY available" if entry.get("url") == CONTEXT7_URL and credential_available(entry, "headers", "CONTEXT7_API_KEY") else "blocked: invalid context7 config or missing CONTEXT7_API_KEY"
     expected = {
         "brave-search": ["@brave/brave-search-mcp-server", "--transport", "stdio"],
         "firecrawl": ["firecrawl-mcp"],
@@ -130,9 +142,9 @@ def pi_server_status(server: str, config: dict) -> str:
         return f"blocked: invalid {server} launcher"
     if not command_ready("bunx"):
         return "blocked: install Bun (bunx)"
-    if server == "brave-search" and not os.environ.get("BRAVE_API_KEY"):
+    if server == "brave-search" and not credential_available(entry, "env", "BRAVE_API_KEY"):
         return "blocked: set BRAVE_API_KEY"
-    if server == "firecrawl" and not os.environ.get("FIRECRAWL_API_KEY"):
+    if server == "firecrawl" and not credential_available(entry, "env", "FIRECRAWL_API_KEY"):
         return "blocked: set FIRECRAWL_API_KEY"
     return "ready: launcher and local prerequisites available"
 

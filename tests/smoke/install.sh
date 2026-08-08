@@ -39,15 +39,17 @@ EOF
 
 run_manifest_only_custom_paths_case() {
 	local sandbox_custom="$WORK_DIR/manifest-only-custom-paths"
-	local manifest_path skill_dir kernel_path snapshot_path
+	local manifest_path skill_dir kernel_path snapshot_path skill_snapshot_dir
 
-	mkdir -p "$sandbox_custom/home/custom-meta" "$sandbox_custom/home/custom-skills/b-plan" "$sandbox_custom/home/custom-kernel"
+	mkdir -p "$sandbox_custom/home/custom-meta/skills/b-plan" "$sandbox_custom/home/custom-skills/b-plan" "$sandbox_custom/home/custom-kernel"
 	manifest_path="$sandbox_custom/home/custom-meta/install.json"
 	skill_dir="$sandbox_custom/home/custom-skills/b-plan"
+	skill_snapshot_dir="$sandbox_custom/home/custom-meta/skills/b-plan"
 	kernel_path="$sandbox_custom/home/custom-kernel/AGENTS.md"
 	snapshot_path="$sandbox_custom/home/custom-meta/AGENTS.md"
 
 	printf 'Generated from skills/registry.yaml\n' >"$skill_dir/SKILL.md"
+	printf 'Generated from skills/registry.yaml\n' >"$skill_snapshot_dir/SKILL.md"
 	printf '<!-- b-agentic-managed -->\ncustom kernel\n' >"$kernel_path"
 	printf '<!-- b-agentic-managed -->\ncustom kernel\n' >"$snapshot_path"
 	cat >"$manifest_path" <<EOF
@@ -60,6 +62,24 @@ EOF
 	assert_no_path "$skill_dir"
 	assert_no_path "$kernel_path"
 	assert_no_path "$sandbox_custom/home/custom-meta"
+}
+
+run_manifest_only_modified_skill_case() {
+	local snapshot_repo="$1"
+	local sandbox="$WORK_DIR/manifest-only-modified-skill"
+	local skill_path="$sandbox/home/.pi/agent/skills/b-plan/SKILL.md"
+
+	expect_install_status 0 "$sandbox" "$snapshot_repo"
+	printf '\npost-install skill modification\n' >>"$skill_path"
+	rm -rf "$sandbox/source"
+	HOME="$sandbox/home" \
+		B_AGENTIC_REPO="$sandbox/missing-source" \
+		B_AGENTIC_DIR="$sandbox/source" \
+		B_AGENTIC_PROMPT_API_KEYS=N \
+		bash "$ROOT_DIR/install.sh" --uninstall >"$sandbox/uninstall.log" 2>&1
+
+	assert_contains "$sandbox/uninstall.log" 'Manifest-only uninstall complete for pi'
+	assert_contains "$skill_path" 'post-install skill modification'
 }
 
 run_manifest_only_merged_config_case() {
@@ -566,6 +586,7 @@ run_mcp_doctor_case() {
 	local bin_dir="$WORK_DIR/mcp-doctor-bin"
 	local doctor_log="$WORK_DIR/mcp-doctor.log"
 	local invalid_doctor_log="$WORK_DIR/mcp-doctor-invalid.log"
+	local config_doctor_log="$WORK_DIR/mcp-doctor-config-keys.log"
 	local invalid_suggestions_json="$WORK_DIR/mcp-doctor-invalid-suggestions.json"
 	local blocked_suggestions_json="$WORK_DIR/mcp-doctor-blocked-suggestions.json"
 	local rc=0
@@ -634,6 +655,25 @@ EOF
 	assert_contains "$doctor_log" 'brave-search: ready:'
 	assert_contains "$doctor_log" 'firecrawl: ready:'
 	assert_contains "$doctor_log" 'playwright: ready:'
+
+	python3 - "$sandbox/home/.pi/agent/mcp.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+data = json.loads(path.read_text())
+data['mcpServers']['context7']['headers']['CONTEXT7_API_KEY'] = 'config-context7'
+data['mcpServers']['brave-search']['env']['BRAVE_API_KEY'] = 'config-brave'
+data['mcpServers']['firecrawl']['env']['FIRECRAWL_API_KEY'] = 'config-firecrawl'
+path.write_text(json.dumps(data, indent=2) + '\n')
+PY
+	env -u CONTEXT7_API_KEY -u BRAVE_API_KEY -u FIRECRAWL_API_KEY \
+		PATH="$bin_dir:$(smoke_system_path)" \
+		python3 "$ROOT_DIR/tooling/validate/mcp_doctor.py" --home "$sandbox/home" >"$config_doctor_log"
+	assert_contains "$config_doctor_log" 'context7: ready:'
+	assert_contains "$config_doctor_log" 'brave-search: ready:'
+	assert_contains "$config_doctor_log" 'firecrawl: ready:'
 
 	printf '[]\n' >"$sandbox/home/.pi/agent/mcp.json"
 	set +e
@@ -1155,6 +1195,8 @@ main() {
 	run_manifest_only_corrupted_manifest_case
 	echo "Running run_manifest_only_custom_paths_case..."
 	run_manifest_only_custom_paths_case
+	echo "Running run_manifest_only_modified_skill_case..."
+	run_manifest_only_modified_skill_case "$snapshot_repo"
 	echo "Running run_manifest_only_merged_config_case..."
 	run_manifest_only_merged_config_case "$snapshot_repo"
 	echo "Running run_manifest_only_extension_restore_case..."

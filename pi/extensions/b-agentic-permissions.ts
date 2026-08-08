@@ -14,6 +14,7 @@
  */
 
 import { existsSync, realpathSync, statSync } from "node:fs";
+import { homedir } from "node:os";
 import { isIP } from "node:net";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
@@ -902,11 +903,110 @@ function hasOpaquePackageExecution(tokens: string[]): boolean {
   return false;
 }
 
+const LOCAL_PATH_COMMANDS = new Set([
+  "7z", "ar", "awk", "bat", "cat", "cmp", "cp", "cpio", "curl", "diff", "eza", "fd", "file", "find", "git", "grep", "head",
+  "install", "less", "ln", "ls", "make", "mkdir", "mkfifo", "mknod", "more", "mv", "pax", "readlink", "realpath", "rg", "rm", "rmdir", "rsync", "sed", "shred", "stat",
+  "tail", "tar", "tee", "test", "touch", "truncate", "unzip", "unlink", "wc", "wget", "zip",
+]);
+
+function expandLocalPath(pathValue: string): string {
+  if (pathValue === "~") return homedir();
+  if (pathValue.startsWith("~/")) return resolve(homedir(), pathValue.slice(2));
+  return resolve(pathValue);
+}
+
+function isConfinedRelativePath(pathValue: string, projectRoot: string): boolean {
+  const projectRelative = relative(projectRoot, pathValue);
+  return !isAbsolute(projectRelative) && projectRelative !== ".." &&
+    !projectRelative.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`);
+}
+
+function isProjectConfinedLocalPath(pathValue: string): boolean {
+  if (!pathValue || isProtectedLocalPath(pathValue)) return false;
+  try {
+    const projectRoot = realpathSync(process.cwd());
+    const absoluteTarget = expandLocalPath(pathValue);
+    let existing = absoluteTarget;
+    while (!existsSync(existing)) {
+      const parent = dirname(existing);
+      if (parent === existing) return false;
+      existing = parent;
+    }
+    return isConfinedRelativePath(absoluteTarget, projectRoot) &&
+      isConfinedRelativePath(realpathSync(existing), projectRoot);
+  } catch {
+    return false;
+  }
+}
+
+function isExternalUrl(value: string): boolean {
+  return /^[A-Za-z][A-Za-z0-9+.-]*:\/\//.test(value);
+}
+
+function isRemoteTarget(value: string): boolean {
+  if (/^[A-Za-z]:[\\/]/.test(value)) return false;
+  return /^(?:[^@/\s]+@)?(?:\[[^\]]+\]|[A-Za-z0-9._-]+):.+/.test(value);
+}
+
+function hasWorkingDirectoryChangeRisk(rawTokens: string[], tokens: string[]): boolean {
+  const command = baseName(tokens[0] || "");
+  if (["cd", "popd", "pushd"].includes(command)) return true;
+  for (let i = 0; i < rawTokens.length; i += 1) {
+    const token = rawTokens[i];
+    let target = "";
+    if (token === "-C" || token === "--chdir" || token === "--directory") {
+      target = rawTokens[i + 1] || "";
+    } else if (token.startsWith("-C") && token.length > 2) {
+      target = token.slice(2);
+    } else if (token.startsWith("--chdir=") || token.startsWith("--directory=")) {
+      target = token.slice(token.indexOf("=") + 1);
+    } else {
+      continue;
+    }
+    if (!target || !isProjectConfinedLocalPath(target)) return true;
+  }
+  return false;
+}
+
+function hasLocalFilesystemRisk(tokens: string[]): boolean {
+  if (tokens.length === 0) return false;
+
+  const command = baseName(tokens[0]);
+  if (["curl", "wget"].includes(command)) {
+    for (let i = 1; i < tokens.length; i += 1) {
+      const token = tokens[i];
+      const inlineOutput = token.match(/^--(?:output|output-document)=(.*)$/);
+      if (inlineOutput?.[1] && !isProjectConfinedLocalPath(inlineOutput[1])) return true;
+      if (["-o", "-O", "--output", "--output-document"].includes(token)) {
+        const target = tokens[i + 1] || "";
+        if (target && !isProjectConfinedLocalPath(target)) return true;
+        i += 1;
+      }
+    }
+  }
+
+  for (let i = 0; i < tokens.length; i += 1) {
+    const token = tokens[i];
+    const redirection = token.match(/^(?:\d+)?(?:>>|>|&>>|&>|<)(.*)$/);
+    if (!redirection) continue;
+    const target = redirection[1] || tokens[i + 1] || "";
+    if (target && !/^&?\d+$/.test(target) && !isProjectConfinedLocalPath(target)) return true;
+  }
+
+  if (command === "rm") return true;
+  if (command === "rsync" && tokens.slice(1).some(isRemoteTarget)) return true;
+  if (!LOCAL_PATH_COMMANDS.has(command)) return false;
+  return tokens.slice(1).some((token) => {
+    if (!token || token.startsWith("-") || isExternalUrl(token) || /^&?\d+$/.test(token)) return false;
+    return !isProjectConfinedLocalPath(token);
+  });
+}
+
 function hasExternalOrSharedMutationRisk(tokens: string[]): boolean {
   const command = tokens[0];
   if (!command) return false;
 
-  if (["aws", "psql"].includes(command)) return true;
+  if (["aws", "psql", "scp", "sftp", "ssh"].includes(command)) return true;
 
   if (["npm", "pnpm", "yarn", "bun"].includes(command)) {
     const registryMutationMarkers = new Set([
@@ -1190,6 +1290,20 @@ function segmentDecision(segment: string): { decision: Decision; reason: string 
     };
   }
 
+  if (hasWorkingDirectoryChangeRisk(rawTokens, tokens)) {
+    return {
+      decision: "ask",
+      reason: "Requires approval: shell command changes the working directory",
+    };
+  }
+
+  if (hasLocalFilesystemRisk(tokens)) {
+    return {
+      decision: "ask",
+      reason: "Requires approval: shell command reads or mutates outside the project or removes local files",
+    };
+  }
+
   // Inline aliases can execute arbitrary shell payloads. Parse neither their
   // definitions nor bodies; fail closed when the configured alias is invoked.
   const rawUnwrappedTokens = stripWrappers(rawTokens);
@@ -1374,13 +1488,16 @@ function commandDecision(command: string): { decision: Decision; reason: string 
 }
 
 function nativePathDecision(toolName: string, pathValue: string): { decision: Decision; reason: string } {
-  if (!pathValue || !isProtectedLocalPath(pathValue)) {
+  if (pathValue && isProtectedLocalPath(pathValue)) {
+    if (toolName === "read") {
+      return { decision: "ask", reason: `Requires approval: read of protected path: ${pathValue}` };
+    }
+    return { decision: "deny", reason: `Blocked ${toolName} of protected path: ${pathValue}` };
+  }
+  if (!pathValue || isProjectConfinedLocalPath(pathValue)) {
     return { decision: "allow", reason: "" };
   }
-  if (toolName === "read") {
-    return { decision: "ask", reason: `Requires approval: read of protected path: ${pathValue}` };
-  }
-  return { decision: "deny", reason: `Blocked ${toolName} of protected path: ${pathValue}` };
+  return { decision: "ask", reason: `Requires approval: ${toolName} outside the project: ${pathValue}` };
 }
 
 /**
@@ -1950,4 +2067,5 @@ export const __test__ = {
   RTK_OPTIONAL_COMMANDS,
   RTK_EXECUTION_WRAPPERS,
   isProjectConfinedPath,
+  isProjectConfinedLocalPath,
 };

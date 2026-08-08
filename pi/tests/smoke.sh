@@ -14,6 +14,10 @@ run_pi_smoke_cases() {
 	local sandbox_extension_restore="$WORK_DIR/pi-extension-restore"
 	local sandbox_extension_modified="$WORK_DIR/pi-extension-modified"
 	local sandbox_extension_symlink="$WORK_DIR/pi-extension-symlink"
+	local sandbox_skill_modified="$WORK_DIR/pi-skill-modified"
+	local sandbox_skill_reinstall="$WORK_DIR/pi-skill-reinstall"
+	local sandbox_skill_stale="$WORK_DIR/pi-skill-stale"
+	local sandbox_skill_symlink="$WORK_DIR/pi-skill-symlink"
 	mkdir -p \
 		"$sandbox/home" \
 		"$sandbox_adapter/home" \
@@ -22,7 +26,11 @@ run_pi_smoke_cases() {
 		"$sandbox_mcp_merge/home" \
 		"$sandbox_extension_restore/home/.pi/agent/extensions" \
 		"$sandbox_extension_modified/home" \
-		"$sandbox_extension_symlink/home/.pi/agent/extensions"
+		"$sandbox_extension_symlink/home/.pi/agent/extensions" \
+		"$sandbox_skill_modified/home" \
+		"$sandbox_skill_reinstall/home" \
+		"$sandbox_skill_stale/home" \
+		"$sandbox_skill_symlink/home"
 
 	# Core install layout without adapter package.
 	expect_install_status 0 "$sandbox" "$snapshot_repo"
@@ -128,6 +136,54 @@ EOF
 	printf 'post-install user modification\n' >"$sandbox_extension_modified/home/.pi/agent/extensions/b-agentic-permissions.ts"
 	expect_install_status 0 "$sandbox_extension_modified" "$snapshot_repo" --uninstall
 	assert_contains "$sandbox_extension_modified/home/.pi/agent/extensions/b-agentic-permissions.ts" 'post-install user modification'
+
+	# Reinstall preserves a modified managed skill.
+	expect_install_status 0 "$sandbox_skill_reinstall" "$snapshot_repo"
+	printf '\npost-install skill modification\n' >>"$sandbox_skill_reinstall/home/.pi/agent/skills/b-plan/SKILL.md"
+	expect_install_status 0 "$sandbox_skill_reinstall" "$snapshot_repo"
+	assert_contains "$sandbox_skill_reinstall/home/.pi/agent/skills/b-plan/SKILL.md" 'post-install skill modification'
+
+	# Stale modified and symlinked skills survive reinstall pruning.
+	expect_install_status 0 "$sandbox_skill_stale" "$snapshot_repo"
+	mkdir -p \
+		"$sandbox_skill_stale/home/.pi/agent/skills/stale-skill" \
+		"$sandbox_skill_stale/home/.pi/agent/b-agentic/skills/stale-skill"
+	printf 'Generated from skills/registry.yaml\n' >"$sandbox_skill_stale/home/.pi/agent/skills/stale-skill/SKILL.md"
+	cp "$sandbox_skill_stale/home/.pi/agent/skills/stale-skill/SKILL.md" \
+		"$sandbox_skill_stale/home/.pi/agent/b-agentic/skills/stale-skill/SKILL.md"
+	mkdir -p "$sandbox_skill_stale/stale-target"
+	printf 'Generated from skills/registry.yaml\n' >"$sandbox_skill_stale/stale-target/SKILL.md"
+	ln -s "$sandbox_skill_stale/stale-target" \
+		"$sandbox_skill_stale/home/.pi/agent/skills/stale-link"
+	python3 - "$sandbox_skill_stale/home/.pi/agent/b-agentic/install.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+data = json.loads(path.read_text())
+data['skills'].extend(['stale-skill', 'stale-link'])
+path.write_text(json.dumps(data, indent=2) + '\n')
+PY
+	printf '\nuser stale-skill edit\n' >>"$sandbox_skill_stale/home/.pi/agent/skills/stale-skill/SKILL.md"
+	expect_install_status 0 "$sandbox_skill_stale" "$snapshot_repo"
+	assert_contains "$sandbox_skill_stale/home/.pi/agent/skills/stale-skill/SKILL.md" 'user stale-skill edit'
+	[ -L "$sandbox_skill_stale/home/.pi/agent/skills/stale-link" ] || fail "expected stale skill symlink to be preserved"
+
+	# Source-backed uninstall preserves a modified skill.
+	expect_install_status 0 "$sandbox_skill_modified" "$snapshot_repo"
+	printf '\npost-install skill modification\n' >>"$sandbox_skill_modified/home/.pi/agent/skills/b-plan/SKILL.md"
+	expect_install_status 0 "$sandbox_skill_modified" "$snapshot_repo" --uninstall
+	assert_contains "$sandbox_skill_modified/home/.pi/agent/skills/b-plan/SKILL.md" 'post-install skill modification'
+
+	# Source-backed uninstall preserves a symlinked skill.
+	expect_install_status 0 "$sandbox_skill_symlink" "$snapshot_repo"
+	cp -R "$sandbox_skill_symlink/home/.pi/agent/skills/b-plan" "$sandbox_skill_symlink/target-skill"
+	rm -rf "$sandbox_skill_symlink/home/.pi/agent/skills/b-plan"
+	ln -s "$sandbox_skill_symlink/target-skill" "$sandbox_skill_symlink/home/.pi/agent/skills/b-plan"
+	expect_install_status 0 "$sandbox_skill_symlink" "$snapshot_repo" --uninstall
+	[ -L "$sandbox_skill_symlink/home/.pi/agent/skills/b-plan" ] || fail "expected symlinked skill to be preserved"
+	assert_file "$sandbox_skill_symlink/target-skill/SKILL.md"
 
 	# Behavioral permission coverage via node --experimental-strip-types (no Pi runtime).
 	ROOT_DIR="$ROOT_DIR" node --experimental-strip-types --input-type=module - <<'NODE'
@@ -350,6 +406,35 @@ for (const command of [
 ]) expect(t.commandDecision(command).decision === 'allow', `${command} is read-only and may allow via RTK`);
 expect(t.commandDecision('rm -rf /tmp/x').decision === 'ask', 'rm -rf must ask');
 expect(t.commandDecision('rm -r /tmp/x').decision === 'ask', 'recursive rm must ask');
+for (const command of [
+  'mkdir -p /etc/b-agentic-review',
+  'tee /etc/hosts',
+  'unlink /tmp/important',
+  'shred /tmp/important',
+  'cd /etc && cat passwd',
+  'pushd /etc && cat passwd',
+  'popd && cat passwd',
+  'env --chdir=/etc cat passwd',
+  'sudo -C /etc cat passwd',
+  'tar -xf /tmp/a.tar -C /etc',
+  'make -C /etc all',
+  'rsync src /etc/',
+  'rsync src user@example.com:/etc/',
+  'scp src user@example.com:/etc/hosts',
+  'ssh user@example.com cat /etc/passwd',
+  'unzip a.zip -d /etc',
+  'rtk curl --output=/etc/hosts https://example.com',
+  'rtk wget -O /etc/hosts https://example.com',
+]) expect(t.commandDecision(command).decision === 'ask', `${command} must ask for outside-project mutation or cwd change`);
+expect(t.commandDecision('rm -f /tmp/important').decision === 'ask', 'local file removal must ask');
+expect(t.commandDecision('cat /etc/passwd').decision === 'ask', 'outside-project reads must ask');
+expect(t.commandDecision('cat ~/.bashrc').decision === 'ask', 'home reads must ask');
+expect(t.commandDecision('printf x > /etc/hosts').decision === 'ask', 'outside-project redirections must ask');
+expect(t.commandDecision('cp src/main.ts /etc/hosts').decision === 'ask', 'outside-project copies must ask');
+expect(t.commandDecision('mv src/main.ts /etc/hosts').decision === 'ask', 'outside-project moves must ask');
+expect(t.commandDecision('touch /etc/hosts').decision === 'ask', 'outside-project touches must ask');
+expect(t.commandDecision('cat src/main.ts').decision === 'allow', 'project-local reads must remain autonomous');
+expect(t.commandDecision('printf x > pi/tests/new-file.ts').decision === 'allow', 'project-local writes must remain autonomous');
 for (const command of ['dd if=/dev/zero of=/dev/sda', 'mkfs.ext4 /dev/sda', 'chmod -R 777 .', 'chown -R root .', 'kill -9 1']) {
   expect(t.commandDecision(command).decision === 'ask', `${command} must ask`);
 }
@@ -525,6 +610,9 @@ expect(t.nativePathDecision('write', '.env.example').decision === 'allow', 'publ
 expect(t.nativePathDecision('write', '.ssh/.env.example').decision === 'deny', 'SSH directory env template writes must remain blocked');
 expect(t.nativePathDecision('write', '.aws/.env.example').decision === 'deny', 'AWS directory env template writes must remain blocked');
 expect(t.nativePathDecision('read', 'src/main.ts').decision === 'allow', 'normal native read must allow');
+expect(t.nativePathDecision('read', '/etc/passwd').decision === 'ask', 'outside-project native reads must ask');
+expect(t.nativePathDecision('write', '/etc/hosts').decision === 'ask', 'outside-project native writes must ask');
+expect(t.nativePathDecision('write', 'pi/tests/new-file.ts').decision === 'allow', 'project-local native writes must allow');
 const serenaCodeFixture = mkdtempSync(path.join(root, 'pi/tests/', '.b-agentic-serena-'));
 try {
   const providerSecretsService = path.join(serenaCodeFixture, 'provider-secrets.service.ts');

@@ -71,6 +71,18 @@ def files_equal(left: Path, right: Path) -> bool:
         return False
 
 
+def trees_equal(left: Path, right: Path) -> bool:
+    if left.is_symlink() or right.is_symlink():
+        return False
+    if left.is_dir() and right.is_dir():
+        left_entries = {item.name: item for item in left.iterdir()}
+        right_entries = {item.name: item for item in right.iterdir()}
+        return left_entries.keys() == right_entries.keys() and all(
+            trees_equal(left_entries[name], right_entries[name]) for name in left_entries
+        )
+    return left.is_file() and right.is_file() and files_equal(left, right)
+
+
 def files_equal_or_json_equal(left: Path, right: Path) -> bool:
     if files_equal(left, right):
         return True
@@ -218,15 +230,19 @@ def main() -> None:
         return "Generated from skills/registry.yaml" in text
 
     skills_root = manifest_managed_path(paths, "skills", defaults["skills"])
+    skills_snapshot_root = metadata / "skills"
     for name in data.get("skills", []):
         if not safe_name(name):
             warn("preserving skill with unsafe manifest name")
             continue
         skill_dir = skills_root / name
-        if managed_skill_dir(skill_dir):
+        skill_snapshot = skills_snapshot_root / name
+        if skill_dir.is_symlink():
+            warn(f"preserving symlinked skill: {skill_dir}")
+        elif managed_skill_dir(skill_dir) and trees_equal(skill_dir, skill_snapshot):
             remove_tree(skill_dir)
         elif skill_dir.exists():
-            warn(f"preserving skill without managed marker: {skill_dir}")
+            warn(f"preserving modified or unsnapshotted skill: {skill_dir}")
 
     kernel_path = manifest_managed_path(paths, "kernel", defaults["kernel"])
     kernel_snapshot = metadata / kernel_path.name

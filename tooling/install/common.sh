@@ -250,7 +250,7 @@ skill_name_is_current() {
 prune_stale_installed_skills() {
   [ -f "$MANIFEST_DST" ] || return 0
 
-  local name skill_dir skill_file
+  local name skill_dir snapshot_dir
   while IFS= read -r name; do
     [ -n "$name" ] || continue
     if ! managed_asset_name_is_safe "$name"; then
@@ -260,13 +260,15 @@ prune_stale_installed_skills() {
     skill_name_is_current "$name" && continue
 
     skill_dir="$SKILLS_DST/$name"
-    skill_file="$skill_dir/SKILL.md"
-    [ -e "$skill_dir" ] || continue
+    snapshot_dir="$SKILLS_SNAPSHOT_DST/$name"
+    [ -e "$skill_dir" ] || [ -L "$skill_dir" ] || continue
 
-    if [ -f "$skill_file" ] && grep -Fq 'Generated from skills/registry.yaml' "$skill_file"; then
+    if [ -L "$skill_dir" ]; then
+      warn "preserving stale symlinked skill: $skill_dir"
+    elif skill_dir_is_managed "$skill_dir" && skill_dir_matches_snapshot "$skill_dir" "$snapshot_dir"; then
       run_cmd rm -rf "$skill_dir"
     else
-      warn "preserving stale skill without managed marker: $skill_dir"
+      warn "preserving stale modified or unsnapshotted skill: $skill_dir"
     fi
   done < <(manifest_array_values skills)
 }
@@ -277,12 +279,47 @@ skill_dir_is_managed() {
   [ -f "$skill_file" ] && grep -Fq 'Generated from skills/registry.yaml' "$skill_file"
 }
 
-install_one_skill() {
-  local name="$1" src="$SKILLS_SRC/$name" dst="$SKILLS_DST/$name"
+skill_dir_matches_snapshot() {
+  local skill_dir="$1" snapshot_dir="$2"
+  [ -d "$skill_dir" ] && [ -d "$snapshot_dir" ] || return 1
+  python3 - "$skill_dir" "$snapshot_dir" <<'PY'
+from pathlib import Path
+import sys
 
-  if [ -e "$dst" ] && ! skill_dir_is_managed "$dst"; then
-    warn "preserving user-owned skill directory: $dst"
+
+def same(left: Path, right: Path) -> bool:
+    if left.is_symlink() or right.is_symlink():
+        return False
+    if left.is_dir() and right.is_dir():
+        left_entries = {item.name: item for item in left.iterdir()}
+        right_entries = {item.name: item for item in right.iterdir()}
+        return left_entries.keys() == right_entries.keys() and all(
+            same(left_entries[name], right_entries[name]) for name in left_entries
+        )
+    if left.is_file() and right.is_file():
+        return left.read_bytes() == right.read_bytes()
+    return False
+
+sys.exit(0 if same(Path(sys.argv[1]), Path(sys.argv[2])) else 1)
+PY
+}
+
+install_one_skill() {
+  local name="$1" src="$SKILLS_SRC/$name" dst="$SKILLS_DST/$name" snapshot="$SKILLS_SNAPSHOT_DST/$name"
+
+  if [ -L "$dst" ]; then
+    warn "preserving symlinked skill directory: $dst"
     return 1
+  fi
+  if [ -e "$dst" ]; then
+    if ! skill_dir_is_managed "$dst"; then
+      warn "preserving user-owned skill directory: $dst"
+      return 1
+    fi
+    if ! skill_dir_matches_snapshot "$dst" "$snapshot"; then
+      warn "preserving modified or unsnapshotted skill directory: $dst"
+      return 1
+    fi
   fi
 
   copy_dir_replace "$src" "$dst"
@@ -292,6 +329,7 @@ install_one_skill() {
 
 install_skills() {
   ensure_dir "$SKILLS_DST"
+  ensure_dir "$SKILLS_SNAPSHOT_DST"
   prune_stale_installed_skills
 
   local name
@@ -300,6 +338,7 @@ install_skills() {
     [ -n "$name" ] || continue
     if install_one_skill "$name"; then
       INSTALL_SKILL_NAMES+=("$name")
+      copy_dir_replace "$SKILLS_DST/$name" "$SKILLS_SNAPSHOT_DST/$name"
     fi
   done < <(skill_names)
 }
@@ -1394,27 +1433,39 @@ manifest_skill_names() {
 }
 
 uninstall_installed_skills() {
-  local name
+  local name skill_dir snapshot_dir
   while IFS= read -r name; do
     [ -n "$name" ] || continue
     if ! managed_asset_name_is_safe "$name"; then
       warn "preserving skill with unsafe manifest name"
       continue
     fi
-    run_cmd rm -rf "$SKILLS_DST/$name"
+    skill_dir="$SKILLS_DST/$name"
+    snapshot_dir="$SKILLS_SNAPSHOT_DST/$name"
+    if [ -L "$skill_dir" ]; then
+      warn "preserving symlinked skill: $skill_dir"
+      continue
+    fi
+    if [ ! -d "$skill_dir" ] || ! skill_dir_is_managed "$skill_dir"; then
+      warn "preserving skill without managed marker: $skill_dir"
+      continue
+    fi
+    if ! skill_dir_matches_snapshot "$skill_dir" "$snapshot_dir"; then
+      warn "preserving modified skill: $skill_dir"
+      continue
+    fi
+    run_cmd rm -rf "$skill_dir"
   done < <(manifest_skill_names)
 }
 
 runtime_warn_missing_cli() { :; }
 runtime_cli_installed() { return 1; }
 runtime_upgrade_cli() { :; }
-runtime_install_extra_assets() { :; }
-runtime_uninstall_extra_assets() { :; }
 runtime_install_config_stage_count() { printf '0'; }
 
 runtime_install_common() {
   local config_stage_count=0
-  local install_stage_count=6
+  local install_stage_count=5
 
   runtime_warn_missing_cli
   config_stage_count="$(runtime_install_config_stage_count)"
@@ -1430,7 +1481,6 @@ runtime_install_common() {
     log "Skipping Pi CLI preparation; rerun interactively to accept the prompt, or set B_AGENTIC_INSTALL_PI_CLI=Y to install or upgrade it."
   fi
   run_stage "Syncing skills" install_skills
-  run_stage "Installing Pi extras" runtime_install_extra_assets
   run_stage "Syncing references and templates" install_references_and_templates
 
   run_install_triplet_stage "Installing kernel" install_kernel "preserve" "pending" "none" \
@@ -1460,10 +1510,9 @@ install_uninstall_helper() {
 
 runtime_uninstall_common() {
   require_bin python3
-  set_install_stage_total 4
+  set_install_stage_total 3
   log "Uninstalling b-agentic from $RUNTIME_UNINSTALL_LABEL"
   run_stage "Removing managed skills" uninstall_installed_skills
-  run_stage "Removing Pi extras" runtime_uninstall_extra_assets
   run_stage "Removing managed kernel" remove_managed_kernel
   run_stage "Cleaning Pi config" runtime_uninstall_configs
   run_cmd rm -rf "$METADATA_DIR"

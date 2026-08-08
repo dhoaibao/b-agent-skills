@@ -10,6 +10,7 @@ readonly PI_AGENT_DIR="${B_AGENTIC_PI_AGENT_DIR:-$HOME/.pi/agent}"
 readonly METADATA_DIR="$PI_AGENT_DIR/b-agentic"
 readonly BACKUPS_DIR="$METADATA_DIR/backups"
 readonly SKILLS_DST="$PI_AGENT_DIR/skills"
+readonly SKILLS_SNAPSHOT_DST="$METADATA_DIR/skills"
 readonly KERNEL_DST="$PI_AGENT_DIR/AGENTS.md"
 readonly KERNEL_SNAPSHOT_DST="$METADATA_DIR/AGENTS.md"
 readonly REFERENCES_DST="$METADATA_DIR/references"
@@ -365,10 +366,6 @@ install_permissions_extension() {
 	printf 'write\nactive\n%s' "$previous_backup"
 }
 
-runtime_install_extra_assets() {
-	:
-}
-
 update_pi_extensions() {
 	if ! command -v pi >/dev/null 2>&1; then
 		log "Pi CLI missing; skipping Pi extension update"
@@ -543,7 +540,6 @@ runtime_uninstall_configs() {
 	# Intentionally leave pi-mcp-adapter, pi-observational-memory, and pi-usage packages installed.
 }
 
-runtime_uninstall_extra_assets() { :; }
 
 pi_install() {
 	runtime_install_common
