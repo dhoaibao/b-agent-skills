@@ -30,7 +30,7 @@ Write general PR copy for a specified number of latest commits, or commits ahead
 
 1. If the user supplies a commit count with the request, require it to be one positive integer, such as `/skill:b-pr-summary 3`, then inspect exactly that many commits from `HEAD`. Block if the branch has fewer commits or the count is invalid.
 2. If the user supplies no count, resolve the current branch and inspect the local `origin/<current-branch>` tracking ref without fetching. Block if that ref does not exist; otherwise select `origin/<current-branch>..HEAD`. Block if the range is empty.
-3. Using Bash with `rtk git log` / `rtk git show` / `rtk git diff`, inspect the selected commits, their messages, changed files, and diffs.
+3. Using Bash, inspect commit messages and enumerate selected changed paths with metadata-only `rtk git log` / `rtk git diff --name-only`. Classify protected paths before content reads; inspect commit diffs only for explicitly named non-protected paths with `rtk git show <commit> -- <paths>` or a targeted range diff. State that protected paths were excluded without exposing their contents.
 4. Write a PR title of at most 72 characters that represents the combined change, not a single commit message.
 5. Summarize the overall purpose and key changes across the selected commits. Group related details; do not repeat each commit log mechanically.
 6. Include only verification evidence established by the selected commits or supplied user context. Use `Not established from available evidence.` when verification is unknown.

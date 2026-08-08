@@ -1303,6 +1303,13 @@ install_mcp_config() {
   rm -f "$rendered_template"
 }
 
+clear_prompted_mcp_inputs() {
+  CONTEXT7_API_KEY_INPUT=""
+  BRAVE_API_KEY_INPUT=""
+  FIRECRAWL_API_KEY_INPUT=""
+  FIRECRAWL_API_URL_INPUT=""
+}
+
 apply_prompted_mcp_keys() {
   local action="$1" current_backup="$2"
   if [ -z "$CONTEXT7_API_KEY_INPUT" ] && [ -z "$BRAVE_API_KEY_INPUT" ] && [ -z "$FIRECRAWL_API_KEY_INPUT" ] && [ -z "$FIRECRAWL_API_URL_INPUT" ]; then
@@ -1324,12 +1331,14 @@ apply_prompted_mcp_keys() {
     MCP_CONTEXT7_SECTION="$MCP_CONTEXT7_SECTION" \
     MCP_BRAVE_SECTION="$MCP_BRAVE_SECTION" \
     MCP_FIRECRAWL_SECTION="$MCP_FIRECRAWL_SECTION" \
-    CONTEXT7_API_KEY_INPUT="$CONTEXT7_API_KEY_INPUT" \
-    BRAVE_API_KEY_INPUT="$BRAVE_API_KEY_INPUT" \
-    FIRECRAWL_API_KEY_INPUT="$FIRECRAWL_API_KEY_INPUT" \
-    FIRECRAWL_API_URL_INPUT="$FIRECRAWL_API_URL_INPUT" \
     SOURCE_DIR="$SOURCE_DIR" \
-    python3 - <<'PY'
+    python3 - 3< <(
+      printf '%s\0%s\0%s\0%s\0' \
+        "$CONTEXT7_API_KEY_INPUT" \
+        "$BRAVE_API_KEY_INPUT" \
+        "$FIRECRAWL_API_KEY_INPUT" \
+        "$FIRECRAWL_API_URL_INPUT"
+    ) <<'PY'
 import json
 import os
 import sys
@@ -1338,6 +1347,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(os.environ['SOURCE_DIR']) / 'tooling' / 'install'))
 from jsonc import loads as load_jsonc
 
+values = os.fdopen(3, 'rb').read().split(b'\0')
+if len(values) != 5 or values[-1] != b'':
+    raise SystemExit('invalid prompted MCP key input')
+context7_key, brave_key, firecrawl_key, firecrawl_url = (value.decode('utf-8') for value in values[:-1])
+
 path = Path(os.environ['MCP_CONFIG_DST'])
 root_key = os.environ['MCP_ROOT_KEY']
 tmp = Path(os.environ['JSON_TMP'])
@@ -1345,10 +1359,10 @@ data = load_jsonc(path.read_text())
 servers = data.setdefault(root_key, {})
 
 updates = [
-    ('context7', os.environ['MCP_CONTEXT7_SECTION'], 'CONTEXT7_API_KEY', os.environ.get('CONTEXT7_API_KEY_INPUT', '')),
-    ('brave-search', os.environ['MCP_BRAVE_SECTION'], 'BRAVE_API_KEY', os.environ.get('BRAVE_API_KEY_INPUT', '')),
-    ('firecrawl', os.environ['MCP_FIRECRAWL_SECTION'], 'FIRECRAWL_API_KEY', os.environ.get('FIRECRAWL_API_KEY_INPUT', '')),
-    ('firecrawl', os.environ['MCP_FIRECRAWL_SECTION'], 'FIRECRAWL_API_URL', os.environ.get('FIRECRAWL_API_URL_INPUT', '')),
+    ('context7', os.environ['MCP_CONTEXT7_SECTION'], 'CONTEXT7_API_KEY', context7_key),
+    ('brave-search', os.environ['MCP_BRAVE_SECTION'], 'BRAVE_API_KEY', brave_key),
+    ('firecrawl', os.environ['MCP_FIRECRAWL_SECTION'], 'FIRECRAWL_API_KEY', firecrawl_key),
+    ('firecrawl', os.environ['MCP_FIRECRAWL_SECTION'], 'FIRECRAWL_API_URL', firecrawl_url),
 ]
 
 for server_name, section_name, key_name, value in updates:
@@ -1370,11 +1384,13 @@ PY
 
   if [ "$rc" -eq 2 ]; then
     rm -f "$tmp"
+    clear_prompted_mcp_inputs
     printf 'none'
     return 0
   fi
   if [ "$rc" -ne 0 ]; then
     rm -f "$tmp"
+    clear_prompted_mcp_inputs
     die "failed to write prompted MCP API keys: $MCP_CONFIG_DST"
   fi
 
@@ -1383,6 +1399,7 @@ PY
     backup="$(backup_file "$MCP_CONFIG_DST")"
   fi
   run_cmd mv "$tmp" "$MCP_CONFIG_DST"
+  clear_prompted_mcp_inputs
   printf '%s' "${backup:-none}"
 }
 

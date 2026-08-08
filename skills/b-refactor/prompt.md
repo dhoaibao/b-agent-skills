@@ -16,7 +16,7 @@ Run concrete behavior-preserving transforms: rename, extract, move, inline, simp
 
 ## Tool guidance
 
-- `bash` - `rtk git status --short`, checks, and modern discovery (`rg`, `fd`/`fdfind`).
+- `bash` - `rtk git status --short`, checks, and modern discovery routed through `rtk` whenever supported.
 - `codegraph` - initialize an absent local index on first relevant use, then map impact and cross-file structure.
 - `serena` - lock targets and references; prefer approval-gated `rename_symbol`, `replace_symbol_body`, `insert_before_symbol`, `insert_after_symbol`, and `safe_delete_symbol` over text patches when reliable; ask before onboarding or persistent memory writes.
 - `read`/`edit` - prose, comments, config keys, and non-symbol renames.

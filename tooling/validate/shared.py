@@ -392,9 +392,9 @@ for forbidden in ["state-machine.md", "decisions.md", "index.md", "Strict govern
     if forbidden in kernel_template:
         errors.append(f"references/kernel.template.md: removed kernel concept remains: {forbidden!r}")
 
-if "Use `rtk` for high-noise command families it supports" not in kernel_template:
+if "Use `rtk` for every command family it supports" not in kernel_template:
     errors.append(
-        "references/kernel.template.md: RTK must cover high-noise command families it supports"
+        "references/kernel.template.md: RTK must cover every supported command family"
     )
 if "Prefer modern shell tools when available" not in kernel_template:
     errors.append(
@@ -415,6 +415,12 @@ if "prompt the user to install the shell tooling before falling back" in kernel_
     errors.append(
         "references/kernel.template.md: blocking shell-tool install prompt remains"
     )
+
+installer = read_text(ROOT / "tooling" / "install" / "common.sh")
+if 'CONTEXT7_API_KEY_INPUT="$CONTEXT7_API_KEY_INPUT"' in installer:
+    errors.append("tooling/install/common.sh: prompted MCP keys must not enter a child environment")
+if "os.fdopen(3, 'rb')" not in installer:
+    errors.append("tooling/install/common.sh: prompted MCP keys must use the private input pipe")
 
 for marker in [
     "<!-- generated:kernel-routing:start -->",

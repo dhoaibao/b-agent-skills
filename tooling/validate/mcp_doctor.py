@@ -216,6 +216,9 @@ def main() -> int:
         print(f"{server}: {status}")
         blocked = blocked or status.startswith(("blocked:", "missing:"))
 
+    if not args.probe_schemas:
+        print("schema-probe: not run; live tool inventory is unverified (run --probe-schemas after MCP updates and before release candidates)")
+
     if args.probe_schemas:
         try:
             policy = json.loads(POLICY_PATH.read_text())

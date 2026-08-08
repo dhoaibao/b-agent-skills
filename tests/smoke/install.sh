@@ -580,6 +580,59 @@ EOF
 	assert_contains "$dnf_root_install_log" 'core: ready: rg, fd/fdfind, bat/batcat, eza/exa, sd, and jq available'
 }
 
+run_prompted_mcp_key_pipe_case() {
+	local snapshot_repo="$1"
+	local sandbox="$WORK_DIR/prompted-mcp-key-pipe"
+	local bin_dir="$sandbox/bin"
+	local config_path="$sandbox/mcp.json"
+	local environment_log="$sandbox/python-environment.log"
+	local real_python
+
+	mkdir -p "$bin_dir"
+	real_python="$(command -v python3)"
+	cat >"$config_path" <<'EOF'
+{"mcpServers":{}}
+EOF
+	cat >"$bin_dir/python3" <<EOF
+#!/usr/bin/env bash
+while IFS= read -r entry; do
+  case "\$entry" in
+    CONTEXT7_API_KEY_INPUT=*|BRAVE_API_KEY_INPUT=*|FIRECRAWL_API_KEY_INPUT=*|FIRECRAWL_API_URL_INPUT=*)
+      printf 'prompted MCP input leaked into Python environment\n' >> "$environment_log"
+      ;;
+  esac
+done < <(env)
+exec "$real_python" "\$@"
+EOF
+	chmod +x "$bin_dir/python3"
+
+	PATH="$bin_dir:$(smoke_system_path)" \
+		SOURCE_DIR="$snapshot_repo" \
+		MCP_CONFIG_DST="$config_path" \
+		MCP_ROOT_KEY="mcpServers" \
+		MCP_CONTEXT7_SECTION="headers" \
+		MCP_BRAVE_SECTION="env" \
+		MCP_FIRECRAWL_SECTION="env" \
+		bash -s "$snapshot_repo" <<'EOF'
+set -euo pipefail
+dry_run_enabled() { return 1; }
+run_cmd() { "$@"; }
+die() { printf '%s\n' "$*" >&2; exit 1; }
+source "$1/tooling/install/common.sh"
+CONTEXT7_API_KEY_INPUT="test-context7"
+BRAVE_API_KEY_INPUT="test-brave"
+FIRECRAWL_API_KEY_INPUT="test-firecrawl"
+FIRECRAWL_API_URL_INPUT="https://test.firecrawl.dev"
+apply_prompted_mcp_keys write none >/dev/null
+EOF
+
+	assert_no_path "$environment_log"
+	assert_json_value "$config_path" "data['mcpServers']['context7']['headers']['CONTEXT7_API_KEY'] == 'test-context7'"
+	assert_json_value "$config_path" "data['mcpServers']['brave-search']['env']['BRAVE_API_KEY'] == 'test-brave'"
+	assert_json_value "$config_path" "data['mcpServers']['firecrawl']['env']['FIRECRAWL_API_KEY'] == 'test-firecrawl'"
+	assert_json_value "$config_path" "data['mcpServers']['firecrawl']['env']['FIRECRAWL_API_URL'] == 'https://test.firecrawl.dev'"
+}
+
 run_mcp_doctor_case() {
 	local snapshot_repo="$1"
 	local sandbox="$WORK_DIR/mcp-doctor-pi"
@@ -655,6 +708,7 @@ EOF
 	assert_contains "$doctor_log" 'brave-search: ready:'
 	assert_contains "$doctor_log" 'firecrawl: ready:'
 	assert_contains "$doctor_log" 'playwright: ready:'
+	assert_contains "$doctor_log" 'schema-probe: not run; live tool inventory is unverified'
 
 	python3 - "$sandbox/home/.pi/agent/mcp.json" <<'PY'
 import json
@@ -1213,6 +1267,8 @@ main() {
 	run_readiness_report_case "$snapshot_repo"
 	echo "Running run_optional_shell_tool_case..."
 	run_optional_shell_tool_case "$snapshot_repo"
+	echo "Running run_prompted_mcp_key_pipe_case..."
+	run_prompted_mcp_key_pipe_case "$snapshot_repo"
 	echo "Running run_mcp_doctor_case..."
 	run_mcp_doctor_case "$snapshot_repo"
 	echo "Running run_runtime_cli_default_skip_case..."

@@ -63,9 +63,9 @@ that listens for `tool_call` events and:
   interpreter modules/script files (`bash script.sh`, `node app.js`,
   `python -m package`, …), and relative executable paths whose code is opaque
   to static matching
-- requires RTK for high-noise native command families (git, package/test/build runners, docker/kubectl, curl/wget, and similar); local discovery may use bare modern tools; unsupported
-  commands may run directly, and `rtk proxy` is unwrapped for the same safety
-  classification as its effective command; allows MCP metadata
+- requires RTK for every supported native command family, including local discovery; unsupported command families use available modern shell tools and otherwise
+  run directly, and `rtk proxy` is unwrapped for the same safety classification
+  as its effective command; allows MCP metadata
   discovery and only the explicitly classified read-only operations of managed MCP servers after the top-level approval gate; direct adapter tool names and top-level MCP gateway executions remain top-level approval-gated because Pi shares that namespace with custom tools; when pi-mcp-adapter is present, its approval broker applies the same policy to adapter-owned direct, proxy, resource, script, and iframe-originated MCP calls without prompting twice for the already-approved top-level call
 - confines autonomous Serena symbol reads to the current repository and asks for Serena onboarding, memory writes, and other local mutations; asks for Firecrawl external-mutation or
   local-upload tools (agent/crawl/interact/monitor/feedback/parse), Playwright
@@ -82,4 +82,5 @@ Use `scripts/validate-skills.sh` and `scripts/validate-skills.sh --release`
 from the repository root. MCP readiness must distinguish missing adapter,
 missing config, missing local prerequisites, and ready servers. The opt-in
 `scripts/mcp-doctor.sh --probe-schemas` lane performs approved live startup/network
-checks and reports current tool IDs that are new or absent relative to policy.
+checks and reports current tool IDs that are new or absent relative to policy. Run it after MCP
+package updates and before release candidates; normal readiness does not verify live schemas.

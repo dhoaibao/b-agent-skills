@@ -18,7 +18,7 @@ Make the scoped change in the smallest coherent step, and hand back to planning 
 ## Tool guidance
 
 - `read`/`edit`/`write` - prefer Pi native file tools for source and config edits.
-- `bash` - `rtk git status --short`, verification commands, and modern discovery (`rg`, `fd`/`fdfind`, `eza`/`exa`).
+- `bash` - `rtk git status --short`, verification commands, and modern discovery routed through `rtk` whenever that command family is supported.
 - `codegraph` - initialize an absent local index on first relevant use, then map architecture, calls, and affected tests.
 - `serena` - symbols, references, diagnostics, and approval-gated symbol edits (`rename_symbol`, `replace_symbol_body`, `insert_before_symbol`, `insert_after_symbol`, `safe_delete_symbol`); ask before onboarding or persistent memory writes.
 - `context7` - narrow versioned third-party API checks when needed.
@@ -31,12 +31,11 @@ Make the scoped change in the smallest coherent step, and hand back to planning 
 3. Use read for relevant repo context only when it materially affects the scoped change; use recall when compacted prior plan context is available.
 4. State expected files/symbols, invariant behavior, and success criteria; infer narrow criteria only when obvious.
 5. For cross-file code work, initialize an absent CodeGraph index; use CodeGraph for impact or affected tests, then Serena for exact symbols, references, and diagnostics. Otherwise use local search.
-6. If a material blocker cannot be resolved from the approved plan or direct request and repository evidence, stop before the next edit. Explain the blocker and ask one focused user question; after each answer, re-evaluate and ask another only if a blocker remains.
+6. If a material blocker, new uncertainty, missing external fact, or scope drift cannot be resolved from the approved plan, direct request, and repository evidence, stop before the next edit. Explain the blocker and ask one focused user question; after each answer, re-evaluate and ask another only if a blocker remains. Hand back to **b-plan** or **b-research** only when that answer identifies the handoff.
 7. Edit the smallest coherent slice and match the existing local style. Prefer Serena symbol mutations for renames/signature-body edits when available (approval-gated); use Pi `edit`/`write` for prose, config, and string-level changes.
 8. Run the narrowest useful verification (using Context7 for versioned third-party API checks if the implementation relies on them) that proves the requested observable outcome.
-9. If verification exposes an in-scope defect without new ambiguity or scope drift, correct it and rerun the required check. Otherwise stop rather than guessing.
-10. Inspect the diff and report changes, verification, and remaining gaps.
-11. Treat new uncertainty, missing external facts, or scope drift as material blockers: stop and ask one focused user question before the next edit. Hand back to **b-plan** or **b-research** only when that answer identifies the handoff.
+9. If verification exposes an in-scope defect without a material blocker, correct it and rerun the required check. Otherwise stop under step 6.
+10. Inspect changed paths with metadata-only Git output, then inspect diffs only for explicit non-protected paths and report changes, verification, and remaining gaps.
 
 ## Output format
 

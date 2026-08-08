@@ -358,12 +358,20 @@ expect(t.commandDecision('rtk --skip-env git reset --hard').decision === 'deny',
 expect(t.commandDecision("rtk run -c 'git reset --hard'").decision === 'ask', 'rtk run -c must fail closed as opaque');
 expect(t.commandDecision('rtk g\\it reset --hard').decision === 'deny', 'escaped command name must not bypass reset denial');
 expect(t.commandDecision(['rtk g', '\\', '\n', 'it reset --hard'].join('')).decision === 'deny', 'line-continuation command name must not bypass reset denial');
-expect(t.commandDecision('rtk proxy c\\at src/main.ts').decision === 'allow', 'baseline fallback remains allowed when the preferred modern tool is unavailable or inappropriate');
-expect(t.commandDecision('rtk proxy grep needle src/main.ts').decision === 'allow', 'rtk proxy preserves safety classification for optional discovery');
-expect(t.commandDecision('grep needle src/main.ts').decision === 'allow', 'bare grep remains allowed; modern rg is prompt-level preference');
-expect(t.commandDecision('rg needle src/main.ts').decision === 'allow', 'bare rg discovery must allow without RTK');
-expect(t.commandDecision('fd -t f main.ts').decision === 'allow', 'bare fd discovery must allow without RTK');
-expect(t.commandDecision('eza -la').decision === 'allow', 'bare eza discovery must allow without RTK');
+const noModernTools = new Set();
+const allModernTools = new Set(['rg', 'fd', 'bat', 'eza', 'sd', 'jq']);
+expect(t.commandDecision('rtk proxy c\\at src/main.ts', noModernTools).decision === 'allow', 'baseline fallback remains allowed when the preferred modern tool is unavailable or inappropriate');
+expect(t.commandDecision('rtk proxy grep needle src/main.ts', noModernTools).decision === 'allow', 'RTK-wrapped legacy discovery may fall back when rg is unavailable');
+expect(t.commandDecision('grep needle src/main.ts', noModernTools).decision === 'ask', 'bare grep must use RTK when RTK supports it');
+expect(t.commandDecision('rtk grep needle src/main.ts', allModernTools).decision === 'ask', 'RTK-wrapped grep must prefer rg when available');
+expect(t.commandDecision('rg needle src/main.ts', allModernTools).decision === 'ask', 'bare rg must use RTK when RTK supports it');
+expect(t.commandDecision('rtk rg needle src/main.ts', allModernTools).decision === 'allow', 'RTK-wrapped rg must allow');
+expect(t.commandDecision('rtk find . -name main.ts', noModernTools).decision === 'allow', 'RTK-wrapped find may fall back when fd is unavailable');
+expect(t.commandDecision('rtk find . -name main.ts', allModernTools).decision === 'ask', 'RTK-wrapped find must prefer fd when available');
+expect(t.commandDecision('fd -t f main.ts', allModernTools).decision === 'allow', 'unsupported modern fd discovery must allow directly');
+expect(t.commandDecision('eza -la', allModernTools).decision === 'allow', 'unsupported modern eza discovery must allow directly');
+expect(t.commandDecision('cat src/main.ts', allModernTools).decision === 'ask', 'cat must prefer bat when available');
+expect(t.commandDecision('python3 -m json.tool package.json', allModernTools).decision === 'ask', 'python json.tool must prefer jq when available');
 expect(t.commandDecision('sudo git push --force origin main').decision === 'deny', 'sudo force push must deny');
 expect(t.commandDecision('/usr/bin/env X=1 git reset --hard').decision === 'deny', 'path-qualified env must not bypass reset denial');
 expect(t.commandDecision('/usr/bin/sudo git push --force origin main').decision === 'deny', 'path-qualified sudo must not bypass force-push denial');
@@ -403,7 +411,19 @@ for (const command of [
   'rtk git stash list',
   'rtk git status --short',
   "rtk git tag --list 'v*'",
-]) expect(t.commandDecision(command).decision === 'allow', `${command} is read-only and may allow via RTK`);
+  'rtk git diff --name-only',
+  'rtk git show --name-status --format= HEAD',
+  'rtk git diff -- pi/tests/smoke.sh',
+  'rtk git show HEAD -- pi/tests/smoke.sh',
+]) expect(t.commandDecision(command).decision === 'allow', `${command} is a scoped or metadata-only Git read and may allow via RTK`);
+for (const command of [
+  'rtk git diff', 'rtk git diff --cached', 'rtk git show HEAD',
+  'rtk git diff --name-only --patch', 'rtk git show --name-status --patch HEAD',
+  'rtk git diff -- .', 'rtk git show HEAD -- pi',
+]) {
+  expect(t.commandDecision(command).decision === 'ask', `${command} must not automatically expose unscoped Git content`);
+}
+expect(t.commandDecision('rtk git diff -- .env').decision === 'ask', 'targeted protected Git content must require approval');
 expect(t.commandDecision('rm -rf /tmp/x').decision === 'ask', 'rm -rf must ask');
 expect(t.commandDecision('rm -r /tmp/x').decision === 'ask', 'recursive rm must ask');
 for (const command of [
@@ -433,18 +453,19 @@ expect(t.commandDecision('printf x > /etc/hosts').decision === 'ask', 'outside-p
 expect(t.commandDecision('cp src/main.ts /etc/hosts').decision === 'ask', 'outside-project copies must ask');
 expect(t.commandDecision('mv src/main.ts /etc/hosts').decision === 'ask', 'outside-project moves must ask');
 expect(t.commandDecision('touch /etc/hosts').decision === 'ask', 'outside-project touches must ask');
-expect(t.commandDecision('cat src/main.ts').decision === 'allow', 'project-local reads must remain autonomous');
+expect(t.commandDecision('cat src/main.ts', noModernTools).decision === 'allow', 'project-local reads must remain autonomous when bat is unavailable');
 expect(t.commandDecision('printf x > pi/tests/new-file.ts').decision === 'allow', 'project-local writes must remain autonomous');
 for (const command of ['dd if=/dev/zero of=/dev/sda', 'mkfs.ext4 /dev/sda', 'chmod -R 777 .', 'chown -R root .', 'kill -9 1']) {
   expect(t.commandDecision(command).decision === 'ask', `${command} must ask`);
 }
-expect(t.commandDecision('ls -la').decision === 'allow', 'bare ls discovery must allow without RTK');
-expect(t.commandDecision('find . -name "*.ts"').decision === 'allow', 'bare find discovery must allow without RTK');
-expect(t.commandDecision('rtk ls -la').decision === 'allow', 'optional rtk ls must allow');
-expect(t.commandDecision('env X=1 rtk ls -la').decision === 'allow', 'env-wrapped rtk ls must allow');
-expect(t.commandDecision('command rtk ls -la').decision === 'allow', 'command-wrapped rtk ls must allow');
-expect(t.commandDecision('sudo rtk ls -la').decision === 'allow', 'sudo-wrapped rtk ls must allow');
-expect(t.commandDecision('env -u FOO rtk ls -la').decision === 'allow', 'env -u wrapped rtk ls must allow');
+expect(t.commandDecision('ls -la', noModernTools).decision === 'ask', 'bare ls must use RTK when RTK supports it');
+expect(t.commandDecision('find . -name "*.ts"', noModernTools).decision === 'ask', 'bare find must use RTK when RTK supports it');
+expect(t.commandDecision('rtk ls -la', noModernTools).decision === 'allow', 'RTK-wrapped ls may allow when eza is unavailable');
+expect(t.commandDecision('rtk ls -la', allModernTools).decision === 'ask', 'RTK-wrapped ls must prefer eza when available');
+expect(t.commandDecision('env X=1 rtk ls -la', noModernTools).decision === 'allow', 'env-wrapped RTK ls must allow when eza is unavailable');
+expect(t.commandDecision('command rtk ls -la', noModernTools).decision === 'allow', 'command-wrapped RTK ls must allow when eza is unavailable');
+expect(t.commandDecision('sudo rtk ls -la', noModernTools).decision === 'allow', 'sudo-wrapped RTK ls must allow when eza is unavailable');
+expect(t.commandDecision('env -u FOO rtk ls -la', noModernTools).decision === 'allow', 'env -u wrapped RTK ls must allow when eza is unavailable');
 expect(t.commandDecision('env -S ls').decision === 'ask', 'env -S legacy command must be approval-gated');
 expect(t.commandDecision('env -S "grep needle src/main.ts"').decision === 'ask', 'env -S command string must be approval-gated');
 for (const command of [
@@ -452,7 +473,7 @@ for (const command of [
   'sed -n 1p src/main.ts',
   'awk {print} src/main.ts',
   'python3 -m json.tool package.json',
-]) expect(t.commandDecision(command).decision === 'allow', `${command} must remain an allowed fallback; modern-tool preference is prompt-level`);
+]) expect(t.commandDecision(command, noModernTools).decision === 'allow', `${command} must remain an allowed fallback when its replacement is unavailable`);
 for (const [command, label] of [
   ['npm add lodash', 'npm add'], ['npm remove lodash', 'npm remove'], ['npm --silent install lodash', 'npm option install'], ['npm ci', 'npm ci'],
   ['/usr/bin/npm --silent install lodash', 'path-qualified npm option install'],
@@ -514,16 +535,12 @@ const rtkRequiredCommands = [
   'rake', 'rubocop', 'rspec', 'pip', 'go', 'gt', 'golangci-lint', 'gradlew', 'mvn',
   'ecs', 'paratest', 'pest', 'php', 'phpstan', 'phpunit', 'pint', 'sbt', 'uv',
 ];
-const rtkOptionalCommands = ['ls', 'tree', 'find', 'diff', 'grep', 'rg', 'wc'];
-for (const command of rtkRequiredCommands) {
+const rtkDiscoveryCommands = ['ls', 'tree', 'find', 'diff', 'grep', 'rg', 'wc'];
+for (const command of [...rtkRequiredCommands, ...rtkDiscoveryCommands]) {
   expect(t.RTK_REQUIRED_COMMANDS.has(command), `${command} must be RTK-required`);
-  expect(t.commandDecision(`${command} --version`).decision === 'ask', `${command} must require RTK`);
+  expect(t.commandDecision(`${command} --version`, noModernTools).decision === 'ask', `${command} must require RTK`);
 }
-for (const command of rtkOptionalCommands) {
-  expect(t.RTK_OPTIONAL_COMMANDS.has(command), `${command} must be classified as optional RTK`);
-  expect(!t.RTK_REQUIRED_COMMANDS.has(command), `${command} must not be RTK-required`);
-  expect(t.commandDecision(`${command} --version`).decision === 'allow', `${command} may run without RTK`);
-}
+expect(t.RTK_OPTIONAL_COMMANDS.size === 0, 'no RTK-supported command family may be exempted from RTK');
 expect(t.SPECIALIZED_TOOLS.has('recall'), 'recall must be a first-party specialized tool');
 expect(t.isMcpOrCustomTool('recall', { id: 'aaaaaaaaaaaa' }) === false, 'recall must not require custom-tool approval');
 expect(t.commandDecision('pip show requests').decision === 'ask', 'pip must require RTK');
@@ -544,7 +561,7 @@ expect(t.commandDecision('printf EXAMPLE=value > .env.example').decision === 'al
 expect(t.commandDecision('rtk cat ./config/../.env.local').decision === 'ask', 'rtk-wrapped protected-path read must ask');
 expect(t.commandDecision('rtk rg SECRET .env').decision === 'ask', 'RTK-supported command must gate protected paths');
 expect(t.commandDecision('ls src && cat credentials.json').decision === 'ask', 'compound protected-path read must ask');
-expect(t.commandDecision('cat src/main.ts').decision === 'allow', 'direct cat must allow when appropriate');
+expect(t.commandDecision('cat src/main.ts', noModernTools).decision === 'allow', 'direct cat must allow when bat is unavailable');
 expect(t.commandDecision('cat "$SECRET_FILE"').decision === 'ask', 'variable shell paths must fail closed as ambiguous');
 expect(t.commandDecision('rtk proxy bat .e?v').decision === 'ask', 'unquoted protected-path glob must fail closed');
 expect(t.commandDecision("rtk rg 'src/*.ts'").decision === 'allow', 'quoted glob argument must remain usable');

@@ -65,6 +65,6 @@ Pi enforces this policy and protected path gates via its `tool_call` extension, 
 
 Prefer modern shell tools when available: `rg` over `grep`, `fd`/`fdfind` over `find`, `bat`/`batcat` over `cat`, `eza`/`exa` over `ls`, `sd` over `sed` or `awk`, and `jq` over `python -m json.tool`. Fall back only when missing or a worse fit. Do not use Pi built-in `grep`/`find`/`ls`; use bash instead.
 
-Use `rtk` for high-noise command families it supports (git, package/test/build runners, docker/kubectl, curl/wget, and similar). RTK is optional for local discovery. Run unsupported commands directly. Destructive commands are denied; protected paths and opaque shell/interpreter input stay approval-gated. Build/test tools may run repo code — not a process sandbox. Examples: `rtk git status`, `rtk pytest -q`, `rg pattern`, `fd -t f name`, `eza -la`.
+Use `rtk` for every command family it supports, including local discovery. For unsupported command families, use the modern-tool fallback above; otherwise run the command directly. Destructive commands are denied; protected paths and opaque shell/interpreter input stay approval-gated. Build/test tools may run repo code — not a process sandbox. Examples: `rtk git status`, `rtk pytest -q`, `rtk rg pattern`, `fd -t f name`, `eza -la`.
 
-If `rtk` is missing for a required high-noise family, stop and report the missing prerequisite.
+If `rtk` is missing for a supported command family, stop and report the missing prerequisite.

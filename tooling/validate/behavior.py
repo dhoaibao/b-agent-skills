@@ -45,24 +45,24 @@ KERNEL_CONSOLIDATION_REGRESSION = {
     ),
 }
 
-# Regression: suite audit found modern-tool preference contradicted by RTK-required
-# discovery families, and kernel rule 4 implied RTK bypassed approval asks.
+# Regression: the runtime allowed direct RTK-supported discovery commands and
+# unscoped Git diffs could expose protected content without a literal path token.
 SHELL_POLICY_REGRESSION = {
     "observed_failure": (
-        "Kernel preferred modern discovery tools while RTK still required ls/find/grep/rg, "
-        "and approval guidance implied RTK bypassed asks for dangerous work."
+        "Kernel designated RTK and modern replacements, but direct RTK-supported discovery "
+        "commands remained allowed and unscoped Git content reads bypassed path protection."
     ),
     "intended_behavior": (
-        "Prefer bare modern discovery tools; require RTK only for high-noise families; "
-        "RTK never bypasses approvals."
+        "Use RTK for every supported family, use modern fallbacks only when RTK does not "
+        "support the family, and require approval for unscoped Git content reads."
     ),
     "required_clauses": (
         "RTK never bypasses these approvals",
         "Prefer modern shell tools when available",
-        "Use `rtk` for high-noise command families it supports",
+        "Use `rtk` for every command family it supports",
     ),
-    # Runtime companions (not re-asserted here): pi/tests/smoke.sh bare ls/grep allow,
-    # RTK_OPTIONAL_COMMANDS classification, session_readiness required-vs-optional drift.
+    # Runtime companions: pi/tests/smoke.sh covers RTK discovery enforcement,
+    # modern fallback availability, and scoped Git content reads.
 }
 
 

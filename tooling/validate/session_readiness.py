@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[2]
 RTK_POLICY = ROOT / "pi" / "extensions" / "b-agentic-permissions.ts"
 # RTK commands that operate on RTK itself or generic command streams rather
 # than proxying a same-named native command family. New commands must be
-# reviewed and added here, to RTK_REQUIRED_COMMANDS, or RTK_OPTIONAL_COMMANDS.
+# reviewed and added to RTK_REQUIRED_COMMANDS. RTK-supported families are mandatory.
 RTK_NON_NATIVE_COMMANDS = {
     "read", "smart", "err", "test", "json", "deps", "env", "summary", "log",
     "gain", "cc-economics", "config", "init", "discover", "session", "telemetry",
@@ -114,8 +114,8 @@ def self_test() -> int:
     if ({"git", "pytest"} - required):
         print("required RTK family fixture unexpectedly failed", file=sys.stderr)
         return 1
-    if not ({"ls", "rg"} <= configured - required):
-        print("optional discovery RTK family fixture unexpectedly failed", file=sys.stderr)
+    if not ({"ls", "rg"} <= required):
+        print("RTK discovery family fixture unexpectedly failed", file=sys.stderr)
         return 1
     if not ({"new-native-family"} - configured - RTK_NON_NATIVE_COMMANDS):
         print("unclassified RTK family fixture unexpectedly passed", file=sys.stderr)

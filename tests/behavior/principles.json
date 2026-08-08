@@ -29,14 +29,14 @@
       "avoid": ["Immediately hand off to b-research", "Guess the third-party API version or method"]
     },
     {
-      "id": "plan-states-blockers",
+      "id": "plan-omits-empty-blockers",
       "principle": "goal-driven-execution",
       "skill": "b-plan",
-      "observed_failure": "b-plan directed agents to surface blockers but did not require plans to state whether blockers existed.",
-      "intended_behavior": "Every plan includes an explicit blockers statement, including `none` when no unresolved blocker remains.",
-      "prompt": "Use b-plan. Plan a one-line documentation change where the target file, replacement text, and verification command are already known. Do not edit files.",
-      "must": ["Include an explicit blockers statement", "State that there are no blockers"],
-      "avoid": ["Omit blockers because the task is straightforward"]
+      "observed_failure": "b-plan required a `Blockers: none` status section even for a trivial plan with no unresolved decision.",
+      "intended_behavior": "Surface only material blockers and assumptions; do not add an empty status section to an otherwise straightforward plan.",
+      "prompt": "Use b-plan. Plan this one-line documentation change: in README.md, replace `Default timeout: 30 seconds` with `Default timeout: 45 seconds`; verify with `rtk rg 'Default timeout: 45 seconds' README.md`. Do not edit files.",
+      "must": ["Give a concise executable plan", "Omit an empty blockers status section"],
+      "avoid": ["Add `Blockers: none`", "Invent a blocker because the task is straightforward"]
     },
     {
       "id": "multiple-interpretations",

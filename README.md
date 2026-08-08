@@ -40,10 +40,10 @@ Interactive installs prepare Pi and RTK; Serena and CodeGraph remain optional in
 
 During interactive installs, the installer can prompt to download and run the RTK install script from its `master` branch. If `rtk` is already installed, the installer asks separately before upgrading it; the existing installation satisfies the prerequisite. Scripted upgrades require `B_AGENTIC_INSTALL_RTK=Y`. This is a remote shell script; only use it if you trust the RTK repository. RTK is required for b-agentic sessions; installation fails if it cannot be installed.
 
-Once installed, agents prefer modern shell tools for local discovery (`rg`, `fd`/`fdfind`, `eza`/`exa`, `bat`/`batcat`, `sd`, `jq`) and use RTK for high-noise families it supports (git, package/test/build runners, docker/kubectl, curl/wget, and similar). Unsupported commands run directly. RTK does not bypass approval for commits, dependency writes, services, or other dangerous commands; explicit destructive commands are denied, and protected paths or opaque shell and interpreter inputs remain approval-gated. Build and test tools can execute code from the current repository, so this permission layer is not a process sandbox. Use Pi's sandbox integration or an isolated environment when running genuinely untrusted code. Examples:
+Once installed, agents use RTK for every command family it supports, including local discovery. For unsupported command families, they prefer modern shell tools (`rg`, `fd`/`fdfind`, `eza`/`exa`, `bat`/`batcat`, `sd`, `jq`) and fall back only when the replacement is missing or a worse fit. RTK does not bypass approval for commits, dependency writes, services, or other dangerous commands; explicit destructive commands are denied, and protected paths, unscoped Git content reads, or opaque shell and interpreter inputs remain approval-gated. Build and test tools can execute code from the current repository, so this permission layer is not a process sandbox. Use Pi's sandbox integration or an isolated environment when running genuinely untrusted code. Examples:
 
 ```bash
-rg pattern src
+rtk rg pattern src
 fd -t f '.ts$'
 eza -la
 rtk git status
@@ -137,7 +137,7 @@ The installer writes recommended MCP entries for:
 - Brave Search: secondary public/current discovery and alternate source finding.
 - Playwright: live browser, visual, console/network, and e2e evidence.
 
-The installer does not eagerly start MCP servers, install `bunx` packages, or initialize repositories. b-agentic runs `codegraph init` only when its local index is absent; Serena onboarding requires approval. It does not install missing CLIs. It reports local MCP readiness blockers such as missing binaries or API keys. Use `scripts/mcp-doctor.sh --session-tools` to verify the active session has RTK. When live network/process activity is approved, `scripts/mcp-doctor.sh --probe-schemas` explicitly starts or connects to each configured server and compares its current tool inventory with the canonical operation policy. Add `--suggestions` for human-readable review records and `--suggestions-json=<path>` for a machine-readable report; suggestion mode never edits the policy or configuration.
+The installer does not eagerly start MCP servers, install `bunx` packages, or initialize repositories. b-agentic runs `codegraph init` only when its local index is absent; Serena onboarding requires approval. It does not install missing CLIs. It reports local MCP readiness blockers such as missing binaries or API keys. Use `scripts/mcp-doctor.sh --session-tools` to verify the active session has RTK. When live network/process activity is approved, `scripts/mcp-doctor.sh --probe-schemas` explicitly starts or connects to each configured server and compares its current tool inventory with the canonical operation policy. Run it after MCP package updates and before release candidates; normal readiness output states that live schema verification was not run. Add `--suggestions` for human-readable review records and `--suggestions-json=<path>` for a machine-readable report; suggestion mode never edits the policy or configuration.
 
 ## Repository Layout
 

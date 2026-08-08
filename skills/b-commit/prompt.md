@@ -17,20 +17,20 @@ Create approved, cohesive commits from the current working tree, or draft one me
 
 ## Tool guidance
 
-- `bash` - `rtk git status --short`, `rtk git diff` / `rtk git diff --cached`, stage exact paths, and create commits after confirmation.
+- `bash` - `rtk git status --short`, metadata-only Git path lists, targeted safe-path diffs, exact staging, and approved commit creation.
 
 ## Steps
 
 1. If the user asks for PR copy for staged changes, return `BLOCKED: commit staged changes before generating PR copy` and stop. Do not inspect commit history or stage or commit changes.
-2. If the user asks only for a commit message, inspect only the existing staged diff. Block if it is empty or mixes unrelated concerns; otherwise apply step 7, output the message, and stop without staging or committing.
-3. Using Bash, run `rtk git status --short` and `rtk git diff` / `rtk git diff --cached`; inspect untracked files only when their paths are not likely-secret files.
-4. Record the initial index and working-tree snapshot. Do not read, stage, or commit likely-secret files without explicit permission.
+2. If the user asks only for a commit message, list staged paths with `rtk git diff --cached --name-only`, then inspect only the targeted staged diff for non-protected paths. Block if it is empty, protected, or mixes unrelated concerns; otherwise apply step 7, output the message, and stop without staging or committing.
+3. Using Bash, run `rtk git status --short` and metadata-only path lists for staged and unstaged changes. Classify protected paths before reading any content; inspect untracked files only when their paths are not likely-secret files.
+4. Read diffs only for explicit non-protected paths, using `rtk git diff -- <paths>` or `rtk git diff --cached -- <paths>`. Record the initial index and working-tree snapshot. Do not read, stage, or commit likely-secret files without explicit permission.
 5. Propose the smallest set of cohesive commit groups. Treat a pre-existing staged set as user-curated: preserve it as one group and do not reset or reorganize it without explicit approval.
 6. Block if a group mixes unrelated concerns, a protected file needs permission, or a file cannot be assigned confidently.
 7. For each group, choose the narrowest accurate type: `feat`, `fix`, `refactor`, `perf`, `docs`, `test`, `chore`, or `style`; write an imperative subject of at most 50 characters with no trailing punctuation.
 8. Present the groups, exact file paths, and proposed commit messages. Ask once for confirmation before staging or creating any commit.
 9. After confirmation, verify the snapshot is unchanged. Stage only the approved paths for each unstaged group; do not use broad staging commands that can capture unrelated files.
-10. Reinspect each staged group immediately before committing. Create its commit on the current branch, then continue to the next approved group. Stop on the first Git error; do not amend, reset, push, or retry by changing history.
+10. Reinspect each staged group immediately before committing with a targeted non-protected-path diff. Create its commit on the current branch, then continue to the next approved group. Stop on the first Git error; do not amend, reset, push, or retry by changing history.
 11. Report commit hashes, messages, remaining changes, and any blockers. Recommend `b-pr-summary <commit-count>` for PR copy.
 
 ## Output format

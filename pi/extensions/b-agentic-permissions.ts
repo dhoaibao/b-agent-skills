@@ -16,7 +16,7 @@
 import { existsSync, realpathSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { isIP } from "node:net";
-import { dirname, isAbsolute, relative, resolve } from "node:path";
+import { delimiter, dirname, isAbsolute, relative, resolve } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 type Decision = "allow" | "ask" | "deny";
@@ -369,9 +369,9 @@ const WRAPPER_COMMANDS = new Set(["rtk", "sudo", "command", "nohup", "nice", "ti
 /** RTK subcommands that execute another command and must expose it to policy matching. */
 const RTK_EXECUTION_WRAPPERS = new Set(["proxy", "err", "test", "summary", "run"]);
 /**
- * High-noise native families that must go through RTK when used.
- * Local discovery (ls/find/grep/rg/tree/diff/wc) stays optional so agents can
- * prefer bare modern tools (eza/fd/rg/bat) per the kernel.
+ * Every native family supported by RTK must go through RTK, including
+ * discovery commands. Modern replacements remain direct only when RTK does
+ * not support that command family.
  */
 const RTK_REQUIRED_COMMANDS = new Set([
   "git", "gh", "glab", "aws", "psql", "pnpm",
@@ -380,11 +380,10 @@ const RTK_REQUIRED_COMMANDS = new Set([
   "playwright", "cargo", "npm", "npx", "curl", "ruff", "pytest", "mypy",
   "rake", "rubocop", "rspec", "pip", "go", "gt", "golangci-lint", "gradlew", "mvn",
   "ecs", "paratest", "pest", "php", "phpstan", "phpunit", "pint", "sbt", "uv",
-]);
-/** RTK-native families that remain classified but are not RTK-mandatory. */
-const RTK_OPTIONAL_COMMANDS = new Set([
   "ls", "tree", "find", "diff", "grep", "rg", "wc",
 ]);
+/** Reserved for future RTK-native families that are explicitly exempted. */
+const RTK_OPTIONAL_COMMANDS = new Set([]);
 
 /** Interpreters that execute opaque code or script files; always approval-required. */
 const INTERPRETER_BASES = new Set([
@@ -1245,6 +1244,69 @@ function isDirectRtkRequiredCommand(rawTokens: string[], tokens: string[]): bool
   return !isRtkWrapped(rawTokens) && RTK_REQUIRED_COMMANDS.has(tokens[0]);
 }
 
+const MODERN_SHELL_REPLACEMENTS: Record<string, readonly string[]> = {
+  grep: ["rg"],
+  find: ["fd", "fdfind"],
+  cat: ["bat", "batcat"],
+  ls: ["eza", "exa"],
+  sed: ["sd"],
+  awk: ["sd"],
+};
+
+function modernShellToolAvailability(): Set<string> {
+  const paths = (process.env.PATH || "").split(delimiter).filter(Boolean);
+  const extensions = process.platform === "win32"
+    ? (process.env.PATHEXT || ".EXE;.CMD;.BAT").split(";")
+    : [""];
+  const available = new Set<string>();
+  for (const candidates of Object.values(MODERN_SHELL_REPLACEMENTS)) {
+    for (const candidate of candidates) {
+      if (paths.some((entry) => extensions.some((extension) => existsSync(resolve(entry, `${candidate}${extension}`))))) {
+        available.add(candidate);
+      }
+    }
+  }
+  if (paths.some((entry) => extensions.some((extension) => existsSync(resolve(entry, `jq${extension}`))))) {
+    available.add("jq");
+  }
+  return available;
+}
+
+function availableModernReplacement(tokens: string[], available: ReadonlySet<string>): string | undefined {
+  const command = tokens[0];
+  const candidates = command === "python" || command === "python3"
+    ? (tokens[1] === "-m" && tokens[2] === "json.tool" ? ["jq"] : [])
+    : (MODERN_SHELL_REPLACEMENTS[command] || []);
+  return candidates.find((candidate) => available.has(candidate));
+}
+
+function isLiteralGitContentPath(pathspec: string): boolean {
+  if (!pathspec || isAbsolute(pathspec) || pathspec.startsWith(":") || /[*?[\]{}]/.test(pathspec)) return false;
+  try {
+    return statSync(resolve(process.cwd(), pathspec)).isFile();
+  } catch {
+    return false;
+  }
+}
+
+function isUnscopedGitContentRead(tokens: string[]): boolean {
+  const operation = tokens[1];
+  if (tokens[0] !== "git" || !["diff", "show", "diff-tree"].includes(operation)) return false;
+  const pathSeparator = tokens.indexOf("--");
+  const options = tokens.slice(2, pathSeparator < 0 ? undefined : pathSeparator);
+  const patchOutput = new Set(["-p", "-u", "--patch", "--patch-with-stat", "--patch-with-raw", "--binary"]);
+  if (options.some((token) => patchOutput.has(token) || token.startsWith("--word-diff") || token.startsWith("--color-words"))) {
+    return true;
+  }
+  const metadataOnly = new Set([
+    "--check", "--exit-code", "--name-only", "--name-status", "--no-patch", "--numstat",
+    "--quiet", "--raw", "--shortstat", "--stat", "--summary", "-s",
+  ]);
+  if (options.some((token) => metadataOnly.has(token))) return false;
+  if (pathSeparator < 0) return true;
+  return tokens.slice(pathSeparator + 1).some((pathspec) => !isLiteralGitContentPath(pathspec));
+}
+
 function hasShellExecutionProxy(tokens: string[]): boolean {
   return tokens[0] === "xargs" || (
     tokens[0] === "find" && tokens.some((token) => ["-exec", "-execdir", "-ok", "-okdir"].includes(token))
@@ -1259,7 +1321,10 @@ function hasEnvironmentBootstrapModifier(rawTokens: string[]): boolean {
   return rawTokens.some((token) => /^[A-Za-z_][A-Za-z0-9_]*\+?=/.test(token) || baseName(token) === "env");
 }
 
-function segmentDecision(segment: string): { decision: Decision; reason: string } {
+function segmentDecision(
+  segment: string,
+  modernTools: ReadonlySet<string> = modernShellToolAvailability(),
+): { decision: Decision; reason: string } {
   const rawTokens = tokenize(segment);
   const tokens = normalizeTokens(rawTokens);
   if (hasOpaqueWrapper(rawTokens)) {
@@ -1301,6 +1366,21 @@ function segmentDecision(segment: string): { decision: Decision; reason: string 
     return {
       decision: "ask",
       reason: "Requires approval: shell command reads or mutates outside the project or removes local files",
+    };
+  }
+
+  if (isUnscopedGitContentRead(tokens)) {
+    return {
+      decision: "ask",
+      reason: "Requires approval: Git content read must name existing non-protected file paths after --",
+    };
+  }
+
+  const replacement = availableModernReplacement(tokens, modernTools);
+  if (replacement) {
+    return {
+      decision: "ask",
+      reason: `Requires approval: use ${replacement} instead of ${tokens[0]} while it is available`,
     };
   }
 
@@ -1453,7 +1533,10 @@ function segmentDecision(segment: string): { decision: Decision; reason: string 
   return { decision: "allow", reason: "" };
 }
 
-function commandDecision(command: string): { decision: Decision; reason: string } {
+function commandDecision(
+  command: string,
+  modernTools: ReadonlySet<string> = modernShellToolAvailability(),
+): { decision: Decision; reason: string } {
   const trimmed = command.trim();
   if (!trimmed) {
     return { decision: "allow", reason: "" };
@@ -1479,7 +1562,7 @@ function commandDecision(command: string): { decision: Decision; reason: string 
   const rank = { allow: 0, ask: 1, deny: 2 };
 
   for (const segment of segments) {
-    const result = segmentDecision(segment);
+    const result = segmentDecision(segment, modernTools);
     if (rank[result.decision] > rank[worst.decision]) {
       worst = result;
     }
@@ -2042,6 +2125,9 @@ export const __test__ = {
   isStandaloneEnvCommand,
   isRtkSupportedCommand,
   isDirectRtkRequiredCommand,
+  modernShellToolAvailability,
+  availableModernReplacement,
+  isUnscopedGitContentRead,
   isRmRecursive,
   hasInlineGitAliasInvocation,
   hasOpaqueGitOptions,

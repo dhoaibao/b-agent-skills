@@ -12,7 +12,7 @@ description: >
 
 # b-review
 
-Review changed code or b-agentic itself for blockers, regressions, security risk, and missing coverage. Findings first. This is a read-only review phase: never modify source files, tests, configuration, or the working tree.
+Review changed code or b-agentic itself for blockers, regressions, security risk, and missing coverage. Findings first.
 
 Flags: `--skip-tests`, `--baseline=<path|url>`, `--range=<ref>..<ref>`, `--audit-suite`.
 
@@ -31,7 +31,7 @@ Flags: `--skip-tests`, `--baseline=<path|url>`, `--range=<ref>..<ref>`, `--audit
 
 ## Tool guidance
 
-- `bash` - `rtk git status` / `rtk git diff`, logs, and narrow verification; modern discovery via `rg`/`fd` when needed.
+- `bash` - `rtk git status`, metadata-only Git path lists, targeted safe-path diffs, logs, and narrow verification; modern discovery routed through `rtk` whenever supported.
 - `read` - open changed files directly.
 - `codegraph` - initialize an absent local index on first relevant use, then inspect changed flows, calls, and affected tests.
 - `serena` - inspect changed symbols, references, diagnostics, and boundaries; ask before onboarding or persistent memory writes.
@@ -40,8 +40,8 @@ Flags: `--skip-tests`, `--baseline=<path|url>`, `--range=<ref>..<ref>`, `--audit
 
 ## Steps
 
-1. Scope the review: working tree, range, baseline, or suite-audit surface (using Bash to run `rtk git status` or `rtk git diff`).
-2. Keep the review read-only with respect to project files. Use inspection tools only; do not call `edit` or `write`, mutating symbol tools, apply patches, run formatters or fix commands, or otherwise change source, tests, configuration, or the working tree. If the user wants findings fixed, report them and hand off to **b-implement** after the review; do not fix them in this phase.
+1. Scope the review: working tree, range, baseline, or suite-audit surface using Bash with `rtk git status` and metadata-only changed-path lists.
+2. Classify protected paths before reading content, then inspect only explicitly named non-protected paths with targeted diffs. Use inspection tools only. If the user wants findings fixed, report them and hand off to **b-implement** after the review.
 3. Choose baseline. Without baseline, do a risk review and do not claim requirements coverage.
 4. Read repo context only when it materially affects the review; use recall for compacted prior review ids when present.
 5. For changed code, initialize an absent CodeGraph index; use CodeGraph for flows and affected tests, then Serena for exact references and diagnostics. Use Brave only when public semantics materially affect a finding.

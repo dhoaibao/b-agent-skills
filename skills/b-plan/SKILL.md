@@ -29,7 +29,7 @@ Figure out what to do when the task is unclear, then turn the chosen path into t
 
 ## Tool guidance
 
-- `bash` - light repo discovery with `rg`/`fd`/`eza` and `rtk git status --short` when needed.
+- `bash` - light repo discovery with modern tools, routed through `rtk` whenever that command family is supported, and `rtk git status --short` when needed.
 - `read` - open only the files required to avoid guessing.
 - `codegraph` - initialize an absent local index on first relevant use, then inspect repo structure and impact evidence.
 - `serena` - inspect symbols and references; ask before onboarding or persistent memory writes.
@@ -44,10 +44,9 @@ Figure out what to do when the task is unclear, then turn the chosen path into t
 3. Inspect only files, symbols, or relevant repo notes needed to avoid guessing. Use bash discovery and Pi read for local evidence. For code structure, initialize an absent CodeGraph index, use CodeGraph for flow and impact, then Serena for exact symbols and references. Use Context7 for versioned API checks and bounded Firecrawl research for public docs or issues when they affect the plan.
 4. When the task is fuzzy, investigate the current code or constraints enough to compare viable paths before choosing one.
 5. Choose the smallest safe approach, surface material tradeoffs, and push back if a simpler or safer path exists.
-6. State a `Blockers` section in every plan: `none` when execution can proceed, otherwise each unresolved blocker, its impact, and the next required user input or action.
-7. Include `Done when` verification for each step that proves the intended observable outcome, not just command success.
-8. End with either a plan that is ready for **b-implement** or one focused blocking question that must be answered before implementation.
-9. For larger plans, tag steps only when useful: `AFK` for agent-ready work, `HITL` for user decision, approval, external access, or judgment.
+6. Include `Done when` verification for each step that proves the intended observable outcome, not just command success.
+7. End with either a plan that is ready for **b-implement** or one focused blocking question that must be answered before implementation.
+8. For larger plans, tag steps only when useful: `AFK` for agent-ready work, `HITL` for user decision, approval, external access, or judgment.
 
 For plans spanning more than 3 files, public contracts, dependencies, CI/build, or durable coordination, save a plan under `.b-agentic/b-plan/` only if it will materially help execution.
 
@@ -62,4 +61,4 @@ Concise scope, recommended path, ordered steps, verification, and explicit block
 - Do not stay in open-ended brainstorming; converge on one recommended path when the evidence is sufficient.
 - Do not invent behavior, names, acceptance criteria, or commands.
 - Do not require project context docs or HITL/AFK markers for ordinary small plans.
-- Always state `Blockers`, even when there are none; surface assumptions explicitly.
+- Surface material assumptions and blockers explicitly.
