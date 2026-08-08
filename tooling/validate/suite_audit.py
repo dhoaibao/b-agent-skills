@@ -12,7 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 MAX_KERNEL_LINES = 120
-MAX_KERNEL_BYTES = 7_000
+MAX_KERNEL_BYTES = 7_600
 
 
 def run_cmd(cmd: list[str], label: str) -> bool:

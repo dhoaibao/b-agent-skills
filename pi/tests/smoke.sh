@@ -224,6 +224,23 @@ function expect(cond, msg) {
   }
 }
 
+const intercomAgentDir = mkdtempSync(path.join(os.tmpdir(), 'b-agentic-intercom-'));
+process.env.PI_CODING_AGENT_DIR = intercomAgentDir;
+const intercomConfig = path.join(intercomAgentDir, 'intercom-delegation.json');
+expect(t.isTrustedIntercomCall('intercom', { action: 'status' }) === false, 'Intercom delegation is disabled without config');
+writeFileSync(intercomConfig, JSON.stringify({ version: 1, trustedPeers: ['peer-1'] }));
+expect(t.isTrustedIntercomCall('intercom', { action: 'list-cwd' }) === true, 'trusted Intercom list-cwd is allowed');
+expect(t.isTrustedIntercomCall('intercom', { action: 'status' }) === true, 'trusted Intercom status is allowed');
+expect(t.isTrustedIntercomCall('intercom', { action: 'pending' }) === true, 'trusted Intercom pending is allowed');
+expect(t.isTrustedIntercomCall('intercom', { action: 'list' }) === false, 'Intercom list remains approval-gated');
+expect(t.isTrustedIntercomCall('intercom', { action: 'send', to: 'peer-1', message: 'bounded task' }) === true, 'trusted plain Intercom send is allowed');
+expect(t.isTrustedIntercomCall('intercom', { action: 'ask', to: 'peer-2', message: 'untrusted task' }) === false, 'untrusted Intercom peer requires approval');
+expect(t.isTrustedIntercomCall('intercom', { action: 'reply', message: 'missing target' }) === false, 'Intercom reply requires explicit target');
+expect(t.isTrustedIntercomCall('intercom', { action: 'send', to: 'peer-1', message: 'attachment', attachments: [] }) === false, 'Intercom attachments require approval');
+writeFileSync(intercomConfig, JSON.stringify({ version: 1, trustedPeers: ['peer-1'], capabilities: ['send'] }));
+expect(t.isTrustedIntercomCall('intercom', { action: 'status' }) === false, 'Intercom unknown config fields fail closed');
+rmSync(intercomAgentDir, { recursive: true, force: true });
+
 expect(typeof toolCallHandler === 'function', 'permission extension must register a tool_call handler');
 expect(typeof toolExecutionEndHandler === 'function', 'permission extension must clear active tool state after execution');
 expect(typeof mcpApprovalHandler === 'function', 'permission extension must register the MCP approval broker');

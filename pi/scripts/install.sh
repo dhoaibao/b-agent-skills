@@ -27,6 +27,8 @@ readonly PI_OBSERVATIONAL_MEMORY_SPEC="npm:pi-observational-memory"
 readonly PI_OBSERVATIONAL_MEMORY_PACKAGE="pi-observational-memory"
 readonly PI_USAGE_SPEC="npm:@narumitw/pi-usage"
 readonly PI_USAGE_PACKAGE="@narumitw/pi-usage"
+readonly PI_INTERCOM_SPEC="npm:pi-intercom"
+readonly PI_INTERCOM_PACKAGE="pi-intercom"
 readonly MCP_ROOT_KEY="mcpServers"
 readonly MCP_PLACEHOLDER_STYLE="env-brace"
 readonly MCP_CONTEXT7_SECTION="headers"
@@ -34,6 +36,8 @@ readonly MCP_BRAVE_SECTION="env"
 readonly MCP_FIRECRAWL_SECTION="env"
 readonly MCP_BACKUP_KEY="mcpConfig"
 readonly EXTENSION_BACKUP_KEY="permissionsExtension"
+readonly INTERCOM_DELEGATION_CONFIG_DST="$PI_AGENT_DIR/intercom-delegation.json"
+readonly INTERCOM_DELEGATION_SNAPSHOT_DST="$METADATA_DIR/intercom-delegation.snapshot.json"
 
 CONTEXT7_API_KEY_INPUT=""
 BRAVE_API_KEY_INPUT=""
@@ -48,6 +52,11 @@ INSTALL_PI_OBSERVATIONAL_MEMORY_ACTION="skip"
 INSTALL_PI_OBSERVATIONAL_MEMORY_STATE="missing"
 INSTALL_PI_USAGE_ACTION="skip"
 INSTALL_PI_USAGE_STATE="missing"
+INSTALL_PI_INTERCOM_ACTION="skip"
+INSTALL_PI_INTERCOM_STATE="missing"
+INSTALL_INTERCOM_DELEGATION_STATE="disabled"
+INTERCOM_TRUSTED_PEERS=""
+INTERCOM_DELEGATION_BACKUP="none"
 
 runtime_warn_missing_cli() {
 	command -v pi >/dev/null 2>&1 || warn "Pi CLI 'pi' not found; files will still be installed for Pi to discover later."
@@ -121,6 +130,10 @@ pi_observational_memory_installed() {
 
 pi_usage_installed() {
 	pi_package_installed "$PI_USAGE_PACKAGE"
+}
+
+pi_intercom_installed() {
+	pi_package_installed "$PI_INTERCOM_PACKAGE"
 }
 
 pi_extensions_installed() {
@@ -280,6 +293,92 @@ maybe_install_pi_usage() {
 	fi
 }
 
+install_pi_intercom_enabled() {
+	local value="${B_AGENTIC_INSTALL_PI_INTERCOM:-auto}"
+	case "$value" in
+	n | N | no | NO | No | false | FALSE | 0) return 1 ;;
+	y | Y | yes | YES | Yes | true | TRUE | 1) return 0 ;;
+	auto | AUTO | Auto)
+		if pi_intercom_installed; then return 1; fi
+		if [ -r /dev/tty ] && [ -w /dev/tty ]; then
+			prompt_yes_no "Install Pi Intercom ($PI_INTERCOM_PACKAGE)? [y/N]" N
+			return $?
+		fi
+		return 1 ;;
+	*) die "invalid B_AGENTIC_INSTALL_PI_INTERCOM value: $value" ;;
+	esac
+}
+
+maybe_install_pi_intercom() {
+	if pi_intercom_installed; then INSTALL_PI_INTERCOM_ACTION="present"; INSTALL_PI_INTERCOM_STATE="ready"; return 0; fi
+	if ! command -v pi >/dev/null 2>&1; then INSTALL_PI_INTERCOM_STATE="missing-cli"; return 0; fi
+	if ! install_pi_intercom_enabled; then
+		warn "Skipping $PI_INTERCOM_PACKAGE install; set B_AGENTIC_INSTALL_PI_INTERCOM=Y or accept the interactive prompt"
+		return 0
+	fi
+	if dry_run_enabled; then
+		printf '[dry-run] pi install %s\n' "$PI_INTERCOM_SPEC" >&2
+		INSTALL_PI_INTERCOM_ACTION="install"; INSTALL_PI_INTERCOM_STATE="dry-run"; return 0
+	fi
+	if pi install "$PI_INTERCOM_SPEC"; then
+		INSTALL_PI_INTERCOM_ACTION="install"; INSTALL_PI_INTERCOM_STATE="ready"
+	else
+		INSTALL_PI_INTERCOM_ACTION="failed"; INSTALL_PI_INTERCOM_STATE="missing"
+		warn "Failed to install $PI_INTERCOM_PACKAGE"
+	fi
+}
+
+intercom_delegation_enabled() {
+	case "${B_AGENTIC_ENABLE_INTERCOM_DELEGATION:-N}" in
+	n|N|no|NO|No|false|FALSE|0) return 1 ;;
+	y|Y|yes|YES|Yes|true|TRUE|1) return 0 ;;
+	*) die "invalid B_AGENTIC_ENABLE_INTERCOM_DELEGATION value" ;;
+	esac
+}
+
+configure_intercom_delegation() {
+	if ! intercom_delegation_enabled; then return 0; fi
+	INTERCOM_TRUSTED_PEERS="${B_AGENTIC_INTERCOM_TRUSTED_PEERS:-}"
+	if [ -z "$INTERCOM_TRUSTED_PEERS" ] && [ -r /dev/tty ] && [ -w /dev/tty ]; then
+		INTERCOM_TRUSTED_PEERS="$(prompt_value "Trusted Intercom peer IDs (comma-separated)" "")"
+	fi
+	[ -n "$INTERCOM_TRUSTED_PEERS" ] || { warn "Intercom delegation disabled: trusted peer IDs are required"; return 0; }
+	INSTALL_INTERCOM_DELEGATION_STATE="enabled"
+}
+
+write_intercom_delegation_config() {
+	if [ "$INSTALL_PI_INTERCOM_STATE" != "ready" ] || [ "$INSTALL_INTERCOM_DELEGATION_STATE" != "enabled" ]; then return 0; fi
+	if dry_run_enabled; then printf '[dry-run] write %s\n' "$INTERCOM_DELEGATION_CONFIG_DST" >&2; return 0; fi
+	ensure_dir "$(dirname "$INTERCOM_DELEGATION_CONFIG_DST")"
+	local previous_backup="none"
+	previous_backup="$(manifest_backup_value intercomDelegation none)"
+	if [ -L "$INTERCOM_DELEGATION_CONFIG_DST" ]; then
+		warn "preserving symlinked Intercom delegation config: $INTERCOM_DELEGATION_CONFIG_DST"
+		INSTALL_INTERCOM_DELEGATION_STATE="preserved"
+		return 0
+	fi
+	if [ -e "$INTERCOM_DELEGATION_CONFIG_DST" ] && {
+		[ ! -f "$INTERCOM_DELEGATION_SNAPSHOT_DST" ] || ! cmp -s "$INTERCOM_DELEGATION_CONFIG_DST" "$INTERCOM_DELEGATION_SNAPSHOT_DST"
+	}; then
+		if [ "$previous_backup" = "none" ]; then
+			INTERCOM_DELEGATION_BACKUP="$(backup_file "$INTERCOM_DELEGATION_CONFIG_DST")"
+		else
+			INTERCOM_DELEGATION_BACKUP="$previous_backup"
+		fi
+		warn "preserving modified Intercom delegation config: $INTERCOM_DELEGATION_CONFIG_DST"
+		INSTALL_INTERCOM_DELEGATION_STATE="preserved"
+		return 0
+	fi
+	python3 - "$INTERCOM_DELEGATION_CONFIG_DST" "$INTERCOM_TRUSTED_PEERS" <<'PY'
+import json, sys
+from pathlib import Path
+peers = [item.strip() for item in sys.argv[2].split(',') if item.strip()]
+if not peers: raise SystemExit('trusted peer IDs are required')
+Path(sys.argv[1]).write_text(json.dumps({'version': 1, 'trustedPeers': peers}, indent=2) + '\n')
+PY
+	copy_file "$INTERCOM_DELEGATION_CONFIG_DST" "$INTERCOM_DELEGATION_SNAPSHOT_DST"
+}
+
 maybe_install_pi_observational_memory() {
 	if pi_observational_memory_installed; then
 		INSTALL_PI_OBSERVATIONAL_MEMORY_ACTION="present"
@@ -393,6 +492,9 @@ runtime_install_configs() {
 	maybe_install_pi_mcp_adapter
 	maybe_install_pi_observational_memory
 	maybe_install_pi_usage
+	maybe_install_pi_intercom
+	configure_intercom_delegation
+	write_intercom_delegation_config
 	run_stage "Updating Pi extensions" update_pi_extensions
 	run_install_triplet_stage "Installing Pi permission extension" install_permissions_extension "skip" "none" "none" \
 		INSTALL_EXTENSION_ACTION INSTALL_EXTENSION_STATE INSTALL_EXTENSION_BACKUP
@@ -429,6 +531,12 @@ runtime_write_manifest() {
 		PI_OBSERVATIONAL_MEMORY_STATE="$INSTALL_PI_OBSERVATIONAL_MEMORY_STATE" \
 		PI_USAGE_ACTION="$INSTALL_PI_USAGE_ACTION" \
 		PI_USAGE_STATE="$INSTALL_PI_USAGE_STATE" \
+		PI_INTERCOM_ACTION="$INSTALL_PI_INTERCOM_ACTION" \
+		PI_INTERCOM_STATE="$INSTALL_PI_INTERCOM_STATE" \
+		INTERCOM_DELEGATION_STATE="$INSTALL_INTERCOM_DELEGATION_STATE" \
+		INTERCOM_DELEGATION_CONFIG_DST="$INTERCOM_DELEGATION_CONFIG_DST" \
+		INTERCOM_DELEGATION_SNAPSHOT_DST="$INTERCOM_DELEGATION_SNAPSHOT_DST" \
+		INTERCOM_DELEGATION_BACKUP="$INTERCOM_DELEGATION_BACKUP" \
 		PI_AGENT_DIR="$PI_AGENT_DIR" \
 		MCP_CONFIG_DST="$MCP_CONFIG_DST" \
 		EXTENSION_DST="$EXTENSION_DST" \
@@ -459,6 +567,12 @@ manifest = {
     'piObservationalMemoryState': os.environ['PI_OBSERVATIONAL_MEMORY_STATE'],
     'piUsageAction': os.environ['PI_USAGE_ACTION'],
     'piUsageState': os.environ['PI_USAGE_STATE'],
+    'piIntercomAction': os.environ['PI_INTERCOM_ACTION'],
+    'piIntercomState': os.environ['PI_INTERCOM_STATE'],
+    'intercomDelegationState': os.environ['INTERCOM_DELEGATION_STATE'],
+    'intercomDelegationConfig': os.environ['INTERCOM_DELEGATION_CONFIG_DST'],
+    'intercomDelegationSnapshot': os.environ['INTERCOM_DELEGATION_SNAPSHOT_DST'],
+    'intercomDelegationBackup': os.environ['INTERCOM_DELEGATION_BACKUP'],
     'paths': {
         'piAgentDir': os.environ['PI_AGENT_DIR'],
         'mcpConfig': os.environ['MCP_CONFIG_DST'],
@@ -467,12 +581,16 @@ manifest = {
         'skills': os.environ['SKILLS_DST'],
         'references': os.environ['REFERENCES_DST'],
         'templates': os.environ['TEMPLATES_DST'],
+        'intercomDelegation': os.environ['INTERCOM_DELEGATION_CONFIG_DST'],
+        'intercomDelegationSnapshot': os.environ['INTERCOM_DELEGATION_SNAPSHOT_DST'],
+        'intercomDelegationBackup': os.environ['INTERCOM_DELEGATION_BACKUP'],
     },
     'skills': skills,
     'backups': {
         'agentsMd': os.environ['MEMORY_BACKUP'],
         'permissionsExtension': os.environ['EXTENSION_BACKUP'],
         'mcpConfig': os.environ['MCP_BACKUP'],
+        'intercomDelegation': os.environ['INTERCOM_DELEGATION_BACKUP'],
     },
 }
 Path(os.environ['MANIFEST_DST']).write_text(json.dumps(manifest, indent=2, sort_keys=True) + '\n')
@@ -490,6 +608,8 @@ runtime_print_install_report() {
 	report_item "mcp-adapter" "$INSTALL_PI_MCP_ADAPTER_ACTION ($INSTALL_PI_MCP_ADAPTER_STATE)"
 	report_item "pi-observational-memory" "$INSTALL_PI_OBSERVATIONAL_MEMORY_ACTION ($INSTALL_PI_OBSERVATIONAL_MEMORY_STATE)"
 	report_item "pi-usage" "$INSTALL_PI_USAGE_ACTION ($INSTALL_PI_USAGE_STATE)"
+	report_item "pi-intercom" "$INSTALL_PI_INTERCOM_ACTION ($INSTALL_PI_INTERCOM_STATE)"
+	report_item "intercom-delegation" "$INSTALL_INTERCOM_DELEGATION_STATE"
 	report_item "references" "sync -> $REFERENCES_DST"
 	report_item "templates" "sync -> $TEMPLATES_DST"
 	report_item "manifest" "write -> $MANIFEST_DST"
@@ -515,9 +635,25 @@ runtime_print_install_report() {
 }
 
 runtime_uninstall_configs() {
-	local mcp_config_path extension_path
+	local mcp_config_path extension_path delegation_path delegation_snapshot original
 	mcp_config_path="$(manifest_path_value mcpConfig "$MCP_CONFIG_DST")"
 	extension_path="$(manifest_path_value permissionsExtension "$EXTENSION_DST")"
+	delegation_path="$(manifest_path_value intercomDelegation "$INTERCOM_DELEGATION_CONFIG_DST")"
+	delegation_snapshot="$METADATA_DIR/intercom-delegation.snapshot.json"
+	if [ -L "$delegation_path" ]; then
+		warn "preserving symlinked Intercom delegation config: $delegation_path"
+	elif [ -f "$delegation_path" ] && [ -f "$delegation_snapshot" ] && cmp -s "$delegation_path" "$delegation_snapshot"; then
+		original="$(manifest_backup_value intercomDelegation none)"
+		if [ "$original" = "none" ]; then
+			run_cmd rm -f "$delegation_path"
+		elif [ -f "$original" ] && [ ! -L "$original" ] && [[ "$original" == "$METADATA_DIR/backups/"* ]]; then
+			copy_file "$original" "$delegation_path"
+		else
+			warn "preserving Intercom delegation config because its original backup is unavailable: $delegation_path"
+		fi
+	elif [ -e "$delegation_path" ]; then
+		warn "preserving modified Intercom delegation config: $delegation_path"
+	fi
 	remove_merged_config "$mcp_config_path" "$TEMPLATES_DST/mcp.user.template.json" "mcp.json" "mcpConfig" "mcpAction"
 	if [ -L "$extension_path" ]; then
 		warn "preserving symlinked Pi permission extension: $extension_path"

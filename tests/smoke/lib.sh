@@ -113,6 +113,10 @@ if [ "${1:-}" = "list" ]; then
     printf 'npm:@narumitw/pi-usage\n'
     found=1
   fi
+  if [ -f "$log_dir/pi-intercom-installed" ]; then
+    printf 'npm:pi-intercom\n'
+    found=1
+  fi
   [ "$found" -eq 1 ] || printf 'No packages installed.\n'
   exit 0
 fi
@@ -130,6 +134,9 @@ if [ "${1:-}" = "install" ]; then
   fi
   if [ "${2:-}" = "npm:@narumitw/pi-usage" ]; then
     : > "$log_dir/pi-usage-installed"
+  fi
+  if [ "${2:-}" = "npm:pi-intercom" ]; then
+    : > "$log_dir/pi-intercom-installed"
   fi
   exit 0
 fi
@@ -193,7 +200,10 @@ run_install_status() {
 		B_AGENTIC_INSTALL_PI_MCP_ADAPTER=N \
 		B_AGENTIC_INSTALL_PI_OBSERVATIONAL_MEMORY=N \
 		B_AGENTIC_INSTALL_PI_USAGE=N \
-		bash "$ROOT_DIR/install.sh" "$@" >/dev/null 2>&1
+		B_AGENTIC_INSTALL_PI_INTERCOM=N \
+		B_AGENTIC_ENABLE_INTERCOM_DELEGATION=N \
+		B_AGENTIC_INTERCOM_TRUSTED_PEERS= \
+	bash "$ROOT_DIR/install.sh" "$@" >/dev/null 2>&1
 	rc=$?
 	set -e
 
@@ -224,6 +234,9 @@ run_install_status_in_cwd() {
 			B_AGENTIC_INSTALL_PI_MCP_ADAPTER=N \
 			B_AGENTIC_INSTALL_PI_OBSERVATIONAL_MEMORY=N \
 			B_AGENTIC_INSTALL_PI_USAGE=N \
+			B_AGENTIC_INSTALL_PI_INTERCOM=N \
+			B_AGENTIC_ENABLE_INTERCOM_DELEGATION=N \
+			B_AGENTIC_INTERCOM_TRUSTED_PEERS= \
 			bash "$ROOT_DIR/install.sh" "$@" >/dev/null 2>&1
 	)
 	rc=$?

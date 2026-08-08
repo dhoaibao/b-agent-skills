@@ -29,6 +29,8 @@ memory/compaction layer rather than combining it with another such extension.
 b-agentic can also install the optional `@narumitw/pi-usage` extension.
 Interactive installs prompt before running `pi install npm:@narumitw/pi-usage`;
 noninteractive installs require `B_AGENTIC_INSTALL_PI_USAGE=Y`.
+
+b-agentic can optionally install `pi-intercom`; set `B_AGENTIC_INSTALL_PI_INTERCOM=Y` or accept its prompt. Set `B_AGENTIC_ENABLE_INTERCOM_DELEGATION=Y` together with `B_AGENTIC_INTERCOM_TRUSTED_PEERS` (comma-separated stable IDs); enabling without nonempty IDs stays disabled. The installer persists a versioned `intercom-delegation.json` with only `trustedPeers`. The permission extension auto-allows only `list-cwd`, `status`, and `pending`, plus plain-text `send`/`ask`/`reply` with an explicit trusted `to`; attachments, `list`, `cancel`, unknown actions/fields, malformed config, and other custom tools remain approval-gated. Delegate only user-originated execution tasks to one idle same-cwd peer; delegated work must not re-delegate, replies require explicit `to`, and planning, design, init, review, commit, and PR-summary remain coordinator-owned. Single-writer ownership and all approval/secret rules remain in force.
 After checking `pi list`, the installer runs `pi update --extensions` when
 Pi extensions are installed.
 

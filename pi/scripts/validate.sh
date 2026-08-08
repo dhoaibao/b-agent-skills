@@ -23,7 +23,15 @@ for path in [kernel, mcp, extension, readme]:
 
 if kernel.exists():
     text = kernel.read_text()
-    for marker in ['Pi Workflow Kernel', 'Core Rules', 'Safety and tools', 'Managed MCP operations']:
+    for marker in [
+        'Pi Workflow Kernel',
+        'Core Rules',
+        'Safety and tools',
+        'Managed MCP operations',
+        'main MUST call Intercom `list-cwd`',
+        'main MUST send that bounded task to the peer',
+        'otherwise main handles it',
+    ]:
         if marker not in text:
             errors.append(f'{kernel}: missing {marker!r}')
 
@@ -62,6 +70,7 @@ if extension.exists():
         'splitShellSegments',
         'stripWrappers',
         'isMcpOrCustomTool',
+        'isTrustedIntercomCall',
         'isTrustedManagedTool',
         'MANAGED_MCP_SERVERS',
         'MCP_TRUSTED_GATEWAY_OPERATIONS',

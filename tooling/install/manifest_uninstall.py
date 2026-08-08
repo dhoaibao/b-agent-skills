@@ -209,7 +209,8 @@ def main() -> None:
             "skills": home / ".pi" / "agent" / "skills",
             "kernel": home / ".pi" / "agent" / "AGENTS.md",
             "permissionsExtension": home / ".pi" / "agent" / "extensions" / "b-agentic-permissions.ts",
-            "mcpConfig": home / ".pi" / "agent" / "mcp.json",
+        'mcpConfig': home / ".pi" / "agent" / "mcp.json",
+            "intercomDelegation": home / ".pi" / "agent" / "intercom-delegation.json",
         },
     }
 
@@ -267,6 +268,25 @@ def main() -> None:
         )
         extension_path = manifest_managed_path(paths, "permissionsExtension", defaults["permissionsExtension"])
         extension_snapshot = metadata / "extensions" / "b-agentic-permissions.ts"
+        delegation_path = manifest_managed_path(paths, "intercomDelegation", defaults["intercomDelegation"])
+        delegation_snapshot = metadata / "intercom-delegation.snapshot.json"
+        if delegation_path.is_symlink():
+            warn(f"preserving symlinked Intercom delegation config: {delegation_path}")
+        elif delegation_path.exists():
+            if delegation_snapshot.exists() and files_equal(delegation_path, delegation_snapshot):
+                backup = data.get("backups", {}).get("intercomDelegation")
+                if backup in (None, "none"):
+                    remove_file(delegation_path)
+                else:
+                    original = Path(backup).expanduser() if isinstance(backup, str) else None
+                    backups_root = metadata / "backups"
+                    if original and original.is_file() and _is_relative_to(original.resolve(), backups_root.resolve()):
+                        shutil.copy2(original, delegation_path)
+                    else:
+                        warn(f"preserving Intercom delegation config because its original backup is unavailable: {delegation_path}")
+            else:
+                warn(f"preserving modified Intercom delegation config: {delegation_path}")
+
         if extension_path.is_symlink():
             warn(f"preserving symlinked Pi permission extension: {extension_path}")
         elif extension_path.exists():

@@ -1,5 +1,27 @@
+function intercomDelegationConfig(): { version: 1; trustedPeers: string[] } | undefined {
+  try {
+    const agentDir = process.env.PI_CODING_AGENT_DIR || resolve(homedir(), ".pi", "agent");
+    const path = resolve(agentDir, "intercom-delegation.json");
+    const config = JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
+    if (config.version !== 1 || !Array.isArray(config.trustedPeers) ||
+      config.trustedPeers.length === 0 || config.trustedPeers.some((peer) => typeof peer !== "string" || !peer) ||
+      Object.keys(config).some((key) => !["version", "trustedPeers"].includes(key))) return undefined;
+    return { version: 1, trustedPeers: config.trustedPeers as string[] };
+  } catch {
+    return undefined;
+  }
+}
+
+function isTrustedIntercomCall(toolName: string, input: unknown): boolean {
+  const config = intercomDelegationConfig();
+  if (toolName !== "intercom" || !config || !isPlainObject(input) || typeof input.action !== "string") return false;
+  if (["list-cwd", "status", "pending"].includes(input.action)) return Object.keys(input).length === 1;
+  if (!["send", "ask", "reply"].includes(input.action) || typeof input.to !== "string" || !config.trustedPeers.includes(input.to)) return false;
+  return typeof input.message === "string" && Object.keys(input).every((key) => ["action", "to", "message"].includes(key));
+}
+
 /**
- * b-agentic first-party permission extension for Pi.
+ * b-agentic permission extension for Pi.
  *
  * Enforces kernel safety gates via Pi's tool_call event:
  * - ask: commits, external/shared mutations, opaque execution, dependency writes, services, rm -rf
@@ -13,7 +35,7 @@
  * env/sudo wrappers, and git option prefixes. Fails closed without UI.
  */
 
-import { existsSync, realpathSync, statSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { isIP } from "node:net";
 import { delimiter, dirname, isAbsolute, relative, resolve } from "node:path";
@@ -2082,6 +2104,10 @@ export default function (pi: ExtensionAPI) {
       };
     }
 
+    if (isTrustedIntercomCall(event.toolName, event.input)) {
+      return undefined;
+    }
+
     // Managed mutations, uploads, auth, user/unknown MCP, and custom tools ask.
     if (isMcpOrCustomTool(event.toolName, event.input)) {
       const inputPreview = JSON.stringify(event.input ?? {}).slice(0, 400);
@@ -2106,6 +2132,8 @@ export const __test__ = {
   commandDecision,
   isProtectedPath,
   isMcpOrCustomTool,
+  isTrustedIntercomCall,
+  intercomDelegationConfig,
   isTrustedManagedTool,
   brokerApprovalDecision,
   approvalLabel,

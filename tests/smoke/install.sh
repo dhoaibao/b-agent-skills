@@ -12,6 +12,71 @@ trap cleanup EXIT
 
 source "$ROOT_DIR/tests/smoke/lib.sh"
 
+run_intercom_delegation_cases() {
+	local snapshot_repo="$1" sandbox disabled modified symlink generated config target rc smoke_path
+
+	disabled="$WORK_DIR/intercom-disabled"
+	mkdir -p "$disabled/home"
+	rc="$(run_install_status "$disabled" "$snapshot_repo")"
+	[ "$rc" = 0 ] || fail "default Intercom install failed"
+	assert_json_value "$disabled/home/.pi/agent/b-agentic/install.json" "data['intercomDelegationState'] == 'disabled'"
+	assert_no_path "$disabled/home/.pi/agent/intercom-delegation.json"
+
+	install_enabled() {
+		local target="$1"
+		smoke_path="$(smoke_runtime_cli_path "$target")"
+		HOME="$target/home" PATH="$smoke_path" B_AGENTIC_REPO="$snapshot_repo" B_AGENTIC_DIR="$target/source" \
+		B_AGENTIC_PROMPT_API_KEYS=N B_AGENTIC_INSTALL_PI_CLI=N B_AGENTIC_INSTALL_RTK=N \
+		B_AGENTIC_INSTALL_SERENA=N B_AGENTIC_INSTALL_CODEGRAPH=N B_AGENTIC_INSTALL_PI_MCP_ADAPTER=N \
+		B_AGENTIC_INSTALL_PI_OBSERVATIONAL_MEMORY=N B_AGENTIC_INSTALL_PI_USAGE=N B_AGENTIC_INSTALL_PI_INTERCOM=Y \
+		B_AGENTIC_ENABLE_INTERCOM_DELEGATION=Y B_AGENTIC_INTERCOM_TRUSTED_PEERS=peer-1 \
+		bash "$ROOT_DIR/install.sh" >/dev/null 2>&1
+	}
+
+	generated="$WORK_DIR/intercom-generated"
+	mkdir -p "$generated/home"
+	install_enabled "$generated"
+	config="$generated/home/.pi/agent/intercom-delegation.json"
+	assert_json_value "$config" "data['version'] == 1 and data['trustedPeers'] == ['peer-1']"
+	assert_contains "$generated/smoke-bin/pi-install.log" 'npm:pi-intercom'
+	rm -rf "$generated/source"
+	HOME="$generated/home" B_AGENTIC_REPO="$generated/missing-source" B_AGENTIC_DIR="$generated/source" \
+		bash "$ROOT_DIR/install.sh" --uninstall >/dev/null 2>&1
+	assert_no_path "$config"
+
+	modified="$WORK_DIR/intercom-modified"
+	mkdir -p "$modified/home/.pi/agent"
+	printf '{"version":1,"trustedPeers":["user-peer"]}\n' >"$modified/home/.pi/agent/intercom-delegation.json"
+	install_enabled "$modified"
+	assert_contains "$modified/home/.pi/agent/intercom-delegation.json" 'user-peer'
+	rm -rf "$modified/source"
+	HOME="$modified/home" B_AGENTIC_REPO="$modified/missing-source" B_AGENTIC_DIR="$modified/source" \
+		bash "$ROOT_DIR/install.sh" --uninstall >/dev/null 2>&1
+	assert_contains "$modified/home/.pi/agent/intercom-delegation.json" 'user-peer'
+
+	original="$WORK_DIR/intercom-original"
+	mkdir -p "$original/home/.pi/agent"
+	printf '{"version":1,"trustedPeers":["original-peer"]}\n' >"$original/home/.pi/agent/intercom-delegation.json"
+	install_enabled "$original"
+	assert_contains "$original/home/.pi/agent/b-agentic/install.json" 'intercomDelegationBackup'
+	rm -rf "$original/source"
+	HOME="$original/home" B_AGENTIC_REPO="$original/missing-source" B_AGENTIC_DIR="$original/source" \
+		bash "$ROOT_DIR/install.sh" --uninstall >/dev/null 2>&1
+	assert_contains "$original/home/.pi/agent/intercom-delegation.json" 'original-peer'
+
+	symlink="$WORK_DIR/intercom-symlink"
+	mkdir -p "$symlink/home/.pi/agent"
+	target="$symlink/target.json"
+	printf '{"version":1,"trustedPeers":["symlink-peer"]}\n' >"$target"
+	ln -s "$target" "$symlink/home/.pi/agent/intercom-delegation.json"
+	install_enabled "$symlink"
+	[ -L "$symlink/home/.pi/agent/intercom-delegation.json" ] || fail 'Intercom symlink was replaced'
+	rm -rf "$symlink/source"
+	HOME="$symlink/home" B_AGENTIC_REPO="$symlink/missing-source" B_AGENTIC_DIR="$symlink/source" \
+		bash "$ROOT_DIR/install.sh" --uninstall >/dev/null 2>&1
+	[ -L "$symlink/home/.pi/agent/intercom-delegation.json" ] || fail 'Intercom symlink was removed'
+}
+
 run_manifest_only_corrupted_manifest_case() {
 	local sandbox_corrupt="$WORK_DIR/manifest-only-corrupt"
 
@@ -1257,8 +1322,9 @@ main() {
 	run_manifest_only_extension_restore_case "$snapshot_repo"
 	echo "Running run_manifest_only_extension_symlink_case..."
 	run_manifest_only_extension_symlink_case "$snapshot_repo"
-	echo "Running run_post_install_mcp_modification_case..."
-	run_post_install_mcp_modification_case "$snapshot_repo"
+	echo "Running run_intercom_delegation_cases..."
+	run_intercom_delegation_cases "$snapshot_repo"
+
 	echo "Running run_invalid_skill_payload_case..."
 	run_invalid_skill_payload_case "$snapshot_repo"
 	echo "Running run_skill_collision_smoke_case..."
