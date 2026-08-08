@@ -132,7 +132,7 @@ const PROTECTED_PATH_MARKERS = [
 /**
  * Built-in Pi tools with specialized policy.
  * Legacy discovery tools (grep/find/ls) are blocked so agents use bash with
- * modern shell tools (rg/fd/eza) per the kernel. recall is first-party memory
+ * modern shell tools (rg/fdfind/eza) per the kernel. recall is first-party memory
  * lookup. Managed MCP operations are approved only when classified safe.
  */
 const SPECIALIZED_TOOLS = new Set([
@@ -368,13 +368,10 @@ const FIRECRAWL_TRUSTED_TOOLS = new Set([
 ]);
 
 const PLAYWRIGHT_TRUSTED_TOOLS = new Set([
-  "browser_close",
   "browser_console_messages",
   "browser_find",
-  "browser_hover",
   "browser_network_request",
   "browser_network_requests",
-  "browser_resize",
   "browser_snapshot",
   "browser_tabs",
   "browser_wait_for"
@@ -1818,6 +1815,30 @@ function isProjectConfinedPath(pathValue: unknown, requireFile = false): boolean
   }
 }
 
+function isProjectConfinedOutputPath(pathValue: unknown): boolean {
+  if (typeof pathValue !== "string" || !pathValue || isProtectedLocalPath(pathValue)) return false;
+  try {
+    const projectRoot = realpathSync(process.cwd());
+    const target = resolve(projectRoot, pathValue);
+    const projectRelative = relative(projectRoot, target);
+    if (isAbsolute(projectRelative) || projectRelative === ".." ||
+      projectRelative.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) return false;
+
+    let existingAncestor = target;
+    while (!existsSync(existingAncestor)) {
+      const parent = dirname(existingAncestor);
+      if (parent === existingAncestor) return false;
+      existingAncestor = parent;
+    }
+    const resolvedAncestor = realpathSync(existingAncestor);
+    const ancestorRelative = relative(projectRoot, resolvedAncestor);
+    return !isAbsolute(ancestorRelative) && ancestorRelative !== ".." &&
+      !ancestorRelative.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`);
+  } catch {
+    return false;
+  }
+}
+
 function isSafeSerenaPatternSearch(input: Record<string, unknown>): boolean {
   if (input.restrict_search_to_code_files !== true) return false;
   if (input.paths_include_glob || input.paths_exclude_glob) return false;
@@ -1890,7 +1911,8 @@ function isConditionallyTrustedTool(server: string, base: string, input: unknown
   }
 
   if (server === "playwright" && base === "browser_snapshot") {
-    return hasOnlyKeys(input, new Set(["target", "depth", "boxes"]));
+    return hasOnlyKeys(input, new Set(["target", "filename", "depth", "boxes"])) &&
+      (input.filename === undefined || isProjectConfinedOutputPath(input.filename));
   }
 
   if (server === "playwright" && base === "browser_console_messages") {
@@ -2075,7 +2097,7 @@ export default function (pi: ExtensionAPI) {
       return undefined;
     }
 
-    // Prefer bash + modern shell tools (rg/fd/eza) over Pi discovery builtins.
+    // Prefer bash + modern shell tools (rg/fdfind/eza) over Pi discovery builtins.
     if (event.toolName === "grep" || event.toolName === "find" || event.toolName === "ls") {
       return {
         block: true,

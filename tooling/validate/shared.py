@@ -150,6 +150,9 @@ PROMPT_TOOL_LEVERAGE_REGRESSION = {
             "rename_symbol",
             "replace_symbol_body",
             "compacted observational-memory ids",
+            "coordinator",
+            "delegated worker",
+            "return control",
         ],
         "b-refactor": [
             "rename_symbol",
@@ -404,9 +407,13 @@ if "RTK never bypasses these approvals" not in kernel_template:
     errors.append(
         "references/kernel.template.md: RTK must not be described as bypassing approvals"
     )
+if "coordinator that delegates an eligible task MUST remain read-only" not in kernel_template or "worker may implement and verify only its assigned task" not in kernel_template:
+    errors.append(
+        "references/kernel.template.md: coordinator/worker delegation boundary must remain explicit"
+    )
 
 # The kernel owns the RTK requirement and modern shell-tool preferences.
-for required_tool in ["`rtk`", "`rg`", "`fd`", "`bat`", "`eza`", "`sd`", "`jq`"]:
+for required_tool in ["`rtk`", "`rg`", "`fdfind`", "`batcat`", "`eza`", "`sd`", "`jq`"]:
     if required_tool not in kernel_template:
         errors.append(
             f"references/kernel.template.md: missing shell-tool guidance for {required_tool!r}"

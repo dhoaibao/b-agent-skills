@@ -161,29 +161,6 @@ def remove_merged_json_config(
         path.write_text(json.dumps(cleaned, indent=2, sort_keys=True) + "\n")
 
 
-def remove_toml_managed_block(path_value: str | None, label: str) -> None:
-    if not isinstance(path_value, str):
-        return
-    path = Path(path_value).expanduser()
-    if not path.exists():
-        return
-    begin = "# BEGIN b-agentic managed config"
-    end = "# END b-agentic managed config"
-    text = path.read_text()
-    if begin not in text:
-        return
-    if end not in text:
-        warn(f"preserving modified {label}: {path}")
-        return
-    prefix, remainder = text.split(begin, 1)
-    _managed, suffix = remainder.split(end, 1)
-    cleaned = (prefix + suffix).strip()
-    if cleaned:
-        path.write_text(cleaned + "\n")
-    else:
-        remove_file(path)
-
-
 def main() -> None:
     if len(sys.argv) < 2:
         print("usage: manifest_uninstall.py <manifest-path>", file=sys.stderr)

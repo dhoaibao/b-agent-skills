@@ -7,8 +7,8 @@ All notable shipped revisions of b-agentic are recorded here. Released version h
 ### Changed
 
 - Shell/RTK policy (Option B):
-  - Observed failure: kernel preferred modern discovery tools while RTK still required `ls`/`find`/`grep`/`rg`, and approval guidance implied RTK bypassed asks.
-  - Intended behavior: prefer bare modern discovery tools; require RTK only for high-noise families; RTK never bypasses approvals.
+  - Observed failure: kernel guidance and permission policy diverged on RTK coverage, while approval guidance implied RTK bypassed asks.
+  - Intended behavior: require RTK for every supported command family; use modern replacements only where RTK has no native family; RTK never bypasses approvals.
   - Regression: `SHELL_POLICY_REGRESSION` in `tooling/validate/behavior.py`; shared kernel clause checks; `pi/tests/smoke.sh` bare discovery allow + `RTK_OPTIONAL_COMMANDS`; `session_readiness` required-vs-optional drift.
 - Safety holes from suite audit:
   - Observed failure: Pi `recall` fell through custom-tool approval; Firecrawl scrape could auto-approve with `skipTlsVerification: true`.

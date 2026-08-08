@@ -25,7 +25,7 @@ Run concrete behavior-preserving transforms: rename, extract, move, inline, simp
 
 1. Lock the exact target and state the behavior that must remain unchanged.
 2. Use read for relevant repo context only when it materially affects the transform.
-3. For code structure, initialize an absent CodeGraph index; map impact with CodeGraph, then declarations/references with Serena. Use bash with `rg`/`fd` for exports, routes, config keys, docs, and generated consumers Serena cannot see.
+3. For code structure, initialize an absent CodeGraph index; map impact with CodeGraph, then declarations/references with Serena. Use bash with `rg`/`fdfind` for exports, routes, config keys, docs, and generated consumers Serena cannot see.
 4. When practical, run the narrowest risk-appropriate check to establish a passing behavioral baseline.
 5. Apply the smallest matching transform via Serena symbol ops when they fit; otherwise Pi `edit`.
 6. Re-check references (`rg` and Serena), run diagnostics, and rerun the baseline check or equivalent narrow verification.

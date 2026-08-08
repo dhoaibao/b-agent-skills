@@ -31,7 +31,7 @@ Create or refresh `docs/DESIGN.md`, the repo-local frontend design standard. Do 
 
 ## Tool guidance
 
-- `bash` - `rtk git status --short`, diffs, and modern discovery (`rg`, `fd`, `eza`).
+- `bash` - `rtk git status --short`, diffs, and modern discovery (`rg`, `fdfind`, `eza`).
 - `read`/`edit`/`write` - inspect sources and update only `docs/DESIGN.md` unless broader docs were approved.
 - `serena` - inspect frontend structure when code ownership or component patterns affect the standard.
 

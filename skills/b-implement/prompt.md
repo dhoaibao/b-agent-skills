@@ -1,6 +1,6 @@
 # b-implement
 
-Make the scoped change in the smallest coherent step, and hand back to planning or research instead of guessing when new ambiguity appears.
+Make the scoped change in the smallest coherent step, and hand back to planning or research instead of guessing when new ambiguity appears. When acting as a delegated worker, implement and verify only the assigned task, report the result, and return control to the coordinator.
 
 ## When to use
 

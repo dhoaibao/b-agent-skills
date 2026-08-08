@@ -731,6 +731,12 @@ expect(t.isMcpOrCustomTool('mcp', { server: 'serena', tool: 'firecrawl_agent' })
 expect(t.isMcpOrCustomTool('mcp', { connect: 'firecrawl', tool: 'firecrawl_agent' }) === true, 'mixed MCP selectors fail closed');
 expect(t.isMcpOrCustomTool('mcp', { tool: 'user_tool', server: 'user-server' }) === true, 'user MCP tool requires approval');
 expect(t.isMcpOrCustomTool('some-extension-tool') === true, 'unknown tool is custom');
+expect(t.isTrustedManagedTool('playwright', 'browser_snapshot', { depth: 2 }) === true, 'safe Playwright snapshots are trusted');
+expect(t.isTrustedManagedTool('playwright', 'browser_snapshot', { filename: 'artifacts/snapshot.md' }) === true, 'project-confined snapshot filenames are trusted');
+expect(t.isTrustedManagedTool('playwright', 'browser_snapshot', { filename: '/tmp/snapshot.md' }) === false, 'outside-project snapshot filenames require approval');
+expect(t.isTrustedManagedTool('playwright', 'browser_close') === false, 'browser close requires approval');
+expect(t.isTrustedManagedTool('playwright', 'browser_resize') === false, 'browser resize requires approval');
+expect(t.isTrustedManagedTool('playwright', 'browser_hover') === false, 'browser hover requires approval');
 expect(t.isTrustedManagedTool('firecrawl', 'new_tool') === false, 'unlisted managed tool is not trusted');
 expect(t.isTrustedManagedTool('firecrawl', 'firecrawl_search', { query: 'Pi coding agent', limit: 10 }) === true, 'bounded Firecrawl search is trusted');
 expect(t.isTrustedManagedTool('firecrawl', 'firecrawl_search', { query: 'Pi coding agent', limit: 10, highlights: true }) === true, 'Firecrawl search highlights are trusted');
