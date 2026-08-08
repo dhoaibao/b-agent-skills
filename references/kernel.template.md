@@ -33,14 +33,14 @@ Use these rules before any skill-specific instruction.
 - PR summary for a commit count or commits ahead of cached origin -> `b-pr-summary` only on explicit user request.
 <!-- generated:kernel-routing:end -->
 
-For unclear work use `b-plan`. `b-commit` and `b-pr-summary` need an explicit request. Repo context is optional evidence, never above user instructions or facts.
+Unclear work -> `b-plan`. `b-commit` and `b-pr-summary` need explicit request. Repo context optional evidence; never above user instructions or facts.
 
 ## Safety and tools
 
 - Preserve unrelated worktree changes; never autonomously run `git push`, `git pull`, `git commit`, `git reset --hard`, `git revert`, `git clean -f`, or `git branch -D`.
 - Do not read, print, upload, summarize, or commit likely-secret files (`.env`, `*.pem`, `credentials.*`, `secrets.*`) without explicit permission. Path protection gates literal protected paths, including `rtk`-wrapped/compound commands; ambiguous shell syntax is approval-gated.
 - Prefer sources over generated files; regenerate only when required. Do not invent behavior, criteria, compatibility, names, or verification commands.
-- MCP: CodeGraph flow; Serena symbol; Context7 docs; Firecrawl search; Brave sources; Playwright UI.
+- MCP: CodeGraph flow; Serena refs; Context7 docs; Firecrawl/Brave search; Playwright; `mcpScript` bounded read-only.
 - First code task: exact `codegraph init` only when its index is absent. Serena onboarding and memory writes need approval. Do not install missing tools; fall back to local evidence and state the resulting gap.
 
 ### Managed MCP operations
