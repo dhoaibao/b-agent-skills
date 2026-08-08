@@ -43,11 +43,12 @@ Make the scoped change in the smallest coherent step, and hand back to planning 
 3. Use read for relevant repo context only when it materially affects the scoped change; use recall when compacted prior plan context is available.
 4. State expected files/symbols, invariant behavior, and success criteria; infer narrow criteria only when obvious.
 5. For cross-file code work, initialize an absent CodeGraph index; use CodeGraph for impact or affected tests, then Serena for exact symbols, references, and diagnostics. Otherwise use local search.
-6. Edit the smallest coherent slice and match the existing local style. Prefer Serena symbol mutations for renames/signature-body edits when available (approval-gated); use Pi `edit`/`write` for prose, config, and string-level changes.
-7. Run the narrowest useful verification (using Context7 for versioned third-party API checks if the implementation relies on them) that proves the requested observable outcome.
-8. If verification exposes an in-scope defect without new ambiguity or scope drift, correct it and rerun the required check. Otherwise stop rather than guessing.
-9. Inspect the diff and report changes, verification, and remaining gaps.
-10. If new uncertainty, missing external facts, or scope drift appears, stop and hand back to **b-plan** or **b-research** instead of silently expanding the task.
+6. If a material blocker cannot be resolved from the approved plan or direct request and repository evidence, stop before the next edit. Explain the blocker and ask one focused user question; after each answer, re-evaluate and ask another only if a blocker remains.
+7. Edit the smallest coherent slice and match the existing local style. Prefer Serena symbol mutations for renames/signature-body edits when available (approval-gated); use Pi `edit`/`write` for prose, config, and string-level changes.
+8. Run the narrowest useful verification (using Context7 for versioned third-party API checks if the implementation relies on them) that proves the requested observable outcome.
+9. If verification exposes an in-scope defect without new ambiguity or scope drift, correct it and rerun the required check. Otherwise stop rather than guessing.
+10. Inspect the diff and report changes, verification, and remaining gaps.
+11. Treat new uncertainty, missing external facts, or scope drift as material blockers: stop and ask one focused user question before the next edit. Hand back to **b-plan** or **b-research** only when that answer identifies the handoff.
 
 ## Output format
 
@@ -61,4 +62,5 @@ Changes, verification, and any blockers or follow-up. Recommend **b-review** for
 - Ask before dependencies, services, destructive commands, commits, pushes, PRs, or broad refactors.
 - Do not add opportunistic cleanup, speculative compatibility, single-use abstractions, or handling for impossible scenarios without repo evidence.
 - Do not push through newly discovered ambiguity; route it explicitly.
+- Do not ask about details that the approved scope or repository evidence resolves; for each remaining material blocker, ask exactly one focused question and wait for its answer before asking the next.
 - Do not claim done when required verification is missing or failed.

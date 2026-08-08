@@ -11,6 +11,34 @@
       "avoid": ["Silently choose a behavior", "Claim implementation can proceed"]
     },
     {
+      "id": "one-blocker-question-at-a-time",
+      "principle": "think-before-coding",
+      "observed_failure": "b-implement stopped for ambiguity but did not require a sequential clarification loop when several material blockers remained.",
+      "intended_behavior": "Ask only the highest-impact unresolved question, re-evaluate after the answer, and continue only when no material blockers remain.",
+      "prompt": "Use b-implement. Add a configurable export format, but neither the supported formats nor the behavior for unsupported input is specified, and the repository contains no comparable feature. State exactly what you do next; do not edit files.",
+      "must": ["Stop before implementation", "Ask one focused question about the first material blocker", "Wait for that answer before asking about the remaining blocker"],
+      "avoid": ["Ask multiple clarification questions at once", "Choose formats or invalid-input behavior without evidence"]
+    },
+    {
+      "id": "external-fact-blocker-asks-first",
+      "principle": "think-before-coding",
+      "observed_failure": "b-implement required questions for repository-unsupported blockers but separately allowed missing external facts to bypass the user-question loop through b-research.",
+      "intended_behavior": "Ask the user one focused question before handing off an external-fact blocker to b-research.",
+      "prompt": "Use b-implement. Update a client for a third-party API whose required version and method signature are absent from the request and repository. State exactly what you do next; do not edit files.",
+      "must": ["Stop before implementation", "Ask one focused user question about resolving the external fact", "Wait for the answer before handing off to b-research"],
+      "avoid": ["Immediately hand off to b-research", "Guess the third-party API version or method"]
+    },
+    {
+      "id": "plan-states-blockers",
+      "principle": "goal-driven-execution",
+      "skill": "b-plan",
+      "observed_failure": "b-plan directed agents to surface blockers but did not require plans to state whether blockers existed.",
+      "intended_behavior": "Every plan includes an explicit blockers statement, including `none` when no unresolved blocker remains.",
+      "prompt": "Use b-plan. Plan a one-line documentation change where the target file, replacement text, and verification command are already known. Do not edit files.",
+      "must": ["Include an explicit blockers statement", "State that there are no blockers"],
+      "avoid": ["Omit blockers because the task is straightforward"]
+    },
+    {
       "id": "multiple-interpretations",
       "principle": "think-before-coding",
       "prompt": "Use b-implement. Implement support for aliases in an internal parser. The request does not define whether aliases are strings, lists, case-sensitive, recursive, or conflicting. A common library design would support all of these. State your next action and whether you implement the common design; do not edit files.",
