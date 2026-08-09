@@ -28,14 +28,12 @@ if kernel.exists():
         'Core Rules',
         'Safety and tools',
         'Managed MCP operations',
-        'When the `intercom` tool is installed with trusted peer configuration',
-        'main MUST call `list-cwd`',
-        'unique stable trusted ID',
-        'main MUST send that bounded task to the peer',
-        'otherwise main handles it',
-        'This is one level only',
-        'must not re-delegate, broadcast, spawn, or start chained tasks',
-        'These rules supersede `pi-intercom` examples',
+        'Intercom delegation is advisory operational guidance, not trusted-peer enforcement',
+        'coordinator may call `list-cwd`',
+        'concise handoff names the selected worker skill, bounded goal, constraints, and success criteria',
+        'worker loads that skill, implements/verifies/reports',
+        'coordinator review',
+        'Preserve no re-delegation, broadcast, spawn, or chained tasks',
         'Intercom schema governs valid fields without approval friction',
     ]:
         if marker not in text:
@@ -136,12 +134,13 @@ if readme.exists():
         '@narumitw/pi-usage',
         'extensions/b-agentic-permissions.ts',
         'mcp.json',
-        'auto-approves every schema-valid Intercom action',
-        'trusted-peer configuration does not gate valid Intercom calls',
-        'Invalid actions, unknown fields, and malformed optional values remain approval-gated',
+        'auto-approves schema-valid Intercom actions',
+        'invalid actions, unknown fields, and malformed optional values remain approval-gated',
         'auto-allows reads of installed b-agentic `SKILL.md` files under the configured',
         'other outside-project reads remain approval-gated',
-        'This is one level only and supersedes bundled `pi-intercom` examples',
+        'Intercom delegation is advisory operational guidance, not trusted-peer enforcement',
+        'concise handoff names the selected worker skill, bounded goal, constraints, and success criteria',
+        'Preserve no re-delegation, broadcast, spawn, or chained tasks',
     ]:
         if marker not in text:
             errors.append(f'{readme}: missing {marker!r}')

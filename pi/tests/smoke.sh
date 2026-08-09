@@ -523,7 +523,21 @@ for (const command of ['rtk npm view lodash', 'rtk pnpm list', 'rtk cargo search
   expect(t.commandDecision(command).decision === 'allow', `${command} must preserve supported RTK use`);
 }
 for (const command of ['rtk npx eslint .', 'rtk npm test', 'rtk npm run build', 'rtk pnpm exec vite']) {
-  expect(t.commandDecision(command).decision === 'ask', `${command} executes opaque package code and must ask`);
+  expect(t.commandDecision(command).decision === 'allow', `${command} is routine project-local automation and must allow`);
+}
+for (const command of ['rtk npm run deploy', 'rtk pnpm run release', 'rtk yarn publish']) {
+  expect(t.commandDecision(command).decision === 'ask', `${command} may mutate external state and must ask`);
+}
+const automationFixture = mkdtempSync(path.join(root, 'pi/tests/', '.b-agentic-automation-'));
+try {
+  const projectScript = path.join(automationFixture, 'build.js');
+  writeFileSync(projectScript, 'console.log("build");');
+  const relativeProjectScript = path.relative(process.cwd(), projectScript);
+  for (const command of [`node ${relativeProjectScript}`, `bash ${relativeProjectScript}`]) {
+    expect(t.commandDecision(command).decision === 'allow', `${command} is a project-local script and must allow`);
+  }
+} finally {
+  rmSync(automationFixture, { recursive: true, force: true });
 }
 for (const command of [
   'rtk gh pr create',
@@ -742,14 +756,17 @@ expect(t.isMcpOrCustomTool('mcp', { describe: 'tool' }) === true, 'MCP metadata 
 expect(t.isMcpOrCustomTool('mcp', { action: 'ui-messages' }) === true, 'MCP UI message retrieval requires the approval gate');
 expect(t.isMcpOrCustomTool('mcp', { server: 'serena', tool: 'serena_read_memory' }) === false, 'classified Serena memory gateway execution must auto-allow');
 expect(t.isMcpOrCustomTool('mcp', { server: 'serena', tool: 'serena_initial_instructions' }) === false, 'Serena initial instructions gateway execution must auto-allow');
-for (const tool of ['serena_read_memory', 'serena_list_memories', 'serena_write_memory', 'serena_delete_memory', 'serena_rename_memory', 'serena_edit_memory']) {
+for (const tool of ['serena_read_memory', 'serena_list_memories']) {
   expect(t.isMcpOrCustomTool('mcp', { server: 'serena', tool }) === false, `${tool} gateway execution must auto-allow`);
+}
+for (const tool of ['serena_write_memory', 'serena_delete_memory', 'serena_rename_memory', 'serena_edit_memory']) {
+  expect(t.isMcpOrCustomTool('mcp', { server: 'serena', tool }) === true, `${tool} gateway execution must require approval`);
 }
 expect(t.isMcpOrCustomTool('mcp', { server: 'firecrawl', tool: 'firecrawl_search', args: '{"query":"Pi","limit":1}' }) === false, 'validated conditional gateway execution must auto-allow');
 expect(t.isMcpOrCustomTool('mcp', { tool: 'serena_read_memory' }) === true, 'gateway execution without explicit server ownership must require approval');
 expect(t.isMcpOrCustomTool('mcp', { tool: 'serena_onboarding', args: '{}' }) === true, 'managed Serena gateway execution requires the top-level gate');
 expect(t.isMcpOrCustomTool('mcp', { tool: 'serena_onboarding', args: '{"unexpected":true}' }) === true, 'managed Serena gateway execution requires the top-level gate');
-expect(t.isMcpOrCustomTool('mcp', { server: 'serena', tool: 'serena_onboarding', args: '{}' }) === false, 'Serena onboarding gateway execution must auto-allow');
+expect(t.isMcpOrCustomTool('mcp', { server: 'serena', tool: 'serena_onboarding', args: '{}' }) === true, 'Serena onboarding gateway execution must require approval');
 expect(t.isMcpOrCustomTool('mcp', { tool: 'serena_write_memory', args: JSON.stringify({ memory_name: 'core', content: 'repo map' }) }) === true, 'managed Serena gateway execution requires the top-level gate');
 expect(t.isMcpOrCustomTool('mcp', { tool: 'serena_write_memory', args: JSON.stringify({ memory_name: 'task_note', content: 'do not persist' }) }) === true, 'managed Serena gateway execution requires the top-level gate');
 expect(t.isMcpOrCustomTool('mcp', { tool: 'serena_replace_content' }) === true, 'managed Serena gateway execution requires the top-level gate');

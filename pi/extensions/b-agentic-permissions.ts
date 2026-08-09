@@ -316,8 +316,6 @@ const MCP_CONDITIONAL_ARGUMENTS: Record<string, readonly string[]> = {
 };
 
 const SERENA_TRUSTED_TOOLS = new Set([
-  "serena_delete_memory",
-  "serena_edit_memory",
   "serena_find_declaration",
   "serena_find_implementations",
   "serena_find_referencing_symbols",
@@ -326,11 +324,8 @@ const SERENA_TRUSTED_TOOLS = new Set([
   "serena_get_symbols_overview",
   "serena_initial_instructions",
   "serena_list_memories",
-  "serena_onboarding",
   "serena_read_memory",
-  "serena_rename_memory",
-  "serena_search_for_pattern",
-  "serena_write_memory"
+  "serena_search_for_pattern"
 ]);
 
 const CODEGRAPH_TRUSTED_TOOLS = new Set([
@@ -617,8 +612,9 @@ function baseName(token: string): string {
 }
 
 /**
- * Detect interpreter invocations whose code is opaque to static matching:
- * eval flags, modules/stdin, and script files. Always require approval.
+ * Detect interpreter invocations whose code is opaque to static matching.
+ * Inline/eval bodies and non-project modules remain gated; existing project-local
+ * script files are routine automation and may run autonomously.
  */
 function isInterpreterOpaque(tokens: string[]): boolean {
   if (tokens.length === 0) {
@@ -648,8 +644,8 @@ function isInterpreterOpaque(tokens: string[]): boolean {
       }
       continue;
     }
-    // The first positional argument is a script file or runtime input.
-    if (!t.startsWith("-")) return true;
+    // Existing project-local script files are routine repository automation.
+    if (!t.startsWith("-")) return !isExistingProjectConfinedLocalPath(t);
   }
   return false;
 }
@@ -658,6 +654,7 @@ function isOpaqueExecutablePath(rawTokens: string[]): boolean {
   const trustedRoots = ["/bin", "/sbin", "/usr/bin", "/usr/sbin", "/usr/local/bin", "/opt/homebrew/bin"];
   const isOpaque = (executable: string | undefined): boolean => {
     if (!executable) return false;
+    if (isExistingProjectConfinedLocalPath(executable)) return false;
     if (executable.startsWith("~") || executable.startsWith("./") || executable.startsWith("../")) return true;
     if (!isAbsolute(executable)) return false;
     const normalizedExecutable = resolve(executable);
@@ -971,6 +968,10 @@ function isProjectConfinedLocalPath(pathValue: string): boolean {
   }
 }
 
+function isExistingProjectConfinedLocalPath(pathValue: string): boolean {
+  return existsSync(expandLocalPath(pathValue)) && isProjectConfinedLocalPath(pathValue);
+}
+
 function isExternalUrl(value: string): boolean {
   return /^[A-Za-z][A-Za-z0-9+.-]*:\/\//.test(value);
 }
@@ -1045,7 +1046,8 @@ function hasExternalOrSharedMutationRisk(tokens: string[]): boolean {
       "access", "deprecate", "dist-tag", "link", "owner", "publish", "star", "token",
       "unlink", "unpublish", "unstar", "version",
     ]);
-    if (tokens.slice(1).some((token) => registryMutationMarkers.has(token))) return true;
+    const externalScriptMarkers = new Set(["deploy", "release", "ship", "upload"]);
+    if (tokens.slice(1).some((token) => registryMutationMarkers.has(token) || externalScriptMarkers.has(token))) return true;
     if (tokens.includes("config") && tokens.slice(tokens.indexOf("config") + 1).some((token) => ["delete", "set"].includes(token))) return true;
   }
 
@@ -1510,10 +1512,6 @@ function segmentDecision(
 
   if (isVersionCheck(tokens)) {
     return { decision: "allow", reason: "" };
-  }
-
-  if (hasOpaquePackageExecution(tokens)) {
-    return { decision: "ask", reason: "Requires approval: package command executes opaque code" };
   }
 
   if (hasExternalOrSharedMutationRisk(tokens)) {

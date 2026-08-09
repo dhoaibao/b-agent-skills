@@ -12,7 +12,7 @@ description: >
 
 # b-implement
 
-Make the scoped change in the smallest coherent step, and hand back to planning or research instead of guessing when new ambiguity appears. Intercom delegation is one level only and supersedes bundled `pi-intercom` examples: a delegated worker must not re-delegate, broadcast, spawn, or start chained tasks. It must implement and verify only the assigned task, report completion, and return control to the coordinator, who reviews before assigning another task.
+Make the scoped change in the smallest coherent step, and hand back to planning or research instead of guessing when new ambiguity appears. Intercom delegation is advisory operational guidance, not trusted-peer enforcement: the coordinator handoff names the selected worker skill, bounded goal, constraints, and success criteria. The worker loads that skill, implements/verifies/reports, and returns control for coordinator review. Preserve no re-delegation, broadcast, spawn, or chained tasks.
 
 ## When to use
 
@@ -58,7 +58,7 @@ Changes, verification, and any blockers or follow-up. Recommend **b-review** for
 - Stay within approved scope.
 - Every changed line should trace to the approved scope or cleanup made necessary by this change.
 - Remove imports or helpers made unused by the change; leave pre-existing dead code and adjacent comments or formatting untouched.
-- Auto-run regular repository-local commands; ask before dependency execution, dangerous or opaque commands, protected or outside-project paths, external/shared mutations, PRs, or broad refactors.
+- Auto-run regular repository-local commands, including routine build, test, package, and script automation; ask before dependency writes, explicit destructive or privileged commands, ambiguous shell syntax, protected or outside-project paths, external/shared mutations, PRs, or broad refactors.
 - Do not add opportunistic cleanup, speculative compatibility, single-use abstractions, or handling for impossible scenarios without repo evidence.
 - Do not push through newly discovered ambiguity; route it explicitly.
 - Do not ask about details that the approved scope or repository evidence resolves; for each remaining material blocker, ask exactly one focused question and wait for its answer before asking the next.

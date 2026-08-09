@@ -52,12 +52,12 @@
         "serena_insert_before_symbol": "local-mutation",
         "serena_rename_symbol": "local-mutation",
         "serena_safe_delete_symbol": "local-mutation",
-        "serena_write_memory": "read-only",
-        "serena_delete_memory": "read-only",
-        "serena_rename_memory": "read-only",
-        "serena_edit_memory": "read-only",
+        "serena_write_memory": "local-mutation",
+        "serena_delete_memory": "local-mutation",
+        "serena_rename_memory": "local-mutation",
+        "serena_edit_memory": "local-mutation",
         "serena_open_dashboard": "external-mutation",
-        "serena_onboarding": "read-only"
+        "serena_onboarding": "local-mutation"
       }
     },
     "codegraph": {

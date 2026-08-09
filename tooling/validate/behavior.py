@@ -38,7 +38,7 @@ KERNEL_CONSOLIDATION_REGRESSION = {
     "required_clauses": (
         "latest user instruction, approved plan, repo evidence, then stated assumptions",
         "define success, make the smallest coherent change, and verify its observable outcome",
-        "Auto-run regular commands and edits confined to the repository. Ask before dangerous or opaque commands",
+        "Auto-run regular commands and edits confined to the repository, including routine build, test, package, and script automation",
         "likely-secret files (`.env`, `*.pem`, `credentials.*`, `secrets.*`)",
         "First code task: exact `codegraph init` only when its index is absent",
         "Do not install missing tools; fall back to local evidence and state the resulting gap.",
