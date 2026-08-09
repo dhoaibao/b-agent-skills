@@ -1,12 +1,12 @@
-/** Role selection, persistence, status, and legacy tool restoration. */
+/** Role selection, persistence, status, and planner tool restriction. */
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { ROLE_ENTRY_TYPE, parseRole, latestRoleState } from "./b-agentic-support/role.ts";
+import { ROLE_ENTRY_TYPE, PLANNER_ALLOWED_TOOLS, parseRole, latestRoleState } from "./b-agentic-support/role.ts";
 import { getRole, setRole, getToolsBeforePlanner, setToolsBeforePlanner } from "./b-agentic-support/state.ts";
 
 export default function bAgenticRole(pi: ExtensionAPI): void {
   const updateStatus = (ctx: ExtensionContext): void => {
     const role = getRole();
-    ctx.ui.setStatus("b-agentic-role", role === "planner" ? "b-agentic: planner" : role === "worker" ? "b-agentic: worker" : undefined);
+    ctx.ui.setStatus("b-agentic-role", role === "planner" ? "b-agentic: planner (read-only)" : role === "worker" ? "b-agentic: worker" : undefined);
   };
   const persist = (): void => {
     pi.appendEntry(ROLE_ENTRY_TYPE, {
@@ -15,11 +15,15 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
     });
   };
   const applyRole = (next: "off" | "planner" | "worker", ctx: ExtensionContext, shouldPersist = true): void => {
-    // Restore tools hidden by role state persisted by releases that enforced a
-    // read-only planner. Current roles never alter Pi's active tool set.
-    if (getToolsBeforePlanner()) {
+    const previous = getRole();
+    if (previous === "planner" && next !== "planner" && getToolsBeforePlanner()) {
       pi.setActiveTools(getToolsBeforePlanner()!);
       setToolsBeforePlanner(undefined);
+    }
+    if (next === "planner") {
+      const tools = getToolsBeforePlanner() ?? pi.getActiveTools();
+      setToolsBeforePlanner(tools);
+      pi.setActiveTools(tools.filter((name) => PLANNER_ALLOWED_TOOLS.has(name)));
     }
     setRole(next);
     updateStatus(ctx);

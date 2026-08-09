@@ -1,3 +1,6 @@
+import { gatewayArgs, isSafeSerenaPatternSearch, isSafeSerenaSymbolRead, isTrustedManagedGatewayCall, isTrustedManagedTool, normalizeServerId } from "./mcp.ts";
+import { hasAmbiguousShellSyntax, hasInlineGitAliasInvocation, hasShellControlSyntax, hasUnbalancedQuotes, normalizeTokens, splitShellSegments, tokenize, unwrapTokens } from "./shell.ts";
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
@@ -9,18 +12,65 @@ export type RoleState = {
 };
 
 export const ROLE_ENTRY_TYPE = "b-agentic-role";
+/** Tools that can perform planner-safe analysis; bash and MCP are checked again per operation. */
+export const PLANNER_ALLOWED_TOOLS = new Set(["read", "recall", "intercom", "bash", "mcp"]);
+const PLANNER_READ_COMMANDS = new Set(["eza", "exa", "fd", "fdfind", "pwd", "rg"]);
+const PLANNER_GIT_READ_COMMANDS = new Set(["blame", "branch", "describe", "diff", "grep", "log", "ls-files", "ls-tree", "remote", "rev-parse", "shortlog", "show", "status"]);
+const PLANNER_CODEGRAPH_COMMANDS = new Set(["affected", "callees", "callers", "explore", "files", "help", "impact", "init", "node", "query", "status", "version"]);
+const PLANNER_SERENA_READ_TOOLS = new Set([
+  "serena_find_declaration", "serena_find_implementations", "serena_find_referencing_symbols", "serena_find_symbol", "serena_get_diagnostics_for_file", "serena_get_symbols_overview", "serena_initial_instructions", "serena_list_memories", "serena_read_memory",
+]);
 
-export const PLANNER_PROMPT = `## b-agentic planner profile (coordinator)
-You are the planner, coordinator, reviewer, and release owner. Role mode guides collaboration; it does not remove tools or override normal skill routing.
+/** Fail closed unless every shell segment is a local inspection command. */
+export function plannerCommandDecision(command: string): { allowed: boolean; reason: string } {
+  if (hasUnbalancedQuotes(command) || hasAmbiguousShellSyntax(command) || hasShellControlSyntax(command)) {
+    return { allowed: false, reason: "Planner mode permits only unambiguous read-only shell commands" };
+  }
+  const segments = splitShellSegments(command.trim());
+  if (!segments.length) return { allowed: false, reason: "Planner mode requires a read-only shell command" };
+  for (const segment of segments) {
+    const rawTokens = tokenize(segment);
+    if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(rawTokens[0] ?? "")) return { allowed: false, reason: "Planner mode blocks environment-modified commands" };
+    const unwrapped = unwrapTokens(rawTokens);
+    if (unwrapped.opaque || [...unwrapped.wrappers].some((wrapper) => wrapper !== "rtk")) {
+      return { allowed: false, reason: "Planner mode permits only direct read-only commands" };
+    }
+    const tokens = normalizeTokens(rawTokens);
+    const commandName = tokens[0];
+    const allowed = commandName === "git"
+      ? PLANNER_GIT_READ_COMMANDS.has(tokens[1] ?? "") && !hasInlineGitAliasInvocation(unwrapped.tokens)
+      : commandName === "codegraph"
+        ? PLANNER_CODEGRAPH_COMMANDS.has(tokens[1] ?? "")
+        : Boolean(commandName && PLANNER_READ_COMMANDS.has(commandName));
+    if (!allowed) return { allowed: false, reason: `Planner mode blocks non-read-only command: ${commandName || "unknown"}` };
+  }
+  return { allowed: true, reason: "" };
+}
+
+/** Allow only safe Serena inspection and classified read-only managed gateway calls. */
+export function isPlannerReadOnlyMcpCall(input: unknown): boolean {
+  if (!isPlainObject(input) || typeof input.server !== "string" || typeof input.tool !== "string") return false;
+  const server = normalizeServerId(input.server);
+  if (server !== "serena") return isTrustedManagedGatewayCall(input);
+  const args = gatewayArgs(input.args);
+  if (!args || !isTrustedManagedTool(server, input.tool, args)) return false;
+  const tool = input.tool.startsWith("mcp__") ? input.tool.split("__").at(-1)! : input.tool;
+  return PLANNER_SERENA_READ_TOOLS.has(tool) ||
+    (tool === "serena_search_for_pattern" && isSafeSerenaPatternSearch(args)) ||
+    isSafeSerenaSymbolRead(tool, args);
+}
+
+export const PLANNER_PROMPT = `## b-agentic planner profile (read-only coordinator)
+You are the planner, coordinator, reviewer, and release owner. Planner mode is enforced: safe repository discovery, classified read-only MCP calls, read, recall, and Intercom are available.
 - Sequence planning skills for the current phase: use b-plan and b-research to shape the task, b-review to assess the worker's result, and b-commit or b-pr-summary only after approval and when their normal trigger applies. Load each selected SKILL.md before using it.
-- The worker is the sole worktree writer for every delegated task. Never perform implementation edits, refactors, debugging fixes, or test changes yourself. You may inspect files and run review checks, but send every actionable finding back to the worker instead of fixing it.
+- The worker is the sole worktree writer for every delegated task. Never perform implementation edits, refactors, debugging fixes, tests, or commits yourself. Inspect with the available read-only tools and send every actionable finding back to the worker.
 - Find one same-CWD worker with Intercom \`list-cwd\`, then use \`send\` for a concise natural-language handoff containing the goal, scope or invariants, and useful success checks. A suggested starting skill is optional; the worker may switch skills as evidence requires.
 - Default to non-blocking Intercom \`send\` for assignments, findings, and approval. Use \`ask\` only for a genuine blocker when waiting is intentional; \`reply\` remains available. There is no parsed b-agentic message schema, and the user never relays internal coordination.
 - Review the actual diff and verification. Send findings and wait for a revised result, repeating until acceptable. After approval, tell the worker to remain idle and use b-commit only when the user explicitly requested a commit.`;
 
 export function workerPrompt(): string {
   return `## b-agentic worker profile (implementation)
-You are the implementation worker and sole worktree writer for this collaboration. Role mode guides ownership; it does not restrict tools, skills, or repository-local automation.
+You are the implementation worker and sole worktree writer for this collaboration. Planner mode is enforced as read-only; worker mode retains the tools needed for repository work.
 - Start from the planner's latest task and sequence the matching skills. Use b-implement, b-debug, b-refactor, b-test, b-browser, b-research, b-design, or b-init as the work requires; read each selected SKILL.md before that phase and switch when intent changes.
 - Use normal b-agentic evidence and safety rules. Run repository-local discovery, edits, builds, tests, and verification without waiting for protocol fields or a special assignment marker.
 - Keep scope bounded and avoid delegation chains. Retain the assigning planner's Intercom session name or id; target that session with any blocker or review message, using \`list-cwd\` if the sender is unclear. For a genuine blocker, use \`ask\` with one focused question and wait; a blocker question is not a review request.

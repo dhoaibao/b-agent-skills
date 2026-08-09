@@ -65,23 +65,23 @@ SHELL_POLICY_REGRESSION = {
     # modern fallback availability, and scoped Git content reads.
 }
 
-# Regression: strict role permissions and a parsed handoff protocol blocked normal
-# local tools, skill switching, commits, and ordinary Intercom clarification.
+# Regression: prompt-only planner roles retained mutation tools, so a planner
+# implemented directly even while a worker session was active.
 INTERCOM_DELEGATION_REGRESSION = {
     "observed_failure": (
-        "Planner and worker sessions were obstructed by read-only, skill-isolation, "
-        "and exact TASK/RESULT/REVIEW schema gates."
+        "Planner mode only described delegation and did not prevent direct implementation "
+        "or fixes when a worker session was available."
     ),
     "intended_behavior": (
-        "Use opt-in collaboration roles with one active writer, unrestricted normal "
-        "skill routing and repository-local tools, and lightweight natural-language handoffs."
+        "Keep opt-in natural-language handoffs while enforcing planner read-only ownership "
+        "and retaining worker-local skill routing and repository automation."
     ),
     "required_clauses": (
         "`/b-role planner|worker|off` is opt-in",
-        "never remove tools, lock skills, or add repository-local approval gates",
-        "Planner owns planning/delegation/review and explicit commits",
-        "for delegated work it inspects/checks but never edits or fixes",
-        "Worker is sole writer and may use any suitable skill",
+        "When selected, roles enforce ownership: planner is read-only and worker is the sole repository writer",
+        "Planner owns planning/delegation/review",
+        "safe discovery and read-only MCP calls support it",
+        "Worker may use any suitable skill",
         "worker sends that planner paths/checks/gaps and pauses",
         "worker resumes only for findings/new work",
         "Natural language; no parsed protocol/chains",

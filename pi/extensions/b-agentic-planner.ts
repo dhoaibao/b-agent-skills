@@ -1,6 +1,6 @@
 /** Planner collaboration prompt. */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { PLANNER_PROMPT } from "./b-agentic-support/role.ts";
+import { isPlannerReadOnlyMcpCall, PLANNER_ALLOWED_TOOLS, plannerCommandDecision, PLANNER_PROMPT } from "./b-agentic-support/role.ts";
 import { getRole } from "./b-agentic-support/state.ts";
 
 export default function bAgenticPlanner(pi: ExtensionAPI): void {
@@ -8,6 +8,20 @@ export default function bAgenticPlanner(pi: ExtensionAPI): void {
     if (getRole() !== "planner") return undefined;
     return { systemPrompt: `${event.systemPrompt}\n\n${PLANNER_PROMPT}` };
   });
+  pi.on("tool_call", (event) => {
+    if (getRole() !== "planner") return undefined;
+    if (event.toolName === "bash") {
+      const decision = plannerCommandDecision(String((event.input as { command?: unknown })?.command ?? ""));
+      return decision.allowed ? undefined : { block: true, reason: decision.reason };
+    }
+    if (event.toolName === "mcp") {
+      return isPlannerReadOnlyMcpCall(event.input)
+        ? undefined
+        : { block: true, reason: "Planner mode permits only classified read-only MCP calls" };
+    }
+    if (PLANNER_ALLOWED_TOOLS.has(event.toolName)) return undefined;
+    return { block: true, reason: `Planner mode is read-only: ${event.toolName} is disabled` };
+  });
 }
 
-export const __test__ = { PLANNER_PROMPT };
+export const __test__ = { isPlannerReadOnlyMcpCall, PLANNER_ALLOWED_TOOLS, plannerCommandDecision, PLANNER_PROMPT };

@@ -39,9 +39,9 @@ b-agentic can optionally install `pi-intercom`; set `B_AGENTIC_INSTALL_PI_INTERC
 
 b-agentic provides opt-in planner and worker collaboration profiles through the role, planner, and worker extensions. Run `/b-role` to choose `planner`, `worker`, or `off`; tab completion also supports `/b-role planner`, `/b-role worker`, and `/b-role off`. `pi --b-role planner|worker` selects a startup role. The role persists with the session and appears in Pi's status bar.
 
-Roles do not change Pi's active tools and do not add skill, shell, MCP, or message-format gates. The normal permission extension continues to auto-run repository-local work while protecting sensitive paths, dangerous commands, and outside-project or external/shared actions. Upgrading from an older release also performs a one-time restoration of tools that a persisted read-only planner role had hidden.
+Planner mode is enforced as analysis-only: it permits `read`, `recall`, Intercom, safe local discovery commands, and classified read-only MCP gateway calls (including Serena and CodeGraph). It blocks edits, writes, builds/tests, commits, arbitrary shell commands, arbitrary MCP scripts, and mutating MCP calls. The normal permission extension continues to protect sensitive paths, dangerous commands, and outside-project or external/shared actions. Worker mode retains normal repository-local automation.
 
-The planner sequences `b-plan` and `b-research` as needed, delegates to one same-directory worker, reviews with `b-review`, and owns PR summaries or an explicit `b-commit` after approval. During delegated work it may inspect files and run review checks, but it never performs implementation edits or fixes; every finding goes back to the worker.
+The planner sequences `b-plan` and `b-research` as needed, delegates to one same-directory worker, and reviews with `b-review`. It must send implementation, verification, and fixes to the worker; every finding goes back to that worker.
 
 The worker is the sole worktree writer. It sequences `b-implement`, `b-debug`, `b-refactor`, `b-test`, `b-browser`, `b-research`, `b-design`, or `b-init` as the task requires, switching skills when intent changes and running normal repository-local automation without a structured assignment.
 
@@ -50,9 +50,9 @@ Coordination is deliberately lightweight:
 1. The planner uses Intercom `send` for a natural-language task with goal, scope or invariants, and useful success checks.
 2. The worker implements and verifies, then uses `send` to the assigning planner for changed paths, verification outcomes, and gaps before pausing all edits.
 3. The planner reviews and uses `send` for actionable findings or approval. Findings resume worker edits; the worker fixes, verifies, and requests review again until approved.
-4. After approval the worker remains idle; the planner performs explicit commit or release work only when normally authorized.
+4. After approval the worker remains idle; leave planner mode before an explicit `b-commit` or release action when normally authorized.
 
-There are no required `B_AGENTIC_TASK`, `B_AGENTIC_RESULT`, or `B_AGENTIC_REVIEW` markers, fields, counters, or target checks. `send` is the non-blocking default; `ask` is only for a genuine blocker when waiting is intentional, and `reply` remains supported. Users never relay internal messages. This single-writer lifecycle is a collaboration contract, not a tool or permission gate, so role-appropriate skills and local automation remain available without protocol blocks.
+There are no required `B_AGENTIC_TASK`, `B_AGENTIC_RESULT`, or `B_AGENTIC_REVIEW` markers, fields, counters, or target checks. `send` is the non-blocking default; `ask` is only for a genuine blocker when waiting is intentional, and `reply` remains supported. Users never relay internal messages. This single-writer lifecycle has an enforced planner analysis-only gate; worker-local automation remains available without protocol blocks.
 After checking `pi list`, the installer runs `pi update --extensions` when
 Pi extensions are installed.
 

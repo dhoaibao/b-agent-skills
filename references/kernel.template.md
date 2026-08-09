@@ -18,8 +18,8 @@ Use these rules before any skill-specific instruction.
 
 ## Intercom roles
 
-- `/b-role planner|worker|off` is opt-in. Roles coordinate ownership but never remove tools, lock skills, or add repository-local approval gates.
-- Planner owns planning/delegation/review and explicit commits; for delegated work it inspects/checks but never edits or fixes. Worker is sole writer and may use any suitable skill.
+- `/b-role planner|worker|off` is opt-in. When selected, roles enforce ownership: planner is read-only and worker is the sole repository writer.
+- Planner owns planning/delegation/review; safe discovery and read-only MCP calls support it, but it delegates implementation, verification, and fixes. Worker may use any suitable skill.
 - Default Intercom `send`: planner sends goal/scope/checks; worker sends that planner paths/checks/gaps and pauses; planner sends findings/approval; worker resumes only for findings/new work. Repeat until approved. Use `ask` only for blockers. Natural language; no parsed protocol/chains.
 
 ## Routing

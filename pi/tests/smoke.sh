@@ -341,35 +341,37 @@ branchEntries.push({
 });
 activeTools = ['read', 'bash'];
 await handlers.session_start({}, roleContext);
-expect(activeTools.includes('edit') && activeTools.includes('write'), 'legacy planner state must restore tools once');
-expect(persistedEntries.at(-1)?.data.toolsBeforePlanner === undefined, 'legacy planner tool restoration must persist its cleared migration state');
+expect(activeTools.length === 2 && activeTools.includes('read') && activeTools.includes('bash'), 'persisted planner role must restore its safe analysis tool set');
+expect(persistedEntries.at(-1)?.data.toolsBeforePlanner?.includes('write'), 'persisted planner tools must remain available for restoration after leaving the role');
 activeTools = ['read', 'bash'];
 await handlers.session_start({}, roleContext);
-expect(!activeTools.includes('edit') && !activeTools.includes('write'), 'legacy planner tools must not be restored again on a later resume');
+expect(activeTools.length === 2 && activeTools.includes('read') && activeTools.includes('bash'), 'planner role must retain safe analysis tools on later resumes');
+await commands['b-role'].handler('off', roleContext);
 activeTools = ['read', 'bash', 'edit', 'write', 'recall', 'intercom', 'mcp', 'mcpScript'];
 expect(commands['b-role'], 'permission extension must register /b-role');
 await commands['b-role'].handler('', roleContext);
 expect(rolePickerCalls === 1, '/b-role without an argument must open a role picker');
-expect(activeTools.includes('edit') && activeTools.includes('write'), 'planner role must preserve built-in mutation tools');
-expect(await toolCallHandler({ toolName: 'edit', input: { path: 'README.md', edits: [] } }, roleContext) === undefined, 'planner role must not add a repository-local edit gate');
-for (const command of ['rtk git status --short', 'rtk pytest -q', 'fdfind -t f SKILL.md skills', 'eza -la', 'rtk git commit -m role-smoke']) {
-  expect(await toolCallHandler({ toolName: 'bash', input: { command } }, roleContext) === undefined, `planner role must preserve normal local automation: ${command}`);
+expect(activeTools.length === 5 && activeTools.every((tool) => ['read', 'recall', 'intercom', 'bash', 'mcp'].includes(tool)), 'planner role must expose its safe analysis and coordination tools');
+for (const toolName of ['edit', 'write', 'mcpScript', 'b_agentic_confirm_commit']) {
+  expect((await toolCallHandler({ toolName, input: {} }, roleContext))?.block === true, `planner role must block ${toolName}`);
 }
-expect(await toolCallHandler({ toolName: 'mcp', input: { server: 'serena', tool: 'serena_initial_instructions', args: {} } }, roleContext) === undefined, 'planner role must allow classified MCP reads');
-expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'send', to: 'worker', message: 'B_AGENTIC_TASK without fields is ordinary text now' } }, roleContext) === undefined, 'planner messages must not be parsed or format-gated');
-expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'ask', to: 'worker', message: 'Need clarification?' } }, roleContext) === undefined, 'planner role must allow Intercom ask');
-expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'reply', message: 'Proceed with the narrow fix', replyTo: 'message-1' } }, roleContext) === undefined, 'planner role must allow Intercom reply');
+for (const command of ['rtk git status --short', 'fdfind -t f SKILL.md skills', 'eza -la', 'codegraph init']) {
+  expect(await toolCallHandler({ toolName: 'bash', input: { command } }, roleContext) === undefined, `planner role must allow safe discovery: ${command}`);
+}
+for (const command of ['rtk pytest -q', 'rtk git commit -m role-smoke', "rtk git -c 'alias.status=!touch owned' status", 'node -e "process.exit()"']) {
+  expect((await toolCallHandler({ toolName: 'bash', input: { command } }, roleContext))?.block === true, `planner role must block worktree or execution command: ${command}`);
+}
+expect(await toolCallHandler({ toolName: 'mcp', input: { server: 'serena', tool: 'serena_find_symbol', args: { name_path_pattern: 'applyRole', relative_path: 'pi/extensions/b-agentic-role.ts' } } }, roleContext) === undefined, 'planner role must allow Serena symbol reads');
+expect(await toolCallHandler({ toolName: 'mcp', input: { server: 'codegraph', tool: 'codegraph_codegraph_explore', args: { query: 'role enforcement' } } }, roleContext) === undefined, 'planner role must allow CodeGraph reads');
+expect((await toolCallHandler({ toolName: 'mcp', input: { server: 'serena', tool: 'serena_replace_content', args: { relative_path: 'README.md', needle: 'old', repl: 'new' } } }, roleContext))?.block === true, 'planner role must block Serena repository edits');
+expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'send', to: 'worker', message: 'Implement the approved task.' } }, roleContext) === undefined, 'planner role must allow Intercom handoffs');
+expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'ask', to: 'worker', message: 'Need clarification?' } }, roleContext) === undefined, 'planner role must allow Intercom blockers');
+expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'reply', message: 'Proceed with the narrow fix', replyTo: 'message-1' } }, roleContext) === undefined, 'planner role must allow replies');
 const plannerStart = await handlers.before_agent_start({ systemPrompt: 'base', systemPromptOptions: { skills: [] } }, roleContext);
-expect(plannerStart.systemPrompt.includes('planner profile (coordinator)') && plannerStart.systemPrompt.includes('worker is the sole worktree writer') && plannerStart.systemPrompt.includes('Never perform implementation edits') && plannerStart.systemPrompt.includes('Default to non-blocking Intercom') && plannerStart.systemPrompt.includes('Send findings and wait for a revised result') && plannerStart.systemPrompt.includes('b-commit') && plannerStart.systemPrompt.includes('does not remove tools'), 'planner role must delegate implementation and own the non-blocking review loop');
-let plannerMutationClaim;
-mcpApprovalHandler({
-  serverName: 'firecrawl', originalToolName: 'firecrawl_agent', prefixedToolName: 'firecrawl_firecrawl_agent', args: {}, origin: 'script',
-  claim(handler) { plannerMutationClaim = handler; return true; },
-});
-expect(await plannerMutationClaim() === 'allow_once', 'planner role must use normal MCP approval instead of a role-specific denial');
+expect(plannerStart.systemPrompt.includes('planner profile (read-only coordinator)') && plannerStart.systemPrompt.includes('safe repository discovery, classified read-only MCP calls') && plannerStart.systemPrompt.includes('worker is the sole worktree writer') && plannerStart.systemPrompt.includes('Never perform implementation edits') && plannerStart.systemPrompt.includes('Default to non-blocking Intercom') && plannerStart.systemPrompt.includes('Send findings and wait for a revised result'), 'planner role must enforce delegation without blocking analysis');
 
 await commands['b-role'].handler('worker', roleContext);
-expect(activeTools.includes('edit') && activeTools.includes('write'), 'worker role must preserve normal tools');
+expect(activeTools.includes('edit') && activeTools.includes('write') && activeTools.includes('bash'), 'worker role must restore normal tools');
 expect(await toolCallHandler({ toolName: 'edit', input: { path: 'README.md', edits: [] } }, roleContext) === undefined, 'worker role must not wait for a structured assignment');
 for (const skill of ['b-implement', 'b-debug', 'b-refactor', 'b-test', 'b-browser', 'b-research', 'b-design', 'b-init']) {
   expect(await toolCallHandler({ toolName: 'read', input: { path: path.join(root, `skills/${skill}/SKILL.md`) } }, roleContext) === undefined, `worker role must allow task-appropriate skill ${skill}`);
@@ -378,7 +380,7 @@ for (const command of ['rtk git status --short', 'fdfind -t f SKILL.md skills', 
   expect(await toolCallHandler({ toolName: 'bash', input: { command } }, roleContext) === undefined, `worker role must preserve local discovery: ${command}`);
 }
 const workerStart = await handlers.before_agent_start({ systemPrompt: 'base', systemPromptOptions: { skills: [] } }, roleContext);
-expect(workerStart.systemPrompt.includes('worker profile (implementation)') && workerStart.systemPrompt.includes('sole worktree writer') && workerStart.systemPrompt.includes('b-debug') && workerStart.systemPrompt.includes('b-refactor') && workerStart.systemPrompt.includes("assigning planner's Intercom session name or id") && workerStart.systemPrompt.includes('send` to that planner') && workerStart.systemPrompt.includes('Pause all edits') && workerStart.systemPrompt.includes('Resume only when the planner sends actionable findings or a new task') && workerStart.systemPrompt.includes('does not restrict tools, skills'), 'worker role must own implementation, flexible skill routing, and review pauses');
+expect(workerStart.systemPrompt.includes('worker profile (implementation)') && workerStart.systemPrompt.includes('sole worktree writer') && workerStart.systemPrompt.includes('b-debug') && workerStart.systemPrompt.includes('b-refactor') && workerStart.systemPrompt.includes("assigning planner's Intercom session name or id") && workerStart.systemPrompt.includes('send` to that planner') && workerStart.systemPrompt.includes('Pause all edits') && workerStart.systemPrompt.includes('Resume only when the planner sends actionable findings or a new task') && workerStart.systemPrompt.includes('Planner mode is enforced as read-only'), 'worker role must own implementation, flexible skill routing, and review pauses');
 expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'send', to: 'planner', message: 'Changed README.md; smoke passed; no known gaps.' } }, roleContext) === undefined, 'worker role must allow plain-language results');
 expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'ask', to: 'planner', message: 'Should I include the compatibility cleanup?' } }, roleContext) === undefined, 'worker role must allow clarification asks');
 expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'reply', message: 'Acknowledged', replyTo: 'message-2' } }, roleContext) === undefined, 'worker role must allow replies');

@@ -460,10 +460,10 @@ for tool_boundary_marker in [
 
 for intercom_marker in [
     "`/b-role planner|worker|off` is opt-in",
-    "never remove tools, lock skills, or add repository-local approval gates",
-    "Planner owns planning/delegation/review and explicit commits",
-    "for delegated work it inspects/checks but never edits or fixes",
-    "Worker is sole writer and may use any suitable skill",
+    "When selected, roles enforce ownership: planner is read-only and worker is the sole repository writer",
+    "Planner owns planning/delegation/review",
+    "safe discovery and read-only MCP calls support it",
+    "Worker may use any suitable skill",
     "worker sends that planner paths/checks/gaps and pauses",
     "worker resumes only for findings/new work",
     "Natural language; no parsed protocol/chains",
