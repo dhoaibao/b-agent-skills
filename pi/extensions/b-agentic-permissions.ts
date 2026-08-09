@@ -75,6 +75,8 @@ const PLANNER_PROMPT = `## b-agentic planner profile (read-only)
 You are the planner, coordinator, and reviewer. This profile overrides execution routing while active.
 - Use b-plan for decomposition, b-research only for blocking external facts, and b-review for every worker result. Read the selected SKILL.md before that phase.
 - Never edit the repository, run builds/tests, create commits, or call mutating tools. If verification is needed, delegate it; switch role off for b-design, b-init, or b-commit.
+- For a classified read-only MCP gateway call, always provide both \`server: <managed server>\` and \`tool: <tool name>\`; unscoped gateway calls remain blocked.
+- When implementation needs delegation, first use Intercom \`list-cwd\` to locate one same-cwd worker, then send that worker a complete task. Construct and send the task yourself; never ask the user to write or relay \`B_AGENTIC_TASK\`. If no worker is available, say so concisely and continue planning rather than attempting repository writes.
 - Delegate to at most one same-cwd worker with Intercom \`send\`. Use this exact task format:
 \`\`\`text
 B_AGENTIC_TASK v1
@@ -1127,7 +1129,7 @@ function hasLocalFilesystemRisk(tokens: string[]): boolean {
   if (command === "rsync" && tokens.slice(1).some(isRemoteTarget)) return true;
   if (!LOCAL_PATH_COMMANDS.has(command)) return false;
   return tokens.slice(1).some((token) => {
-    if (!token || token.startsWith("-") || isExternalUrl(token) || /^&?\d+$/.test(token)) return false;
+    if (!token || token.startsWith("-") || isNegatedGlob(token) || isExternalUrl(token) || /^&?\d+$/.test(token)) return false;
     return !isProjectConfinedLocalPath(token);
   });
 }
@@ -1478,7 +1480,7 @@ function segmentDecision(
   // Shell access to a literal protected path is always approval-gated, even
   // through rtk/wrapper commands or in a compound segment. This deliberately
   // covers both reads and writes: the shell parser cannot reliably infer intent.
-  if (tokens.some((token) => isProtectedPath(token) || isProtectedLocalPath(token))) {
+  if (tokens.some((token) => !isNegatedGlob(token) && (isProtectedPath(token) || isProtectedLocalPath(token)))) {
     return {
       decision: "ask",
       reason: "Requires approval: shell command references a protected path",
@@ -1773,6 +1775,11 @@ function isProtectedLocalPath(pathValue: string): boolean {
     }
   }
   return false;
+}
+
+/** An exclusion glob does not access the paths it names. */
+function isNegatedGlob(token: string): boolean {
+  return token.startsWith("!") && /[*?[\]{}]/.test(token.slice(1));
 }
 
 function isProtectedPath(pathValue: string): boolean {
@@ -2259,10 +2266,31 @@ function intercomSender(entry: Record<string, unknown>): { id: string; name?: st
   return { id: from.id, name: typeof from.name === "string" ? from.name : undefined, cwd: from.cwd };
 }
 
-function identityMatches(target: string, sender: { id: string; name?: string }): boolean {
-  const normalized = target.trim().toLowerCase();
-  return Boolean(normalized) && (sender.name?.trim().toLowerCase() === normalized ||
-    sender.id.toLowerCase() === normalized || (normalized.length >= 4 && sender.id.toLowerCase().startsWith(normalized)));
+type PlannerTaskValidation = { isTask: boolean; valid: boolean; reason: string };
+
+/**
+ * Reject incomplete planner handoffs before delivery, rather than leaving a
+ * worker idle with an invalid task it cannot execute.
+ */
+function plannerTaskValidation(toolName: string, input: unknown): PlannerTaskValidation {
+  if (toolName !== "intercom" || !isPlainObject(input) || input.action !== "send" || typeof input.message !== "string") {
+    return { isTask: false, valid: true, reason: "" };
+  }
+  const marker = /(?:^|\n)B_AGENTIC_TASK(?:\s+v1)?\s*(?:\n|$)/m.exec(input.message);
+  if (!marker) return { isTask: false, valid: true, reason: "" };
+
+  const body = input.message.slice(marker.index ?? 0);
+  const problems: string[] = [];
+  if (!/^B_AGENTIC_TASK\s+v1\s*(?:\n|$)/m.test(body)) problems.push("use B_AGENTIC_TASK v1");
+  const skillName = protocolField(body, "worker_skill");
+  if (!skillName || !WORKER_SKILLS.has(skillName)) problems.push("choose an allowed worker_skill");
+  if (Number(protocolField(body, "iteration")) !== 1) problems.push("set iteration: 1");
+  for (const field of ["goal", "constraints", "success_checks", "report_to"]) {
+    if (!protocolField(body, field)) problems.push(`include ${field}`);
+  }
+  return problems.length === 0
+    ? { isTask: true, valid: true, reason: "" }
+    : { isTask: true, valid: false, reason: `Planner task is incomplete: ${problems.join("; ")}` };
 }
 
 function latestWorkerDirective(
@@ -2300,12 +2328,14 @@ function latestWorkerDirective(
       const completeTask = protocolField(body, "goal") && protocolField(body, "constraints") && protocolField(body, "success_checks");
       if (!sender || !senderInWorkerCwd || !skillName || !WORKER_SKILLS.has(skillName) ||
         (availableSkills && !availableSkills.has(skillName)) || iteration !== 1 ||
-        !reportTo || !identityMatches(reportTo, sender) || !completeTask) {
+        !reportTo || !completeTask) {
         current = { id, kind: "invalid", iteration };
         continue;
       }
+      // The broker-authenticated sender is the only reliable result target:
+      // session aliases and configured stable IDs are not available to this extension.
       current = {
-        id, kind: "task", skillName, iteration, reportTo,
+        id, kind: "task", skillName, iteration, reportTo: sender.id,
         plannerId: sender.id, plannerName: sender.name, plannerCwd: sender.cwd,
       };
       continue;
@@ -2658,12 +2688,16 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.registerCommand("b-role", {
-    description: "Set b-agentic role: planner, worker, or off",
+    description: "Choose b-agentic role: planner, worker, or off",
     getArgumentCompletions: (prefix) => ["planner", "worker", "off"]
       .filter((role) => role.startsWith(prefix.trim().toLowerCase()))
       .map((role) => ({ value: role, label: role })),
     handler: async (args, ctx) => {
-      const nextRole = parseRole(args);
+      let nextRole = parseRole(args);
+      if (!nextRole && !args.trim() && ctx.hasUI) {
+        nextRole = parseRole(await ctx.ui.select("Select b-agentic role", ["planner", "worker", "off"]));
+        if (!nextRole) return;
+      }
       if (!nextRole) {
         ctx.ui.notify(args.trim() ? "Usage: /b-role planner|worker|off" : `b-agentic role: ${activeRole}`, args.trim() ? "error" : "info");
         return;
@@ -2757,6 +2791,10 @@ export default function (pi: ExtensionAPI) {
     }
 
     if (activeRole === "planner") {
+      const plannerTask = plannerTaskValidation(event.toolName, event.input);
+      if (plannerTask.isTask && !plannerTask.valid) {
+        return { block: true, reason: plannerTask.reason };
+      }
       if (event.toolName === "edit" || event.toolName === "write") {
         return { block: true, reason: `Planner mode is read-only: ${event.toolName} is disabled` };
       }

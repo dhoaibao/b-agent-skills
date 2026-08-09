@@ -262,12 +262,20 @@ expect(t.isAutoApprovedIntercomCall('intercom', { action: 'reply', replyTo: 'mes
 expect(typeof toolCallHandler === 'function', 'permission extension must register a tool_call handler');
 expect(typeof mcpApprovalHandler === 'function', 'permission extension must register the MCP approval broker');
 const noUiContext = { hasUI: false, ui: { confirm: async () => true } };
+const plannerFrom = { id: 'planner-session-id', name: 'planner', cwd: root };
+let rolePickerCalls = 0;
 const roleContext = {
   cwd: root,
   hasUI: true,
   ui: {
     confirm: async () => true,
-    select: async () => 'Allow once',
+    select: async (title) => {
+      if (title === 'Select b-agentic role') {
+        rolePickerCalls += 1;
+        return 'planner';
+      }
+      return 'Allow once';
+    },
     notify() {},
     setStatus() {},
   },
@@ -277,16 +285,23 @@ const roleContext = {
 };
 await handlers.session_start({}, roleContext);
 expect(commands['b-role'], 'permission extension must register /b-role');
-await commands['b-role'].handler('planner', roleContext);
+await commands['b-role'].handler('', roleContext);
+expect(rolePickerCalls === 1, '/b-role without an argument must open a role picker');
 expect(!activeTools.includes('edit') && !activeTools.includes('write'), 'planner role must remove built-in mutation tools');
 expect((await toolCallHandler({ toolName: 'edit', input: { path: 'README.md', edits: [] } }, roleContext))?.block === true, 'planner role must block edits');
 expect(await toolCallHandler({ toolName: 'bash', input: { command: 'rtk git status --short' } }, roleContext) === undefined, 'planner role must allow read-only shell inspection');
 expect((await toolCallHandler({ toolName: 'bash', input: { command: 'rtk pytest -q' } }, roleContext))?.block === true, 'planner role must block tests that can mutate caches');
 expect((await toolCallHandler({ toolName: 'mcp', input: { server: 'firecrawl', tool: 'firecrawl_agent' } }, roleContext))?.block === true, 'planner role must block managed MCP mutations');
-expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'send', to: 'worker', message: 'B_AGENTIC_TASK' } }, roleContext) === undefined, 'planner role must retain Intercom coordination');
+expect(await toolCallHandler({ toolName: 'mcp', input: { server: 'serena', tool: 'serena_initial_instructions', args: {} } }, roleContext) === undefined, 'planner role must allow classified MCP reads with explicit managed ownership');
+expect((await toolCallHandler({ toolName: 'mcp', input: { tool: 'serena_initial_instructions', args: {} } }, roleContext))?.block === true, 'planner role must block unscoped MCP reads');
+const malformedPlannerTask = await toolCallHandler({ toolName: 'intercom', input: { action: 'send', to: 'worker', message: 'B_AGENTIC_TASK' } }, roleContext);
+expect(malformedPlannerTask?.block === true && malformedPlannerTask.reason.includes('Planner task is incomplete'), 'planner must reject malformed tasks before they leave the coordinator');
+const validPlannerTask = 'B_AGENTIC_TASK v1\nworker_skill: b-test\niteration: 1\ngoal: verify role mode\nconstraints: keep scope bounded\nsuccess_checks: permission smoke passes\nreport_to: planner';
+expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'send', to: 'worker', message: validPlannerTask } }, roleContext) === undefined, 'planner must send a complete handoff without user relay');
+expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'list-cwd' } }, roleContext) === undefined, 'planner must discover same-directory workers through Intercom');
 expect((await toolCallHandler({ toolName: 'intercom', input: { action: 'ask', to: 'worker', message: 'task' } }, roleContext))?.block === true, 'role loops must block ask/reply traffic');
 const plannerStart = await handlers.before_agent_start({ systemPrompt: 'base', systemPromptOptions: { skills: [] } }, roleContext);
-expect(plannerStart.systemPrompt.includes('planner profile (read-only)') && plannerStart.systemPrompt.includes('success_checks:'), 'planner role must inject its profile and exact task schema');
+expect(plannerStart.systemPrompt.includes('planner profile (read-only)') && plannerStart.systemPrompt.includes('list-cwd') && plannerStart.systemPrompt.includes('never ask the user to write') && plannerStart.systemPrompt.includes('server: <managed server>'), 'planner role must inject automatic delegation and explicit MCP ownership');
 let plannerMutationClaim;
 mcpApprovalHandler({
   serverName: 'firecrawl', originalToolName: 'firecrawl_agent', prefixedToolName: 'firecrawl_firecrawl_agent', args: {}, origin: 'script',
@@ -299,16 +314,15 @@ expect(activeTools.includes('edit') && activeTools.includes('write'), 'worker ro
 expect((await toolCallHandler({ toolName: 'edit', input: { path: 'README.md', edits: [] } }, roleContext))?.block === true, 'worker role must wait for a structured assignment');
 const assignedSkillPath = path.join(root, 'skills/b-test/SKILL.md');
 const fixSkillPath = path.join(root, 'skills/b-debug/SKILL.md');
-const plannerFrom = { id: 'planner-session-id', name: 'planner', cwd: root };
 branchEntries.push({
   type: 'custom_message', id: 'task-1', customType: 'intercom_message', details: { from: plannerFrom },
-  content: '**From planner**\n\nB_AGENTIC_TASK v1\nworker_skill: b-test\niteration: 1\ngoal: verify role mode\nconstraints: keep scope bounded\nsuccess_checks: permission smoke passes\nreport_to: planner',
+  content: `**From planner**\n\n${validPlannerTask}`,
 });
 const workerStart = await handlers.before_agent_start({
   systemPrompt: 'base',
   systemPromptOptions: { skills: [{ name: 'b-test', filePath: assignedSkillPath }, { name: 'b-debug', filePath: fixSkillPath }] },
 }, roleContext);
-expect(workerStart.systemPrompt.includes('Assigned skill: b-test') && workerStart.systemPrompt.includes('changed_paths:') && workerStart.systemPrompt.includes('worker_skill: b-test'), 'worker role must inject the assigned skill and exact result schema');
+expect(workerStart.systemPrompt.includes('Assigned skill: b-test') && workerStart.systemPrompt.includes('changed_paths:') && workerStart.systemPrompt.includes('worker_skill: b-test') && workerStart.systemPrompt.includes('Send it to exactly: planner-session-id'), 'a planner-approved task must activate the worker and target its authenticated sender');
 expect((await toolCallHandler({ toolName: 'bash', input: { command: 'rtk git status --short' } }, roleContext))?.block === true, 'worker role must load its assigned skill before repository work');
 expect((await toolCallHandler({ toolName: 'read', input: { path: path.join(root, 'skills/b-debug/SKILL.md') } }, roleContext))?.block === true, 'worker role must reject a different skill');
 expect(await toolCallHandler({ toolName: 'read', input: { path: assignedSkillPath } }, roleContext) === undefined, 'worker role must allow its assigned skill read');
@@ -349,7 +363,7 @@ await handlers.before_agent_start({ systemPrompt: 'base', systemPromptOptions: {
 expect(await toolCallHandler({ toolName: 'edit', input: { path: path.join(root, 'README.md'), edits: [] } }, roleContext) === undefined, 'approval before a worker result must not terminate the active iteration');
 const resultMessage = 'B_AGENTIC_RESULT v1\nstatus: ready_for_review\nworker_skill: b-test\niteration: 1\nchanged_paths: pi/tests/smoke.sh\nverification: smoke passed\ngaps: none';
 expect((await toolCallHandler({ toolName: 'intercom', input: { action: 'send', to: 'other-peer', message: resultMessage } }, roleContext))?.block === true, 'worker results must target the assigned planner');
-const workerResultInput = { action: 'send', to: 'planner', message: resultMessage };
+const workerResultInput = { action: 'send', to: 'planner-session-id', message: resultMessage };
 expect(await toolCallHandler({ toolName: 'intercom', input: workerResultInput }, roleContext) === undefined, 'worker role must send results through Intercom');
 handlers.tool_result({ toolName: 'intercom', input: workerResultInput, isError: false }, roleContext);
 handlers.turn_end({}, roleContext);
@@ -373,7 +387,7 @@ expect(await toolCallHandler({ toolName: 'read', input: { path: fixSkillPath } }
 handlers.tool_result({ toolName: 'read', input: { path: fixSkillPath }, isError: false }, roleContext);
 expect(await toolCallHandler({ toolName: 'edit', input: { path: path.join(root, 'README.md'), edits: [] } }, roleContext) === undefined, 'worker must be able to fix review findings after loading the new skill');
 const fixResultInput = {
-  action: 'send', to: 'planner',
+  action: 'send', to: 'planner-session-id',
   message: 'B_AGENTIC_RESULT v1\nstatus: ready_for_review\nworker_skill: b-debug\niteration: 2\nchanged_paths: pi/extensions/b-agentic-permissions.ts\nverification: smoke passed\ngaps: none',
 };
 expect(await toolCallHandler({ toolName: 'intercom', input: fixResultInput }, roleContext) === undefined, 'each changes-requested iteration must submit its own result');
@@ -752,6 +766,7 @@ expect(t.commandDecision('cat /tmp/.env.production').decision === 'ask', 'absolu
 expect(t.commandDecision('printf EXAMPLE=value > .env.example').decision === 'allow', 'public env template writes must allow');
 expect(t.commandDecision('rtk cat ./config/../.env.local').decision === 'ask', 'rtk-wrapped protected-path read must ask');
 expect(t.commandDecision('rtk rg SECRET .env').decision === 'ask', 'RTK-supported command must gate protected paths');
+expect(t.commandDecision("rtk rg -n 'CONFIRM:' skills pi tests tooling --glob '!**/.git/**'").decision === 'allow', 'negated glob exclusions must not be treated as protected-path reads');
 expect(t.commandDecision('ls src && cat credentials.json').decision === 'ask', 'compound protected-path read must ask');
 expect(t.commandDecision('cat src/main.ts', noModernTools).decision === 'allow', 'direct cat must allow when bat is unavailable');
 expect(t.commandDecision('cat "$SECRET_FILE"').decision === 'ask', 'variable shell paths must fail closed as ambiguous');

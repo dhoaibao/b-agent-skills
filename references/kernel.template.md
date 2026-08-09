@@ -18,8 +18,8 @@ Use these rules before any skill-specific instruction.
 
 ## Intercom roles
 
-- `/b-role planner|worker|off` is opt-in; stay off unless parallel savings exceed handoff/review. Planner is read-only and owns planning/delegation/review; worker is sole writer and uses only the assigned b-agentic skill.
-- Planner sends `B_AGENTIC_TASK`; worker reads its `SKILL.md`, implements/verifies, then sends `B_AGENTIC_RESULT`. Planner reviews and sends `B_AGENTIC_REVIEW` with changes_requested or approved; repeat until approved. One worker/writer; no delegation chains.
+- `/b-role planner|worker|off` is opt-in; `/b-role` opens a picker. Stay off unless parallel savings exceed handoff/review. Planner is read-only and owns planning/delegation/review; worker is sole writer and uses only the assigned b-agentic skill.
+- With one same-CWD worker, planner discovers it and sends `B_AGENTIC_TASK` itself; never ask the user to compose or relay the protocol. Worker reads its `SKILL.md`, implements/verifies, then sends `B_AGENTIC_RESULT`. Planner reviews and sends `B_AGENTIC_REVIEW` with changes_requested or approved; repeat until approved. One worker/writer; no delegation chains.
 - Use `send`, never `ask`/`reply`, for this loop. Commit requires role off; design/init also require role off. All safety/evidence rules apply. Schema-valid Intercom calls stay approval-free.
 
 ## Routing
@@ -51,7 +51,7 @@ Unclear work -> `b-plan`. `b-commit` and `b-pr-summary` need explicit request. R
 
 ### Managed MCP operations
 
-Canonical policy: `~/.pi/agent/b-agentic/references/mcp_operations.yaml`. Auto-approve classified read-only and safe conditional-read ops, including unambiguous top-level gateway calls; mutations, uploads, lifecycle, auth, and other MCP/custom tools need approval.
+Canonical policy: `~/.pi/agent/b-agentic/references/mcp_operations.yaml`. Auto-approve classified read-only and safe conditional-read ops, including gateway calls naming the managed server; mutations, uploads, lifecycle, auth, and other MCP/custom tools need approval.
 
 <!-- generated:mcp-operations:start -->
 | Class | Policy | Scope |

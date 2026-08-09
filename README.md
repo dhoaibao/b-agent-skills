@@ -6,7 +6,7 @@ b-agentic installs a compact Pi kernel, focused phase skills, a permission exten
 
 ## Planner and worker roles
 
-For deliberate two-session work, select `/b-role planner` in the coordinating Pi session and `/b-role worker` in one same-directory implementation session. Planner mode is enforced read-only and owns decomposition plus review; worker mode is the sole writer, requires a structured Intercom task and assigned b-agentic skill, and waits after each result until the planner approves or requests another iteration. Use `/b-role off` for the normal single-session workflow. See `pi/configs/README.md` for the handoff format and CLI flags.
+For deliberate two-session work, use `/b-role` in each session and choose `planner` for the coordinator or `worker` for one same-directory implementation session. You can also type `/b-role planner`, `/b-role worker`, or `/b-role off`. Give the planner the goal normally: it finds the worker, sends the internal task handoff, and reviews the result. Planner mode is enforced read-only; worker mode is the sole writer and waits between iterations. Use `off` for the normal single-session workflow. See `pi/configs/README.md` for role details and CLI flags.
 
 ## Install
 
