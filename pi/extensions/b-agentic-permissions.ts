@@ -1,8 +1,21 @@
+const INTERCOM_ACTIONS = new Set(["list", "list-cwd", "send", "ask", "reply", "pending", "status", "cancel"]);
+const INTERCOM_FIELDS = new Set(["action", "to", "message", "attachments", "replyTo", "messageId", "supersedes", "retryOf", "cwd"]);
+const INTERCOM_ATTACHMENT_TYPES = new Set(["file", "snippet", "context"]);
+
+function isValidIntercomAttachment(value: unknown): boolean {
+  if (!isPlainObject(value) || typeof value.type !== "string" || !INTERCOM_ATTACHMENT_TYPES.has(value.type) || typeof value.name !== "string" || typeof value.content !== "string") return false;
+  if (value.language !== undefined && typeof value.language !== "string") return false;
+  return Object.keys(value).every((key) => ["type", "name", "content", "language"].includes(key));
+}
+
 function isAutoApprovedIntercomCall(toolName: string, input: unknown): boolean {
-  if (toolName !== "intercom" || !isPlainObject(input) || typeof input.action !== "string") return false;
-  if (["list-cwd", "status", "pending"].includes(input.action)) return Object.keys(input).length === 1;
-  if (!["send", "ask", "reply"].includes(input.action) || typeof input.to !== "string" || typeof input.message !== "string") return false;
-  return Object.keys(input).every((key) => ["action", "to", "message"].includes(key));
+  if (toolName !== "intercom" || !isPlainObject(input) || typeof input.action !== "string" || !INTERCOM_ACTIONS.has(input.action)) return false;
+  return Object.entries(input).every(([key, value]) => {
+    if (!INTERCOM_FIELDS.has(key)) return false;
+    if (key === "action") return typeof value === "string" && INTERCOM_ACTIONS.has(value);
+    if (key === "attachments") return Array.isArray(value) && value.every(isValidIntercomAttachment);
+    return typeof value === "string";
+  });
 }
 
 /**
@@ -1311,10 +1324,6 @@ function hasShellExecutionProxy(tokens: string[]): boolean {
   return tokens[0] === "xargs" || (
     tokens[0] === "find" && tokens.some((token) => ["-exec", "-execdir", "-ok", "-okdir"].includes(token))
   );
-}
-
-function needsCodegraphInitialization(): boolean {
-  return !existsSync(resolve(process.cwd(), ".codegraph", "codegraph.db"));
 }
 
 function hasEnvironmentBootstrapModifier(rawTokens: string[]): boolean {

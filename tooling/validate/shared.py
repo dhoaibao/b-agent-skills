@@ -407,10 +407,22 @@ if "RTK never bypasses these protections" not in kernel_template:
     errors.append(
         "references/kernel.template.md: RTK must not be described as bypassing protections"
     )
-if "coordinator that delegates an eligible task MUST remain read-only" not in kernel_template or "worker may implement and verify only its assigned task" not in kernel_template:
+if "Coordinator remains read-only until result review" not in kernel_template or "worker implements/verifies only its task" not in kernel_template:
     errors.append(
         "references/kernel.template.md: coordinator/worker delegation boundary must remain explicit"
     )
+for intercom_marker in [
+    "This is one level only",
+    "must not re-delegate, broadcast, spawn, or start chained tasks",
+    "These rules supersede `pi-intercom` examples",
+    "Intercom schema governs valid fields without approval friction",
+    "reports completion, and returns control",
+    "Coordinator remains read-only until result review",
+]:
+    if intercom_marker not in kernel_template:
+        errors.append(
+            f"references/kernel.template.md: Intercom workflow marker missing {intercom_marker!r}"
+        )
 
 # The kernel owns the RTK requirement and modern shell-tool preferences.
 for required_tool in ["`rtk`", "`rg`", "`fdfind`", "`batcat`", "`eza`", "`sd`", "`jq`"]:

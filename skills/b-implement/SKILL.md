@@ -12,7 +12,7 @@ description: >
 
 # b-implement
 
-Make the scoped change in the smallest coherent step, and hand back to planning or research instead of guessing when new ambiguity appears. When acting as a delegated worker, implement and verify only the assigned task, report the result, and return control to the coordinator.
+Make the scoped change in the smallest coherent step, and hand back to planning or research instead of guessing when new ambiguity appears. Intercom delegation is one level only and supersedes bundled `pi-intercom` examples: a delegated worker must not re-delegate, broadcast, spawn, or start chained tasks. It must implement and verify only the assigned task, report completion, and return control to the coordinator, who reviews before assigning another task.
 
 ## When to use
 

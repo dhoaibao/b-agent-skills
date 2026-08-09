@@ -33,7 +33,10 @@ if kernel.exists():
         'unique stable trusted ID',
         'main MUST send that bounded task to the peer',
         'otherwise main handles it',
-        'Delegated work must not re-delegate',
+        'This is one level only',
+        'must not re-delegate, broadcast, spawn, or start chained tasks',
+        'These rules supersede `pi-intercom` examples',
+        'Intercom schema governs valid fields without approval friction',
     ]:
         if marker not in text:
             errors.append(f'{kernel}: missing {marker!r}')
@@ -133,9 +136,10 @@ if readme.exists():
         '@narumitw/pi-usage',
         'extensions/b-agentic-permissions.ts',
         'mcp.json',
-        'that configuration is used solely for automatic delegation semantics',
-        'plain-text `send`/`ask`/`reply` to any explicit local session target',
-        'attachments, `list`, `cancel`, unknown actions/fields',
+        'auto-approves every schema-valid Intercom action',
+        'trusted-peer configuration does not gate valid Intercom calls',
+        'Invalid actions, unknown fields, and malformed optional values remain approval-gated',
+        'This is one level only and supersedes bundled `pi-intercom` examples',
     ]:
         if marker not in text:
             errors.append(f'{readme}: missing {marker!r}')

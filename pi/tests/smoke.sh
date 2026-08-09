@@ -222,17 +222,26 @@ function expect(cond, msg) {
   }
 }
 
-expect(t.isAutoApprovedIntercomCall('intercom', { action: 'list-cwd' }) === true, 'Intercom list-cwd is auto-approved without delegation config');
-expect(t.isAutoApprovedIntercomCall('intercom', { action: 'status' }) === true, 'Intercom status is auto-approved without delegation config');
-expect(t.isAutoApprovedIntercomCall('intercom', { action: 'pending' }) === true, 'Intercom pending is auto-approved without delegation config');
-expect(t.isAutoApprovedIntercomCall('intercom', { action: 'list' }) === false, 'Intercom list remains approval-gated');
-expect(t.isAutoApprovedIntercomCall('intercom', { action: 'send', to: 'arbitrary-session', message: 'bounded task' }) === true, 'plain Intercom send allows arbitrary local session targets');
-expect(t.isAutoApprovedIntercomCall('intercom', { action: 'ask', to: 'arbitrary-session', message: 'bounded task' }) === true, 'plain Intercom ask allows arbitrary local session targets');
-expect(t.isAutoApprovedIntercomCall('intercom', { action: 'reply', to: 'arbitrary-session', message: 'bounded reply' }) === true, 'plain Intercom reply allows arbitrary local session targets');
-expect(t.isAutoApprovedIntercomCall('intercom', { action: 'reply', message: 'missing target' }) === false, 'Intercom reply requires explicit target');
-expect(t.isAutoApprovedIntercomCall('intercom', { action: 'send', to: 'arbitrary-session', message: 'attachment', attachments: [] }) === false, 'Intercom attachments require approval');
-expect(t.isAutoApprovedIntercomCall('intercom', { action: 'send', to: 'arbitrary-session', message: 'unknown', priority: 'high' }) === false, 'Intercom unknown fields require approval');
-expect(t.isAutoApprovedIntercomCall('intercom', { action: 'cancel', to: 'arbitrary-session', message: 'unknown action' }) === false, 'Intercom unknown actions require approval');
+const validIntercomCalls = [
+  { action: 'list' },
+  { action: 'list-cwd' },
+  { action: 'list-cwd', cwd: '/workspace/b-agentic' },
+  { action: 'status' },
+  { action: 'pending' },
+  { action: 'send', to: 'peer', message: 'bounded task', attachments: [{ type: 'snippet', name: 'note.md', content: 'context', language: 'markdown' }], replyTo: 'message-1', supersedes: 'message-0', retryOf: 'message-previous' },
+  { action: 'ask', to: 'peer', message: 'question' },
+  { action: 'reply', message: 'answer', replyTo: 'message-1' },
+  { action: 'cancel', messageId: 'message-1' },
+];
+for (const input of validIntercomCalls) {
+  expect(t.isAutoApprovedIntercomCall('intercom', input) === true, `valid Intercom call must be auto-approved: ${input.action}`);
+}
+expect(t.isAutoApprovedIntercomCall('intercom', { action: 'send', to: 'peer', message: 'attachment', attachments: [] }) === true, 'empty Intercom attachments remain auto-approved');
+expect(t.isAutoApprovedIntercomCall('intercom', { action: 'send', to: 'peer', message: 'unknown', priority: 'high' }) === false, 'Intercom unknown fields remain approval-gated');
+expect(t.isAutoApprovedIntercomCall('intercom', { action: 'send', to: 'peer', message: 'bad attachment', attachments: [{ type: 'snippet', name: 'note.md', content: 'context', extra: true }] }) === false, 'invalid Intercom attachments remain approval-gated');
+expect(t.isAutoApprovedIntercomCall('intercom', { action: 'unknown' }) === false, 'unknown Intercom actions remain approval-gated');
+expect(t.isAutoApprovedIntercomCall('intercom', { action: 'cancel', messageId: 1 }) === false, 'invalid Intercom optional field types remain approval-gated');
+expect(t.isAutoApprovedIntercomCall('intercom', { action: 'reply', replyTo: 'message-1' }) === true, 'targetless schema-valid Intercom replies remain auto-approved');
 
 expect(typeof toolCallHandler === 'function', 'permission extension must register a tool_call handler');
 expect(typeof mcpApprovalHandler === 'function', 'permission extension must register the MCP approval broker');
