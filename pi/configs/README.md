@@ -9,8 +9,13 @@ Adapter-owned layout for Pi.
 - Shared references: `~/.pi/agent/b-agentic/references/kernel.template.md` and `mcp_operations.yaml`
 - MCP template: `~/.pi/agent/b-agentic/templates/mcp.user.template.json`
 - User MCP config: `~/.pi/agent/mcp.json` (Pi-owned override read by `pi-mcp-adapter`)
-- Permission extension: `~/.pi/agent/extensions/b-agentic-permissions.ts`
-- Extension snapshot: `~/.pi/agent/b-agentic/extensions/b-agentic-permissions.ts`
+- Permission extensions: `~/.pi/agent/extensions/b-agentic-permissions.ts`,
+  `b-agentic-mcp-permissions.ts`, `b-agentic-role.ts`,
+  `b-agentic-planner.ts`, and `b-agentic-worker.ts`
+- Extension snapshots: `~/.pi/agent/b-agentic/extensions/` (one snapshot per
+  installed extension; legacy manifests with only `permissionsExtension` remain supported)
+- Shared extension helpers live under the non-discovered
+  `pi/extensions/b-agentic-support/` source directory
 
 ## Optional Pi Packages
 
@@ -32,7 +37,7 @@ noninteractive installs require `B_AGENTIC_INSTALL_PI_USAGE=Y`.
 
 b-agentic can optionally install `pi-intercom`; set `B_AGENTIC_INSTALL_PI_INTERCOM=Y` or accept its prompt. The permission extension auto-approves schema-valid Intercom actions (`list`, `list-cwd`, `status`, `pending`, `send`, `ask`, `reply`, and `cancel`), including supported optional string fields and attachment arrays; invalid actions, unknown fields, and malformed optional values remain approval-gated.
 
-b-agentic provides opt-in planner and worker profiles through the same extension. Run `/b-role` to choose `planner`, `worker`, or `off`; tab completion also supports `/b-role planner`, `/b-role worker`, and `/b-role off`. `pi --b-role planner|worker` selects a startup role. The role persists with the session and appears in Pi's status bar.
+b-agentic provides opt-in planner and worker profiles through the role, planner, worker, and managed-MCP extensions. Run `/b-role` to choose `planner`, `worker`, or `off`; tab completion also supports `/b-role planner`, `/b-role worker`, and `/b-role off`. `pi --b-role planner|worker` selects a startup role. The role persists with the session and appears in Pi's status bar.
 
 Planner mode is read-only: it removes `edit`/`write`, blocks mutating or unclassified shell/MCP/custom tools, and keeps repository reads, classified read-only MCP calls with an explicit managed `server`, and Intercom coordination. It uses `b-plan`/`b-research` before delegation and `b-review` for worker results. Builds, tests, and fixes must be delegated. Repository-writing coordinator phases (`b-design`, `b-init`, and an explicit `b-commit`) require `/b-role off`; read-only PR summaries can remain in planner mode.
 
@@ -80,8 +85,10 @@ optional `rtk init --agent pi --global` integration is rewrite-only and does
 not replace b-agentic's permission extension; b-agentic does not install it
 automatically.
 
-Uninstall removes b-agentic-managed MCP config and the permission extension; it
-does not remove any of these packages.
+Uninstall removes b-agentic-managed MCP config and unchanged permission
+extensions. Modified files and symlinks are preserved; legacy manifests with
+only `permissionsExtension` are restored using the original compatibility path.
+It does not remove any of these packages.
 
 Servers default to lazy lifecycle through the adapter's proxy tool so schemas
 are not eagerly injected into context. Optional adapter-specific `directTools`

@@ -1,0 +1,1461 @@
+import { existsSync, realpathSync, statSync } from "node:fs";
+import { homedir } from "node:os";
+import { delimiter, dirname, isAbsolute, relative, resolve } from "node:path";
+
+export type Decision = "allow" | "ask" | "deny";
+export const WORKER_SKILLS = new Set(["b-browser", "b-debug", "b-implement", "b-refactor", "b-research", "b-test"]);
+export const PLANNER_DISABLED_TOOLS = new Set(["edit", "write"]);
+export const PLANNER_CODEGRAPH_COMMANDS = new Set([
+  "affected", "callees", "callers", "explore", "files", "help", "impact", "node", "query", "status", "version",
+]);
+export const PLANNER_READ_COMMANDS = new Set([
+  "[", "basename", "bat", "batcat", "cat", "cd", "df", "diff", "dirname", "du", "echo", "eza", "exa",
+  "fd", "fdfind", "file", "find", "grep", "head", "jq", "ls", "popd", "printf", "pushd", "pwd", "readlink",
+  "realpath", "rg", "sort", "stat", "tail", "test", "true", "type", "uniq", "wc", "whereis", "which",
+]);
+export const ASK_COMMANDS: string[][] = [
+  ["git", "push"],
+  ["git", "pull"],
+  ["npm", "install"], ["npm", "i"], ["npm", "ci"], ["npm", "add"], ["npm", "remove"], ["npm", "uninstall"], ["npm", "update"],
+  ["pnpm", "install"], ["pnpm", "i"], ["pnpm", "add"], ["pnpm", "remove"], ["pnpm", "uninstall"], ["pnpm", "update"], ["pnpm", "up"],
+  ["yarn", "install"], ["yarn", "add"], ["yarn", "remove"], ["yarn", "uninstall"], ["yarn", "upgrade"], ["yarn", "up"],
+  ["bun", "install"], ["bun", "add"], ["bun", "remove"], ["bun", "uninstall"], ["bun", "update"],
+  ["cargo", "install"], ["cargo", "add"], ["cargo", "remove"], ["cargo", "update"],
+  ["go", "install"], ["go", "get"],
+  ["pip", "install"], ["pip", "uninstall"], ["pip3", "install"], ["pip3", "uninstall"],
+  ["poetry", "add"], ["poetry", "install"], ["poetry", "remove"], ["poetry", "update"],
+  ["uv", "add"], ["uv", "remove"], ["uv", "sync"], ["uv", "lock"], ["uv", "pip", "install"], ["uv", "pip", "uninstall"],
+  ["rm", "-rf"],
+  ["rm", "-fr"],
+];
+
+export const DENY_COMMANDS: string[][] = [
+  ["git", "reset", "--hard"],
+  ["git", "clean", "-f"],
+  ["git", "push", "--force"],
+  ["git", "push", "--force-with-lease"],
+  ["git", "branch", "-D"],
+  ["docker", "system", "prune"],
+  ["docker", "volume", "rm"],
+];
+
+export const SERVICE_COMMANDS: string[][] = [
+  ["docker", "compose", "up"],
+  ["docker-compose", "up"],
+  ["npm", "run", "dev"],
+  ["pnpm", "dev"],
+  ["yarn", "dev"],
+  ["bun", "run", "dev"],
+  ["cargo", "watch"],
+];
+
+export const DANGEROUS_ASK_COMMANDS: string[][] = [
+  ["dd"], ["mkfs"], ["chmod"], ["chown"], ["kill"], ["pkill"], ["killall"],
+  ["shutdown"], ["reboot"], ["poweroff"], ["halt"],
+  ["systemctl", "stop"], ["systemctl", "restart"], ["systemctl", "disable"],
+  ["docker", "rm"], ["docker", "container", "rm"], ["docker", "image", "rm"],
+  ["docker", "compose", "down"], ["kubectl", "delete"],
+];
+
+export const COMPOUND_SOURCE_CODE_FILENAME = /^[^.]+\..+\.(?:[cm]?[jt]sx?|py|rb|go|rs|java|kt|kts|c(?:c|pp|xx)?|h(?:pp)?|cs|php|swift|scala|vue|svelte|astro)$/i;
+
+export const PROTECTED_PATH_MARKERS = [
+  ".env",
+  ".envrc",
+  "credentials.",
+  "secrets.",
+  ".pem",
+  ".key",
+  ".p12",
+  ".pfx",
+  ".npmrc",
+  ".netrc",
+  ".pypirc",
+  ".git-credentials",
+  ".ssh/",
+  ".config/gh/",
+  ".aws/",
+  ".kube/",
+  "/.git/",
+  ".git/",
+  "id_rsa",
+  "id_ed25519",
+  "id_ecdsa",
+  "id_dsa",
+];
+
+/**
+ * Built-in Pi tools with specialized policy.
+ * Legacy discovery tools (grep/find/ls) are blocked so agents use bash with
+ * modern shell tools (rg/fdfind/eza) per the kernel. recall is first-party memory
+ * lookup. Managed MCP operations are approved only when classified safe.
+ */
+export const SPECIALIZED_TOOLS = new Set([
+  "bash",
+  "write",
+  "edit",
+  "read",
+  "recall",
+  "grep",
+  "find",
+  "ls",
+]);
+
+export const WRAPPER_COMMANDS = new Set(["rtk", "sudo", "command", "nohup", "nice", "time", "env"]);
+/** RTK subcommands that execute another command and must expose it to policy matching. */
+export const RTK_EXECUTION_WRAPPERS = new Set(["proxy", "err", "test", "summary", "run"]);
+/**
+ * Every native family supported by RTK must go through RTK, including
+ * discovery commands. Modern replacements remain direct only when RTK does
+ * not support that command family.
+ */
+export const RTK_REQUIRED_COMMANDS = new Set([
+  "git", "gh", "glab", "aws", "psql", "pnpm",
+  "dotnet", "docker", "kubectl", "oc", "wget",
+  "jest", "vitest", "prisma", "tsc", "next", "lint", "prettier", "format",
+  "playwright", "cargo", "npm", "npx", "curl", "ruff", "pytest", "mypy",
+  "rake", "rubocop", "rspec", "pip", "go", "gt", "golangci-lint", "gradlew", "mvn",
+  "ecs", "paratest", "pest", "php", "phpstan", "phpunit", "pint", "sbt", "uv",
+  "ls", "tree", "find", "diff", "grep", "rg", "wc",
+]);
+/** Reserved for future RTK-native families that are explicitly exempted. */
+export const RTK_OPTIONAL_COMMANDS = new Set([]);
+
+/** Interpreters that execute opaque code or script files; always approval-required. */
+export const INTERPRETER_BASES = new Set([
+  "bash",
+  "sh",
+  "dash",
+  "zsh",
+  "ksh",
+  "fish",
+  "node",
+  "nodejs",
+  "python",
+  "python2",
+  "python3",
+  "ruby",
+  "perl",
+  "php",
+  "lua",
+  "deno",
+  "bun",
+  "pwsh",
+  "powershell",
+]);
+
+export function tokenize(command: string): string[] {
+  const tokens: string[] = [];
+  let current = "";
+  let quote: "'" | '"' | null = null;
+  for (let i = 0; i < command.length; i += 1) {
+    const ch = command[i];
+    if (quote) {
+      if (ch === quote) {
+        quote = null;
+      } else if (ch === "\\" && quote === '"' && i + 1 < command.length) {
+        if (command[i + 1] === "\r" && command[i + 2] === "\n") i += 2;
+        else if (command[i + 1] === "\n") i += 1;
+        else {
+          current += command[i + 1];
+          i += 1;
+        }
+      } else {
+        current += ch;
+      }
+      continue;
+    }
+    if (ch === "'" || ch === '"') {
+      quote = ch;
+      continue;
+    }
+    if (ch === "\\" && i + 1 < command.length) {
+      if (command[i + 1] === "\r" && command[i + 2] === "\n") i += 2;
+      else if (command[i + 1] === "\n") i += 1;
+      else {
+        current += command[i + 1];
+        i += 1;
+      }
+      continue;
+    }
+    if (/\s/.test(ch)) {
+      if (current) {
+        tokens.push(current);
+        current = "";
+      }
+      continue;
+    }
+    current += ch;
+  }
+  if (current) {
+    tokens.push(current);
+  }
+  return tokens;
+}
+
+/** Split on shell command separators outside quotes. Unbalanced quotes => single segment (caller may fail closed). */
+export function splitShellSegments(command: string): string[] {
+  const segments: string[] = [];
+  let current = "";
+  let quote: "'" | '"' | null = null;
+  for (let i = 0; i < command.length; i += 1) {
+    const ch = command[i];
+    const next = command[i + 1];
+    if (quote) {
+      current += ch;
+      if (ch === quote) {
+        quote = null;
+      } else if (ch === "\\" && quote === '"' && i + 1 < command.length) {
+        if (command[i + 1] === "\r" && command[i + 2] === "\n") {
+          current = current.slice(0, -1);
+          i += 2;
+        } else if (command[i + 1] === "\n") {
+          current = current.slice(0, -1);
+          i += 1;
+        } else {
+          current += command[i + 1];
+          i += 1;
+        }
+      }
+      continue;
+    }
+    if (ch === "\\" && i + 1 < command.length) {
+      if (command[i + 1] === "\r" && command[i + 2] === "\n") i += 2;
+      else if (command[i + 1] === "\n") i += 1;
+      else {
+        current += ch + command[i + 1];
+        i += 1;
+      }
+      continue;
+    }
+    if (ch === "'" || ch === '"') {
+      quote = ch;
+      current += ch;
+      continue;
+    }
+    if (ch === "\n" || ch === "\r") {
+      if (current.trim()) {
+        segments.push(current.trim());
+      }
+      current = "";
+      if (ch === "\r" && next === "\n") {
+        i += 1;
+      }
+      continue;
+    }
+    if (ch === ";" || ch === "|") {
+      if (ch === "|" && next === "|") {
+        if (current.trim()) {
+          segments.push(current.trim());
+        }
+        current = "";
+        i += 1;
+        continue;
+      }
+      if (current.trim()) {
+        segments.push(current.trim());
+      }
+      current = "";
+      continue;
+    }
+    if (ch === "&") {
+      if (next === "&") {
+        if (current.trim()) {
+          segments.push(current.trim());
+        }
+        current = "";
+        i += 1;
+        continue;
+      }
+      // background &
+      if (current.trim()) {
+        segments.push(current.trim());
+      }
+      current = "";
+      continue;
+    }
+    current += ch;
+  }
+  if (current.trim()) {
+    segments.push(current.trim());
+  }
+  return segments.length > 0 ? segments : [command.trim()].filter(Boolean);
+}
+
+export function hasUnquotedGlob(command: string): boolean {
+  let quote: "'" | '"' | null = null;
+  for (let i = 0; i < command.length; i += 1) {
+    const ch = command[i];
+    if (quote) {
+      if (ch === quote) quote = null;
+      else if (ch === "\\" && quote === '"') i += 1;
+      continue;
+    }
+    if (ch === "\\") {
+      i += 1;
+      continue;
+    }
+    if (ch === "'" || ch === '"') {
+      quote = ch;
+      continue;
+    }
+    if (ch === "*" || ch === "?" || ch === "[") return true;
+  }
+  return false;
+}
+
+export function hasAmbiguousShellSyntax(command: string): boolean {
+  // Expansions, substitutions, process substitutions, unquoted globs, and eval
+  // make static command/path matching unreliable — fail closed with ask.
+  // Source-dot only at segment start (not path tokens like "cd .").
+  return /\$|`|[<>]\(|\beval\b|\bsource\b|(?:^|[;&|]\s*)\.\s+\S/.test(command) || hasUnquotedGlob(command);
+}
+
+export function hasShellControlSyntax(command: string): boolean {
+  // Control structures require shell parsing across segments; fail closed with approval instead of
+  // treating keywords such as `if` or `while` as raw executables.
+  return /(?:^|[;\n]\s*)(?:if|for|while|until|case|select|coproc|function|then|elif|else|fi|do|done|esac)\b|(?:^|[;\n]\s*)[{}]/.test(command);
+}
+
+export function hasUnbalancedQuotes(command: string): boolean {
+  let quote: "'" | '"' | null = null;
+  for (let i = 0; i < command.length; i += 1) {
+    const ch = command[i];
+    if (quote) {
+      if (ch === quote) quote = null;
+      else if (ch === "\\" && quote === '"') i += 1;
+    } else if (ch === "\\") {
+      i += 1;
+    } else if (ch === "'" || ch === '"') {
+      quote = ch;
+    }
+  }
+  return quote !== null;
+}
+
+export function baseName(token: string): string {
+  const slash = Math.max(token.lastIndexOf("/"), token.lastIndexOf("\\"));
+  return slash >= 0 ? token.slice(slash + 1) : token;
+}
+
+/**
+ * Detect interpreter invocations whose code is opaque to static matching.
+ * Inline/eval bodies and non-project modules remain gated; existing project-local
+ * script files are routine automation and may run autonomously.
+ */
+export function isInterpreterOpaque(tokens: string[]): boolean {
+  if (tokens.length === 0) {
+    return false;
+  }
+  const base = baseName(tokens[0]);
+  if (!INTERPRETER_BASES.has(base)) {
+    return false;
+  }
+  for (let i = 1; i < tokens.length; i += 1) {
+    const t = tokens[i];
+    if (
+      t === "-c" || t === "-e" || t === "--eval" || t === "-Command" ||
+      t.startsWith("--eval=") || t === "-"
+    ) {
+      return true;
+    }
+    if (t === "-m" || t === "--module") {
+      // json.tool parses data; unlike a general module it does not execute
+      // project code and remains an allowed fallback when jq is unavailable.
+      return tokens[i + 1] !== "json.tool";
+    }
+    // Combined short flags: bash -lc, bash -ic, etc.
+    if (t.startsWith("-") && !t.startsWith("--") && t.length > 2) {
+      if ((base === "bash" || base === "sh" || base === "dash" || base === "zsh" || base === "ksh") && t.includes("c")) {
+        return true;
+      }
+      continue;
+    }
+    // Existing project-local script files are routine repository automation.
+    if (!t.startsWith("-")) return !isExistingProjectConfinedLocalPath(t);
+  }
+  return false;
+}
+
+export function isOpaqueExecutablePath(rawTokens: string[]): boolean {
+  const trustedRoots = ["/bin", "/sbin", "/usr/bin", "/usr/sbin", "/usr/local/bin", "/opt/homebrew/bin"];
+  const isOpaque = (executable: string | undefined): boolean => {
+    if (!executable) return false;
+    if (isExistingProjectConfinedLocalPath(executable)) return false;
+    if (executable.startsWith("~") || executable.startsWith("./") || executable.startsWith("../")) return true;
+    if (!isAbsolute(executable)) return false;
+    const normalizedExecutable = resolve(executable);
+    return !trustedRoots.some((root) =>
+      normalizedExecutable === root || normalizedExecutable.startsWith(`${root}/`)
+    );
+  };
+  const firstExecutable = rawTokens.find((token) => !/^[A-Za-z_][A-Za-z0-9_]*=/.test(token));
+  const unwrappedExecutable = unwrapTokens(rawTokens).tokens[0];
+  return isOpaque(firstExecutable) || isOpaque(unwrappedExecutable);
+}
+
+export function unwrapTokens(tokens: string[]): { tokens: string[]; wrappers: Set<string>; opaque: boolean } {
+  let i = 0;
+  let opaque = false;
+  const wrappers = new Set<string>();
+  while (i < tokens.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(tokens[i])) {
+    i += 1;
+  }
+  while (i < tokens.length && WRAPPER_COMMANDS.has(baseName(tokens[i]))) {
+    const wrapper = baseName(tokens[i]);
+    wrappers.add(wrapper);
+    i += 1;
+    if (wrapper === "env") {
+      while (i < tokens.length) {
+        if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(tokens[i])) {
+          i += 1;
+          continue;
+        }
+        if (tokens[i] === "-S") {
+          // env -S parses and executes its following string as a command.
+          // The string is opaque to this tokenizer, so approval is required.
+          opaque = true;
+          i += tokens[i + 1] ? 2 : 1;
+          continue;
+        }
+        if (tokens[i] === "-u" || tokens[i] === "-C") {
+          i += tokens[i + 1] ? 2 : 1;
+          continue;
+        }
+        if (tokens[i].startsWith("-") && tokens[i] !== "--") {
+          i += 1;
+          continue;
+        }
+        if (tokens[i] === "--") {
+          i += 1;
+        }
+        break;
+      }
+      continue;
+    }
+    if (wrapper === "sudo" || wrapper === "nice" || wrapper === "command") {
+      while (i < tokens.length && tokens[i].startsWith("-") && tokens[i] !== "--") {
+        if (["-u", "-g", "-C", "-n", "-p"].includes(tokens[i]) && tokens[i + 1]) {
+          i += 2;
+        } else {
+          i += 1;
+        }
+      }
+      if (tokens[i] === "--") {
+        i += 1;
+      }
+      continue;
+    }
+    if (wrapper === "rtk") {
+      while (i < tokens.length && (
+        tokens[i] === "--ultra-compact" || tokens[i] === "--skip-env" ||
+        tokens[i] === "-v" || tokens[i] === "-vv" || tokens[i] === "-vvv" ||
+        tokens[i] === "--verbose"
+      )) i += 1;
+
+      if (RTK_EXECUTION_WRAPPERS.has(tokens[i])) {
+        const rtkOperation = tokens[i];
+        i += 1;
+        while (tokens[i] === "--ultra-compact" || tokens[i] === "--skip-env") i += 1;
+        if (tokens[i] === "--") i += 1;
+        if (rtkOperation === "run" && (
+          tokens[i] === "-c" || tokens[i] === "--command" || tokens[i]?.startsWith("--command=")
+        )) {
+          // `rtk run -c` passes an opaque body to sh -c.
+          opaque = true;
+          i += tokens[i]?.startsWith("--command=") ? 1 : (tokens[i + 1] ? 2 : 1);
+        } else if (tokens[i]?.startsWith("-")) {
+          // Unknown execution-wrapper options could hide the effective command.
+          opaque = true;
+        }
+        // proxy/err/test/summary and positional run expose the effective command
+        // as their remaining arguments, so the normal safety policy classifies it.
+        continue;
+      }
+    }
+    // nohup / time: consume only the wrapper token
+  }
+  return { tokens: tokens.slice(i), wrappers, opaque };
+}
+
+export function stripWrappers(tokens: string[]): string[] {
+  return unwrapTokens(tokens).tokens;
+}
+
+export function hasInlineGitAliasInvocation(tokens: string[]): boolean {
+  if (tokens[0] !== "git") {
+    return false;
+  }
+  const aliases = new Set<string>();
+  let i = 1;
+  while (i < tokens.length && tokens[i].startsWith("-")) {
+    const option = tokens[i];
+    let value = "";
+    if (option === "-c") {
+      value = tokens[i + 1] || "";
+      i += 2;
+    } else if (option.startsWith("-c") && option.length > 2) {
+      value = option.slice(2);
+      i += 1;
+    } else if (option === "--config-env") {
+      value = tokens[i + 1] || "";
+      i += 2;
+    } else if (option.startsWith("--config-env=")) {
+      value = option.slice("--config-env=".length);
+      i += 1;
+    } else if (option === "-C" || option === "--git-dir" || option === "--work-tree" || option === "--namespace") {
+      i += 2;
+      continue;
+    } else if (option.startsWith("--git-dir=") || option.startsWith("--work-tree=") || option.startsWith("--namespace=")) {
+      i += 1;
+      continue;
+    } else {
+      i += 1;
+      continue;
+    }
+    const match = /^alias\.([^=]+)=/.exec(value);
+    if (match) aliases.add(match[1]);
+    const configEnvMatch = /^alias\.([^=]+)=/.exec(value);
+    if (configEnvMatch) aliases.add(configEnvMatch[1]);
+  }
+  return aliases.has(tokens[i]);
+}
+
+export function gitEffectiveTokens(tokens: string[]): string[] {
+  if (tokens[0] !== "git") {
+    return tokens;
+  }
+  const out = ["git"];
+  let i = 1;
+  while (i < tokens.length) {
+    const t = tokens[i];
+    if (t === "--") {
+      i += 1;
+      break;
+    }
+    if (!t.startsWith("-")) {
+      break;
+    }
+    // Options that take a value before the Git subcommand.
+    if (t === "-C" || t === "-c" || t === "--git-dir" || t === "--work-tree" || t === "--namespace" || t === "--config-env") {
+      i += tokens[i + 1] ? 2 : 1;
+      continue;
+    }
+    // Combined forms like -cfoo.bar=baz and long options with inline values.
+    if (t.startsWith("-c") && t.length > 2) {
+      i += 1;
+      continue;
+    }
+    if (t.startsWith("--git-dir=") || t.startsWith("--work-tree=") || t.startsWith("--namespace=") || t.startsWith("--config-env=")) {
+      i += 1;
+      continue;
+    }
+    i += 1;
+  }
+  out.push(...tokens.slice(i));
+  return out;
+}
+
+export function normalizeTokens(tokens: string[]): string[] {
+  const stripped = stripWrappers(tokens);
+  if (stripped[0]) {
+    stripped[0] = baseName(stripped[0]);
+  }
+  if (stripped[0] === "git") {
+    return gitEffectiveTokens(stripped);
+  }
+  return stripped;
+}
+
+export function packageOperation(tokens: string[]): { operation: string | null; opaque: boolean } {
+  const valueOptions = new Set(["--prefix", "--dir", "--manifest-path"]);
+  const valuelessOptions = new Set(["--silent", "--json", "--offline", "--version"]);
+  let i = 1;
+  while (i < tokens.length) {
+    const token = tokens[i];
+    if (!token.startsWith("-")) return { operation: token, opaque: false };
+    if (token === "--") return { operation: tokens[i + 1] || null, opaque: false };
+    if (token.includes("=")) {
+      i += 1;
+      continue;
+    }
+    if (valueOptions.has(token)) {
+      if (!tokens[i + 1]) return { operation: null, opaque: true };
+      i += 2;
+      continue;
+    }
+    if (valuelessOptions.has(token)) {
+      i += 1;
+      continue;
+    }
+    // Do not let an unparsed global option hide a dependency operation.
+    return { operation: null, opaque: true };
+  }
+  return { operation: null, opaque: false };
+}
+
+export function hasOpaquePackageOptions(tokens: string[]): boolean {
+  return new Set(["npm", "npx", "pnpm", "yarn", "bun", "cargo", "go", "pip", "pip3", "poetry", "uv"]).has(tokens[0])
+    && packageOperation(tokens).opaque;
+}
+
+export function hasDependencyWrite(tokens: string[]): boolean {
+  const manager = tokens[0];
+  const { operation } = packageOperation(tokens);
+  if (!manager || !operation) return false;
+  const writes: Record<string, Set<string>> = {
+    npm: new Set(["install", "i", "ci", "add", "remove", "uninstall", "update"]),
+    pnpm: new Set(["install", "i", "add", "remove", "uninstall", "update", "up"]),
+    yarn: new Set(["install", "add", "remove", "uninstall", "upgrade", "up"]),
+    bun: new Set(["install", "add", "remove", "uninstall", "update"]),
+    cargo: new Set(["install", "add", "remove", "update"]),
+    go: new Set(["install", "get"]),
+    pip: new Set(["install", "uninstall"]),
+    pip3: new Set(["install", "uninstall"]),
+    poetry: new Set(["add", "install", "remove", "update"]),
+    uv: new Set(["add", "remove", "sync", "lock"]),
+  };
+  if (manager === "uv" && operation === "pip") {
+    return tokens.slice(2).some((token) => token === "install" || token === "uninstall" || token === "sync");
+  }
+  return writes[manager]?.has(operation) ?? false;
+}
+
+export function hasOpaquePackageExecution(tokens: string[]): boolean {
+  const manager = tokens[0];
+  if (manager === "npx") return true;
+  const { operation } = packageOperation(tokens);
+  if (!manager || !operation) return false;
+  const executionOperations: Record<string, Set<string>> = {
+    npm: new Set(["exec", "rebuild", "run", "run-script", "test", "start"]),
+    bun: new Set(["run", "test", "x"]),
+  };
+  if (executionOperations[manager]?.has(operation)) return true;
+  if (manager === "pnpm" || manager === "yarn") {
+    const nonExecutionOperations = new Set([
+      "audit", "help", "info", "licenses", "list", "outdated", "root", "search", "view", "why",
+    ]);
+    return !nonExecutionOperations.has(operation);
+  }
+  return false;
+}
+
+export const B_AGENTIC_SKILL_NAMES = new Set([
+  "b-plan", "b-research", "b-design", "b-implement", "b-init", "b-refactor",
+  "b-debug", "b-test", "b-browser", "b-review", "b-commit", "b-pr-summary",
+]);
+
+export const LOCAL_PATH_COMMANDS = new Set([
+  "7z", "ar", "awk", "bat", "cat", "cmp", "cp", "cpio", "curl", "diff", "eza", "fd", "file", "find", "git", "grep", "head",
+  "install", "less", "ln", "ls", "make", "mkdir", "mkfifo", "mknod", "more", "mv", "pax", "readlink", "realpath", "rg", "rm", "rmdir", "rsync", "sed", "shred", "stat",
+  "tail", "tar", "tee", "test", "touch", "truncate", "unzip", "unlink", "wc", "wget", "zip",
+]);
+
+export function expandLocalPath(pathValue: string): string {
+  if (pathValue === "~") return homedir();
+  if (pathValue.startsWith("~/")) return resolve(homedir(), pathValue.slice(2));
+  return resolve(pathValue);
+}
+
+export function isConfinedRelativePath(pathValue: string, projectRoot: string): boolean {
+  const projectRelative = relative(projectRoot, pathValue);
+  return !isAbsolute(projectRelative) && projectRelative !== ".." &&
+    !projectRelative.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`);
+}
+
+export function isInstalledBAgenticSkillPath(pathValue: string): boolean {
+  if (!pathValue || isProtectedLocalPath(pathValue)) return false;
+  try {
+    const configuredAgentDir = process.env.PI_CODING_AGENT_DIR?.trim() || resolve(homedir(), ".pi", "agent");
+    const agentRoot = realpathSync(expandLocalPath(configuredAgentDir));
+    const absoluteTarget = realpathSync(expandLocalPath(pathValue));
+    const targetParts = relative(agentRoot, absoluteTarget).split(/[\\/]/);
+    if (targetParts.length !== 3 || targetParts[0] !== "skills" || !B_AGENTIC_SKILL_NAMES.has(targetParts[1]) || targetParts[2] !== "SKILL.md") return false;
+    return isConfinedRelativePath(realpathSync(absoluteTarget), agentRoot);
+  } catch {
+    return false;
+  }
+}
+
+export function isProjectConfinedLocalPath(pathValue: string): boolean {
+  if (!pathValue || isProtectedLocalPath(pathValue)) return false;
+  try {
+    const projectRoot = realpathSync(process.cwd());
+    const absoluteTarget = expandLocalPath(pathValue);
+    let existing = absoluteTarget;
+    while (!existsSync(existing)) {
+      const parent = dirname(existing);
+      if (parent === existing) return false;
+      existing = parent;
+    }
+    return isConfinedRelativePath(absoluteTarget, projectRoot) &&
+      isConfinedRelativePath(realpathSync(existing), projectRoot);
+  } catch {
+    return false;
+  }
+}
+
+export function isExistingProjectConfinedLocalPath(pathValue: string): boolean {
+  return existsSync(expandLocalPath(pathValue)) && isProjectConfinedLocalPath(pathValue);
+}
+
+export function isExternalUrl(value: string): boolean {
+  return /^[A-Za-z][A-Za-z0-9+.-]*:\/\//.test(value);
+}
+
+export function isRemoteTarget(value: string): boolean {
+  if (/^[A-Za-z]:[\\/]/.test(value)) return false;
+  return /^(?:[^@/\s]+@)?(?:\[[^\]]+\]|[A-Za-z0-9._-]+):.+/.test(value);
+}
+
+export function hasWorkingDirectoryChangeRisk(rawTokens: string[], tokens: string[]): boolean {
+  const command = baseName(tokens[0] || "");
+  if (["cd", "popd", "pushd"].includes(command)) return true;
+  for (let i = 0; i < rawTokens.length; i += 1) {
+    const token = rawTokens[i];
+    let target = "";
+    if (token === "-C" || token === "--chdir" || token === "--directory") {
+      target = rawTokens[i + 1] || "";
+    } else if (token.startsWith("-C") && token.length > 2) {
+      target = token.slice(2);
+    } else if (token.startsWith("--chdir=") || token.startsWith("--directory=")) {
+      target = token.slice(token.indexOf("=") + 1);
+    } else {
+      continue;
+    }
+    if (!target || !isProjectConfinedLocalPath(target)) return true;
+  }
+  return false;
+}
+
+export function hasLocalFilesystemRisk(tokens: string[]): boolean {
+  if (tokens.length === 0) return false;
+
+  const command = baseName(tokens[0]);
+  if (["curl", "wget"].includes(command)) {
+    for (let i = 1; i < tokens.length; i += 1) {
+      const token = tokens[i];
+      const inlineOutput = token.match(/^--(?:output|output-document)=(.*)$/);
+      if (inlineOutput?.[1] && !isProjectConfinedLocalPath(inlineOutput[1])) return true;
+      if (["-o", "-O", "--output", "--output-document"].includes(token)) {
+        const target = tokens[i + 1] || "";
+        if (target && !isProjectConfinedLocalPath(target)) return true;
+        i += 1;
+      }
+    }
+  }
+
+  for (let i = 0; i < tokens.length; i += 1) {
+    const token = tokens[i];
+    const redirection = token.match(/^(?:\d+)?(?:>>|>|&>>|&>|<)(.*)$/);
+    if (!redirection) continue;
+    const target = redirection[1] || tokens[i + 1] || "";
+    if (target && !/^&?\d+$/.test(target) && !isProjectConfinedLocalPath(target)) return true;
+  }
+
+  if (command === "rm") return true;
+  if (command === "rsync" && tokens.slice(1).some(isRemoteTarget)) return true;
+  if (!LOCAL_PATH_COMMANDS.has(command)) return false;
+  return tokens.slice(1).some((token) => {
+    if (!token || token.startsWith("-") || isNegatedGlob(token) || isExternalUrl(token) || /^&?\d+$/.test(token)) return false;
+    return !isProjectConfinedLocalPath(token);
+  });
+}
+
+export function hasExternalOrSharedMutationRisk(tokens: string[]): boolean {
+  const command = tokens[0];
+  if (!command) return false;
+
+  if (["aws", "psql", "scp", "sftp", "ssh"].includes(command)) return true;
+
+  if (["npm", "pnpm", "yarn", "bun"].includes(command)) {
+    const registryMutationMarkers = new Set([
+      "access", "deprecate", "dist-tag", "link", "owner", "publish", "star", "token",
+      "unlink", "unpublish", "unstar", "version",
+    ]);
+    const externalScriptMarkers = new Set(["deploy", "release", "ship", "upload"]);
+    if (tokens.slice(1).some((token) => registryMutationMarkers.has(token) || externalScriptMarkers.has(token))) return true;
+    if (tokens.includes("config") && tokens.slice(tokens.indexOf("config") + 1).some((token) => ["delete", "set"].includes(token))) return true;
+  }
+
+  if (command === "gh" || command === "glab") {
+    const mutationMarkers = new Set([
+      "api", "approve", "archive", "auth", "cancel", "checkout", "clone", "close", "comment",
+      "create", "delete", "disable", "edit", "enable", "fork", "merge", "ready", "reopen",
+      "request-changes", "set", "transfer", "unarchive", "upload",
+    ]);
+    if (tokens.slice(1).some((token) => mutationMarkers.has(token))) return true;
+    if (command === "gh" && tokens[1] === "workflow" && tokens[2] === "run") return true;
+    const readOnlyMarkers = new Set([
+      "checks", "diff", "get", "help", "list", "logs", "search", "show", "status", "trace",
+      "verify", "version", "view", "watch",
+    ]);
+    return !tokens.slice(1).some((token) => readOnlyMarkers.has(token));
+  }
+
+  if (command === "kubectl" || command === "oc") {
+    const mutationOperations = new Set([
+      "annotate", "apply", "attach", "autoscale", "certificate", "cordon", "cp", "create",
+      "delete", "drain", "edit", "exec", "expose", "label", "patch", "replace", "rollout",
+      "run", "scale", "set", "taint", "uncordon",
+    ]);
+    if (tokens.slice(1).some((token) => mutationOperations.has(token))) return true;
+    const readOnlyOperations = new Set([
+      "api-resources", "api-versions", "auth", "cluster-info", "describe", "diff",
+      "explain", "get", "logs", "top", "version", "wait",
+    ]);
+    return !tokens.slice(1).some((token) => readOnlyOperations.has(token));
+  }
+
+  if (command === "docker") {
+    const mutationOperations = new Set([
+      "attach", "build", "commit", "cp", "create", "exec", "import", "kill", "load",
+      "login", "logout", "pause", "pull", "push", "rename", "restart", "rm", "rmi", "run",
+      "save", "start", "stop", "tag", "unpause", "update",
+    ]);
+    if (tokens[1] === "compose") {
+      const composeMutationOperations = new Set([
+        "build", "cp", "create", "down", "exec", "kill", "pause", "pull", "push", "restart",
+        "rm", "run", "start", "stop", "unpause", "up", "watch",
+      ]);
+      if (tokens.slice(2).some((token) => composeMutationOperations.has(token))) return true;
+      return !tokens.slice(2).some((token) => new Set(["config", "images", "logs", "ls", "ps", "top"]).has(token));
+    }
+    if (tokens.slice(1).some((token) => mutationOperations.has(token))) return true;
+    const readOnlyOperations = new Set([
+      "diff", "events", "history", "images", "info", "inspect", "logs", "ls", "port",
+      "ps", "stats", "top", "version",
+    ]);
+    return !tokens.slice(1).some((token) => readOnlyOperations.has(token));
+  }
+
+  if (command === "curl") {
+    return tokens.slice(1).some((token) =>
+      /^(?:-d|-F|-T|-X|--data(?:-|$)|--form(?:-|$)|--request(?:=|$)|--upload-file(?:=|$))/.test(token)
+    );
+  }
+
+  if (command === "wget") {
+    return tokens.slice(1).some((token) =>
+      /^(?:--method(?:=|$)|--post-data(?:=|$)|--post-file(?:=|$)|--body-data(?:=|$)|--body-file(?:=|$))/.test(token)
+    );
+  }
+
+  return false;
+}
+
+export function matchesPrefix(tokens: string[], pattern: string[]): boolean {
+  if (tokens.length < pattern.length) {
+    return false;
+  }
+  for (let i = 0; i < pattern.length; i += 1) {
+    if (tokens[i] !== pattern[i]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+export function shortFlagChars(tokens: string[]): string {
+  let chars = "";
+  for (const token of tokens) {
+    if (token.startsWith("--")) {
+      continue;
+    }
+    if (token.startsWith("-") && token.length > 1) {
+      chars += token.slice(1);
+    }
+  }
+  return chars;
+}
+
+export function isRmRecursive(tokens: string[]): boolean {
+  if (tokens[0] !== "rm") {
+    return false;
+  }
+  const rest = tokens.slice(1);
+  const chars = shortFlagChars(rest);
+  return /[rR]/.test(chars) || rest.includes("--recursive");
+}
+
+export function hasOpaqueGitOptions(tokens: string[]): boolean {
+  if (tokens[0] !== "git") return false;
+  const valueOptions = new Set(["-C", "-c", "--git-dir", "--work-tree", "--namespace", "--config-env"]);
+  const valuelessOptions = new Set(["--no-pager", "--bare", "--literal-pathspecs", "--no-optional-locks", "--version"]);
+  for (let i = 1; i < tokens.length; i += 1) {
+    const token = tokens[i];
+    if (!token.startsWith("-")) return false;
+    if (token === "--") return false;
+    if (token.startsWith("-c") || token.includes("=")) continue;
+    if (valueOptions.has(token)) {
+      i += 1;
+      continue;
+    }
+    if (valuelessOptions.has(token)) continue;
+    return true;
+  }
+  return false;
+}
+
+export function isGitForcePush(tokens: string[]): boolean {
+  if (tokens[0] !== "git") {
+    return false;
+  }
+  if (!tokens.includes("push")) {
+    return false;
+  }
+  return (
+    tokens.includes("--force") ||
+    tokens.includes("--force-with-lease") ||
+    tokens.includes("-f")
+  );
+}
+
+export function isGitCleanForce(tokens: string[]): boolean {
+  if (!matchesPrefix(tokens, ["git", "clean"])) {
+    return false;
+  }
+  const rest = tokens.slice(2);
+  if (rest.includes("--force")) {
+    return true;
+  }
+  return rest.some((t) => {
+    if (t === "-f" || t.startsWith("-f")) {
+      return true;
+    }
+    return t.startsWith("-") && !t.startsWith("--") && t.includes("f");
+  });
+}
+
+export function isGitBranchForceDelete(tokens: string[]): boolean {
+  if (!matchesPrefix(tokens, ["git", "branch"])) {
+    return false;
+  }
+  return tokens.includes("-D") || (tokens.includes("--delete") && tokens.includes("--force"));
+}
+
+export function isGitDestructiveWorktreeOrStashOperation(tokens: string[]): boolean {
+  if (tokens[0] !== "git") return false;
+  if (tokens[1] === "restore") return true;
+  if (tokens[1] === "checkout") {
+    return tokens.includes("--") || tokens.includes("--force") || shortFlagChars(tokens.slice(2)).includes("f");
+  }
+  if (tokens[1] === "switch") return tokens.includes("--discard-changes");
+  return tokens[1] === "stash" && tokens.slice(2).some((token) => ["clear", "drop", "pop"].includes(token));
+}
+
+export function hasGitMutationRisk(tokens: string[]): boolean {
+  if (tokens[0] !== "git") return false;
+  const operation = tokens[1];
+  if (!operation) return false;
+  const readOnlyOperations = new Set([
+    "annotate", "blame", "cat-file", "count-objects", "describe", "diff", "diff-tree",
+    "for-each-ref", "fsck", "grep", "help", "log", "ls-files", "ls-remote", "ls-tree",
+    "merge-base", "name-rev", "reflog", "rev-list", "rev-parse", "shortlog", "show",
+    "show-ref", "status", "verify-commit", "verify-tag", "version", "whatchanged",
+  ]);
+  if (readOnlyOperations.has(operation)) return false;
+  if (operation === "branch" || operation === "tag") {
+    const rest = tokens.slice(2);
+    const mutationFlags = new Set([
+      "-c", "-C", "-d", "-D", "-f", "-m", "-M", "-s", "-u",
+      "--annotate", "--copy", "--create-reflog", "--delete", "--edit-description",
+      "--force", "--move", "--set-upstream-to", "--sign", "--unset-upstream",
+    ]);
+    if (rest.some((token) => mutationFlags.has(token))) return true;
+    const listMode = rest.some((token) => token === "-l" || token === "--list");
+    const valueOptions = new Set([
+      "--contains", "--format", "--merged", "--no-contains", "--no-merged", "--points-at", "--sort",
+    ]);
+    for (let i = 0; i < rest.length; i += 1) {
+      if (valueOptions.has(rest[i])) {
+        i += 1;
+      } else if (!rest[i].startsWith("-") && !listMode) {
+        return true;
+      }
+    }
+    return false;
+  }
+  if (operation === "stash") return !new Set(["list", "show"]).has(tokens[2] || "list");
+  if (operation === "remote") return !new Set(["-v", "get-url", "show"]).has(tokens[2] || "show");
+  return true;
+}
+
+export function isRtkWrapped(rawTokens: string[]): boolean {
+  return unwrapTokens(rawTokens).wrappers.has("rtk");
+}
+
+export function hasOpaqueWrapper(rawTokens: string[]): boolean {
+  return unwrapTokens(rawTokens).opaque;
+}
+
+export function isStandaloneEnvCommand(rawTokens: string[]): boolean {
+  const unwrapped = unwrapTokens(rawTokens);
+  return (
+    unwrapped.wrappers.has("env") &&
+    !unwrapped.wrappers.has("rtk") &&
+    unwrapped.tokens.length === 0
+  );
+}
+
+export function isRtkSupportedCommand(rawTokens: string[], tokens: string[]): boolean {
+  return isRtkWrapped(rawTokens) && RTK_REQUIRED_COMMANDS.has(tokens[0]);
+}
+
+export function isDirectRtkRequiredCommand(rawTokens: string[], tokens: string[]): boolean {
+  return !isRtkWrapped(rawTokens) && RTK_REQUIRED_COMMANDS.has(tokens[0]);
+}
+
+export const MODERN_SHELL_REPLACEMENTS: Record<string, readonly string[]> = {
+  grep: ["rg"],
+  find: ["fd", "fdfind"],
+  cat: ["bat", "batcat"],
+  ls: ["eza", "exa"],
+  sed: ["sd"],
+  awk: ["sd"],
+};
+
+export function modernShellToolAvailability(): Set<string> {
+  const paths = (process.env.PATH || "").split(delimiter).filter(Boolean);
+  const extensions = process.platform === "win32"
+    ? (process.env.PATHEXT || ".EXE;.CMD;.BAT").split(";")
+    : [""];
+  const available = new Set<string>();
+  for (const candidates of Object.values(MODERN_SHELL_REPLACEMENTS)) {
+    for (const candidate of candidates) {
+      if (paths.some((entry) => extensions.some((extension) => existsSync(resolve(entry, `${candidate}${extension}`))))) {
+        available.add(candidate);
+      }
+    }
+  }
+  if (paths.some((entry) => extensions.some((extension) => existsSync(resolve(entry, `jq${extension}`))))) {
+    available.add("jq");
+  }
+  return available;
+}
+
+export function availableModernReplacement(tokens: string[], available: ReadonlySet<string>): string | undefined {
+  const command = tokens[0];
+  const candidates = command === "python" || command === "python3"
+    ? (tokens[1] === "-m" && tokens[2] === "json.tool" ? ["jq"] : [])
+    : (MODERN_SHELL_REPLACEMENTS[command] || []);
+  return candidates.find((candidate) => available.has(candidate));
+}
+
+export function isLiteralGitContentPath(pathspec: string): boolean {
+  if (!pathspec || isAbsolute(pathspec) || pathspec.startsWith(":") || /[*?[\]{}]/.test(pathspec)) return false;
+  try {
+    return statSync(resolve(process.cwd(), pathspec)).isFile();
+  } catch {
+    return false;
+  }
+}
+
+export function isUnscopedGitContentRead(tokens: string[]): boolean {
+  const operation = tokens[1];
+  if (tokens[0] !== "git" || !["diff", "show", "diff-tree"].includes(operation)) return false;
+  const pathSeparator = tokens.indexOf("--");
+  const options = tokens.slice(2, pathSeparator < 0 ? undefined : pathSeparator);
+  const patchOutput = new Set(["-p", "-u", "--patch", "--patch-with-stat", "--patch-with-raw", "--binary"]);
+  if (options.some((token) => patchOutput.has(token) || token.startsWith("--word-diff") || token.startsWith("--color-words"))) {
+    return true;
+  }
+  const metadataOnly = new Set([
+    "--check", "--exit-code", "--name-only", "--name-status", "--no-patch", "--numstat",
+    "--quiet", "--raw", "--shortstat", "--stat", "--summary", "-s",
+  ]);
+  if (options.some((token) => metadataOnly.has(token))) return false;
+  if (pathSeparator < 0) return true;
+  return tokens.slice(pathSeparator + 1).some((pathspec) => !isLiteralGitContentPath(pathspec));
+}
+
+export function isVersionCheck(tokens: string[]): boolean {
+  return tokens.length === 2 && ["--version", "-V"].includes(tokens[1]);
+}
+
+export function hasShellExecutionProxy(tokens: string[]): boolean {
+  return tokens[0] === "xargs" || (
+    tokens[0] === "find" && tokens.some((token) => ["-exec", "-execdir", "-ok", "-okdir"].includes(token))
+  );
+}
+
+export function hasEnvironmentBootstrapModifier(rawTokens: string[]): boolean {
+  return rawTokens.some((token) => /^[A-Za-z_][A-Za-z0-9_]*\+?=/.test(token) || baseName(token) === "env");
+}
+
+export function segmentDecision(
+  segment: string,
+  modernTools: ReadonlySet<string> = modernShellToolAvailability(),
+): { decision: Decision; reason: string } {
+  const rawTokens = tokenize(segment);
+  const tokens = normalizeTokens(rawTokens);
+  if (hasOpaqueWrapper(rawTokens)) {
+    return {
+      decision: "ask",
+      reason: "Requires approval: env -S command string is opaque",
+    };
+  }
+  if (isStandaloneEnvCommand(rawTokens)) {
+    return {
+      decision: "ask",
+      reason: "Requires approval: use RTK for the standalone env command",
+    };
+  }
+  if (tokens.length === 0) {
+    return { decision: "allow", reason: "" };
+  }
+
+  // Shell access to a literal protected path is always approval-gated, even
+  // through rtk/wrapper commands or in a compound segment. This deliberately
+  // covers both reads and writes: the shell parser cannot reliably infer intent.
+  if (tokens.some((token) => !isNegatedGlob(token) && (isProtectedPath(token) || isProtectedLocalPath(token)))) {
+    return {
+      decision: "ask",
+      reason: "Requires approval: shell command references a protected path",
+    };
+  }
+
+  if (hasWorkingDirectoryChangeRisk(rawTokens, tokens)) {
+    return {
+      decision: "ask",
+      reason: "Requires approval: shell command changes the working directory",
+    };
+  }
+
+  if (hasLocalFilesystemRisk(tokens)) {
+    return {
+      decision: "ask",
+      reason: "Requires approval: shell command reads or mutates outside the project or removes local files",
+    };
+  }
+
+  if (isUnscopedGitContentRead(tokens)) {
+    return {
+      decision: "ask",
+      reason: "Requires approval: Git content read must name existing non-protected file paths after --",
+    };
+  }
+
+  // Inline aliases can execute arbitrary shell payloads. Parse neither their
+  // definitions nor bodies; fail closed when the configured alias is invoked.
+  const rawUnwrappedTokens = stripWrappers(rawTokens);
+  const unwrappedTokens = [...rawUnwrappedTokens];
+  if (unwrappedTokens[0]) unwrappedTokens[0] = baseName(unwrappedTokens[0]);
+  if (hasInlineGitAliasInvocation(unwrappedTokens)) {
+    return {
+      decision: "ask",
+      reason: "Requires approval: inline Git alias invocation is opaque",
+    };
+  }
+  if (hasOpaqueGitOptions(unwrappedTokens) || hasOpaquePackageOptions(tokens)) {
+    return {
+      decision: "ask",
+      reason: "Requires approval: unrecognized pre-operation option is opaque",
+    };
+  }
+
+  if (hasShellExecutionProxy(tokens)) {
+    return {
+      decision: "ask",
+      reason: "Requires approval: shell execution proxy is opaque",
+    };
+  }
+
+  if (isGitForcePush(tokens)) {
+    return {
+      decision: "deny",
+      reason: "Denied by b-agentic policy: git push --force",
+    };
+  }
+
+  if (matchesPrefix(tokens, ["git", "reset", "--hard"]) || (matchesPrefix(tokens, ["git", "reset"]) && tokens.includes("--hard"))) {
+    return {
+      decision: "deny",
+      reason: "Denied by b-agentic policy: git reset --hard",
+    };
+  }
+
+  if (isGitCleanForce(tokens)) {
+    return {
+      decision: "deny",
+      reason: "Denied by b-agentic policy: git clean -f",
+    };
+  }
+
+  if (isGitBranchForceDelete(tokens)) {
+    return {
+      decision: "deny",
+      reason: "Denied by b-agentic policy: git branch -D",
+    };
+  }
+
+  if (isGitDestructiveWorktreeOrStashOperation(tokens)) {
+    return {
+      decision: "ask",
+      reason: "Requires approval: Git operation can discard worktree or stash changes",
+    };
+  }
+
+  for (const pattern of DENY_COMMANDS) {
+    if (matchesPrefix(tokens, pattern)) {
+      return {
+        decision: "deny",
+        reason: `Denied by b-agentic policy: ${pattern.join(" ")}`,
+      };
+    }
+  }
+
+  if (unwrapTokens(rawTokens).wrappers.has("sudo")) {
+    return { decision: "ask", reason: "Requires approval: sudo elevates command privileges" };
+  }
+
+  // Interpreter wrappers and executable paths outside trusted system roots hide code from static matching.
+  if (isInterpreterOpaque(tokens) || isOpaqueExecutablePath(rawTokens)) {
+    return {
+      decision: "ask",
+      reason: "Requires approval: opaque script or executable invocation",
+    };
+  }
+
+  if (isRmRecursive(tokens)) {
+    return {
+      decision: "ask",
+      reason: "Requires approval: recursive rm",
+    };
+  }
+
+  for (const pattern of DANGEROUS_ASK_COMMANDS) {
+    if (matchesPrefix(tokens, pattern) || (pattern[0] === "mkfs" && tokens[0].startsWith("mkfs."))) {
+      return {
+        decision: "ask",
+        reason: `Requires approval: ${pattern.join(" ")}`,
+      };
+    }
+  }
+
+  if (hasDependencyWrite(tokens)) {
+    return { decision: "ask", reason: "Requires approval: dependency write" };
+  }
+
+  if (isVersionCheck(tokens)) {
+    return { decision: "allow", reason: "" };
+  }
+
+  if (hasExternalOrSharedMutationRisk(tokens)) {
+    return { decision: "ask", reason: "Requires approval: external or shared-environment operation may mutate state" };
+  }
+
+  for (const pattern of ASK_COMMANDS) {
+    if (matchesPrefix(tokens, pattern)) {
+      return {
+        decision: "ask",
+        reason: `Requires approval: ${pattern.join(" ")}`,
+      };
+    }
+  }
+
+  return { decision: "allow", reason: "" };
+}
+
+export function commandDecision(
+  command: string,
+  modernTools: ReadonlySet<string> = modernShellToolAvailability(),
+): { decision: Decision; reason: string } {
+  const trimmed = command.trim();
+  if (!trimmed) {
+    return { decision: "allow", reason: "" };
+  }
+
+  if (hasUnbalancedQuotes(trimmed) || hasAmbiguousShellSyntax(trimmed) || hasShellControlSyntax(trimmed)) {
+    return {
+      decision: "ask",
+      reason: "Requires approval: ambiguous shell syntax (quotes/expansion/control structure/eval/source)",
+    };
+  }
+
+  const segments = splitShellSegments(trimmed);
+  const environmentModified = segments.some((segment) => hasEnvironmentBootstrapModifier(tokenize(segment)));
+  const hasCodegraphInit = segments.some((segment) => {
+    const tokens = normalizeTokens(tokenize(segment));
+    return tokens[0] === "codegraph" && tokens[1] === "init";
+  });
+  if (environmentModified && hasCodegraphInit) {
+    return { decision: "ask", reason: "Requires approval: CodeGraph initialization with environment modification" };
+  }
+  let worst: { decision: Decision; reason: string } = { decision: "allow", reason: "" };
+  const rank = { allow: 0, ask: 1, deny: 2 };
+
+  for (const segment of segments) {
+    const result = segmentDecision(segment, modernTools);
+    if (rank[result.decision] > rank[worst.decision]) {
+      worst = result;
+    }
+  }
+  return worst;
+}
+
+export function isPlannerReadOnlyGit(tokens: string[]): boolean {
+  const subcommand = tokens[1];
+  const args = tokens.slice(2);
+  if (!subcommand) return true;
+  if (new Set([
+    "blame", "describe", "diff", "for-each-ref", "grep", "log", "ls-files", "ls-remote", "ls-tree",
+    "name-rev", "rev-parse", "shortlog", "show", "show-ref", "status",
+  ]).has(subcommand)) return true;
+  if (subcommand === "branch") {
+    if (args.length === 0) return true;
+    if (["-a", "--all", "-r", "--remotes", "--show-current", "-v", "-vv"].includes(args[0])) return args.length === 1;
+    if (["--contains", "--no-contains", "--merged", "--no-merged"].includes(args[0])) return args.length <= 2;
+    return args[0] === "--list";
+  }
+  if (subcommand === "config") return ["--get", "--get-all", "--get-regexp"].includes(args[0]);
+  if (subcommand === "remote") return args.length === 0 || (args.length === 1 && args[0] === "-v") || ["get-url", "show"].includes(args[0]);
+  if (subcommand === "stash") return args[0] === "list";
+  if (subcommand === "tag") return args.length === 0 || args[0] === "--list" || args[0] === "-l";
+  return false;
+}
+
+export function hasPlannerMutationCapableArgs(tokens: string[]): boolean {
+  const command = tokens[0];
+  const args = tokens.slice(1);
+  if (command === "find") return args.some((arg) =>
+    ["-delete", "-exec", "-execdir", "-ok", "-okdir", "-fls", "-fprint", "-fprint0", "-fprintf"].includes(arg));
+  if (command === "fd" || command === "fdfind") return args.some((arg) =>
+    /^-[xX]/.test(arg) || ["--exec", "--exec-batch"].includes(arg) || arg.startsWith("--exec=") || arg.startsWith("--exec-batch="));
+  if (command === "rg") return args.some((arg) => arg === "--pre" || arg.startsWith("--pre="));
+  if (command === "sort") return args.some((arg) =>
+    arg === "-o" || /^-o.+/.test(arg) || arg === "--output" || arg.startsWith("--output=") ||
+    arg === "--compress-program" || arg.startsWith("--compress-program="));
+  if (command === "bat" || command === "batcat") return args.some((arg) => arg === "--pager" || arg.startsWith("--pager="));
+  if (command === "git") return args.some((arg) =>
+    arg === "--ext-diff" || arg === "--textconv" || arg === "-O" || arg.startsWith("-O") ||
+    arg === "--open-files-in-pager" || arg.startsWith("--open-files-in-pager=") ||
+    arg === "--output" || arg.startsWith("--output="));
+  return false;
+}
+
+export function hasPlannerUnsafeGitConfig(tokens: string[]): boolean {
+  const stripped = stripWrappers(tokens);
+  if (baseName(stripped[0] || "") !== "git") return false;
+  return stripped.slice(1).some((arg) =>
+    arg === "-c" || (arg.startsWith("-c") && arg.length > 2) ||
+    arg === "--config-env" || arg.startsWith("--config-env="));
+}
+
+export function plannerCommandDecision(command: string): { decision: "allow" | "deny"; reason: string } {
+  const base = commandDecision(command);
+  if (base.decision !== "allow") {
+    return { decision: "deny", reason: `Planner mode is read-only: ${base.reason || "command is not read-only"}` };
+  }
+  for (const segment of splitShellSegments(command.trim())) {
+    const rawTokens = tokenize(segment);
+    if (hasPlannerUnsafeGitConfig(rawTokens)) {
+      return { decision: "deny", reason: "Planner mode is read-only: inline Git configuration can execute repository programs" };
+    }
+    const tokens = normalizeTokens(rawTokens);
+    if (tokens.length === 0) continue;
+    if (hasPlannerMutationCapableArgs(tokens)) {
+      return { decision: "deny", reason: `Planner mode is read-only: mutation-capable ${tokens[0]} arguments blocked` };
+    }
+    if (tokens[0] === "git" && isPlannerReadOnlyGit(tokens)) continue;
+    if (tokens[0] === "codegraph" && (tokens.length === 1 || PLANNER_CODEGRAPH_COMMANDS.has(tokens[1]))) continue;
+    if (isVersionCheck(tokens)) continue;
+    if (PLANNER_READ_COMMANDS.has(tokens[0])) continue;
+    return {
+      decision: "deny",
+      reason: `Planner mode is read-only: command is not in the read-only set (${tokens[0]})`,
+    };
+  }
+  return { decision: "allow", reason: "" };
+}
+
+export function nativePathDecision(toolName: string, pathValue: string): { decision: Decision; reason: string } {
+  if (pathValue && isProtectedLocalPath(pathValue)) {
+    if (toolName === "read") {
+      return { decision: "ask", reason: `Requires approval: read of protected path: ${pathValue}` };
+    }
+    return { decision: "deny", reason: `Blocked ${toolName} of protected path: ${pathValue}` };
+  }
+  if (toolName === "read" && isInstalledBAgenticSkillPath(pathValue)) {
+    return { decision: "allow", reason: "" };
+  }
+  if (!pathValue || isProjectConfinedLocalPath(pathValue)) {
+    return { decision: "allow", reason: "" };
+  }
+  return { decision: "ask", reason: `Requires approval: ${toolName} outside the project: ${pathValue}` };
+}
+
+/**
+ * Protect literal secret paths and paths that resolve through a symlink.
+ * For a not-yet-created write target, resolve its nearest existing ancestor so
+ * a symlinked directory cannot redirect the write into a protected location.
+ */
+export function isProtectedLocalPath(pathValue: string): boolean {
+  if (isProtectedPath(pathValue)) return true;
+  let candidate = pathValue;
+  while (candidate) {
+    try {
+      return isProtectedPath(realpathSync(candidate));
+    } catch {
+      const parent = dirname(candidate);
+      if (parent === candidate) return false;
+      candidate = parent;
+    }
+  }
+  return false;
+}
+
+/** An exclusion glob does not access the paths it names. */
+export function isNegatedGlob(token: string): boolean {
+  return token.startsWith("!") && /[*?[\]{}]/.test(token.slice(1));
+}
+
+export function isProtectedPath(pathValue: string): boolean {
+  const normalized = pathValue.replace(/\\/g, "/");
+  const segments = normalized.split("/");
+  const base = segments[segments.length - 1] || normalized;
+  for (const marker of PROTECTED_PATH_MARKERS) {
+    if (marker.startsWith(".") && !marker.includes("/")) {
+      // Public environment templates contain placeholders, not credentials.
+      // Skip only the dotenv marker so protected parent directories still match.
+      if (marker === ".env" && base === ".env.example") continue;
+      if (
+        base === marker ||
+        base.startsWith(`${marker}.`) ||
+        base.endsWith(marker) ||
+        normalized.includes(`/${marker}`)
+      ) {
+        return true;
+      }
+      continue;
+    }
+    if (marker.endsWith("/")) {
+      if (base === marker.slice(0, -1) || normalized.includes(marker)) {
+        return true;
+      }
+      continue;
+    }
+    // Match secret-like names at a path-component boundary. A substring
+    // match would incorrectly classify code such as provider-secrets.service.ts.
+    if (marker === "credentials." || marker === "secrets.") {
+      // Preserve literal secret files such as credentials.ts, but allow
+      // compound source filenames such as credentials.service.ts.
+      if (segments.some((segment) =>
+        segment.startsWith(marker) && !COMPOUND_SOURCE_CODE_FILENAME.test(segment))) {
+        return true;
+      }
+      continue;
+    }
+    if (marker.startsWith("id_")) {
+      if (segments.some((segment) =>
+        segment === marker ||
+        segment.startsWith(`${marker}.`) ||
+        segment.startsWith(`${marker}_`) ||
+        segment.startsWith(`${marker}-`))) {
+        return true;
+      }
+      continue;
+    }
+  }
+  return false;
+}

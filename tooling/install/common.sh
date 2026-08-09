@@ -583,6 +583,33 @@ except Exception:
 PY
 }
 
+manifest_extension_path() {
+  local name="$1" fallback="$2"
+  if [ ! -f "$MANIFEST_DST" ]; then
+    printf '%s' "$fallback"
+    return 0
+  fi
+  python3 - "$MANIFEST_DST" "$name" "$fallback" <<'PY'
+import json
+import sys
+from pathlib import Path
+path = Path(sys.argv[1])
+name = sys.argv[2]
+fallback = sys.argv[3]
+try:
+    data = json.loads(path.read_text())
+    extensions = data.get('paths', {}).get('extensions', {})
+    if isinstance(extensions, dict) and isinstance(extensions.get(name), str):
+        print(extensions[name])
+    elif name == 'b-agentic-permissions.ts':
+        print(data.get('paths', {}).get('permissionsExtension', fallback))
+    else:
+        print(fallback)
+except Exception:
+    print(fallback)
+PY
+}
+
 manifest_backup_value() {
   local key="$1" fallback="$2"
   if [ ! -f "$MANIFEST_DST" ]; then
@@ -599,7 +626,18 @@ key = sys.argv[2]
 fallback = sys.argv[3]
 try:
     data = json.loads(path.read_text())
-    print(data.get('backups', {}).get(key, fallback))
+    backups = data.get('backups', {})
+    if key.startswith('extension:'):
+        name = key.split(':', 1)[1]
+        nested = backups.get('extensions', {})
+        if isinstance(nested, dict) and name in nested:
+            print(nested[name])
+        elif name == 'b-agentic-permissions.ts':
+            print(backups.get('permissionsExtension', fallback))
+        else:
+            print(fallback)
+    else:
+        print(backups.get(key, fallback))
 except Exception:
     print(fallback)
 PY

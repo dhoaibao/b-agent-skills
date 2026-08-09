@@ -15,9 +15,20 @@ errors = []
 kernel = root / 'references/kernel.template.md'
 mcp = root / 'pi/configs/mcp.user.template.json'
 extension = root / 'pi/extensions/b-agentic-permissions.ts'
+extension_files = [
+    extension,
+    root / 'pi/extensions/b-agentic-mcp-permissions.ts',
+    root / 'pi/extensions/b-agentic-role.ts',
+    root / 'pi/extensions/b-agentic-planner.ts',
+    root / 'pi/extensions/b-agentic-worker.ts',
+    root / 'pi/extensions/b-agentic-support/shell.ts',
+    root / 'pi/extensions/b-agentic-support/mcp.ts',
+    root / 'pi/extensions/b-agentic-support/role.ts',
+    root / 'pi/extensions/b-agentic-support/worker.ts',
+]
 readme = root / 'pi/configs/README.md'
 
-for path in [kernel, mcp, extension, readme]:
+for path in [kernel, mcp, *extension_files, readme]:
     if not path.exists():
         errors.append(f'{path}: missing')
 
@@ -54,7 +65,7 @@ if mcp.exists():
         errors.append(f'{mcp}: default directTools must be false (proxy tool default)')
 
 if extension.exists():
-    text = extension.read_text()
+    text = '\n'.join(path.read_text() for path in extension_files if path.exists())
     for marker in [
         'tool_call',
         '["git", "push"]',
@@ -137,6 +148,13 @@ if extension.exists():
         if not re.search(r'toolName === "write".*toolName === "edit".*toolName === "read"', text, re.DOTALL):
             if 'read' not in text or 'isProtectedPath' not in text:
                 errors.append(f'{extension}: must apply protected-path policy to read')
+
+if readme.exists():
+    text = readme.read_text()
+    # The first-party extension set is installed as one coherent bundle.
+    for name in [path.name for path in extension_files if '/' not in str(path.relative_to(root / 'pi/extensions'))]:
+        if name not in text and name != 'b-agentic-permissions.ts':
+            errors.append(f'{readme}: missing extension {name!r}')
 
 if readme.exists():
     text = readme.read_text()

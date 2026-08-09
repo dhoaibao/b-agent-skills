@@ -18,6 +18,18 @@ readonly TEMPLATES_DST="$METADATA_DIR/templates"
 readonly MANIFEST_DST="$METADATA_DIR/install.json"
 readonly MCP_CONFIG_DST="${B_AGENTIC_PI_MCP_JSON:-$PI_AGENT_DIR/mcp.json}"
 readonly EXTENSIONS_DST="$PI_AGENT_DIR/extensions"
+readonly EXTENSION_NAMES=(
+	b-agentic-permissions.ts
+	b-agentic-mcp-permissions.ts
+	b-agentic-role.ts
+	b-agentic-planner.ts
+	b-agentic-worker.ts
+	b-agentic-support/shell.ts
+	b-agentic-support/mcp.ts
+	b-agentic-support/role.ts
+	b-agentic-support/worker.ts
+	b-agentic-support/state.ts
+)
 readonly EXTENSION_DST="$EXTENSIONS_DST/b-agentic-permissions.ts"
 readonly EXTENSION_SNAPSHOT_DST="$METADATA_DIR/extensions/b-agentic-permissions.ts"
 readonly EXTENSION_SRC="$SOURCE_DIR/pi/extensions/b-agentic-permissions.ts"
@@ -369,44 +381,54 @@ runtime_install_config_stage_count() { # extension update + permission extension
 }
 
 install_permissions_extension() {
-	if [ ! -f "$EXTENSION_SRC" ]; then
-		die "missing Pi permission extension source: $EXTENSION_SRC"
-	fi
-
+	local name src dst snapshot previous_backup backup action="skip" state="active" backups=()
+	for name in "${EXTENSION_NAMES[@]}"; do
+		src="$SOURCE_DIR/pi/extensions/$name"
+		if [ ! -f "$src" ]; then
+			die "missing Pi extension source: $src"
+		fi
+		dst="$EXTENSIONS_DST/$name"
+		snapshot="$METADATA_DIR/extensions/$name"
+		previous_backup="$(manifest_backup_value "extension:$name" none)"
+		[ "$previous_backup" = "none" ] && [ "$name" = "b-agentic-permissions.ts" ] && previous_backup="$(manifest_backup_value permissionsExtension none)"
+		if [ "$previous_backup" != "none" ]; then
+			backups+=("$name|$(printf '%s' "$previous_backup" | base64 | tr -d '\n')")
+		fi
+		if dry_run_enabled; then
+			printf '[dry-run] install extension %s -> %s\n' "$src" "$dst" >&2
+			action="write"
+			continue
+		fi
+		ensure_dir "$EXTENSIONS_DST"
+		ensure_dir "$(dirname "$snapshot")"
+		if [ -L "$dst" ]; then
+			backup="$(backup_file "$dst")"
+			copy_file "$src" "$dst"
+			[ -n "$backup" ] && backups+=("$name|$(printf '%s' "$backup" | base64 | tr -d '\n')")
+			action="replace"
+		elif [ -f "$dst" ]; then
+			if cmp -s "$src" "$dst"; then
+				action="${action/skip/skip}"
+			elif [ -f "$snapshot" ] && cmp -s "$dst" "$snapshot"; then
+				copy_file "$src" "$dst"
+				action="replace"
+			else
+				backup="$(backup_file "$dst")"
+				copy_file "$src" "$dst"
+				[ -n "$backup" ] && backups+=("$name|$(printf '%s' "$backup" | base64 | tr -d '\n')")
+				action="replace"
+			fi
+		else
+			copy_file "$src" "$dst"
+			action="write"
+		fi
+		copy_file "$src" "$snapshot"
+	done
 	if dry_run_enabled; then
-		printf '[dry-run] install extension %s -> %s\n' "$EXTENSION_SRC" "$EXTENSION_DST" >&2
 		printf 'write\nactive\nnone'
-		return 0
+	else
+		printf '%s\n%s\n%s' "$action" "$state" "${backups[*]:-none}"
 	fi
-
-	ensure_dir "$EXTENSIONS_DST"
-	ensure_dir "$(dirname "$EXTENSION_SNAPSHOT_DST")"
-
-	local previous_backup="none"
-	previous_backup="$(manifest_backup_value permissionsExtension none)"
-	if [ -f "$EXTENSION_DST" ]; then
-		if cmp -s "$EXTENSION_SRC" "$EXTENSION_DST"; then
-			copy_file "$EXTENSION_SRC" "$EXTENSION_SNAPSHOT_DST"
-			printf 'skip\nactive\n%s' "$previous_backup"
-			return 0
-		fi
-		if [ -f "$EXTENSION_SNAPSHOT_DST" ] && cmp -s "$EXTENSION_DST" "$EXTENSION_SNAPSHOT_DST"; then
-			copy_file "$EXTENSION_SRC" "$EXTENSION_DST"
-			copy_file "$EXTENSION_SRC" "$EXTENSION_SNAPSHOT_DST"
-			printf 'replace\nactive\n%s' "$previous_backup"
-			return 0
-		fi
-		local backup
-		backup="$(backup_file "$EXTENSION_DST")"
-		copy_file "$EXTENSION_SRC" "$EXTENSION_DST"
-		copy_file "$EXTENSION_SRC" "$EXTENSION_SNAPSHOT_DST"
-		printf 'replace\nactive\n%s' "${backup:-none}"
-		return 0
-	fi
-
-	copy_file "$EXTENSION_SRC" "$EXTENSION_DST"
-	copy_file "$EXTENSION_SRC" "$EXTENSION_SNAPSHOT_DST"
-	printf 'write\nactive\n%s' "$previous_backup"
 }
 
 update_pi_extensions() {
@@ -478,6 +500,9 @@ runtime_write_manifest() {
 		PI_AGENT_DIR="$PI_AGENT_DIR" \
 		MCP_CONFIG_DST="$MCP_CONFIG_DST" \
 		EXTENSION_DST="$EXTENSION_DST" \
+		EXTENSION_NAMES="${EXTENSION_NAMES[*]}" \
+		EXTENSIONS_DST="$EXTENSIONS_DST" \
+		EXTENSION_BACKUP="$INSTALL_EXTENSION_BACKUP" \
 		SKILLS_DST="$SKILLS_DST" \
 		REFERENCES_DST="$REFERENCES_DST" \
 		TEMPLATES_DST="$TEMPLATES_DST" \
@@ -489,6 +514,19 @@ import os
 from pathlib import Path
 
 skills = [name for name in os.environ['SKILLS'].split() if name]
+import base64
+
+extension_backups = {}
+for item in os.environ['EXTENSION_BACKUP'].split():
+    if '|' in item:
+        name, encoded = item.split('|', 1)
+        try:
+            extension_backups[name] = base64.b64decode(encoded).decode()
+        except Exception:
+            continue
+    elif '=' in item:  # legacy triplet output
+        name, backup = item.split('=', 1)
+        extension_backups[name] = backup
 manifest = {
     'suite': 'b-agentic',
     'runtime': os.environ['RUNTIME'],
@@ -511,6 +549,10 @@ manifest = {
         'piAgentDir': os.environ['PI_AGENT_DIR'],
         'mcpConfig': os.environ['MCP_CONFIG_DST'],
         'permissionsExtension': os.environ['EXTENSION_DST'],
+        'extensions': {
+            name: str(Path(os.environ['EXTENSIONS_DST']) / name)
+            for name in os.environ['EXTENSION_NAMES'].split()
+        },
         'kernel': os.environ['KERNEL_DST'],
         'skills': os.environ['SKILLS_DST'],
         'references': os.environ['REFERENCES_DST'],
@@ -519,7 +561,8 @@ manifest = {
     'skills': skills,
     'backups': {
         'agentsMd': os.environ['MEMORY_BACKUP'],
-        'permissionsExtension': os.environ['EXTENSION_BACKUP'],
+        'permissionsExtension': extension_backups.get('b-agentic-permissions.ts', 'none'),
+        'extensions': extension_backups,
         'mcpConfig': os.environ['MCP_BACKUP'],
     },
 }
@@ -564,28 +607,30 @@ runtime_print_install_report() {
 }
 
 runtime_uninstall_configs() {
-	local mcp_config_path extension_path
+	local mcp_config_path name extension_path snapshot original backup
 	mcp_config_path="$(manifest_path_value mcpConfig "$MCP_CONFIG_DST")"
-	extension_path="$(manifest_path_value permissionsExtension "$EXTENSION_DST")"
 	remove_merged_config "$mcp_config_path" "$TEMPLATES_DST/mcp.user.template.json" "mcp.json" "mcpConfig" "mcpAction"
-	if [ -L "$extension_path" ]; then
-		warn "preserving symlinked Pi permission extension: $extension_path"
-	elif [ -f "$extension_path" ]; then
-		local snapshot="$METADATA_DIR/extensions/b-agentic-permissions.ts"
-		if [ -f "$snapshot" ] && cmp -s "$extension_path" "$snapshot"; then
-			local original
-			original="$(manifest_backup_value permissionsExtension none)"
-			if [ "$original" = "none" ]; then
-				run_cmd rm -f "$extension_path"
-			elif [ -f "$original" ] && [ ! -L "$original" ] && [[ "$original" == "$METADATA_DIR/backups/"* ]]; then
-				copy_file "$original" "$extension_path"
+	for name in "${EXTENSION_NAMES[@]}"; do
+		extension_path="$(manifest_extension_path "$name" "$EXTENSIONS_DST/$name")"
+		snapshot="$METADATA_DIR/extensions/$name"
+		if [ -L "$extension_path" ]; then
+			warn "preserving symlinked Pi extension: $extension_path"
+		elif [ -f "$extension_path" ]; then
+			if [ -f "$snapshot" ] && cmp -s "$extension_path" "$snapshot"; then
+				original="$(manifest_backup_value "extension:$name" none)"
+				[ "$original" = "none" ] && [ "$name" = "b-agentic-permissions.ts" ] && original="$(manifest_backup_value permissionsExtension none)"
+				if [ "$original" = "none" ]; then
+					run_cmd rm -f "$extension_path"
+				elif [ -f "$original" ] && [ ! -L "$original" ] && [[ "$original" == "$METADATA_DIR/backups/"* ]]; then
+					copy_file "$original" "$extension_path"
+				else
+					warn "preserving Pi extension because its original backup is unavailable: $extension_path"
+				fi
 			else
-				warn "preserving Pi permission extension because its original backup is unavailable: $extension_path"
+				warn "preserving modified Pi extension: $extension_path"
 			fi
-		else
-			warn "preserving modified Pi permission extension: $extension_path"
 		fi
-	fi
+	 done
 	# Intentionally leave pi-mcp-adapter, pi-observational-memory, and pi-usage packages installed.
 }
 

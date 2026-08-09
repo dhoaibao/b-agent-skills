@@ -34,7 +34,7 @@ def main() -> int:
     args = parser.parse_args()
 
     root = Path(__file__).resolve().parents[2]
-    extension = root / "pi/extensions/b-agentic-permissions.ts"
+    extension = root / "pi/extensions/b-agentic-support/mcp.ts"
     try:
         policy = json.loads(args.policy.read_text())
         source = extension.read_text()

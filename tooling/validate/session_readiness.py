@@ -16,7 +16,7 @@ REQUIRED_TOOLS: tuple[tuple[str, tuple[str, ...]], ...] = (
 )
 REMEDIATION = "Install the missing prerequisites, then restart the runtime session; see the kernel's Shell commands section."
 ROOT = Path(__file__).resolve().parents[2]
-RTK_POLICY = ROOT / "pi" / "extensions" / "b-agentic-permissions.ts"
+RTK_POLICY = ROOT / "pi" / "extensions" / "b-agentic-support" / "shell.ts"
 # RTK commands that operate on RTK itself or generic command streams rather
 # than proxying a same-named native command family. New commands must be
 # reviewed and added to RTK_REQUIRED_COMMANDS. RTK-supported families are mandatory.

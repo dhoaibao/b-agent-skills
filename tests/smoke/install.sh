@@ -117,11 +117,15 @@ EOF
 
 run_manifest_only_extension_restore_case() {
 	local snapshot_repo="$1"
-	local sandbox="$WORK_DIR/manifest-only-extension-restore"
+	local sandbox="$WORK_DIR/manifest-only-extension restore"
 	local extension_path="$sandbox/home/.pi/agent/extensions/b-agentic-permissions.ts"
+	local worker_path="$sandbox/home/.pi/agent/extensions/b-agentic-worker.ts"
+	local support_path="$sandbox/home/.pi/agent/extensions/b-agentic-support/shell.ts"
 
-	mkdir -p "$(dirname "$extension_path")"
+	mkdir -p "$(dirname "$extension_path")" "$(dirname "$support_path")"
 	printf 'user-owned permission extension\n' >"$extension_path"
+	printf 'user-owned worker extension\n' >"$worker_path"
+	printf 'user-owned shell support\n' >"$support_path"
 	expect_install_status 0 "$sandbox" "$snapshot_repo"
 	assert_not_contains "$extension_path" 'user-owned permission extension'
 	rm "$extension_path"
@@ -136,6 +140,8 @@ run_manifest_only_extension_restore_case() {
 
 	assert_contains "$sandbox/uninstall.log" 'Manifest-only uninstall complete for pi'
 	assert_contains "$extension_path" 'user-owned permission extension'
+	assert_contains "$worker_path" 'user-owned worker extension'
+	assert_contains "$support_path" 'user-owned shell support'
 }
 
 run_manifest_only_extension_symlink_case() {

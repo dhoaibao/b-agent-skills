@@ -41,13 +41,20 @@ run_pi_smoke_cases() {
 	assert_file "$sandbox/home/.pi/agent/b-agentic/references/mcp_operations.yaml"
 	assert_no_path "$sandbox/home/.pi/agent/b-agentic/references/contract"
 	assert_file "$sandbox/home/.pi/agent/mcp.json"
-	assert_file "$sandbox/home/.pi/agent/extensions/b-agentic-permissions.ts"
-	assert_file "$sandbox/home/.pi/agent/b-agentic/extensions/b-agentic-permissions.ts"
+	for extension in b-agentic-permissions.ts b-agentic-mcp-permissions.ts b-agentic-role.ts b-agentic-planner.ts b-agentic-worker.ts; do
+		assert_file "$sandbox/home/.pi/agent/extensions/$extension"
+		assert_file "$sandbox/home/.pi/agent/b-agentic/extensions/$extension"
+	done
+	for support in shell.ts mcp.ts role.ts worker.ts state.ts; do
+		assert_file "$sandbox/home/.pi/agent/extensions/b-agentic-support/$support"
+		assert_file "$sandbox/home/.pi/agent/b-agentic/extensions/b-agentic-support/$support"
+	done
 	assert_file "$sandbox/home/.pi/agent/b-agentic/install.json"
 	assert_contains "$sandbox/home/.pi/agent/mcp.json" '"codegraph"'
 	assert_contains "$sandbox/home/.pi/agent/mcp.json" '"lifecycle": "lazy"'
 	assert_contains "$sandbox/home/.pi/agent/extensions/b-agentic-permissions.ts" 'tool_call'
 	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"mcpAdapterState": "missing"'
+	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"extensions"'
 	assert_contains "$sandbox/home/.pi/agent/AGENTS.md" 'b-agentic-managed'
 	assert_no_path "$sandbox/smoke-bin/pi-install.log"
 
@@ -110,15 +117,22 @@ EOF
 	assert_contains "$sandbox_mcp_merge/home/.pi/agent/mcp.json" '"user-server"'
 	assert_contains "$sandbox_mcp_merge/home/.pi/agent/mcp.json" '"serena"'
 
-	# Uninstall restores a pre-existing extension after no-op reinstall and managed-file deletion.
+	# Uninstall restores pre-existing entrypoint and support files after reinstall and managed-file deletion.
+	mkdir -p "$sandbox_extension_restore/home/.pi/agent/extensions/b-agentic-support"
 	printf 'user-owned permission extension\n' >"$sandbox_extension_restore/home/.pi/agent/extensions/b-agentic-permissions.ts"
+	printf 'user-owned worker extension\n' >"$sandbox_extension_restore/home/.pi/agent/extensions/b-agentic-worker.ts"
+	printf 'user-owned shell support\n' >"$sandbox_extension_restore/home/.pi/agent/extensions/b-agentic-support/shell.ts"
 	expect_install_status 0 "$sandbox_extension_restore" "$snapshot_repo"
 	assert_not_contains "$sandbox_extension_restore/home/.pi/agent/extensions/b-agentic-permissions.ts" 'user-owned permission extension'
 	expect_install_status 0 "$sandbox_extension_restore" "$snapshot_repo"
 	rm "$sandbox_extension_restore/home/.pi/agent/extensions/b-agentic-permissions.ts"
+	rm "$sandbox_extension_restore/home/.pi/agent/extensions/b-agentic-worker.ts"
+	rm "$sandbox_extension_restore/home/.pi/agent/extensions/b-agentic-support/shell.ts"
 	expect_install_status 0 "$sandbox_extension_restore" "$snapshot_repo"
 	expect_install_status 0 "$sandbox_extension_restore" "$snapshot_repo" --uninstall
 	assert_contains "$sandbox_extension_restore/home/.pi/agent/extensions/b-agentic-permissions.ts" 'user-owned permission extension'
+	assert_contains "$sandbox_extension_restore/home/.pi/agent/extensions/b-agentic-worker.ts" 'user-owned worker extension'
+	assert_contains "$sandbox_extension_restore/home/.pi/agent/extensions/b-agentic-support/shell.ts" 'user-owned shell support'
 
 	# Uninstall preserves symlink destinations instead of restoring through them.
 	printf 'user-owned permission extension\n' >"$sandbox_extension_symlink/home/.pi/agent/extensions/b-agentic-permissions.ts"
@@ -186,30 +200,51 @@ PY
 	assert_file "$sandbox_skill_symlink/target-skill/SKILL.md"
 
 	# Behavioral permission coverage via node --experimental-strip-types (no Pi runtime).
-	ROOT_DIR="$ROOT_DIR" node --experimental-strip-types --input-type=module - <<'NODE'
+	ROOT_DIR="$ROOT_DIR" PI_TEST_HOME="$sandbox/home" node --experimental-strip-types --input-type=module - <<'NODE'
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const root = process.env.ROOT_DIR || process.cwd();
+const installedRoot = path.join(process.env.PI_TEST_HOME || '', '.pi/agent/extensions');
+for (const name of ['b-agentic-permissions.ts', 'b-agentic-mcp-permissions.ts', 'b-agentic-role.ts', 'b-agentic-planner.ts', 'b-agentic-worker.ts']) {
+  await import(pathToFileURL(path.join(installedRoot, name)).href);
+}
+for (const name of ['shell.ts', 'mcp.ts', 'role.ts', 'worker.ts', 'state.ts']) {
+  await import(pathToFileURL(path.join(installedRoot, 'b-agentic-support', name)).href);
+}
 const modPath = path.join(root, 'pi/extensions/b-agentic-permissions.ts');
 const mod = await import(pathToFileURL(modPath).href);
+const extensionModules = await Promise.all([
+  'b-agentic-permissions.ts', 'b-agentic-mcp-permissions.ts', 'b-agentic-role.ts',
+  'b-agentic-planner.ts', 'b-agentic-worker.ts',
+].map((name) => import(pathToFileURL(path.join(root, 'pi/extensions', name)).href)));
 const t = mod.__test__;
 if (!t) {
   console.error('permission extension missing __test__ exports');
   process.exit(1);
 }
 const handlers = {};
+const registrations = {};
 const commands = {};
 const flags = {};
 const persistedEntries = [];
 const branchEntries = [];
 let activeTools = ['read', 'bash', 'edit', 'write', 'recall', 'intercom', 'mcp', 'mcpScript'];
 let mcpApprovalHandler;
-mod.default({
+const extensionHost = {
   on(eventName, handler) {
-    handlers[eventName] = handler;
+    (registrations[eventName] ||= []).push(handler);
+    handlers[eventName] = async (...args) => {
+      let result;
+      for (const registered of registrations[eventName] || []) {
+        const next = await registered(...args);
+        if (eventName === 'before_agent_start' && next) result = { ...result, ...next };
+        else if (next) return next;
+      }
+      return result;
+    };
   },
   registerFlag() {},
   getFlag(name) { return flags[name]; },
@@ -228,7 +263,8 @@ mod.default({
     },
     emit() {},
   },
-});
+};
+for (const extension of extensionModules) extension.default(extensionHost);
 const toolCallHandler = handlers.tool_call;
 
 function expect(cond, msg) {
@@ -296,8 +332,14 @@ expect(await toolCallHandler({ toolName: 'mcp', input: { server: 'serena', tool:
 expect((await toolCallHandler({ toolName: 'mcp', input: { tool: 'serena_initial_instructions', args: {} } }, roleContext))?.block === true, 'planner role must block unscoped MCP reads');
 const malformedPlannerTask = await toolCallHandler({ toolName: 'intercom', input: { action: 'send', to: 'worker', message: 'B_AGENTIC_TASK' } }, roleContext);
 expect(malformedPlannerTask?.block === true && malformedPlannerTask.reason.includes('Planner task is incomplete'), 'planner must reject malformed tasks before they leave the coordinator');
+const malformedPlannerTaskNoUi = await toolCallHandler({ toolName: 'intercom', input: { action: 'send', to: 'worker', message: 'B_AGENTIC_TASK' } }, noUiContext);
+expect(malformedPlannerTaskNoUi?.block === true && malformedPlannerTaskNoUi.reason.includes('Planner task is incomplete'), 'planner must reject malformed protocol traffic without UI');
 const validPlannerTask = 'B_AGENTIC_TASK v1\nworker_skill: b-test\niteration: 1\ngoal: verify role mode\nconstraints: keep scope bounded\nsuccess_checks: permission smoke passes\nreport_to: planner';
 expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'send', to: 'worker', message: validPlannerTask } }, roleContext) === undefined, 'planner must send a complete handoff without user relay');
+const unknownPlannerIntercom = await toolCallHandler({ toolName: 'intercom', input: { action: 'list-cwd', unexpected: true } }, noUiContext);
+expect(unknownPlannerIntercom?.block === true, 'planner must fail closed on unknown Intercom fields without UI');
+const wrongActionPlannerIntercom = await toolCallHandler({ toolName: 'intercom', input: { action: 'unknown' } }, noUiContext);
+expect(wrongActionPlannerIntercom?.block === true, 'planner must fail closed on unknown Intercom actions without UI');
 expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'list-cwd' } }, roleContext) === undefined, 'planner must discover same-directory workers through Intercom');
 expect((await toolCallHandler({ toolName: 'intercom', input: { action: 'ask', to: 'worker', message: 'task' } }, roleContext))?.block === true, 'role loops must block ask/reply traffic');
 const plannerStart = await handlers.before_agent_start({ systemPrompt: 'base', systemPromptOptions: { skills: [] } }, roleContext);
@@ -324,7 +366,7 @@ branchEntries.push({
 expect((await toolCallHandler({ toolName: 'bash', input: { command: 'rtk git status --short' } }, roleContext))?.reason.includes('must read the assigned b-test'), 'custom-message turns must activate the assignment before their first tool call');
 expect((await toolCallHandler({ toolName: 'read', input: { path: path.join(root, 'skills/b-debug/SKILL.md') } }, roleContext))?.block === true, 'worker role must reject a different skill');
 expect(await toolCallHandler({ toolName: 'read', input: { path: fallbackAssignedSkillPath } }, roleContext) === undefined, 'worker role must allow its installed assigned skill read without a before_agent_start event');
-handlers.tool_result({ toolName: 'read', input: { path: fallbackAssignedSkillPath }, isError: false }, roleContext);
+await handlers.tool_result({ toolName: 'read', input: { path: fallbackAssignedSkillPath }, isError: false }, roleContext);
 const workerStart = await handlers.before_agent_start({
   systemPrompt: 'base',
   systemPromptOptions: { skills: [{ name: 'b-test', filePath: assignedSkillPath }, { name: 'b-debug', filePath: fixSkillPath }] },
@@ -368,8 +410,8 @@ const resultMessage = 'B_AGENTIC_RESULT v1\nstatus: ready_for_review\nworker_ski
 expect((await toolCallHandler({ toolName: 'intercom', input: { action: 'send', to: 'other-peer', message: resultMessage } }, roleContext))?.block === true, 'worker results must target the assigned planner');
 const workerResultInput = { action: 'send', to: 'planner-session-id', message: resultMessage };
 expect(await toolCallHandler({ toolName: 'intercom', input: workerResultInput }, roleContext) === undefined, 'worker role must send results through Intercom');
-handlers.tool_result({ toolName: 'intercom', input: workerResultInput, isError: false }, roleContext);
-handlers.turn_end({}, roleContext);
+await handlers.tool_result({ toolName: 'intercom', input: workerResultInput, isError: false }, roleContext);
+await handlers.turn_end({}, roleContext);
 expect(t.latestRoleState(persistedEntries).reportedDirectiveIds.includes('task-1'), 'worker review-wait state must persist for session resume');
 expect((await toolCallHandler({ toolName: 'edit', input: { path: 'README.md', edits: [] } }, roleContext))?.block === true, 'worker role must wait after requesting review');
 branchEntries.push({
@@ -387,15 +429,15 @@ const fixStart = await handlers.before_agent_start({
 expect(fixStart.systemPrompt.includes('Assigned skill: b-debug (iteration 2)'), 'changes requested must activate a new worker skill iteration');
 expect((await toolCallHandler({ toolName: 'bash', input: { command: 'rtk git status --short' } }, roleContext))?.block === true, 'new review iterations must reload the assigned skill');
 expect(await toolCallHandler({ toolName: 'read', input: { path: fixSkillPath } }, roleContext) === undefined, 'worker must be able to load the fix skill');
-handlers.tool_result({ toolName: 'read', input: { path: fixSkillPath }, isError: false }, roleContext);
+await handlers.tool_result({ toolName: 'read', input: { path: fixSkillPath }, isError: false }, roleContext);
 expect(await toolCallHandler({ toolName: 'edit', input: { path: path.join(root, 'README.md'), edits: [] } }, roleContext) === undefined, 'worker must be able to fix review findings after loading the new skill');
 const fixResultInput = {
   action: 'send', to: 'planner-session-id',
   message: 'B_AGENTIC_RESULT v1\nstatus: ready_for_review\nworker_skill: b-debug\niteration: 2\nchanged_paths: pi/extensions/b-agentic-permissions.ts\nverification: smoke passed\ngaps: none',
 };
 expect(await toolCallHandler({ toolName: 'intercom', input: fixResultInput }, roleContext) === undefined, 'each changes-requested iteration must submit its own result');
-handlers.tool_result({ toolName: 'intercom', input: fixResultInput, isError: false }, roleContext);
-handlers.turn_end({}, roleContext);
+await handlers.tool_result({ toolName: 'intercom', input: fixResultInput, isError: false }, roleContext);
+await handlers.turn_end({}, roleContext);
 branchEntries.push({
   type: 'custom_message', id: 'review-2', customType: 'intercom_message', details: { from: plannerFrom },
   content: '**From planner**\n\nB_AGENTIC_REVIEW v1\nverdict: approved\niteration: 2',

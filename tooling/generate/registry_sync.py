@@ -262,9 +262,10 @@ def render_outputs(skills: list[dict]) -> dict[Path, str]:
     outputs[KERNEL_TEMPLATE_PATH] = replace_block(
         kernel, MCP_OPERATIONS_START, MCP_OPERATIONS_END, render_mcp_operations_table(policy)
     )
-    extension = ROOT / "pi" / "extensions" / "b-agentic-permissions.ts"
+    extension = ROOT / "pi" / "extensions" / "b-agentic-support" / "mcp.ts"
+    runtime_policy = re.sub(r"^const ", "export const ", render_mcp_runtime_policy(policy), flags=re.MULTILINE)
     outputs[extension] = replace_block(
-        extension.read_text(), MCP_RUNTIME_POLICY_START, MCP_RUNTIME_POLICY_END, render_mcp_runtime_policy(policy)
+        extension.read_text(), MCP_RUNTIME_POLICY_START, MCP_RUNTIME_POLICY_END, runtime_policy
     )
     for skill in skills:
         outputs[ROOT / "skills" / skill["name"] / "SKILL.md"] = render_skill_file(skill)

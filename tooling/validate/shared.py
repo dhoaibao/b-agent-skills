@@ -521,11 +521,11 @@ def pi_gate_severity(tokens: list[str], extension_text: str) -> int:
     return 0
 
 
-pi_extension = read_text(ROOT / "pi" / "extensions" / "b-agentic-permissions.ts")
+pi_extension = read_text(ROOT / "pi" / "extensions" / "b-agentic-support" / "shell.ts")
 for tokens, min_severity in SAFETY_GATES:
     if pi_gate_severity(tokens, pi_extension) < SEVERITY_RANK[min_severity]:
         errors.append(
-            f"pi/extensions/b-agentic-permissions.ts: safety gate {' '.join(tokens)!r} weaker than required {min_severity!r}; "
+            f"pi/extensions/b-agentic-support/shell.ts: safety gate {' '.join(tokens)!r} weaker than required {min_severity!r}; "
             "align with references/kernel.template.md"
         )
 

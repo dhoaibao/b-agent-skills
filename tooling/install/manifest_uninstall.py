@@ -186,6 +186,7 @@ def main() -> None:
             "skills": home / ".pi" / "agent" / "skills",
             "kernel": home / ".pi" / "agent" / "AGENTS.md",
             "permissionsExtension": home / ".pi" / "agent" / "extensions" / "b-agentic-permissions.ts",
+            "extensions": home / ".pi" / "agent" / "extensions",
             "mcpConfig": home / ".pi" / "agent" / "mcp.json",
         },
     }
@@ -242,27 +243,48 @@ def main() -> None:
             "mcpAction",
             data,
         )
-        extension_path = manifest_managed_path(paths, "permissionsExtension", defaults["permissionsExtension"])
-        extension_snapshot = metadata / "extensions" / "b-agentic-permissions.ts"
-        if extension_path.is_symlink():
-            warn(f"preserving symlinked Pi permission extension: {extension_path}")
-        elif extension_path.exists():
-            if extension_snapshot.exists() and files_equal(extension_path, extension_snapshot):
-                backup = data.get("backups", {}).get("permissionsExtension")
-                if backup in (None, "none"):
-                    remove_file(extension_path)
-                else:
-                    original = Path(backup).expanduser() if isinstance(backup, str) else None
-                    backups_root = metadata / "backups"
-                    if original and original.is_file() and _is_relative_to(original.resolve(), backups_root.resolve()):
-                        shutil.copy2(original, extension_path)
-                    else:
-                        warn(
-                            "preserving Pi permission extension because its original "
-                            f"backup is unavailable: {extension_path}"
-                        )
+        extensions = paths.get("extensions")
+        if not isinstance(extensions, dict):
+            extensions = {"b-agentic-permissions.ts": paths.get("permissionsExtension", str(defaults["permissionsExtension"]))}
+        backup_map = data.get("backups", {}).get("extensions", {})
+        if not isinstance(backup_map, dict):
+            backup_map = {}
+        legacy_backup = data.get("backups", {}).get("permissionsExtension")
+        for name, configured_path in extensions.items():
+            safe_extension = (
+                isinstance(name, str)
+                and name.startswith("b-agentic-")
+                and "\\" not in name
+                and ".." not in Path(name).parts
+                and all(part and part not in {".", ".."} for part in Path(name).parts)
+            )
+            if not safe_extension:
+                warn("preserving Pi extension with unsafe manifest name")
+                continue
+            fallback = defaults["extensions"] / name
+            extension_path = manifest_managed_path({"extension": configured_path}, "extension", fallback)
+            extension_snapshot = metadata / "extensions" / name
+            if extension_path.is_symlink():
+                label = "Pi permission extension" if name == "b-agentic-permissions.ts" else "Pi extension"
+                warn(f"preserving symlinked {label}: {extension_path}")
+                continue
+            if not extension_path.exists():
+                continue
+            if not extension_snapshot.exists() or not files_equal(extension_path, extension_snapshot):
+                warn(f"preserving modified Pi extension: {extension_path}")
+                continue
+            backup = backup_map.get(name)
+            if backup in (None, "none") and name == "b-agentic-permissions.ts":
+                backup = legacy_backup
+            if backup in (None, "none"):
+                remove_file(extension_path)
+                continue
+            original = Path(backup).expanduser() if isinstance(backup, str) else None
+            backups_root = metadata / "backups"
+            if original and original.is_file() and _is_relative_to(original.resolve(), backups_root.resolve()):
+                shutil.copy2(original, extension_path)
             else:
-                warn(f"preserving modified Pi permission extension: {extension_path}")
+                warn(f"preserving Pi extension because its original backup is unavailable: {extension_path}")
     remove_tree(metadata)
     print(f"Manifest-only uninstall complete for {runtime}. Source cache was not required.")
 
