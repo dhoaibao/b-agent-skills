@@ -313,20 +313,23 @@ await commands['b-role'].handler('worker', roleContext);
 expect(activeTools.includes('edit') && activeTools.includes('write'), 'worker role must restore mutation tools');
 expect((await toolCallHandler({ toolName: 'edit', input: { path: 'README.md', edits: [] } }, roleContext))?.block === true, 'worker role must wait for a structured assignment');
 const assignedSkillPath = path.join(root, 'skills/b-test/SKILL.md');
+const fallbackAssignedSkillPath = path.join(process.env.PI_CODING_AGENT_DIR || path.join(os.homedir(), '.pi/agent'), 'skills/b-test/SKILL.md');
 const fixSkillPath = path.join(root, 'skills/b-debug/SKILL.md');
 branchEntries.push({
   type: 'custom_message', id: 'task-1', customType: 'intercom_message', details: { from: plannerFrom },
   content: `**From planner**\n\n${validPlannerTask}`,
 });
+// pi.sendMessage({ triggerTurn: true }) starts an idle recipient without
+// before_agent_start. The tool gate itself must discover the persisted task.
+expect((await toolCallHandler({ toolName: 'bash', input: { command: 'rtk git status --short' } }, roleContext))?.reason.includes('must read the assigned b-test'), 'custom-message turns must activate the assignment before their first tool call');
+expect((await toolCallHandler({ toolName: 'read', input: { path: path.join(root, 'skills/b-debug/SKILL.md') } }, roleContext))?.block === true, 'worker role must reject a different skill');
+expect(await toolCallHandler({ toolName: 'read', input: { path: fallbackAssignedSkillPath } }, roleContext) === undefined, 'worker role must allow its installed assigned skill read without a before_agent_start event');
+handlers.tool_result({ toolName: 'read', input: { path: fallbackAssignedSkillPath }, isError: false }, roleContext);
 const workerStart = await handlers.before_agent_start({
   systemPrompt: 'base',
   systemPromptOptions: { skills: [{ name: 'b-test', filePath: assignedSkillPath }, { name: 'b-debug', filePath: fixSkillPath }] },
 }, roleContext);
 expect(workerStart.systemPrompt.includes('Assigned skill: b-test') && workerStart.systemPrompt.includes('changed_paths:') && workerStart.systemPrompt.includes('worker_skill: b-test') && workerStart.systemPrompt.includes('Send it to exactly: planner-session-id'), 'a planner-approved task must activate the worker and target its authenticated sender');
-expect((await toolCallHandler({ toolName: 'bash', input: { command: 'rtk git status --short' } }, roleContext))?.block === true, 'worker role must load its assigned skill before repository work');
-expect((await toolCallHandler({ toolName: 'read', input: { path: path.join(root, 'skills/b-debug/SKILL.md') } }, roleContext))?.block === true, 'worker role must reject a different skill');
-expect(await toolCallHandler({ toolName: 'read', input: { path: assignedSkillPath } }, roleContext) === undefined, 'worker role must allow its assigned skill read');
-handlers.tool_result({ toolName: 'read', input: { path: assignedSkillPath }, isError: false }, roleContext);
 expect(await toolCallHandler({ toolName: 'edit', input: { path: path.join(root, 'README.md'), edits: [] } }, roleContext) === undefined, 'worker role must allow edits after loading its assigned skill');
 expect((await toolCallHandler({ toolName: 'read', input: { path: path.join(root, 'skills/b-debug/SKILL.md') } }, roleContext))?.block === true, 'worker role must keep rejecting other skills after the assigned skill is loaded');
 expect((await toolCallHandler({ toolName: 'bash', input: { command: 'rtk rg prompt skills/b-debug/SKILL.md' } }, roleContext))?.block === true, 'worker role must reject shell reads of other skills');

@@ -2628,6 +2628,7 @@ export default function (pi: ExtensionAPI) {
   let workerDirective: WorkerDirective | undefined;
   let workerSkillPath: string | undefined;
   let workerSkillPaths = new Set<string>();
+  let knownSkills: Array<{ name: string; filePath: string }> = [];
   let workerSkillLoaded = false;
   let workerResultReported = false;
   let reportedDirectiveIds = new Set<string>();
@@ -2659,6 +2660,7 @@ export default function (pi: ExtensionAPI) {
       workerDirective = undefined;
       workerSkillPath = undefined;
       workerSkillPaths = new Set();
+      knownSkills = [];
       workerSkillLoaded = false;
       workerResultReported = false;
       reportedDirectiveIds = new Set();
@@ -2670,15 +2672,32 @@ export default function (pi: ExtensionAPI) {
   }
 
   function syncWorkerDirective(ctx: ExtensionContext, skills: Array<{ name: string; filePath: string }>): void {
-    const availableSkills = new Set(skills.map((skill) => skill.name));
-    workerSkillPaths = new Set(skills.filter((skill) => B_AGENTIC_SKILL_NAMES.has(skill.name)).map((skill) => skill.filePath));
+    if (skills.length > 0) knownSkills = skills;
+    const agentDir = process.env.PI_CODING_AGENT_DIR?.trim() || resolve(homedir(), ".pi", "agent");
+    const fallbackSkillPaths = [...B_AGENTIC_SKILL_NAMES]
+      .flatMap((name) => [resolve(agentDir, "skills", name, "SKILL.md"), resolve(ctx.cwd, "skills", name, "SKILL.md")])
+      .filter((path) => existsSync(path));
+    workerSkillPaths = new Set([
+      ...knownSkills.filter((skill) => B_AGENTIC_SKILL_NAMES.has(skill.name)).map((skill) => skill.filePath),
+      ...fallbackSkillPaths,
+    ]);
+    const availableSkills = knownSkills.length > 0 ? new Set(knownSkills.map((skill) => skill.name)) : undefined;
     const next = latestWorkerDirective(ctx.sessionManager.getBranch(), ctx.cwd, availableSkills);
-    if (next?.id === workerDirective?.id) return;
+    const nextSkillPath = next?.skillName
+      ? knownSkills.find((skill) => skill.name === next.skillName)?.filePath ??
+        [resolve(agentDir, "skills", next.skillName, "SKILL.md"), resolve(ctx.cwd, "skills", next.skillName, "SKILL.md")]
+          .find((path) => existsSync(path))
+      : undefined;
+    if (next?.id === workerDirective?.id) {
+      workerSkillPath = nextSkillPath;
+      if (next?.skillName && !workerSkillPath) workerDirective = { ...next, kind: "invalid", skillName: undefined };
+      return;
+    }
     workerDirective = next;
     workerSkillLoaded = false;
     workerResultReported = Boolean(next?.id && reportedDirectiveIds.has(next.id));
     pendingReportedDirectiveId = undefined;
-    workerSkillPath = next?.skillName ? skills.find((skill) => skill.name === next.skillName)?.filePath : undefined;
+    workerSkillPath = nextSkillPath;
     if (next?.skillName && !workerSkillPath) workerDirective = { ...next, kind: "invalid", skillName: undefined };
   }
 
@@ -2770,6 +2789,14 @@ export default function (pi: ExtensionAPI) {
 
   pi.on("tool_call", async (event, ctx) => {
     currentContext = ctx;
+
+    // Intercom starts idle recipients with a custom-message turn, which bypasses
+    // Pi's before_agent_start hook. Refresh from the persisted branch here so
+    // the first worker tool call can observe the assignment that triggered it.
+    if (activeRole === "worker" && (!workerDirective || workerResultReported ||
+      workerDirective.kind === "invalid" || workerDirective.kind === "approved")) {
+      syncWorkerDirective(ctx, knownSkills);
+    }
 
     if (activeRole !== "off" && event.toolName === "intercom" && isPlainObject(event.input) &&
       (event.input.action === "ask" || event.input.action === "reply")) {
