@@ -1215,24 +1215,20 @@ run_skill_doctor_case() {
 run_rtk_latest_dry_run_case() {
 	local snapshot_repo="$1"
 	local sandbox="$WORK_DIR/rtk-latest-dry-run"
-	local bin_dir="$sandbox/bin"
 	local install_log="$sandbox/install.log"
-	local rc required_tool
+	local rc
 
-	mkdir -p "$sandbox/home" "$bin_dir"
-	for required_tool in rg fd bat eza sd jq; do
-		printf '#!/usr/bin/env bash\nexit 0\n' >"$bin_dir/$required_tool"
-		chmod +x "$bin_dir/$required_tool"
-	done
+	mkdir -p "$sandbox/home"
 
 	set +e
 	HOME="$sandbox/home" \
-		PATH="$bin_dir:$(smoke_system_path)" \
+		PATH="$(smoke_system_path)" \
 		B_AGENTIC_REPO="$snapshot_repo" \
 		B_AGENTIC_DIR="$sandbox/source" \
 		B_AGENTIC_PROMPT_API_KEYS=N \
 		B_AGENTIC_INSTALL_PI_CLI=N \
 		B_AGENTIC_INSTALL_RTK=Y \
+		B_AGENTIC_INSTALL_SHELL_TOOLS=N \
 		B_AGENTIC_INSTALL_SERENA=N \
 		B_AGENTIC_INSTALL_CODEGRAPH=N \
 		bash "$ROOT_DIR/install.sh" --dry-run >"$install_log" 2>&1
