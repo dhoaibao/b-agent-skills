@@ -1,6 +1,6 @@
 # b-implement
 
-Make the scoped change in the smallest coherent step, and hand back to planning or research instead of guessing when new ambiguity appears. Intercom delegation is advisory operational guidance, not trusted-peer enforcement: the coordinator handoff names the selected worker skill, bounded goal, constraints, and success criteria. The worker loads that skill, implements/verifies/reports, and returns control for coordinator review. Preserve no re-delegation, broadcast, spawn, or chained tasks.
+Make the scoped change in the smallest coherent step, and hand back to planning or research instead of guessing when new ambiguity appears.
 
 ## When to use
 

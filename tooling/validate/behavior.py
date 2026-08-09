@@ -38,7 +38,7 @@ KERNEL_CONSOLIDATION_REGRESSION = {
     "required_clauses": (
         "latest user instruction, approved plan, repo evidence, then stated assumptions",
         "define success, make the smallest coherent change, and verify its observable outcome",
-        "Auto-run regular commands and edits confined to the repository, including routine build, test, package, and script automation",
+        "Auto-run repository-local commands and edits, including build, test, package, and scripts",
         "likely-secret files (`.env`, `*.pem`, `credentials.*`, `secrets.*`)",
         "First code task: exact `codegraph init` only when its index is absent",
         "Do not install missing tools; fall back to local evidence and state the resulting gap.",
@@ -63,6 +63,28 @@ SHELL_POLICY_REGRESSION = {
     ),
     # Runtime companions: pi/tests/smoke.sh covers RTK discovery enforcement,
     # modern fallback availability, and scoped Git content reads.
+}
+
+# Regression: unrestricted delegation added serial handoff/review overhead, plain
+# Intercom prose did not reliably activate the selected worker skill, and both
+# sessions sometimes used reply even though only an ask recipient can do so.
+INTERCOM_DELEGATION_REGRESSION = {
+    "observed_failure": (
+        "Delegated work was slower than local work, workers rerouted the handoff, "
+        "and reply failed without a unique pending ask."
+    ),
+    "intended_behavior": (
+        "Delegate only beneficial parallel work, make the named worker skill "
+        "explicitly active, and reserve ask/reply for blocking questions."
+    ),
+    "required_clauses": (
+        "expected savings exceed handoff/review",
+        "reads that `SKILL.md` as its sole active skill",
+        "coordinator avoids duplication and reviews",
+        "reports once via `send`",
+        "`ask` only for blocking questions",
+        "Never `reply` for delegation/completion",
+    ),
 }
 
 
@@ -458,6 +480,14 @@ def validate_shell_policy_regression(errors: list[str]) -> None:
     )
 
 
+def validate_intercom_delegation_regression(errors: list[str]) -> None:
+    validate_clause_regression(
+        "Intercom delegation regression",
+        INTERCOM_DELEGATION_REGRESSION,
+        errors,
+    )
+
+
 def main() -> int:
     skills = load_registry()
     skill_names = {skill.get("name") for skill in skills if isinstance(skill, dict)}
@@ -466,6 +496,7 @@ def main() -> int:
     validate_runtime_contract(skills, errors)
     validate_kernel_consolidation_regression(errors)
     validate_shell_policy_regression(errors)
+    validate_intercom_delegation_regression(errors)
 
     for fixture in FIXTURES:
         if fixture.expected not in skill_names:

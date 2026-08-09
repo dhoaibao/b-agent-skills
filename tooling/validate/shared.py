@@ -150,9 +150,6 @@ PROMPT_TOOL_LEVERAGE_REGRESSION = {
             "rename_symbol",
             "replace_symbol_body",
             "compacted observational-memory ids",
-            "coordinator",
-            "worker loads that skill",
-            "returns control",
         ],
         "b-refactor": [
             "rename_symbol",
@@ -407,15 +404,15 @@ if "RTK never bypasses these protections" not in kernel_template:
     errors.append(
         "references/kernel.template.md: RTK must not be described as bypassing protections"
     )
-if "Intercom delegation is advisory operational guidance, not trusted-peer enforcement" not in kernel_template or "worker loads that skill, implements/verifies/reports" not in kernel_template:
-    errors.append(
-        "references/kernel.template.md: advisory coordinator/worker delegation boundary must remain explicit"
-    )
 for intercom_marker in [
-    "Preserve no re-delegation, broadcast, spawn, or chained tasks",
-    "Intercom schema governs valid fields without approval friction",
-    "implements/verifies/reports, and returns control",
-    "coordinator review",
+    "expected savings exceed handoff/review",
+    "`send` one handoff naming skill, goal, constraints, checks, and coordinator target",
+    "reads that `SKILL.md` as its sole active skill",
+    "coordinator avoids duplication and reviews",
+    "no re-delegation/broadcast/spawn/chains",
+    "`ask` only for blocking questions",
+    "Never `reply` for delegation/completion",
+    "Schema-valid Intercom calls stay approval-free",
 ]:
     if intercom_marker not in kernel_template:
         errors.append(

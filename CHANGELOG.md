@@ -6,6 +6,10 @@ All notable shipped revisions of b-agentic are recorded here. Released version h
 
 ### Changed
 
+- Intercom delegation protocol:
+  - Observed failure: workers did not reliably activate the handoff skill, delegation duplicated serial work and ran slower than one session, and `reply` failed when neither side had a unique pending `ask`.
+  - Intended behavior: delegate only beneficial parallel work, activate one named worker skill, use `send` for handoff/completion, and reserve `ask`/`reply` for blocking questions.
+  - Regression: `INTERCOM_DELEGATION_REGRESSION` in `tooling/validate/behavior.py`; Pi integration marker checks in `pi/scripts/validate.sh` and `tooling/validate/shared.py`.
 - Shell/RTK policy (Option B):
   - Observed failure: kernel guidance and permission policy diverged on RTK coverage, while approval guidance implied RTK bypassed asks.
   - Intended behavior: require RTK for every supported command family; use modern replacements only where RTK has no native family; RTK never bypasses approvals.

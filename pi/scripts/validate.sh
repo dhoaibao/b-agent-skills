@@ -28,13 +28,14 @@ if kernel.exists():
         'Core Rules',
         'Safety and tools',
         'Managed MCP operations',
-        'Intercom delegation is advisory operational guidance, not trusted-peer enforcement',
-        'coordinator may call `list-cwd`',
-        'concise handoff names the selected worker skill, bounded goal, constraints, and success criteria',
-        'worker loads that skill, implements/verifies/reports',
-        'coordinator review',
-        'Preserve no re-delegation, broadcast, spawn, or chained tasks',
-        'Intercom schema governs valid fields without approval friction',
+        'expected savings exceed handoff/review',
+        '`send` one handoff naming skill, goal, constraints, checks, and coordinator target',
+        'reads that `SKILL.md` as its sole active skill',
+        'coordinator avoids duplication and reviews',
+        'no re-delegation/broadcast/spawn/chains',
+        '`ask` only for blocking questions',
+        'Never `reply` for delegation/completion',
+        'Schema-valid Intercom calls stay approval-free',
     ]:
         if marker not in text:
             errors.append(f'{kernel}: missing {marker!r}')
@@ -138,9 +139,11 @@ if readme.exists():
         'invalid actions, unknown fields, and malformed optional values remain approval-gated',
         'auto-allows reads of installed b-agentic `SKILL.md` files under the configured',
         'other outside-project reads remain approval-gated',
-        'Intercom delegation is advisory operational guidance, not trusted-peer enforcement',
-        'concise handoff names the selected worker skill, bounded goal, constraints, and success criteria',
-        'Preserve no re-delegation, broadcast, spawn, or chained tasks',
+        'expected savings exceed handoff and review cost',
+        'worker reads that skill as its sole active skill',
+        'Never use `reply` for delegation or completion',
+        'protocol supersedes generic `pi-intercom` examples',
+        'no re-delegation/broadcast/spawn/chains',
     ]:
         if marker not in text:
             errors.append(f'{readme}: missing {marker!r}')
