@@ -6,6 +6,10 @@ All notable shipped revisions of b-agentic are recorded here. Released version h
 
 ### Changed
 
+- Planner/worker Pi profiles:
+  - Observed failure: prose-only handoffs could not enforce a read-only coordinator, a sole writer, or the worker's assigned skill across Intercom sessions.
+  - Intended behavior: `/b-role planner|worker|off` persists a Pi role overlay; planner mode hard-blocks mutations, worker mode requires a structured assignment and exact skill read, and `send` drives repeated result/review iterations.
+  - Regression: role-mode behavioral fixtures in `pi/tests/smoke.sh`; kernel/extension markers in `pi/scripts/validate.sh`, `tooling/validate/behavior.py`, and `tooling/validate/shared.py`.
 - Intercom delegation protocol:
   - Observed failure: workers did not reliably activate the handoff skill, delegation duplicated serial work and ran slower than one session, and `reply` failed when neither side had a unique pending `ask`.
   - Intended behavior: delegate only beneficial parallel work, activate one named worker skill, use `send` for handoff/completion, and reserve `ask`/`reply` for blocking questions.

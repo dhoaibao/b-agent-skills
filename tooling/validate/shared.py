@@ -405,13 +405,14 @@ if "RTK never bypasses these protections" not in kernel_template:
         "references/kernel.template.md: RTK must not be described as bypassing protections"
     )
 for intercom_marker in [
-    "expected savings exceed handoff/review",
-    "`send` one handoff naming skill, goal, constraints, checks, and coordinator target",
-    "reads that `SKILL.md` as its sole active skill",
-    "coordinator avoids duplication and reviews",
-    "no re-delegation/broadcast/spawn/chains",
-    "`ask` only for blocking questions",
-    "Never `reply` for delegation/completion",
+    "`/b-role planner|worker|off` is opt-in",
+    "Planner is read-only",
+    "worker is sole writer",
+    "`B_AGENTIC_TASK`",
+    "`B_AGENTIC_RESULT`",
+    "`B_AGENTIC_REVIEW`",
+    "Use `send`, never `ask`/`reply`",
+    "Commit requires role off",
     "Schema-valid Intercom calls stay approval-free",
 ]:
     if intercom_marker not in kernel_template:

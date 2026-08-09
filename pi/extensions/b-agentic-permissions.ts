@@ -27,6 +27,7 @@ function isAutoApprovedIntercomCall(toolName: string, input: unknown): boolean {
  * - block write/edit to secret and repository-control paths
  * - allow project-local regular commands plus classified read-only and safe conditional-read MCP operations
  * - broker adapter-originated MCP calls, including proxy/direct/resource/script/iframe origins
+ * - persistent planner/worker role overlays with planner read-only enforcement and worker skill loading
  * - ask before managed mutations/uploads, user/unknown MCP servers, auth actions, and other custom tools
  *
  * Normalizes bare and rtk-wrapped shell commands, compound shell segments,
@@ -39,7 +40,103 @@ import { isIP } from "node:net";
 import { delimiter, dirname, isAbsolute, relative, resolve } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
+type BAgenticRole = "off" | "planner" | "worker";
 type Decision = "allow" | "ask" | "deny";
+type WorkerDirectiveKind = "task" | "changes_requested" | "approved" | "invalid";
+type WorkerDirective = {
+  id: string;
+  kind: WorkerDirectiveKind;
+  skillName?: string;
+  iteration?: number;
+  reportTo?: string;
+  plannerId?: string;
+  plannerName?: string;
+  plannerCwd?: string;
+};
+type RoleState = {
+  role: BAgenticRole;
+  toolsBeforePlanner?: string[];
+  reportedDirectiveIds: string[];
+};
+
+const ROLE_ENTRY_TYPE = "b-agentic-role";
+const WORKER_SKILLS = new Set(["b-browser", "b-debug", "b-implement", "b-refactor", "b-research", "b-test"]);
+const PLANNER_DISABLED_TOOLS = new Set(["edit", "write"]);
+const PLANNER_CODEGRAPH_COMMANDS = new Set([
+  "affected", "callees", "callers", "explore", "files", "help", "impact", "node", "query", "status", "version",
+]);
+const PLANNER_READ_COMMANDS = new Set([
+  "[", "basename", "bat", "batcat", "cat", "cd", "df", "diff", "dirname", "du", "echo", "eza", "exa",
+  "fd", "fdfind", "file", "find", "grep", "head", "jq", "ls", "popd", "printf", "pushd", "pwd", "readlink",
+  "realpath", "rg", "sort", "stat", "tail", "test", "true", "type", "uniq", "wc", "whereis", "which",
+]);
+
+const PLANNER_PROMPT = `## b-agentic planner profile (read-only)
+You are the planner, coordinator, and reviewer. This profile overrides execution routing while active.
+- Use b-plan for decomposition, b-research only for blocking external facts, and b-review for every worker result. Read the selected SKILL.md before that phase.
+- Never edit the repository, run builds/tests, create commits, or call mutating tools. If verification is needed, delegate it; switch role off for b-design, b-init, or b-commit.
+- Delegate to at most one same-cwd worker with Intercom \`send\`. Use this exact task format:
+\`\`\`text
+B_AGENTIC_TASK v1
+worker_skill: <worker skill>
+iteration: 1
+goal: <bounded outcome>
+constraints: <scope and invariants>
+success_checks: <observable checks>
+report_to: <this planner session name or id>
+\`\`\`
+- Review the actual diff and evidence. Request fixes with this exact format:
+\`\`\`text
+B_AGENTIC_REVIEW v1
+verdict: changes_requested
+worker_skill: <next worker skill>
+iteration: <previous iteration + 1>
+findings: <ordered actionable findings>
+\`\`\`
+Approve with this exact format:
+\`\`\`text
+B_AGENTIC_REVIEW v1
+verdict: approved
+iteration: <completed iteration>
+\`\`\`
+- Use \`send\`, never \`ask\`/\`reply\`, for task, result, and review traffic.`;
+
+function workerPrompt(directive: WorkerDirective | undefined, skillPath: string | undefined, skillLoaded: boolean, resultReported: boolean): string {
+  const assignment = resultReported
+    ? "The result was sent. Wait for B_AGENTIC_REVIEW before any more repository work."
+    : directive?.skillName
+    ? `Assigned skill: ${directive.skillName}${directive.iteration ? ` (iteration ${directive.iteration})` : ""}. Skill file: ${skillPath ?? "unavailable"}.`
+    : directive?.kind === "approved"
+      ? "The planner approved the result. Wait for another B_AGENTIC_TASK or changes_requested review."
+      : directive?.kind === "invalid"
+        ? "The latest handoff is invalid. Report the malformed handoff to the planner and wait."
+        : "No structured assignment is active. Wait for a B_AGENTIC_TASK or changes_requested B_AGENTIC_REVIEW.";
+  const loadRule = resultReported
+    ? "Do not continue implementation while review is pending."
+    : directive?.skillName && !skillLoaded
+      ? "Before any repository action, read the exact assigned SKILL.md path."
+      : "Follow only the assigned skill for this iteration.";
+  const resultInstruction = !resultReported && (directive?.kind === "task" || directive?.kind === "changes_requested") &&
+    directive.skillName && directive.iteration && directive.reportTo
+    ? `When ready, request planner review with exactly this format:
+\`\`\`text
+B_AGENTIC_RESULT v1
+status: ready_for_review
+worker_skill: ${directive.skillName}
+iteration: ${directive.iteration}
+changed_paths: <paths or none>
+verification: <commands and outcomes>
+gaps: <remaining gaps or none>
+\`\`\`
+Send it to exactly: ${directive.reportTo}`
+    : "Wait for a valid assignment before sending B_AGENTIC_RESULT.";
+  return `## b-agentic worker profile (primary edit)
+You are the sole implementation worker. ${assignment}
+- ${loadRule}
+- Own only the bounded task. Implement/fix/test with normal b-agentic safety and verification rules; do not plan, review, commit, or delegate.
+- ${resultInstruction}
+- Use Intercom \`send\`, never \`ask\`/\`reply\`, then stop changing the repository until a new review iteration arrives.`;
+}
 type McpToolApprovalDecision = "allow_once" | "allow_for_session" | "deny" | "abstain";
 type McpToolApprovalOrigin = "proxy" | "direct" | "script" | "resource" | "iframe";
 type McpToolApprovalRequest = {
@@ -1567,6 +1664,81 @@ function commandDecision(
   return worst;
 }
 
+function isPlannerReadOnlyGit(tokens: string[]): boolean {
+  const subcommand = tokens[1];
+  const args = tokens.slice(2);
+  if (!subcommand) return true;
+  if (new Set([
+    "blame", "describe", "diff", "for-each-ref", "grep", "log", "ls-files", "ls-remote", "ls-tree",
+    "name-rev", "rev-parse", "shortlog", "show", "show-ref", "status",
+  ]).has(subcommand)) return true;
+  if (subcommand === "branch") {
+    if (args.length === 0) return true;
+    if (["-a", "--all", "-r", "--remotes", "--show-current", "-v", "-vv"].includes(args[0])) return args.length === 1;
+    if (["--contains", "--no-contains", "--merged", "--no-merged"].includes(args[0])) return args.length <= 2;
+    return args[0] === "--list";
+  }
+  if (subcommand === "config") return ["--get", "--get-all", "--get-regexp"].includes(args[0]);
+  if (subcommand === "remote") return args.length === 0 || (args.length === 1 && args[0] === "-v") || ["get-url", "show"].includes(args[0]);
+  if (subcommand === "stash") return args[0] === "list";
+  if (subcommand === "tag") return args.length === 0 || args[0] === "--list" || args[0] === "-l";
+  return false;
+}
+
+function hasPlannerMutationCapableArgs(tokens: string[]): boolean {
+  const command = tokens[0];
+  const args = tokens.slice(1);
+  if (command === "find") return args.some((arg) =>
+    ["-delete", "-exec", "-execdir", "-ok", "-okdir", "-fls", "-fprint", "-fprint0", "-fprintf"].includes(arg));
+  if (command === "fd" || command === "fdfind") return args.some((arg) =>
+    /^-[xX]/.test(arg) || ["--exec", "--exec-batch"].includes(arg) || arg.startsWith("--exec=") || arg.startsWith("--exec-batch="));
+  if (command === "rg") return args.some((arg) => arg === "--pre" || arg.startsWith("--pre="));
+  if (command === "sort") return args.some((arg) =>
+    arg === "-o" || /^-o.+/.test(arg) || arg === "--output" || arg.startsWith("--output=") ||
+    arg === "--compress-program" || arg.startsWith("--compress-program="));
+  if (command === "bat" || command === "batcat") return args.some((arg) => arg === "--pager" || arg.startsWith("--pager="));
+  if (command === "git") return args.some((arg) =>
+    arg === "--ext-diff" || arg === "--textconv" || arg === "-O" || arg.startsWith("-O") ||
+    arg === "--open-files-in-pager" || arg.startsWith("--open-files-in-pager=") ||
+    arg === "--output" || arg.startsWith("--output="));
+  return false;
+}
+
+function hasPlannerUnsafeGitConfig(tokens: string[]): boolean {
+  const stripped = stripWrappers(tokens);
+  if (baseName(stripped[0] || "") !== "git") return false;
+  return stripped.slice(1).some((arg) =>
+    arg === "-c" || (arg.startsWith("-c") && arg.length > 2) ||
+    arg === "--config-env" || arg.startsWith("--config-env="));
+}
+
+function plannerCommandDecision(command: string): { decision: "allow" | "deny"; reason: string } {
+  const base = commandDecision(command);
+  if (base.decision !== "allow") {
+    return { decision: "deny", reason: `Planner mode is read-only: ${base.reason || "command is not read-only"}` };
+  }
+  for (const segment of splitShellSegments(command.trim())) {
+    const rawTokens = tokenize(segment);
+    if (hasPlannerUnsafeGitConfig(rawTokens)) {
+      return { decision: "deny", reason: "Planner mode is read-only: inline Git configuration can execute repository programs" };
+    }
+    const tokens = normalizeTokens(rawTokens);
+    if (tokens.length === 0) continue;
+    if (hasPlannerMutationCapableArgs(tokens)) {
+      return { decision: "deny", reason: `Planner mode is read-only: mutation-capable ${tokens[0]} arguments blocked` };
+    }
+    if (tokens[0] === "git" && isPlannerReadOnlyGit(tokens)) continue;
+    if (tokens[0] === "codegraph" && (tokens.length === 1 || PLANNER_CODEGRAPH_COMMANDS.has(tokens[1]))) continue;
+    if (isVersionCheck(tokens)) continue;
+    if (PLANNER_READ_COMMANDS.has(tokens[0])) continue;
+    return {
+      decision: "deny",
+      reason: `Planner mode is read-only: command is not in the read-only set (${tokens[0]})`,
+    };
+  }
+  return { decision: "allow", reason: "" };
+}
+
 function nativePathDecision(toolName: string, pathValue: string): { decision: Decision; reason: string } {
   if (pathValue && isProtectedLocalPath(pathValue)) {
     if (toolName === "read") {
@@ -2001,11 +2173,13 @@ function approvalLabel(value: string): string {
 async function brokerApprovalDecision(
   request: McpToolApprovalRequest,
   context: Pick<ExtensionContext, "hasUI" | "ui"> | undefined,
+  plannerReadOnly = false,
 ): Promise<McpToolApprovalDecision> {
   const server = normalizeServerId(request.serverName);
   if (isTrustedManagedTool(server, request.originalToolName, request.args)) {
     return "allow_once";
   }
+  if (plannerReadOnly) return "deny";
   if (!context?.hasUI) {
     return "deny";
   }
@@ -2049,11 +2223,496 @@ async function confirmOrBlock(
   return undefined;
 }
 
+function parseRole(value: unknown): BAgenticRole | undefined {
+  if (typeof value !== "string") return undefined;
+  const role = value.trim().toLowerCase();
+  return role === "off" || role === "planner" || role === "worker" ? role : undefined;
+}
+
+function latestRoleState(entries: unknown[]): RoleState | undefined {
+  for (let index = entries.length - 1; index >= 0; index -= 1) {
+    const entry = entries[index];
+    if (!isPlainObject(entry) || entry.type !== "custom" || entry.customType !== ROLE_ENTRY_TYPE || !isPlainObject(entry.data)) continue;
+    const role = parseRole(entry.data.role);
+    if (!role) continue;
+    const tools = Array.isArray(entry.data.toolsBeforePlanner)
+      ? entry.data.toolsBeforePlanner.filter((value): value is string => typeof value === "string")
+      : undefined;
+    const reportedDirectiveIds = Array.isArray(entry.data.reportedDirectiveIds)
+      ? entry.data.reportedDirectiveIds.filter((value): value is string => typeof value === "string")
+      : [];
+    return { role, toolsBeforePlanner: tools, reportedDirectiveIds };
+  }
+  return undefined;
+}
+
+function protocolField(body: string, name: string): string | undefined {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const value = new RegExp(`^${escaped}:\\s*(.+?)\\s*$`, "im").exec(body)?.[1]?.trim();
+  return value || undefined;
+}
+
+function intercomSender(entry: Record<string, unknown>): { id: string; name?: string; cwd: string } | undefined {
+  if (!isPlainObject(entry.details) || !isPlainObject(entry.details.from)) return undefined;
+  const from = entry.details.from;
+  if (typeof from.id !== "string" || typeof from.cwd !== "string") return undefined;
+  return { id: from.id, name: typeof from.name === "string" ? from.name : undefined, cwd: from.cwd };
+}
+
+function identityMatches(target: string, sender: { id: string; name?: string }): boolean {
+  const normalized = target.trim().toLowerCase();
+  return Boolean(normalized) && (sender.name?.trim().toLowerCase() === normalized ||
+    sender.id.toLowerCase() === normalized || (normalized.length >= 4 && sender.id.toLowerCase().startsWith(normalized)));
+}
+
+function latestWorkerDirective(
+  entries: unknown[],
+  workerCwd?: string,
+  availableSkills?: ReadonlySet<string>,
+): WorkerDirective | undefined {
+  let current: WorkerDirective | undefined;
+  let reported = new Set<string>();
+  for (let index = 0; index < entries.length; index += 1) {
+    const entry = entries[index];
+    if (!isPlainObject(entry)) continue;
+    if (entry.type === "custom" && entry.customType === ROLE_ENTRY_TYPE && isPlainObject(entry.data)) {
+      reported = Array.isArray(entry.data.reportedDirectiveIds)
+        ? new Set(entry.data.reportedDirectiveIds.filter((value): value is string => typeof value === "string"))
+        : new Set();
+      if (parseRole(entry.data.role) !== "worker") current = undefined;
+      continue;
+    }
+    if (entry.type !== "custom_message" || entry.customType !== "intercom_message" || typeof entry.content !== "string") continue;
+    const marker = /(?:^|\n)B_AGENTIC_(TASK|REVIEW)(?:\s+v1)?\s*(?:\n|$)/m.exec(entry.content);
+    if (!marker) continue;
+    const body = entry.content.slice(marker.index ?? 0);
+    const kind = marker[1];
+    const id = typeof entry.id === "string" ? entry.id : `entry-${index}`;
+    const iterationValue = Number(protocolField(body, "iteration"));
+    const iteration = Number.isInteger(iterationValue) && iterationValue > 0 ? iterationValue : undefined;
+    const sender = intercomSender(entry);
+    const senderInWorkerCwd = Boolean(sender && (!workerCwd || pathsMatch(sender.cwd, workerCwd, workerCwd)));
+
+    if (kind === "TASK") {
+      if (current && current.kind !== "approved" && current.kind !== "invalid") continue;
+      const skillName = protocolField(body, "worker_skill");
+      const reportTo = protocolField(body, "report_to");
+      const completeTask = protocolField(body, "goal") && protocolField(body, "constraints") && protocolField(body, "success_checks");
+      if (!sender || !senderInWorkerCwd || !skillName || !WORKER_SKILLS.has(skillName) ||
+        (availableSkills && !availableSkills.has(skillName)) || iteration !== 1 ||
+        !reportTo || !identityMatches(reportTo, sender) || !completeTask) {
+        current = { id, kind: "invalid", iteration };
+        continue;
+      }
+      current = {
+        id, kind: "task", skillName, iteration, reportTo,
+        plannerId: sender.id, plannerName: sender.name, plannerCwd: sender.cwd,
+      };
+      continue;
+    }
+
+    if (!current || (current.kind !== "task" && current.kind !== "changes_requested") ||
+      !sender || !senderInWorkerCwd || sender.id !== current.plannerId || !reported.has(current.id)) continue;
+    const verdict = protocolField(body, "verdict")?.toLowerCase();
+    if (verdict === "approved" && iteration === current.iteration) {
+      current = { ...current, id, kind: "approved" };
+      continue;
+    }
+    const skillName = protocolField(body, "worker_skill");
+    if (verdict === "changes_requested" && iteration === (current.iteration || 0) + 1 &&
+      skillName && WORKER_SKILLS.has(skillName) && (!availableSkills || availableSkills.has(skillName)) && protocolField(body, "findings")) {
+      current = { ...current, id, kind: "changes_requested", skillName, iteration };
+    }
+  }
+  return current;
+}
+
+function pathsMatch(first: string, second: string, cwd: string): boolean {
+  const normalize = (value: string): string => {
+    const absolute = value === "~" || value.startsWith("~/") ? expandLocalPath(value) : resolve(cwd, value);
+    try {
+      return realpathSync(absolute);
+    } catch {
+      return absolute;
+    }
+  };
+  return normalize(first) === normalize(second);
+}
+
+function shellGlobExpression(pattern: string): string {
+  let expression = "";
+  for (let index = 0; index < pattern.length; index += 1) {
+    const character = pattern[index];
+    if (character === "*") {
+      if (pattern[index + 1] === "*") {
+        expression += ".*";
+        index += 1;
+      } else {
+        expression += "[^/]*";
+      }
+      continue;
+    }
+    if (character === "?") {
+      expression += "[^/]";
+      continue;
+    }
+    if (character === "[") {
+      const close = pattern.indexOf("]", index + 1);
+      if (close > index + 1) {
+        const content = pattern.slice(index + 1, close);
+        const negated = content.startsWith("!") ? `^${content.slice(1)}` : content;
+        expression += `[${negated.replace(/\\/g, "\\\\")}]`;
+        index = close;
+        continue;
+      }
+    }
+    if (character === "{") {
+      const close = pattern.indexOf("}", index + 1);
+      if (close > index + 1) {
+        const alternatives = pattern.slice(index + 1, close).split(",");
+        if (alternatives.length > 1) {
+          expression += `(?:${alternatives.map(shellGlobExpression).join("|")})`;
+          index = close;
+          continue;
+        }
+      }
+    }
+    expression += character.replace(/[.+^${}()|[\]\\]/g, "\\$&");
+  }
+  return expression;
+}
+
+function shellPathPatternMatches(value: string, target: string, cwd: string): boolean {
+  const optionValue = value.includes("=") ? value.slice(value.indexOf("=") + 1) : value;
+  const candidate = optionValue.replace(/^(?:\d+)?(?:<|>|>>|&>|&>>)/, "").replace(/\\/g, "/");
+  const gitPath = !/^[A-Za-z]:\//.test(candidate) && candidate.includes(":")
+    ? candidate.slice(candidate.indexOf(":") + 1)
+    : undefined;
+  const values = gitPath ? [candidate, gitPath] : [candidate];
+  const skillName = baseName(resolve(target, ".."));
+  const targetPaths = [
+    resolve(target),
+    resolve(cwd, "skills", skillName, "SKILL.md"),
+    resolve(cwd, skillName, "SKILL.md"),
+    ...(baseName(cwd) === skillName ? [resolve(cwd, "SKILL.md")] : []),
+  ].map((path) => path.replace(/\\/g, "/"));
+  return values.some((pathValue) => {
+    const normalizedValue = pathValue.replace(/\\/g, "/");
+    if (!/[?*[\]{}]/.test(normalizedValue)) {
+      const absoluteValue = resolve(cwd, normalizedValue).replace(/\\/g, "/");
+      return normalizedValue === `${skillName}/SKILL.md` || normalizedValue.endsWith(`/${skillName}/SKILL.md`) ||
+        targetPaths.includes(absoluteValue) || pathsMatch(normalizedValue, target, cwd);
+    }
+    const absolutePattern = (normalizedValue === "~" || normalizedValue.startsWith("~/"))
+      ? expandLocalPath(normalizedValue)
+      : resolve(cwd, normalizedValue);
+    try {
+      const matcher = new RegExp(`^${shellGlobExpression(absolutePattern.replace(/\\/g, "/"))}$`);
+      return targetPaths.some((path) => matcher.test(path));
+    } catch {
+      return false;
+    }
+  });
+}
+
+function searchCommandPathTokens(tokens: string[], start: number): string[] {
+  const paths: string[] = [];
+  let patternSeen = false;
+  let filesMode = false;
+  const patternOptions = new Set(["-e", "--regexp"]);
+  const fileOptions = new Set(["-f", "--file", "--files-from", "--exclude-from", "--ignore-file"]);
+  const includeOptions = new Set(["-g", "--glob", "--iglob", "--include"]);
+  const ignoredValueOptions = new Set([
+    "-A", "-B", "-C", "-d", "-D", "-j", "-m", "-M", "--after-context", "--before-context", "--binary-files",
+    "--color", "--colors", "--context", "--context-separator", "--devices", "--directories", "--encoding", "--engine",
+    "--exclude", "--exclude-dir", "--field-context-separator", "--field-match-separator", "--label", "--max-columns",
+    "--max-count", "--max-depth", "--path-separator", "--replace", "--sort", "--sortr", "--threads", "--type",
+    "--type-add", "--type-clear", "--type-not",
+  ]);
+  for (let index = start; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    if (token === "--") continue;
+    if (token === "--files") {
+      filesMode = true;
+      continue;
+    }
+    const optionName = token.includes("=") ? token.slice(0, token.indexOf("=")) : token;
+    const inlineValue = token.includes("=") ? token.slice(token.indexOf("=") + 1) : undefined;
+    const attachedPattern = token.startsWith("-e") && !token.startsWith("--") && token.length > 2;
+    if (patternOptions.has(optionName) || attachedPattern) {
+      patternSeen = true;
+      if (!inlineValue && !attachedPattern) index += 1;
+      continue;
+    }
+    const attachedFile = token.startsWith("-f") && !token.startsWith("--") && token.length > 2;
+    if (fileOptions.has(optionName) || attachedFile) {
+      const value = inlineValue ?? (attachedFile ? token.slice(2) : tokens[index + 1]);
+      if (value) paths.push(value);
+      if (!inlineValue && !attachedFile) index += 1;
+      continue;
+    }
+    const attachedInclude = token.startsWith("-g") && !token.startsWith("--") && token.length > 2;
+    if (includeOptions.has(optionName) || attachedInclude) {
+      const value = inlineValue ?? (attachedInclude ? token.slice(2) : tokens[index + 1]);
+      if (value && !value.startsWith("!")) paths.push(value);
+      if (!inlineValue && !attachedInclude) index += 1;
+      continue;
+    }
+    if (ignoredValueOptions.has(optionName) || (tokens[0] === "rg" && optionName === "-r")) {
+      if (!inlineValue) index += 1;
+      continue;
+    }
+    if (token.startsWith("-")) continue;
+    if (filesMode || patternSeen) paths.push(token);
+    else patternSeen = true;
+  }
+  return paths;
+}
+
+function shellSkillPathTokens(tokens: string[]): string[] {
+  const redirections = tokens.filter((token) => /^(?:\d+)?</.test(token));
+  if (tokens[0] === "rg" || tokens[0] === "grep") return [...redirections, ...searchCommandPathTokens(tokens, 1)];
+  if (tokens[0] === "git" && tokens[1] === "grep") return [...redirections, ...searchCommandPathTokens(tokens, 2)];
+  if (tokens[0] === "echo" || tokens[0] === "printf") return redirections;
+  return tokens.slice(1);
+}
+
+function jqFileTokens(tokens: string[]): string[] {
+  const paths = tokens.filter((token) => /^(?:\d+)?</.test(token));
+  let filterSeen = false;
+  for (let index = 1; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    if (token === "-f" || token === "--from-file") {
+      if (tokens[index + 1]) paths.push(tokens[index + 1]);
+      filterSeen = true;
+      index += 1;
+      continue;
+    }
+    if (token === "-L") {
+      if (tokens[index + 1]) paths.push(tokens[index + 1]);
+      index += 1;
+      continue;
+    }
+    if (token === "--slurpfile" || token === "--rawfile" || token === "--argfile") {
+      if (tokens[index + 2]) paths.push(tokens[index + 2]);
+      index += 2;
+      continue;
+    }
+    if (token === "--arg" || token === "--argjson") {
+      index += 2;
+      continue;
+    }
+    if (token.startsWith("-")) continue;
+    if (filterSeen) paths.push(token);
+    else filterSeen = true;
+  }
+  return paths;
+}
+
+function shellBraceFileTokens(tokens: string[]): string[] {
+  if (tokens[0] === "jq") return jqFileTokens(tokens);
+  if (INTERPRETER_BASES.has(tokens[0]) && tokens.some((token) => ["-c", "-e", "-E", "-p", "-r", "--eval", "--print"].includes(token))) {
+    return tokens.filter((token) => /^(?:\d+)?</.test(token));
+  }
+  if (tokens[0] === "git") {
+    const values: string[] = [];
+    for (let index = 1; index < tokens.length; index += 1) {
+      if (["--format", "--pretty"].includes(tokens[index])) {
+        index += 1;
+        continue;
+      }
+      if (tokens[index].startsWith("--format=") || tokens[index].startsWith("--pretty=")) continue;
+      values.push(tokens[index]);
+    }
+    return values;
+  }
+  return shellSkillPathTokens(tokens);
+}
+
+function braceTokenLooksLikePath(token: string): boolean {
+  const optionValue = token.includes("=") ? token.slice(token.indexOf("=") + 1) : token;
+  const value = optionValue.replace(/^(?:\d+)?(?:<|>|>>|&>|&>>)/, "");
+  return /[{}]/.test(value) && (/[\\/]/.test(value) || value.includes("SKILL") || /\.[A-Za-z0-9][A-Za-z0-9._-]*$/.test(value));
+}
+
+function bashHasBraceFileOperand(command: string): boolean {
+  return splitShellSegments(command).some((segment) =>
+    shellBraceFileTokens(normalizeTokens(tokenize(segment))).some(braceTokenLooksLikePath));
+}
+
+function bashReadsAnotherSkill(
+  command: string,
+  assignedSkillPath: string | undefined,
+  skillPaths: ReadonlySet<string>,
+  cwd: string,
+): boolean {
+  if (!assignedSkillPath) return false;
+  if (bashHasBraceFileOperand(command)) return true;
+  const otherSkills = [...skillPaths].filter((path) => !pathsMatch(path, assignedSkillPath, cwd));
+  let segmentCwd = cwd;
+  const directoryStack: string[] = [];
+  for (const segment of splitShellSegments(command)) {
+    const tokens = normalizeTokens(tokenize(segment));
+    if (shellSkillPathTokens(tokens).some((token) =>
+      otherSkills.some((path) => shellPathPatternMatches(token, path, segmentCwd)))) return true;
+    if ((tokens[0] === "cd" || tokens[0] === "pushd") && tokens[1] && !tokens[1].startsWith("-")) {
+      if (tokens[0] === "pushd") directoryStack.push(segmentCwd);
+      segmentCwd = tokens[1] === "~" || tokens[1].startsWith("~/") ? expandLocalPath(tokens[1]) : resolve(segmentCwd, tokens[1]);
+    } else if (tokens[0] === "popd" && directoryStack.length > 0) {
+      segmentCwd = directoryStack.pop() || cwd;
+    }
+  }
+  return false;
+}
+
+function workerResultValidation(
+  toolName: string,
+  input: unknown,
+  directive: WorkerDirective | undefined,
+): { isResult: boolean; valid: boolean; reason: string } {
+  if (toolName !== "intercom" || !isPlainObject(input) || input.action !== "send" || typeof input.message !== "string" ||
+    !/(?:^|\n)B_AGENTIC_RESULT(?:\s+v1)?(?:\n|$)/m.test(input.message)) {
+    return { isResult: false, valid: false, reason: "" };
+  }
+  if (!directive || (directive.kind !== "task" && directive.kind !== "changes_requested")) {
+    return { isResult: true, valid: false, reason: "Worker result has no active assignment" };
+  }
+  const marker = /(?:^|\n)B_AGENTIC_RESULT(?:\s+v1)?\s*(?:\n|$)/m.exec(input.message);
+  const body = input.message.slice(marker?.index ?? 0);
+  const iteration = Number(protocolField(body, "iteration"));
+  const valid = typeof input.to === "string" && input.to.trim().toLowerCase() === directive.reportTo?.trim().toLowerCase() &&
+    protocolField(body, "status")?.toLowerCase() === "ready_for_review" &&
+    protocolField(body, "worker_skill") === directive.skillName && iteration === directive.iteration &&
+    Boolean(protocolField(body, "changed_paths") && protocolField(body, "verification") && protocolField(body, "gaps"));
+  return {
+    isResult: true,
+    valid,
+    reason: valid ? "" : "B_AGENTIC_RESULT must match report_to, worker_skill, iteration, status, changed_paths, verification, and gaps",
+  };
+}
+
 export default function (pi: ExtensionAPI) {
   let currentContext: ExtensionContext | undefined;
+  let activeRole: BAgenticRole = "off";
+  let toolsBeforePlanner: string[] | undefined;
+  let workerDirective: WorkerDirective | undefined;
+  let workerSkillPath: string | undefined;
+  let workerSkillPaths = new Set<string>();
+  let workerSkillLoaded = false;
+  let workerResultReported = false;
+  let reportedDirectiveIds = new Set<string>();
+  let pendingReportedDirectiveId: string | undefined;
+  let roleStateDirty = false;
+
+  function updateRoleStatus(ctx: ExtensionContext): void {
+    const label = activeRole === "planner" ? "b-agentic: planner (read-only)" : activeRole === "worker" ? "b-agentic: worker" : undefined;
+    ctx.ui.setStatus("b-agentic-role", label);
+  }
+
+  function persistRole(): void {
+    pi.appendEntry(ROLE_ENTRY_TYPE, { role: activeRole, toolsBeforePlanner, reportedDirectiveIds: [...reportedDirectiveIds] });
+    roleStateDirty = false;
+  }
+
+  function applyRole(nextRole: BAgenticRole, ctx: ExtensionContext, persist = true): void {
+    const previousRole = activeRole;
+    if (activeRole === "planner" && nextRole !== "planner" && toolsBeforePlanner) {
+      pi.setActiveTools(toolsBeforePlanner);
+      toolsBeforePlanner = undefined;
+    }
+    activeRole = nextRole;
+    if (activeRole === "planner") {
+      toolsBeforePlanner ??= pi.getActiveTools();
+      pi.setActiveTools(toolsBeforePlanner.filter((name) => !PLANNER_DISABLED_TOOLS.has(name)));
+    }
+    if (activeRole !== "worker" || previousRole !== "worker") {
+      workerDirective = undefined;
+      workerSkillPath = undefined;
+      workerSkillPaths = new Set();
+      workerSkillLoaded = false;
+      workerResultReported = false;
+      reportedDirectiveIds = new Set();
+      pendingReportedDirectiveId = undefined;
+      roleStateDirty = false;
+    }
+    updateRoleStatus(ctx);
+    if (persist) persistRole();
+  }
+
+  function syncWorkerDirective(ctx: ExtensionContext, skills: Array<{ name: string; filePath: string }>): void {
+    const availableSkills = new Set(skills.map((skill) => skill.name));
+    workerSkillPaths = new Set(skills.filter((skill) => B_AGENTIC_SKILL_NAMES.has(skill.name)).map((skill) => skill.filePath));
+    const next = latestWorkerDirective(ctx.sessionManager.getBranch(), ctx.cwd, availableSkills);
+    if (next?.id === workerDirective?.id) return;
+    workerDirective = next;
+    workerSkillLoaded = false;
+    workerResultReported = Boolean(next?.id && reportedDirectiveIds.has(next.id));
+    pendingReportedDirectiveId = undefined;
+    workerSkillPath = next?.skillName ? skills.find((skill) => skill.name === next.skillName)?.filePath : undefined;
+    if (next?.skillName && !workerSkillPath) workerDirective = { ...next, kind: "invalid", skillName: undefined };
+  }
+
+  pi.registerFlag("b-role", {
+    description: "Set b-agentic role: planner or worker",
+    type: "string",
+  });
+
+  pi.registerCommand("b-role", {
+    description: "Set b-agentic role: planner, worker, or off",
+    getArgumentCompletions: (prefix) => ["planner", "worker", "off"]
+      .filter((role) => role.startsWith(prefix.trim().toLowerCase()))
+      .map((role) => ({ value: role, label: role })),
+    handler: async (args, ctx) => {
+      const nextRole = parseRole(args);
+      if (!nextRole) {
+        ctx.ui.notify(args.trim() ? "Usage: /b-role planner|worker|off" : `b-agentic role: ${activeRole}`, args.trim() ? "error" : "info");
+        return;
+      }
+      applyRole(nextRole, ctx);
+      ctx.ui.notify(`b-agentic role set to ${nextRole}`, "info");
+    },
+  });
 
   pi.on("session_start", (_event, ctx) => {
     currentContext = ctx;
+    const persisted = latestRoleState(ctx.sessionManager.getBranch());
+    const flagValue = pi.getFlag("b-role");
+    const flagRole = parseRole(flagValue);
+    if (flagValue !== undefined && !flagRole) ctx.ui.notify("Invalid --b-role; use planner or worker", "error");
+    toolsBeforePlanner = persisted?.toolsBeforePlanner;
+    const selectedRole = flagRole ?? persisted?.role ?? "off";
+    applyRole(selectedRole, ctx, false);
+    reportedDirectiveIds = selectedRole === "worker" ? new Set(persisted?.reportedDirectiveIds ?? []) : new Set();
+    if (flagRole && flagRole !== persisted?.role) persistRole();
+  });
+
+  pi.on("before_agent_start", (event, ctx) => {
+    if (activeRole === "off") return undefined;
+    if (activeRole === "planner") return { systemPrompt: `${event.systemPrompt}\n\n${PLANNER_PROMPT}` };
+    syncWorkerDirective(ctx, event.systemPromptOptions.skills ?? []);
+    return { systemPrompt: `${event.systemPrompt}\n\n${workerPrompt(workerDirective, workerSkillPath, workerSkillLoaded, workerResultReported)}` };
+  });
+
+  pi.on("tool_result", (event, ctx) => {
+    if (activeRole !== "worker") return;
+    const result = workerResultValidation(event.toolName, event.input, workerDirective);
+    if (result.isResult && pendingReportedDirectiveId) {
+      if (event.isError) {
+        workerResultReported = false;
+      } else {
+        reportedDirectiveIds.add(pendingReportedDirectiveId);
+        roleStateDirty = true;
+      }
+      pendingReportedDirectiveId = undefined;
+      return;
+    }
+    if (workerSkillLoaded || !workerSkillPath || event.toolName !== "read" || event.isError) return;
+    const pathValue = String((event.input as { path?: string }).path || "");
+    if (pathsMatch(pathValue, workerSkillPath, ctx.cwd)) workerSkillLoaded = true;
+  });
+
+  pi.on("turn_end", () => {
+    if (roleStateDirty) persistRole();
   });
 
   // pi-mcp-adapter emits this synchronously before executing proxy, direct,
@@ -2072,11 +2731,73 @@ export default function (pi: ExtensionAPI) {
       return;
     }
 
-    value.claim(() => brokerApprovalDecision(value, currentContext));
+    value.claim(() => brokerApprovalDecision(value, currentContext, activeRole === "planner"));
   });
 
   pi.on("tool_call", async (event, ctx) => {
     currentContext = ctx;
+
+    if (activeRole !== "off" && event.toolName === "intercom" && isPlainObject(event.input) &&
+      (event.input.action === "ask" || event.input.action === "reply")) {
+      return { block: true, reason: "b-agentic role loop uses Intercom send, never ask/reply" };
+    }
+    if (activeRole === "worker" && event.toolName === "intercom" && isPlainObject(event.input) &&
+      event.input.action === "send" && typeof event.input.message === "string" &&
+      /(?:^|\n)B_AGENTIC_(?:TASK|REVIEW)(?:\s+v1)?(?:\n|$)/m.test(event.input.message)) {
+      return { block: true, reason: "Worker mode cannot send task or review directives; delegation chains are forbidden" };
+    }
+
+    const workerResult = workerResultValidation(event.toolName, event.input, workerDirective);
+    if (activeRole === "worker" && workerResult.isResult) {
+      if (!workerResult.valid) return { block: true, reason: workerResult.reason };
+      if (!workerSkillLoaded) return { block: true, reason: "Worker must load the assigned skill before reporting a result" };
+      if (workerResultReported) return { block: true, reason: "Worker already reported this iteration" };
+      workerResultReported = true;
+      pendingReportedDirectiveId = workerDirective?.id;
+    }
+
+    if (activeRole === "planner") {
+      if (event.toolName === "edit" || event.toolName === "write") {
+        return { block: true, reason: `Planner mode is read-only: ${event.toolName} is disabled` };
+      }
+      if (event.toolName === "bash") {
+        const command = String((event.input as { command?: string }).command || "");
+        const plannerDecision = plannerCommandDecision(command);
+        if (plannerDecision.decision === "deny") return { block: true, reason: plannerDecision.reason };
+      } else if (event.toolName === "mcp" && !isTrustedManagedGatewayCall(event.input)) {
+        return { block: true, reason: "Planner mode is read-only: MCP mutation, lifecycle, auth, or unclassified call blocked" };
+      } else if (!["read", "recall", "grep", "find", "ls", "intercom", "mcp", "mcpScript"].includes(event.toolName)) {
+        return { block: true, reason: `Planner mode is read-only: custom tool ${event.toolName} blocked` };
+      }
+    }
+
+    if (activeRole === "worker" && event.toolName !== "intercom") {
+      if (workerResultReported) {
+        return { block: true, reason: "Worker mode is waiting for planner review of B_AGENTIC_RESULT" };
+      }
+      if (!workerDirective || workerDirective.kind === "invalid" || workerDirective.kind === "approved") {
+        return { block: true, reason: "Worker mode is waiting for a valid B_AGENTIC_TASK or changes_requested review" };
+      }
+      if (event.toolName === "bash") {
+        const command = String((event.input as { command?: string }).command || "");
+        if (bashHasBraceFileOperand(command)) {
+          return { block: true, reason: "Worker mode blocks brace-expanded file operands; use explicit paths" };
+        }
+        if (bashReadsAnotherSkill(command, workerSkillPath, workerSkillPaths, ctx.cwd)) {
+          return { block: true, reason: `Worker mode may not read a skill other than assigned ${workerDirective.skillName}` };
+        }
+      }
+      const pathValue = event.toolName === "read" ? String((event.input as { path?: string }).path || "") : "";
+      const readsAnotherSkill = event.toolName === "read" && workerSkillPath &&
+        [...workerSkillPaths].some((path) => pathsMatch(pathValue, path, ctx.cwd)) && !pathsMatch(pathValue, workerSkillPath, ctx.cwd);
+      if (readsAnotherSkill) {
+        return { block: true, reason: `Worker mode may use only the assigned ${workerDirective.skillName} skill` };
+      }
+      if (!workerSkillLoaded && (!workerSkillPath || event.toolName !== "read" || !pathsMatch(pathValue, workerSkillPath, ctx.cwd))) {
+        return { block: true, reason: `Worker mode must read the assigned ${workerDirective.skillName} SKILL.md before repository work` };
+      }
+    }
+
     if (event.toolName === "bash") {
       const command = String((event.input as { command?: string }).command || "");
       const { decision, reason } = commandDecision(command);
@@ -2145,6 +2866,26 @@ export const __test__ = {
   splitShellSegments,
   stripWrappers,
   commandDecision,
+  plannerCommandDecision,
+  isPlannerReadOnlyGit,
+  hasPlannerMutationCapableArgs,
+  hasPlannerUnsafeGitConfig,
+  parseRole,
+  latestRoleState,
+  latestWorkerDirective,
+  pathsMatch,
+  shellPathPatternMatches,
+  searchCommandPathTokens,
+  shellSkillPathTokens,
+  jqFileTokens,
+  shellBraceFileTokens,
+  braceTokenLooksLikePath,
+  bashHasBraceFileOperand,
+  bashReadsAnotherSkill,
+  workerResultValidation,
+  workerPrompt,
+  PLANNER_PROMPT,
+  WORKER_SKILLS,
   isProtectedPath,
   isMcpOrCustomTool,
   isTrustedManagedGatewayCall,

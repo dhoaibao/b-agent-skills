@@ -32,7 +32,41 @@ noninteractive installs require `B_AGENTIC_INSTALL_PI_USAGE=Y`.
 
 b-agentic can optionally install `pi-intercom`; set `B_AGENTIC_INSTALL_PI_INTERCOM=Y` or accept its prompt. The permission extension auto-approves schema-valid Intercom actions (`list`, `list-cwd`, `status`, `pending`, `send`, `ask`, `reply`, and `cancel`), including supported optional string fields and attachment arrays; invalid actions, unknown fields, and malformed optional values remain approval-gated.
 
-Delegation is worthwhile only when one idle same-directory worker can run a non-trivial independent task in parallel with distinct coordinator work and the expected savings exceed handoff and review cost. Otherwise the coordinator works locally. A single `send` handoff names the worker skill, goal, constraints, checks, and coordinator target. The worker reads that skill as its sole active skill, owns and verifies only the bounded task, then reports once with `send`; the coordinator avoids duplicate work and reviews the result. Use `ask` only for a blocking question, and only its recipient uses `reply`; use `pending` plus `to` or `replyTo` when the context is ambiguous. Never use `reply` for delegation or completion. This protocol supersedes generic `pi-intercom` examples for b-agentic work. Preserve one writer, no re-delegation/broadcast/spawn/chains, coordinator ownership of planning/design/init/review/commit/PR-summary, and all approval, secret, and evidence rules.
+b-agentic provides opt-in planner and worker profiles through the same extension. Select one per session with `/b-role planner`, `/b-role worker`, or `pi --b-role planner|worker`; `/b-role off` restores the normal single-session workflow. The role persists with the session and appears in Pi's status bar.
+
+Planner mode is read-only: it removes `edit`/`write`, blocks mutating or unclassified shell/MCP/custom tools, and keeps repository reads, classified read-only MCP calls, and Intercom coordination. It uses `b-plan`/`b-research` before delegation and `b-review` for worker results. Builds, tests, and fixes must be delegated. Repository-writing coordinator phases (`b-design`, `b-init`, and an explicit `b-commit`) require `/b-role off`; read-only PR summaries can remain in planner mode.
+
+Worker mode restores normal tools but waits for a structured Intercom assignment. A task starts with `B_AGENTIC_TASK v1` and includes `worker_skill`, `iteration`, goal, constraints, success checks, and `report_to`. Only `b-browser`, `b-debug`, `b-implement`, `b-refactor`, `b-research`, and `b-test` are valid worker skills. The worker must read the exact assigned `SKILL.md` before repository work, then returns `B_AGENTIC_RESULT` with changed paths, verification, and gaps. The planner reviews the actual worktree and sends `B_AGENTIC_REVIEW` with `verdict: changes_requested` plus the next skill/iteration, or `verdict: approved`. Repeat until approved.
+
+```text
+B_AGENTIC_TASK v1
+worker_skill: b-implement
+iteration: 1
+goal: <bounded outcome>
+constraints: <scope and invariants>
+success_checks: <observable verification>
+report_to: <planner session name or id>
+```
+
+```text
+B_AGENTIC_RESULT v1
+status: ready_for_review
+worker_skill: b-implement
+iteration: 1
+changed_paths: <paths>
+verification: <commands and outcomes>
+gaps: <none or remaining risk>
+```
+
+```text
+B_AGENTIC_REVIEW v1
+verdict: changes_requested
+worker_skill: b-debug
+iteration: 2
+findings: <ordered actionable findings>
+```
+
+For approval, send `B_AGENTIC_REVIEW v1` with `verdict: approved` and the completed iteration. Use Intercom `send` for every task, result, and review message—never `ask`/`reply`. This avoids pending-ask reply races. Keep one worker/writer, no delegation chains, and all approval, secret, and evidence rules. Role mode is only worthwhile when parallel savings exceed handoff and review cost; otherwise leave it off.
 After checking `pi list`, the installer runs `pi update --extensions` when
 Pi extensions are installed.
 

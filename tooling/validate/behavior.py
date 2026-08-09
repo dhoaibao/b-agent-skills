@@ -65,25 +65,27 @@ SHELL_POLICY_REGRESSION = {
     # modern fallback availability, and scoped Git content reads.
 }
 
-# Regression: unrestricted delegation added serial handoff/review overhead, plain
-# Intercom prose did not reliably activate the selected worker skill, and both
-# sessions sometimes used reply even though only an ask recipient can do so.
+# Regression: prose-only delegation did not establish enforceable session roles,
+# reliably activate the worker skill, prevent duplicate writers, or avoid reply
+# races. Pi now overlays persistent planner/worker profiles on normal skills.
 INTERCOM_DELEGATION_REGRESSION = {
     "observed_failure": (
         "Delegated work was slower than local work, workers rerouted the handoff, "
         "and reply failed without a unique pending ask."
     ),
     "intended_behavior": (
-        "Delegate only beneficial parallel work, make the named worker skill "
-        "explicitly active, and reserve ask/reply for blocking questions."
+        "Use an opt-in read-only planner and sole-writer worker, require a named "
+        "worker skill, and use non-blocking send traffic for the review loop."
     ),
     "required_clauses": (
-        "expected savings exceed handoff/review",
-        "reads that `SKILL.md` as its sole active skill",
-        "coordinator avoids duplication and reviews",
-        "reports once via `send`",
-        "`ask` only for blocking questions",
-        "Never `reply` for delegation/completion",
+        "`/b-role planner|worker|off` is opt-in",
+        "Planner is read-only",
+        "worker is sole writer",
+        "`B_AGENTIC_TASK`",
+        "`B_AGENTIC_RESULT`",
+        "`B_AGENTIC_REVIEW`",
+        "Use `send`, never `ask`/`reply`",
+        "Commit requires role off",
     ),
 }
 

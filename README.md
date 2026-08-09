@@ -4,6 +4,10 @@
 
 b-agentic installs a compact Pi kernel, focused phase skills, a permission extension, and recommended MCP configuration. Its job is simple: route work, preserve safety gates, use the right evidence, and verify before claiming done.
 
+## Planner and worker roles
+
+For deliberate two-session work, select `/b-role planner` in the coordinating Pi session and `/b-role worker` in one same-directory implementation session. Planner mode is enforced read-only and owns decomposition plus review; worker mode is the sole writer, requires a structured Intercom task and assigned b-agentic skill, and waits after each result until the planner approves or requests another iteration. Use `/b-role off` for the normal single-session workflow. See `pi/configs/README.md` for the handoff format and CLI flags.
+
 ## Install
 
 Default install for Pi:
