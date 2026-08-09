@@ -139,6 +139,8 @@ if readme.exists():
         'auto-approves every schema-valid Intercom action',
         'trusted-peer configuration does not gate valid Intercom calls',
         'Invalid actions, unknown fields, and malformed optional values remain approval-gated',
+        'auto-allows reads of installed b-agentic `SKILL.md` files under the configured',
+        'other outside-project reads remain approval-gated',
         'This is one level only and supersedes bundled `pi-intercom` examples',
     ]:
         if marker not in text:

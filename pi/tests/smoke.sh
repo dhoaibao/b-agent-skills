@@ -664,6 +664,35 @@ expect(t.nativePathDecision('read', 'src/main.ts').decision === 'allow', 'normal
 expect(t.nativePathDecision('read', '/etc/passwd').decision === 'ask', 'outside-project native reads must ask');
 expect(t.nativePathDecision('write', '/etc/hosts').decision === 'ask', 'outside-project native writes must ask');
 expect(t.nativePathDecision('write', 'pi/tests/new-file.ts').decision === 'allow', 'project-local native writes must allow');
+const installedSkillFixture = mkdtempSync(path.join(os.tmpdir(), 'b-agentic-installed-skills-'));
+const externalSkillFixture = mkdtempSync(path.join(os.tmpdir(), 'b-agentic-external-skill-'));
+const previousPiAgentDir = process.env.PI_CODING_AGENT_DIR;
+try {
+  const installedSkillPath = path.join(installedSkillFixture, 'skills', 'b-implement', 'SKILL.md');
+  const installedOtherPath = path.join(installedSkillFixture, 'notes.md');
+  const installedCustomSkillPath = path.join(installedSkillFixture, 'skills', 'b-custom', 'SKILL.md');
+  const outsideSkillTarget = path.join(externalSkillFixture, 'outside-skill.md');
+  mkdirSync(path.dirname(installedSkillPath), { recursive: true });
+  mkdirSync(path.dirname(installedCustomSkillPath), { recursive: true });
+  writeFileSync(installedSkillPath, 'Generated from skills/registry.yaml');
+  writeFileSync(installedOtherPath, 'user data');
+  writeFileSync(installedCustomSkillPath, 'user skill');
+  writeFileSync(outsideSkillTarget, 'outside target');
+  process.env.PI_CODING_AGENT_DIR = installedSkillFixture;
+  expect(t.nativePathDecision('read', installedSkillPath).decision === 'allow', 'installed b-agentic skill reads must auto-allow');
+  expect(t.nativePathDecision('write', installedSkillPath).decision === 'ask', 'installed skill writes must remain approval-gated');
+  expect(t.nativePathDecision('read', installedOtherPath).decision === 'ask', 'other Pi-agent files must remain approval-gated');
+  expect(t.nativePathDecision('read', installedCustomSkillPath).decision === 'ask', 'unknown installed skills must remain approval-gated');
+  const linkedSkillPath = path.join(installedSkillFixture, 'skills', 'b-debug', 'SKILL.md');
+  mkdirSync(path.dirname(linkedSkillPath), { recursive: true });
+  symlinkSync(outsideSkillTarget, linkedSkillPath);
+  expect(t.nativePathDecision('read', linkedSkillPath).decision === 'ask', 'symlinked installed skill reads outside the agent root must remain gated');
+} finally {
+  if (previousPiAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+  else process.env.PI_CODING_AGENT_DIR = previousPiAgentDir;
+  rmSync(installedSkillFixture, { recursive: true, force: true });
+  rmSync(externalSkillFixture, { recursive: true, force: true });
+}
 const serenaCodeFixture = mkdtempSync(path.join(root, 'pi/tests/', '.b-agentic-serena-'));
 try {
   const providerSecretsService = path.join(serenaCodeFixture, 'provider-secrets.service.ts');

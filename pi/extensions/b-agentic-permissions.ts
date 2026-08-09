@@ -911,6 +911,11 @@ function hasOpaquePackageExecution(tokens: string[]): boolean {
   return false;
 }
 
+const B_AGENTIC_SKILL_NAMES = new Set([
+  "b-plan", "b-research", "b-design", "b-implement", "b-init", "b-refactor",
+  "b-debug", "b-test", "b-browser", "b-review", "b-commit", "b-pr-summary",
+]);
+
 const LOCAL_PATH_COMMANDS = new Set([
   "7z", "ar", "awk", "bat", "cat", "cmp", "cp", "cpio", "curl", "diff", "eza", "fd", "file", "find", "git", "grep", "head",
   "install", "less", "ln", "ls", "make", "mkdir", "mkfifo", "mknod", "more", "mv", "pax", "readlink", "realpath", "rg", "rm", "rmdir", "rsync", "sed", "shred", "stat",
@@ -927,6 +932,20 @@ function isConfinedRelativePath(pathValue: string, projectRoot: string): boolean
   const projectRelative = relative(projectRoot, pathValue);
   return !isAbsolute(projectRelative) && projectRelative !== ".." &&
     !projectRelative.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`);
+}
+
+function isInstalledBAgenticSkillPath(pathValue: string): boolean {
+  if (!pathValue || isProtectedLocalPath(pathValue)) return false;
+  try {
+    const configuredAgentDir = process.env.PI_CODING_AGENT_DIR?.trim() || resolve(homedir(), ".pi", "agent");
+    const agentRoot = realpathSync(expandLocalPath(configuredAgentDir));
+    const absoluteTarget = expandLocalPath(pathValue);
+    const targetParts = relative(agentRoot, absoluteTarget).split(/[\\/]/);
+    if (targetParts.length !== 3 || targetParts[0] !== "skills" || !B_AGENTIC_SKILL_NAMES.has(targetParts[1]) || targetParts[2] !== "SKILL.md") return false;
+    return isConfinedRelativePath(realpathSync(absoluteTarget), agentRoot);
+  } catch {
+    return false;
+  }
 }
 
 function isProjectConfinedLocalPath(pathValue: string): boolean {
@@ -1552,6 +1571,9 @@ function nativePathDecision(toolName: string, pathValue: string): { decision: De
     }
     return { decision: "deny", reason: `Blocked ${toolName} of protected path: ${pathValue}` };
   }
+  if (toolName === "read" && isInstalledBAgenticSkillPath(pathValue)) {
+    return { decision: "allow", reason: "" };
+  }
   if (!pathValue || isProjectConfinedLocalPath(pathValue)) {
     return { decision: "allow", reason: "" };
   }
@@ -2153,6 +2175,7 @@ export const __test__ = {
   hasOpaqueGitOptions,
   hasOpaquePackageOptions,
   nativePathDecision,
+  isInstalledBAgenticSkillPath,
   isProtectedLocalPath,
   confirmOrBlock,
   SPECIALIZED_TOOLS,

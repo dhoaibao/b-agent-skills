@@ -56,7 +56,9 @@ that listens for `tool_call` events and:
   execution, external/shared mutations, destructive Git worktree/stash
   operations, and other dangerous-but-approvable actions
 - blocks prohibited git/Docker families and protected native writes/edits;
-  protected native reads require explicit UI approval and fail closed without UI
+  protected native reads require explicit UI approval and fail closed without UI;
+  auto-allows reads of installed b-agentic `SKILL.md` files under the configured
+  Pi skill root while other outside-project reads remain approval-gated
 - inspects compound shell segments (`&&`, `;`, `|`), approval-gates literal or
   symlink-resolved protected paths (including `rtk`-wrapped variants), and strips
   `env`/`sudo`/`rtk` wrappers and `git -C` style option prefixes before matching
