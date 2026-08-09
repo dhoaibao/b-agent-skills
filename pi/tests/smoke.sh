@@ -268,10 +268,7 @@ for (const extension of extensionModules) extension.default(extensionHost);
 const toolCallHandler = handlers.tool_call;
 
 function expect(cond, msg) {
-  if (!cond) {
-    console.error(msg);
-    process.exit(1);
-  }
+  if (!cond) throw new Error(msg);
 }
 
 const validIntercomCalls = [
@@ -298,7 +295,6 @@ expect(t.isAutoApprovedIntercomCall('intercom', { action: 'reply', replyTo: 'mes
 expect(typeof toolCallHandler === 'function', 'permission extension must register a tool_call handler');
 expect(typeof mcpApprovalHandler === 'function', 'permission extension must register the MCP approval broker');
 const noUiContext = { hasUI: false, ui: { confirm: async () => true } };
-const plannerFrom = { id: 'planner-session-id', name: 'planner', cwd: root };
 let rolePickerCalls = 0;
 const roleContext = {
   cwd: root,
@@ -319,146 +315,83 @@ const roleContext = {
     getBranch: () => [...branchEntries],
   },
 };
+branchEntries.push({
+  type: 'custom', customType: 'b-agentic-role',
+  data: { role: 'planner', toolsBeforePlanner: ['read', 'bash', 'edit', 'write'] },
+});
+activeTools = ['read', 'bash'];
 await handlers.session_start({}, roleContext);
+expect(activeTools.includes('edit') && activeTools.includes('write'), 'legacy planner state must restore tools once');
+expect(persistedEntries.at(-1)?.data.toolsBeforePlanner === undefined, 'legacy planner tool restoration must persist its cleared migration state');
+activeTools = ['read', 'bash'];
+await handlers.session_start({}, roleContext);
+expect(!activeTools.includes('edit') && !activeTools.includes('write'), 'legacy planner tools must not be restored again on a later resume');
+activeTools = ['read', 'bash', 'edit', 'write', 'recall', 'intercom', 'mcp', 'mcpScript'];
 expect(commands['b-role'], 'permission extension must register /b-role');
 await commands['b-role'].handler('', roleContext);
 expect(rolePickerCalls === 1, '/b-role without an argument must open a role picker');
-expect(!activeTools.includes('edit') && !activeTools.includes('write'), 'planner role must remove built-in mutation tools');
-expect((await toolCallHandler({ toolName: 'edit', input: { path: 'README.md', edits: [] } }, roleContext))?.block === true, 'planner role must block edits');
-expect(await toolCallHandler({ toolName: 'bash', input: { command: 'rtk git status --short' } }, roleContext) === undefined, 'planner role must allow read-only shell inspection');
-expect((await toolCallHandler({ toolName: 'bash', input: { command: 'rtk pytest -q' } }, roleContext))?.block === true, 'planner role must block tests that can mutate caches');
-expect((await toolCallHandler({ toolName: 'mcp', input: { server: 'firecrawl', tool: 'firecrawl_agent' } }, roleContext))?.block === true, 'planner role must block managed MCP mutations');
-expect(await toolCallHandler({ toolName: 'mcp', input: { server: 'serena', tool: 'serena_initial_instructions', args: {} } }, roleContext) === undefined, 'planner role must allow classified MCP reads with explicit managed ownership');
-expect((await toolCallHandler({ toolName: 'mcp', input: { tool: 'serena_initial_instructions', args: {} } }, roleContext))?.block === true, 'planner role must block unscoped MCP reads');
-const malformedPlannerTask = await toolCallHandler({ toolName: 'intercom', input: { action: 'send', to: 'worker', message: 'B_AGENTIC_TASK' } }, roleContext);
-expect(malformedPlannerTask?.block === true && malformedPlannerTask.reason.includes('Planner task is incomplete'), 'planner must reject malformed tasks before they leave the coordinator');
-const malformedPlannerTaskNoUi = await toolCallHandler({ toolName: 'intercom', input: { action: 'send', to: 'worker', message: 'B_AGENTIC_TASK' } }, noUiContext);
-expect(malformedPlannerTaskNoUi?.block === true && malformedPlannerTaskNoUi.reason.includes('Planner task is incomplete'), 'planner must reject malformed protocol traffic without UI');
-const validPlannerTask = 'B_AGENTIC_TASK v1\nworker_skill: b-test\niteration: 1\ngoal: verify role mode\nconstraints: keep scope bounded\nsuccess_checks: permission smoke passes\nreport_to: planner';
-expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'send', to: 'worker', message: validPlannerTask } }, roleContext) === undefined, 'planner must send a complete handoff without user relay');
-const unknownPlannerIntercom = await toolCallHandler({ toolName: 'intercom', input: { action: 'list-cwd', unexpected: true } }, noUiContext);
-expect(unknownPlannerIntercom?.block === true, 'planner must fail closed on unknown Intercom fields without UI');
-const wrongActionPlannerIntercom = await toolCallHandler({ toolName: 'intercom', input: { action: 'unknown' } }, noUiContext);
-expect(wrongActionPlannerIntercom?.block === true, 'planner must fail closed on unknown Intercom actions without UI');
-expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'list-cwd' } }, roleContext) === undefined, 'planner must discover same-directory workers through Intercom');
-expect((await toolCallHandler({ toolName: 'intercom', input: { action: 'ask', to: 'worker', message: 'task' } }, roleContext))?.block === true, 'role loops must block ask/reply traffic');
+expect(activeTools.includes('edit') && activeTools.includes('write'), 'planner role must preserve built-in mutation tools');
+expect(await toolCallHandler({ toolName: 'edit', input: { path: 'README.md', edits: [] } }, roleContext) === undefined, 'planner role must not add a repository-local edit gate');
+for (const command of ['rtk git status --short', 'rtk pytest -q', 'fdfind -t f SKILL.md skills', 'eza -la', 'rtk git commit -m role-smoke']) {
+  expect(await toolCallHandler({ toolName: 'bash', input: { command } }, roleContext) === undefined, `planner role must preserve normal local automation: ${command}`);
+}
+expect(await toolCallHandler({ toolName: 'mcp', input: { server: 'serena', tool: 'serena_initial_instructions', args: {} } }, roleContext) === undefined, 'planner role must allow classified MCP reads');
+expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'send', to: 'worker', message: 'B_AGENTIC_TASK without fields is ordinary text now' } }, roleContext) === undefined, 'planner messages must not be parsed or format-gated');
+expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'ask', to: 'worker', message: 'Need clarification?' } }, roleContext) === undefined, 'planner role must allow Intercom ask');
+expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'reply', message: 'Proceed with the narrow fix', replyTo: 'message-1' } }, roleContext) === undefined, 'planner role must allow Intercom reply');
 const plannerStart = await handlers.before_agent_start({ systemPrompt: 'base', systemPromptOptions: { skills: [] } }, roleContext);
-expect(plannerStart.systemPrompt.includes('planner profile (read-only)') && plannerStart.systemPrompt.includes('list-cwd') && plannerStart.systemPrompt.includes('never ask the user to write') && plannerStart.systemPrompt.includes('server: <managed server>'), 'planner role must inject automatic delegation and explicit MCP ownership');
+expect(plannerStart.systemPrompt.includes('planner profile (coordinator)') && plannerStart.systemPrompt.includes('worker is the sole worktree writer') && plannerStart.systemPrompt.includes('Never perform implementation edits') && plannerStart.systemPrompt.includes('Default to non-blocking Intercom') && plannerStart.systemPrompt.includes('Send findings and wait for a revised result') && plannerStart.systemPrompt.includes('b-commit') && plannerStart.systemPrompt.includes('does not remove tools'), 'planner role must delegate implementation and own the non-blocking review loop');
 let plannerMutationClaim;
 mcpApprovalHandler({
   serverName: 'firecrawl', originalToolName: 'firecrawl_agent', prefixedToolName: 'firecrawl_firecrawl_agent', args: {}, origin: 'script',
   claim(handler) { plannerMutationClaim = handler; return true; },
 });
-expect(await plannerMutationClaim() === 'deny', 'planner role must deny nested MCP mutations');
+expect(await plannerMutationClaim() === 'allow_once', 'planner role must use normal MCP approval instead of a role-specific denial');
 
 await commands['b-role'].handler('worker', roleContext);
-expect(activeTools.includes('edit') && activeTools.includes('write'), 'worker role must restore mutation tools');
-expect((await toolCallHandler({ toolName: 'edit', input: { path: 'README.md', edits: [] } }, roleContext))?.block === true, 'worker role must wait for a structured assignment');
-const assignedSkillPath = path.join(root, 'skills/b-test/SKILL.md');
-const fallbackAssignedSkillPath = path.join(process.env.PI_CODING_AGENT_DIR || path.join(os.homedir(), '.pi/agent'), 'skills/b-test/SKILL.md');
-const fixSkillPath = path.join(root, 'skills/b-debug/SKILL.md');
-branchEntries.push({
-  type: 'custom_message', id: 'task-1', customType: 'intercom_message', details: { from: plannerFrom },
-  content: `**From planner**\n\n${validPlannerTask}`,
-});
-// pi.sendMessage({ triggerTurn: true }) starts an idle recipient without
-// before_agent_start. The tool gate itself must discover the persisted task.
-expect((await toolCallHandler({ toolName: 'bash', input: { command: 'rtk git status --short' } }, roleContext))?.reason.includes('must read the assigned b-test'), 'custom-message turns must activate the assignment before their first tool call');
-expect((await toolCallHandler({ toolName: 'read', input: { path: path.join(root, 'skills/b-debug/SKILL.md') } }, roleContext))?.block === true, 'worker role must reject a different skill');
-expect(await toolCallHandler({ toolName: 'read', input: { path: fallbackAssignedSkillPath } }, roleContext) === undefined, 'worker role must allow its installed assigned skill read without a before_agent_start event');
-await handlers.tool_result({ toolName: 'read', input: { path: fallbackAssignedSkillPath }, isError: false }, roleContext);
-const workerStart = await handlers.before_agent_start({
-  systemPrompt: 'base',
-  systemPromptOptions: { skills: [{ name: 'b-test', filePath: assignedSkillPath }, { name: 'b-debug', filePath: fixSkillPath }] },
-}, roleContext);
-expect(workerStart.systemPrompt.includes('Assigned skill: b-test') && workerStart.systemPrompt.includes('changed_paths:') && workerStart.systemPrompt.includes('worker_skill: b-test') && workerStart.systemPrompt.includes('Send it to exactly: planner-session-id'), 'a planner-approved task must activate the worker and target its authenticated sender');
-expect(await toolCallHandler({ toolName: 'edit', input: { path: path.join(root, 'README.md'), edits: [] } }, roleContext) === undefined, 'worker role must allow edits after loading its assigned skill');
-expect((await toolCallHandler({ toolName: 'read', input: { path: path.join(root, 'skills/b-debug/SKILL.md') } }, roleContext))?.block === true, 'worker role must keep rejecting other skills after the assigned skill is loaded');
-expect((await toolCallHandler({ toolName: 'bash', input: { command: 'rtk rg prompt skills/b-debug/SKILL.md' } }, roleContext))?.block === true, 'worker role must reject shell reads of other skills');
-expect((await toolCallHandler({ toolName: 'bash', input: { command: 'rtk rg prompt skills/b-*/SKILL.md' } }, roleContext))?.block === true, 'worker role must reject globbed shell reads that include other skills');
-expect((await toolCallHandler({ toolName: 'bash', input: { command: 'head <skills/b-debug/SKILL.md' } }, roleContext))?.block === true, 'worker role must reject redirected shell reads of other skills');
-expect((await toolCallHandler({ toolName: 'bash', input: { command: 'cd skills/b-debug && head SKILL.md' } }, roleContext))?.block === true, 'worker role must track shell directory changes when protecting other skills');
-expect((await toolCallHandler({ toolName: 'bash', input: { command: 'rtk git show HEAD:skills/b-debug/SKILL.md' } }, roleContext))?.block === true, 'worker role must reject Git object reads of other skills');
-for (const command of ['head skills/b-{debug,test}/SKILL.md', 'head skills/b-debu{g,}/SKILL.md', 'head skills/b-debug/SKILL.{md,txt}', 'head skills/b-debu{g..g}/SKILL.md', 'head skills/b-{debu{g,h},test}/SKILL.md', 'head skills/b-debu{g..g}/S{K..K}ILL.md', 'head sk{ills,foo}/b-debu{g..g}/S{K..K}ILL.md']) {
-  expect((await toolCallHandler({ toolName: 'bash', input: { command } }, roleContext))?.block === true, `worker role must reject brace-expanded skill reads: ${command}`);
+expect(activeTools.includes('edit') && activeTools.includes('write'), 'worker role must preserve normal tools');
+expect(await toolCallHandler({ toolName: 'edit', input: { path: 'README.md', edits: [] } }, roleContext) === undefined, 'worker role must not wait for a structured assignment');
+for (const skill of ['b-implement', 'b-debug', 'b-refactor', 'b-test', 'b-browser', 'b-research', 'b-design', 'b-init']) {
+  expect(await toolCallHandler({ toolName: 'read', input: { path: path.join(root, `skills/${skill}/SKILL.md`) } }, roleContext) === undefined, `worker role must allow task-appropriate skill ${skill}`);
 }
-expect((await toolCallHandler({ toolName: 'bash', input: { command: 'head docs/{a,b}.md' } }, roleContext))?.block === true, 'worker role must fail closed for every brace-expanded file operand');
-expect((await toolCallHandler({ toolName: 'bash', input: { command: "rtk rg 'docs/{a,b}' README.md" } }, roleContext))?.block !== true, 'worker role must allow braces used only inside a search expression');
-expect((await toolCallHandler({ toolName: 'bash', input: { command: "rtk rg 'b-debug/SKILL.md' README.md" } }, roleContext))?.block !== true, 'worker role must allow skill-like text used only as a search expression');
-expect((await toolCallHandler({ toolName: 'bash', input: { command: "rtk rg -A 2 'b-debug/SKILL.md' README.md" } }, roleContext))?.block !== true, 'worker role must preserve search-pattern position after value-taking options');
-expect((await toolCallHandler({ toolName: 'bash', input: { command: "rtk rg -r replacement 'b-debug/SKILL.md' README.md" } }, roleContext))?.block !== true, 'worker role must recognize the short ripgrep replacement option');
-expect((await toolCallHandler({ toolName: 'bash', input: { command: 'grep -r pattern skills/b-debug/SKILL.md' } }, roleContext))?.block === true, 'worker role must preserve recursive grep file operands');
-expect((await toolCallHandler({ toolName: 'bash', input: { command: 'rtk rg --ignore-file skills/b-debug/SKILL.md pattern README.md' } }, roleContext))?.block === true, 'worker role must protect files consumed by ripgrep options');
-const chainedTask = 'B_AGENTIC_TASK v1\nworker_skill: b-implement\niteration: 1\ngoal: delegate again\nconstraints: none\nsuccess_checks: done\nreport_to: worker';
-expect((await toolCallHandler({ toolName: 'intercom', input: { action: 'send', to: 'other-worker', message: chainedTask } }, roleContext))?.block === true, 'worker role must block outbound task directives');
-expect((await toolCallHandler({ toolName: 'intercom', input: { action: 'send', to: 'other-worker', message: 'B_AGENTIC_REVIEW v1\nverdict: approved\niteration: 1' } }, roleContext))?.block === true, 'worker role must block outbound review directives');
-const installedSkillPaths = new Set(['/tmp/pi-home/skills/b-test/SKILL.md', '/tmp/pi-home/skills/b-debug/SKILL.md']);
-expect(t.bashReadsAnotherSkill('rtk rg prompt skills/b-debug/SKILL.md', '/tmp/pi-home/skills/b-test/SKILL.md', installedSkillPaths, root) === true, 'worker role must recognize repo-local aliases of installed skills');
-expect(t.bashReadsAnotherSkill("rtk rg '[a-z]/foo' README.md", '/tmp/pi-home/skills/b-test/SKILL.md', installedSkillPaths, root) === false, 'worker role must not mistake unrelated bracket expressions for skill paths');
-expect(t.bashReadsAnotherSkill("rtk rg '[z-a]/foo' README.md", '/tmp/pi-home/skills/b-test/SKILL.md', installedSkillPaths, root) === false, 'worker role must safely ignore invalid unrelated bracket expressions');
-expect(t.bashHasBraceFileOperand("jq '{name: .name, path: \"a/b\"}' package.json") === false, 'worker role must not treat jq filters as brace-expanded files');
-expect(t.bashHasBraceFileOperand("git log --format='{%h}' -1") === false, 'worker role must not treat Git format strings as brace-expanded files');
-expect(t.bashHasBraceFileOperand("node -e 'console.log({path: \"a/b\"})'") === false, 'worker role must leave inline interpreter code to normal approval policy');
-expect(t.bashHasBraceFileOperand('jq . docs/{a,b}.json') === true, 'worker role must still identify brace-expanded jq input files');
-branchEntries.push({
-  type: 'custom_message', id: 'early-approval', customType: 'intercom_message', details: { from: plannerFrom },
-  content: '**From planner**\n\nB_AGENTIC_REVIEW v1\nverdict: approved\niteration: 1',
-});
-await handlers.before_agent_start({ systemPrompt: 'base', systemPromptOptions: { skills: [{ name: 'b-test', filePath: assignedSkillPath }, { name: 'b-debug', filePath: fixSkillPath }] } }, roleContext);
-expect(await toolCallHandler({ toolName: 'edit', input: { path: path.join(root, 'README.md'), edits: [] } }, roleContext) === undefined, 'approval before a worker result must not terminate the active iteration');
-const resultMessage = 'B_AGENTIC_RESULT v1\nstatus: ready_for_review\nworker_skill: b-test\niteration: 1\nchanged_paths: pi/tests/smoke.sh\nverification: smoke passed\ngaps: none';
-expect((await toolCallHandler({ toolName: 'intercom', input: { action: 'send', to: 'other-peer', message: resultMessage } }, roleContext))?.block === true, 'worker results must target the assigned planner');
-const workerResultInput = { action: 'send', to: 'planner-session-id', message: resultMessage };
-expect(await toolCallHandler({ toolName: 'intercom', input: workerResultInput }, roleContext) === undefined, 'worker role must send results through Intercom');
-await handlers.tool_result({ toolName: 'intercom', input: workerResultInput, isError: false }, roleContext);
-await handlers.turn_end({}, roleContext);
-expect(t.latestRoleState(persistedEntries).reportedDirectiveIds.includes('task-1'), 'worker review-wait state must persist for session resume');
-expect((await toolCallHandler({ toolName: 'edit', input: { path: 'README.md', edits: [] } }, roleContext))?.block === true, 'worker role must wait after requesting review');
-branchEntries.push({
-  type: 'custom_message', id: 'review-unavailable', customType: 'intercom_message', details: { from: plannerFrom },
-  content: '**From planner**\n\nB_AGENTIC_REVIEW v1\nverdict: changes_requested\nworker_skill: b-browser\niteration: 2\nfindings: use an unavailable skill',
-});
-branchEntries.push({
-  type: 'custom_message', id: 'review-1', customType: 'intercom_message', details: { from: plannerFrom },
-  content: '**From planner**\n\nB_AGENTIC_REVIEW v1\nverdict: changes_requested\nworker_skill: b-debug\niteration: 2\nfindings: fix the role gate',
-});
-const fixStart = await handlers.before_agent_start({
-  systemPrompt: 'base',
-  systemPromptOptions: { skills: [{ name: 'b-test', filePath: assignedSkillPath }, { name: 'b-debug', filePath: fixSkillPath }] },
-}, roleContext);
-expect(fixStart.systemPrompt.includes('Assigned skill: b-debug (iteration 2)'), 'changes requested must activate a new worker skill iteration');
-expect((await toolCallHandler({ toolName: 'bash', input: { command: 'rtk git status --short' } }, roleContext))?.block === true, 'new review iterations must reload the assigned skill');
-expect(await toolCallHandler({ toolName: 'read', input: { path: fixSkillPath } }, roleContext) === undefined, 'worker must be able to load the fix skill');
-await handlers.tool_result({ toolName: 'read', input: { path: fixSkillPath }, isError: false }, roleContext);
-expect(await toolCallHandler({ toolName: 'edit', input: { path: path.join(root, 'README.md'), edits: [] } }, roleContext) === undefined, 'worker must be able to fix review findings after loading the new skill');
-const fixResultInput = {
-  action: 'send', to: 'planner-session-id',
-  message: 'B_AGENTIC_RESULT v1\nstatus: ready_for_review\nworker_skill: b-debug\niteration: 2\nchanged_paths: pi/extensions/b-agentic-permissions.ts\nverification: smoke passed\ngaps: none',
-};
-expect(await toolCallHandler({ toolName: 'intercom', input: fixResultInput }, roleContext) === undefined, 'each changes-requested iteration must submit its own result');
-await handlers.tool_result({ toolName: 'intercom', input: fixResultInput, isError: false }, roleContext);
-await handlers.turn_end({}, roleContext);
-branchEntries.push({
-  type: 'custom_message', id: 'review-2', customType: 'intercom_message', details: { from: plannerFrom },
-  content: '**From planner**\n\nB_AGENTIC_REVIEW v1\nverdict: approved\niteration: 2',
-});
-await handlers.before_agent_start({ systemPrompt: 'base', systemPromptOptions: { skills: [] } }, roleContext);
-expect((await toolCallHandler({ toolName: 'edit', input: { path: 'README.md', edits: [] } }, roleContext))?.block === true, 'approved workers must wait for another iteration');
-expect(t.latestWorkerDirective([{ type: 'custom_message', id: 'bad', customType: 'intercom_message', content: 'B_AGENTIC_TASK\nworker_skill: b-commit\niteration: 1' }]).kind === 'invalid', 'coordinator-only skills must be invalid worker assignments');
-expect(t.plannerCommandDecision('git commit -m x').decision === 'deny', 'planner classifier must block commits');
-expect(t.plannerCommandDecision('rtk git diff -- README.md').decision === 'allow', 'planner classifier must allow scoped diff review');
-for (const command of ['find . -delete', 'find . -fprint0 output.txt', 'fd -x rm', 'fdfind -xrm pattern', 'rg --pre ./script pattern', 'sort -o output.txt input.txt', 'sort --compress-program=./mutate input.txt', 'git -c core.fsmonitor=./mutate status', 'git diff --output=patch.diff -- README.md', 'git stash', 'codegraph index', 'codegraph uninit']) {
-  expect(t.plannerCommandDecision(command).decision === 'deny', `planner classifier must block mutation-capable read command: ${command}`);
+for (const command of ['rtk git status --short', 'fdfind -t f SKILL.md skills', 'eza -la']) {
+  expect(await toolCallHandler({ toolName: 'bash', input: { command } }, roleContext) === undefined, `worker role must preserve local discovery: ${command}`);
 }
-expect(t.plannerCommandDecision('codegraph query role').decision === 'allow', 'planner classifier must allow read-only CodeGraph queries');
+const workerStart = await handlers.before_agent_start({ systemPrompt: 'base', systemPromptOptions: { skills: [] } }, roleContext);
+expect(workerStart.systemPrompt.includes('worker profile (implementation)') && workerStart.systemPrompt.includes('sole worktree writer') && workerStart.systemPrompt.includes('b-debug') && workerStart.systemPrompt.includes('b-refactor') && workerStart.systemPrompt.includes("assigning planner's Intercom session name or id") && workerStart.systemPrompt.includes('send` to that planner') && workerStart.systemPrompt.includes('Pause all edits') && workerStart.systemPrompt.includes('Resume only when the planner sends actionable findings or a new task') && workerStart.systemPrompt.includes('does not restrict tools, skills'), 'worker role must own implementation, flexible skill routing, and review pauses');
+expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'send', to: 'planner', message: 'Changed README.md; smoke passed; no known gaps.' } }, roleContext) === undefined, 'worker role must allow plain-language results');
+expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'ask', to: 'planner', message: 'Should I include the compatibility cleanup?' } }, roleContext) === undefined, 'worker role must allow clarification asks');
+expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'reply', message: 'Acknowledged', replyTo: 'message-2' } }, roleContext) === undefined, 'worker role must allow replies');
 expect(persistedEntries.some((entry) => entry.data.role === 'planner') && persistedEntries.some((entry) => entry.data.role === 'worker'), 'role changes must persist');
 await commands['b-role'].handler('off', roleContext);
 
+expect(await toolCallHandler({ toolName: 'mcpScript', input: { code: 'return 1;' } }, noUiContext) === undefined, 'trusted mcpScript container must auto-allow without UI');
+expect(await toolCallHandler({
+  toolName: 'mcpScript',
+  input: { code: "const found = await tools.search({ query: 'symbol' }); return tools.describe({ path: found.items[0].path });" },
+}, noUiContext) === undefined, 'trusted mcpScript must permit read-only tools.search/tools.describe metadata discovery');
+let nestedScriptMutationClaim;
+mcpApprovalHandler({
+  serverName: 'firecrawl', originalToolName: 'firecrawl_agent', prefixedToolName: 'firecrawl_firecrawl_agent', args: {}, origin: 'script',
+  claim(handler) { nestedScriptMutationClaim = handler; return true; },
+});
+expect(await nestedScriptMutationClaim() === 'deny', 'unsafe nested mcpScript operations must retain normal approval policy');
 expect((await toolCallHandler({ toolName: 'mcp', input: { server: 'firecrawl', tool: 'firecrawl_agent' } }, noUiContext))?.block === true, 'managed MCP mutations must retain the approval gate');
 expect((await toolCallHandler({ toolName: 'mcp', input: { server: 'firecrawl', tool: 'firecrawl_search', args: { query: 'collision check', limit: 1 } } }, noUiContext)) === undefined, 'classified safe MCP gateway execution must auto-allow');
 expect((await toolCallHandler({ toolName: 'mcp', input: { search: 'symbol' } }, noUiContext))?.block === true, 'MCP metadata calls must retain the approval gate');
 expect((await toolCallHandler({ toolName: 'mcp', input: { tool: 'firecrawl_developer_search', args: { query: 'collision check' } } }, noUiContext))?.block === true, 'MCP calls without explicit managed ownership must retain the approval gate');
 expect((await toolCallHandler({ toolName: 'firecrawl_firecrawl_agent', input: {} }, noUiContext))?.block === true, 'direct managed-looking tools must retain the top-level approval gate');
+expect(await toolCallHandler({ toolName: 'serena_onboarding', input: {} }, noUiContext) === undefined, 'direct Serena tools must auto-allow without UI');
+let directSerenaClaim;
+mcpApprovalHandler({
+  serverName: 'serena',
+  originalToolName: 'serena_onboarding',
+  prefixedToolName: 'serena_serena_onboarding',
+  args: {},
+  origin: 'direct',
+  claim(handler) { directSerenaClaim = handler; return true; },
+});
+expect(await directSerenaClaim() === 'allow_once', 'direct Serena broker requests must auto-allow');
 let directClaim;
 mcpApprovalHandler({
   serverName: 'firecrawl',
@@ -792,6 +725,7 @@ for (const command of [...rtkRequiredCommands, ...rtkDiscoveryCommands]) {
 }
 expect(t.RTK_OPTIONAL_COMMANDS.size === 0, 'RTK-supported command families retain a single documentation list');
 expect(t.SPECIALIZED_TOOLS.has('recall'), 'recall must be a first-party specialized tool');
+expect(t.SPECIALIZED_TOOLS.has('mcpScript'), 'mcpScript must be a trusted container whose nested calls retain policy');
 expect(t.isMcpOrCustomTool('recall', { id: 'aaaaaaaaaaaa' }) === false, 'recall must not require custom-tool approval');
 expect(t.commandDecision('pip show requests').decision === 'allow', 'regular package metadata reads must not require RTK');
 for (const command of ['poetry show', 'printf x']) {
@@ -920,16 +854,135 @@ try {
   rmSync(installedSkillFixture, { recursive: true, force: true });
   rmSync(externalSkillFixture, { recursive: true, force: true });
 }
-const serenaCodeFixture = mkdtempSync(path.join(root, 'pi/tests/', '.b-agentic-serena-'));
+const trustedSerenaTools = [
+  'serena_search_for_pattern', 'serena_get_symbols_overview', 'serena_find_symbol',
+  'serena_find_referencing_symbols', 'serena_find_implementations', 'serena_find_declaration',
+  'serena_get_diagnostics_for_file', 'serena_read_memory', 'serena_list_memories',
+  'serena_initial_instructions', 'serena_replace_content', 'serena_replace_in_files',
+  'serena_replace_symbol_body', 'serena_insert_after_symbol', 'serena_insert_before_symbol',
+  'serena_rename_symbol', 'serena_safe_delete_symbol', 'serena_write_memory',
+  'serena_delete_memory', 'serena_rename_memory', 'serena_edit_memory',
+  'serena_open_dashboard', 'serena_onboarding',
+];
+const serenaSourcePath = path.join(root, 'pi/extensions/b-agentic-support/mcp.ts');
+const serenaConditionalArgs = {
+  serena_search_for_pattern: { substring_pattern: 'isSafeSerena', relative_path: serenaSourcePath, restrict_search_to_code_files: true },
+  serena_get_symbols_overview: { relative_path: serenaSourcePath },
+  serena_find_symbol: { name_path_pattern: 'isTrustedManagedTool', relative_path: serenaSourcePath },
+  serena_find_referencing_symbols: { name_path: 'isTrustedManagedTool', relative_path: serenaSourcePath },
+  serena_find_implementations: { name_path: 'isTrustedManagedTool', relative_path: serenaSourcePath },
+  serena_find_declaration: { relative_path: serenaSourcePath, regex: 'isTrustedManagedTool' },
+  serena_get_diagnostics_for_file: { relative_path: serenaSourcePath },
+  serena_replace_content: { relative_path: serenaSourcePath, needle: 'old', repl: 'new', mode: 'literal' },
+  serena_replace_in_files: { relative_path: serenaSourcePath, needle: 'old', repl: 'new', mode: 'literal', dry_run: true },
+  serena_replace_symbol_body: { name_path: 'isTrustedManagedTool', relative_path: serenaSourcePath, body: 'body' },
+  serena_insert_after_symbol: { name_path: 'isTrustedManagedTool', relative_path: serenaSourcePath, body: 'body' },
+  serena_insert_before_symbol: { name_path: 'isTrustedManagedTool', relative_path: serenaSourcePath, body: 'body' },
+  serena_rename_symbol: { name_path: 'isTrustedManagedTool', relative_path: serenaSourcePath, new_name: 'isTrustedManagedOperation' },
+  serena_safe_delete_symbol: { name_path_pattern: 'isTrustedManagedTool', relative_path: serenaSourcePath },
+  serena_read_memory: { memory_name: 'review-notes' },
+  serena_list_memories: { topic: 'review' },
+  serena_write_memory: { memory_name: 'review-notes', content: 'durable project fact' },
+  serena_delete_memory: { memory_name: 'obsolete-review-notes' },
+  serena_rename_memory: { old_name: 'review-notes', new_name: 'archive/review-notes' },
+  serena_edit_memory: { memory_name: 'review-notes', needle: 'old', repl: 'new', mode: 'literal' },
+};
+const conditionalSerenaTools = new Set(Object.keys(serenaConditionalArgs));
+const serenaArgsFor = (tool) => serenaConditionalArgs[tool] || {};
+for (const tool of trustedSerenaTools) {
+  expect(t.isTrustedManagedTool('serena', tool, serenaArgsFor(tool)) === true, `${tool} must auto-allow for its safe intended input`);
+}
+const globalMemoryArgs = {
+  serena_read_memory: { memory_name: 'global/review-notes' },
+  serena_list_memories: { topic: 'global' },
+  serena_write_memory: { memory_name: 'global/review-notes', content: 'shared fact' },
+  serena_delete_memory: { memory_name: 'global/review-notes' },
+  serena_rename_memory: { old_name: 'review-notes', new_name: 'global/review-notes' },
+  serena_edit_memory: { memory_name: 'global/review-notes', needle: 'old', repl: 'new', mode: 'literal' },
+};
+for (const [tool, args] of Object.entries(globalMemoryArgs)) {
+  expect(t.isTrustedManagedTool('serena', tool, args) === false, `${tool} must gate shared global memory access`);
+  expect(t.isMcpOrCustomTool(tool, args) === true, `${tool} direct calls must retain the shared-memory gate`);
+}
+expect(t.isTrustedManagedTool('serena', 'serena_list_memories', {}) === false, 'unfiltered Serena memory listing must gate possible shared global memories');
+expect(t.isTrustedManagedTool('serena', 'serena_write_memory', { memory_name: '../outside', content: 'x' }) === false, 'Serena memory traversal must remain gated');
+const serenaRootSearch = {
+  substring_pattern: 'isSafeSerena',
+  relative_path: root,
+  restrict_search_to_code_files: true,
+};
+expect(t.isTrustedManagedTool('serena', 'serena_search_for_pattern', serenaRootSearch) === true, 'repository-wide Serena code search must auto-allow');
+expect(t.isTrustedManagedTool('serena', 'serena_search_for_pattern', {
+  ...serenaRootSearch,
+  paths_include_glob: '**/*.ts',
+  paths_exclude_glob: '**/*.test.ts',
+}) === true, 'repository-wide Serena code search must allow safe project globs');
+expect(t.isTrustedManagedTool('serena', 'serena_search_for_pattern', {
+  substring_pattern: 'isSafeSerena',
+  restrict_search_to_code_files: true,
+}) === true, 'project-root Serena code search without a relative path must auto-allow');
+expect(t.isTrustedManagedTool('serena', 'serena_find_symbol', {
+  name_path_pattern: 'isTrustedManagedTool', include_body: true,
+}) === true, 'project-root Serena symbol reads must auto-allow when code descendants are safe');
+expect(t.isTrustedManagedTool('serena', 'serena_search_for_pattern', {
+  ...serenaRootSearch,
+  relative_path: os.tmpdir(),
+}) === false, 'outside-project Serena code search remains gated');
+expect(t.isTrustedManagedTool('serena', 'serena_replace_content', { relative_path: '/etc/hosts' }) === false, 'outside-project Serena edits remain gated');
+const serenaProtectedFixture = mkdtempSync(path.join(root, 'pi/tests/', '.b-agentic-serena-'));
 try {
-  const providerSecretsService = path.join(serenaCodeFixture, 'provider-secrets.service.ts');
-  const providerCredentialsService = path.join(serenaCodeFixture, 'provider-credentials.service.ts');
-  writeFileSync(providerSecretsService, 'export const providerSecrets = true;');
-  writeFileSync(providerCredentialsService, 'export const providerCredentials = true;');
-  expect(t.isConditionallyTrustedTool('serena', 'serena_get_symbols_overview', { relative_path: providerSecretsService }) === true, 'Serena must trust code paths containing secret words');
-  expect(t.isConditionallyTrustedTool('serena', 'serena_get_symbols_overview', { relative_path: providerCredentialsService }) === true, 'Serena must trust code paths containing credential words');
+  const protectedSerenaPath = path.join(serenaProtectedFixture, '.env');
+  const protectedSerenaLink = path.join(serenaProtectedFixture, 'safe-link');
+  writeFileSync(path.join(serenaProtectedFixture, 'safe.ts'), 'export const safe = true;');
+  const safeDirectoryReplace = {
+    relative_path: serenaProtectedFixture,
+    needle: 'safe',
+    repl: 'safer',
+    mode: 'literal',
+    dry_run: true,
+  };
+  expect(t.isTrustedManagedTool('serena', 'serena_replace_in_files', safeDirectoryReplace) === true, 'safe directory-wide Serena replacements must auto-allow');
+  expect(t.isMcpOrCustomTool('serena_replace_in_files', safeDirectoryReplace) === false, 'safe direct directory-wide Serena replacements must auto-allow');
+  const protectedGitDirectory = path.join(serenaProtectedFixture, '.git');
+  mkdirSync(protectedGitDirectory);
+  writeFileSync(path.join(protectedGitDirectory, 'config'), 'old');
+  expect(t.isTrustedManagedTool('serena', 'serena_replace_in_files', safeDirectoryReplace) === false, 'directory-wide Serena replacements must gate protected .git descendants');
+  rmSync(protectedGitDirectory, { recursive: true, force: true });
+  writeFileSync(protectedSerenaPath, 'secret');
+  symlinkSync(protectedSerenaPath, protectedSerenaLink);
+  expect(t.isTrustedManagedTool('serena', 'serena_search_for_pattern', {
+    ...serenaRootSearch,
+    relative_path: serenaProtectedFixture,
+  }) === true, 'directory Serena code search must ignore non-code protected files');
+  writeFileSync(path.join(serenaProtectedFixture, 'credentials.ts'), 'export const token = true;');
+  expect(t.isTrustedManagedTool('serena', 'serena_search_for_pattern', {
+    ...serenaRootSearch,
+    relative_path: serenaProtectedFixture,
+  }) === false, 'directory Serena code search must gate protected code descendants');
+  expect(t.isTrustedManagedTool('serena', 'serena_find_symbol', {
+    name_path_pattern: 'token', include_body: true,
+  }) === false, 'unscoped Serena symbol reads must gate protected code descendants');
+  expect(t.isTrustedManagedTool('serena', 'serena_find_symbol', {
+    name_path_pattern: 'token', relative_path: serenaProtectedFixture, include_body: true,
+  }) === false, 'directory Serena symbol reads must gate protected code descendants');
+  expect(t.isTrustedManagedTool('serena', 'serena_find_referencing_symbols', {
+    name_path: 'isTrustedManagedTool', relative_path: serenaSourcePath,
+  }) === false, 'project-wide Serena reference reads must gate protected code descendants');
+  expect(t.isTrustedManagedTool('serena', 'serena_find_implementations', {
+    name_path: 'isTrustedManagedTool', relative_path: serenaSourcePath,
+  }) === false, 'project-wide Serena implementation reads must gate protected code descendants');
+  expect(t.isTrustedManagedTool('serena', 'serena_rename_symbol', {
+    name_path: 'isTrustedManagedTool', relative_path: serenaSourcePath, new_name: 'isTrustedManagedOperation',
+  }) === false, 'project-wide Serena renames must gate protected code descendants');
+  expect(t.isMcpOrCustomTool('serena_rename_symbol', {
+    name_path: 'isTrustedManagedTool', relative_path: serenaSourcePath, new_name: 'isTrustedManagedOperation',
+  }) === true, 'unsafe direct Serena renames retain the protected-descendant gate');
+  expect(t.isTrustedManagedTool('serena', 'serena_replace_in_files', safeDirectoryReplace) === false, 'directory-wide Serena replacements must gate protected descendants');
+  expect(t.isMcpOrCustomTool('serena_replace_in_files', safeDirectoryReplace) === true, 'unsafe direct directory-wide Serena replacements retain the protected-descendant gate');
+  expect(t.isTrustedManagedTool('serena', 'serena_replace_content', { relative_path: protectedSerenaPath }) === false, 'Serena edits of protected files remain gated');
+  expect(t.isTrustedManagedTool('serena', 'serena_replace_content', { relative_path: protectedSerenaLink }) === false, 'Serena edits through protected symlinks remain gated');
 } finally {
-  rmSync(serenaCodeFixture, { recursive: true, force: true });
+  rmSync(serenaProtectedFixture, { recursive: true, force: true });
 }
 const protectedPathFixture = mkdtempSync(path.join(os.tmpdir(), 'b-agentic-protected-path-'));
 try {
@@ -946,7 +999,6 @@ try {
   expect(t.nativePathDecision('edit', path.join(secretDirectoryLink, 'new-file')).decision === 'deny', 'protected write through symlinked directory must deny');
   expect(t.commandDecision(`cat ${secretLink}`).decision === 'ask', 'shell reads through protected symlinks must ask');
   expect(t.commandDecision(`printf x > ${secretLink}`).decision === 'ask', 'shell writes through protected symlinks must ask');
-  expect(t.isConditionallyTrustedTool('serena', 'serena_get_symbols_overview', { relative_path: secretLink }) === false, 'Serena must not autonomously read a symlinked protected path');
 } finally {
   rmSync(protectedPathFixture, { recursive: true, force: true });
 }
@@ -958,31 +1010,24 @@ expect(await t.confirmOrBlock({ hasUI: false, ui: { confirm: async () => true } 
 expect((await t.confirmOrBlock({ hasUI: true, ui: { confirm: async () => true } }, 'test', 'test', protectedReadReason)) === undefined, 'approved protected native read must allow');
 expect(await t.confirmOrBlock({ hasUI: true, ui: { confirm: async () => false } }, 'test', 'test', protectedReadReason), 'denied protected native read must block');
 
-// The gateway auto-allows only an unambiguous, classified safe managed call.
+// Every classified Serena tool auto-allows through explicit gateway and direct names.
 expect(t.isMcpOrCustomTool('bash') === false, 'bash is specialized');
 expect(t.isMcpOrCustomTool('mcp', { search: 'symbol' }) === true, 'MCP metadata search requires the approval gate');
 expect(t.isMcpOrCustomTool('mcp', { describe: 'tool' }) === true, 'MCP metadata describe requires the approval gate');
 expect(t.isMcpOrCustomTool('mcp', { action: 'ui-messages' }) === true, 'MCP UI message retrieval requires the approval gate');
-expect(t.isMcpOrCustomTool('mcp', { server: 'serena', tool: 'serena_read_memory' }) === false, 'classified Serena memory gateway execution must auto-allow');
-expect(t.isMcpOrCustomTool('mcp', { server: 'serena', tool: 'serena_initial_instructions' }) === false, 'Serena initial instructions gateway execution must auto-allow');
-for (const tool of ['serena_read_memory', 'serena_list_memories']) {
-  expect(t.isMcpOrCustomTool('mcp', { server: 'serena', tool }) === false, `${tool} gateway execution must auto-allow`);
+for (const tool of trustedSerenaTools) {
+  const args = serenaArgsFor(tool);
+  expect(t.isMcpOrCustomTool('mcp', { server: 'serena', tool, args }) === false, `${tool} gateway execution must auto-allow`);
+  expect(t.isMcpOrCustomTool(tool, args) === false, `${tool} direct execution must auto-allow`);
+  expect(t.isMcpOrCustomTool(`mcp__serena__${tool}`, args) === false, `${tool} prefixed direct execution must auto-allow`);
 }
-for (const tool of ['serena_write_memory', 'serena_delete_memory', 'serena_rename_memory', 'serena_edit_memory']) {
-  expect(t.isMcpOrCustomTool('mcp', { server: 'serena', tool }) === true, `${tool} gateway execution must require approval`);
-}
-expect(t.isMcpOrCustomTool('mcp', { server: 'firecrawl', tool: 'firecrawl_search', args: '{"query":"Pi","limit":1}' }) === false, 'validated conditional gateway execution must auto-allow');
+expect(t.isMcpOrCustomTool('serena_search_for_pattern', serenaRootSearch) === false, 'repository-wide direct Serena code search must auto-allow');
+expect(t.isMcpOrCustomTool('serena_replace_content', { relative_path: '/etc/hosts' }) === true, 'unsafe direct Serena edits retain the path gate');
 expect(t.isMcpOrCustomTool('mcp', { tool: 'serena_read_memory' }) === true, 'gateway execution without explicit server ownership must require approval');
-expect(t.isMcpOrCustomTool('mcp', { tool: 'serena_onboarding', args: '{}' }) === true, 'managed Serena gateway execution requires the top-level gate');
-expect(t.isMcpOrCustomTool('mcp', { tool: 'serena_onboarding', args: '{"unexpected":true}' }) === true, 'managed Serena gateway execution requires the top-level gate');
-expect(t.isMcpOrCustomTool('mcp', { server: 'serena', tool: 'serena_onboarding', args: '{}' }) === true, 'Serena onboarding gateway execution must require approval');
-expect(t.isMcpOrCustomTool('mcp', { tool: 'serena_write_memory', args: JSON.stringify({ memory_name: 'core', content: 'repo map' }) }) === true, 'managed Serena gateway execution requires the top-level gate');
-expect(t.isMcpOrCustomTool('mcp', { tool: 'serena_write_memory', args: JSON.stringify({ memory_name: 'task_note', content: 'do not persist' }) }) === true, 'managed Serena gateway execution requires the top-level gate');
-expect(t.isMcpOrCustomTool('mcp', { tool: 'serena_replace_content' }) === true, 'managed Serena gateway execution requires the top-level gate');
-expect(t.isMcpOrCustomTool('mcp', { server: 'serena', tool: 'serena_replace_content' }) === true, 'Serena code-edit gateway execution must remain approval-gated');
-expect(t.isMcpOrCustomTool('mcp', { server: 'serena', tool: 'serena_open_dashboard' }) === true, 'Serena dashboard gateway execution must remain approval-gated');
+expect(t.isMcpOrCustomTool('mcp', { server: 'serena', tool: 'new_serena_tool' }) === true, 'unlisted Serena tools remain gated');
+expect(t.isMcpOrCustomTool('mcp', { server: 'firecrawl', tool: 'firecrawl_search', args: '{"query":"Pi","limit":1}' }) === false, 'validated conditional gateway execution must auto-allow');
 expect(t.isMcpOrCustomTool('mcp', { tool: 'firecrawl_parse' }) === true, 'managed Firecrawl gateway execution requires the top-level gate');
-expect(t.isMcpOrCustomTool('mcp', { tool: 'mcpScript' }) === true, 'MCP scripting remains approval-gated');
+expect(t.isMcpOrCustomTool('mcp', { tool: 'mcpScript' }) === true, 'MCP gateway scripting selectors remain approval-gated');
 expect(t.isMcpOrCustomTool('mcp', { tool: 'playwright_browser_click' }) === true, 'managed Playwright gateway execution requires the top-level gate');
 expect(t.isMcpOrCustomTool('mcp', { tool: 'playwright_browser_navigate', args: JSON.stringify({ url: 'https://example.com' }) }) === true, 'managed Playwright gateway execution requires the top-level gate');
 expect(t.isMcpOrCustomTool('mcp', { tool: 'playwright_browser_navigate_back' }) === true, 'managed Playwright gateway execution requires the top-level gate');
@@ -992,9 +1037,6 @@ expect(t.isMcpOrCustomTool('mcp', { tool: 'playwright_browser_take_screenshot', 
 expect(t.isMcpOrCustomTool('mcp', { tool: 'playwright_browser_take_screenshot', args: JSON.stringify({ filename: 'shot.png' }) }) === true, 'managed Playwright gateway execution requires the top-level gate');
 expect(t.isMcpOrCustomTool('mcp', { connect: 'serena' }) === true, 'managed MCP connect requires approval');
 expect(t.isMcpOrCustomTool('mcp', { server: 'firecrawl' }) === true, 'managed MCP server listing requires approval');
-expect(t.isMcpOrCustomTool('mcp', { server: 'serena', tool: 'new_serena_tool' }) === true, 'unlisted managed gateway execution requires the top-level gate');
-expect(t.isMcpOrCustomTool('serena_replace_content') === true, 'direct managed Serena tools retain the top-level approval gate');
-expect(t.isMcpOrCustomTool('serena_read_memory') === true, 'direct trusted-looking Serena names retain the top-level approval gate');
 expect(t.isMcpOrCustomTool('firecrawl_firecrawl_agent') === true, 'direct managed Firecrawl tools retain the top-level approval gate');
 expect(t.isMcpOrCustomTool('firecrawl_developer_search') === true, 'direct trusted-looking Firecrawl names retain the top-level approval gate');
 expect(t.isMcpOrCustomTool('browser_click') === true, 'direct managed Playwright tools retain the top-level approval gate');
@@ -1025,10 +1067,6 @@ expect(t.isTrustedManagedTool('firecrawl', 'firecrawl_map', { url: 'http://127.0
 expect(t.isTrustedManagedTool('firecrawl', 'firecrawl_map', { url: 'https://user:token@example.org', limit: 10 }) === false, 'credential-bearing Firecrawl map must require approval');
 expect(t.isTrustedManagedTool('firecrawl', 'firecrawl_extract', { urls: ['https://example.org'], enableWebSearch: false }) === true, 'bounded public Firecrawl extract is trusted');
 expect(t.isTrustedManagedTool('firecrawl', 'firecrawl_extract', { urls: ['https://example.org'], allowExternalLinks: true }) === false, 'unbounded Firecrawl extract must require approval');
-expect(t.isTrustedManagedTool('serena', 'serena_read_memory') === true, 'managed read-only tool is trusted');
-expect(t.isProjectConfinedPath(path.join(root, 'pi/extensions/b-agentic-permissions.ts')) === true, 'project file must be confined');
-expect(t.isProjectConfinedPath(os.tmpdir()) === false, 'outside path must not be project-confined');
-expect(t.isConditionallyTrustedTool('serena', 'serena_get_symbols_overview', { relative_path: os.tmpdir() }) === false, 'Serena reads outside the project require approval');
 expect(t.isTrustedManagedTool('user-server', 'user_tool') === false, 'unmanaged server is not trusted');
 expect(t.approvalLabel('\u001b[31mtool\u0007\u009b') === ' [31mtool  ', 'broker approval labels must strip terminal control characters');
 expect(t.MANAGED_MCP_SERVERS.has('playwright'), 'managed MCP servers present');

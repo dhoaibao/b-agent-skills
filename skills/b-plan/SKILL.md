@@ -31,8 +31,8 @@ Figure out what to do when the task is unclear, then turn the chosen path into t
 
 - `bash` - light repo discovery with modern tools, routed through `rtk` whenever that command family is supported, and `rtk git status --short` when needed.
 - `read` - open only the files required to avoid guessing.
-- `codegraph` - initialize an absent local index on first relevant use, then inspect repo structure and impact evidence.
-- `serena` - inspect symbols and references; ask before onboarding or persistent memory writes.
+- `codegraph` - only for repository-wide architecture, dependency flows, and impact evidence; initialize an absent local index on first such use.
+- `serena` - inspect symbols and references.
 - `context7` - one narrow versioned API check when it changes the plan.
 - `firecrawl` - bounded public docs or issue research when exact text changes scope.
 - `recall` - recover compacted planning context when observational memory ids are present.
@@ -41,7 +41,7 @@ Figure out what to do when the task is unclear, then turn the chosen path into t
 
 1. State the interpreted goal, constraints, and non-goals. Use recall when compacted prior planning ids are available.
 2. If multiple interpretations are plausible, present them briefly and choose only when the choice is low-risk; otherwise ask.
-3. Inspect only files, symbols, or relevant repo notes needed to avoid guessing. Use bash discovery and Pi read for local evidence. For code structure, initialize an absent CodeGraph index, use CodeGraph for flow and impact, then Serena for exact symbols and references. Use Context7 for versioned API checks and bounded Firecrawl research for public docs or issues when they affect the plan.
+3. Inspect only files, symbols, or relevant repo notes needed to avoid guessing. Use bash discovery and Pi read for local evidence. When the plan needs repository-wide architecture or impact, initialize an absent CodeGraph index and use it for that question; use Serena separately for exact symbols and references. Use Context7 for versioned API checks and bounded Firecrawl research for public docs or issues when they affect the plan.
 4. When the task is fuzzy, investigate the current code or constraints enough to compare viable paths before choosing one.
 5. Choose the smallest safe approach, surface material tradeoffs, and push back if a simpler or safer path exists.
 6. Include `Done when` verification for each step that proves the intended observable outcome, not just command success.

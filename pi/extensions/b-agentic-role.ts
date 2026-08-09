@@ -1,37 +1,27 @@
-/** Role selection, persistence, status, and active-tool switching. */
+/** Role selection, persistence, status, and legacy tool restoration. */
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { ROLE_ENTRY_TYPE, parseRole, latestRoleState } from "./b-agentic-support/role.ts";
-import { getRole, setRole, getToolsBeforePlanner, setToolsBeforePlanner, getReportedDirectiveIds, setReportedDirectiveIds, resetWorkerState } from "./b-agentic-support/state.ts";
-
-const PLANNER_DISABLED_TOOLS = new Set(["edit", "write"]);
+import { getRole, setRole, getToolsBeforePlanner, setToolsBeforePlanner } from "./b-agentic-support/state.ts";
 
 export default function bAgenticRole(pi: ExtensionAPI): void {
   const updateStatus = (ctx: ExtensionContext): void => {
     const role = getRole();
-    ctx.ui.setStatus("b-agentic-role", role === "planner" ? "b-agentic: planner (read-only)" : role === "worker" ? "b-agentic: worker" : undefined);
+    ctx.ui.setStatus("b-agentic-role", role === "planner" ? "b-agentic: planner" : role === "worker" ? "b-agentic: worker" : undefined);
   };
   const persist = (): void => {
     pi.appendEntry(ROLE_ENTRY_TYPE, {
       role: getRole(),
       toolsBeforePlanner: getToolsBeforePlanner(),
-      reportedDirectiveIds: [...getReportedDirectiveIds()],
     });
   };
   const applyRole = (next: "off" | "planner" | "worker", ctx: ExtensionContext, shouldPersist = true): void => {
-    if (getRole() === "planner" && next !== "planner" && getToolsBeforePlanner()) {
+    // Restore tools hidden by role state persisted by releases that enforced a
+    // read-only planner. Current roles never alter Pi's active tool set.
+    if (getToolsBeforePlanner()) {
       pi.setActiveTools(getToolsBeforePlanner()!);
       setToolsBeforePlanner(undefined);
     }
-    const previous = getRole();
     setRole(next);
-    if (next === "planner") {
-      setToolsBeforePlanner(getToolsBeforePlanner() ?? pi.getActiveTools());
-      pi.setActiveTools(getToolsBeforePlanner()!.filter((name) => !PLANNER_DISABLED_TOOLS.has(name)));
-    }
-    if (next !== "worker" || previous !== "worker") {
-      resetWorkerState();
-      setReportedDirectiveIds(new Set());
-    }
     updateStatus(ctx);
     if (shouldPersist) persist();
   };
@@ -55,11 +45,11 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
   pi.on("session_start", (_event, ctx) => {
     const persisted = latestRoleState(ctx.sessionManager.getBranch());
     const flagRole = parseRole(pi.getFlag("b-role"));
-    setToolsBeforePlanner(persisted?.toolsBeforePlanner);
+    const legacyTools = persisted?.toolsBeforePlanner;
+    setToolsBeforePlanner(legacyTools);
     const selectedRole = flagRole ?? persisted?.role ?? "off";
     applyRole(selectedRole, ctx, false);
-    if (selectedRole === "worker") setReportedDirectiveIds(new Set(persisted?.reportedDirectiveIds ?? []));
-    if (flagRole && flagRole !== persisted?.role) persist();
+    if (legacyTools || (flagRole && flagRole !== persisted?.role)) persist();
   });
 }
 

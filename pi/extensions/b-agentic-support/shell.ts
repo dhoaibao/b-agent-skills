@@ -3,16 +3,6 @@ import { homedir } from "node:os";
 import { delimiter, dirname, isAbsolute, relative, resolve } from "node:path";
 
 export type Decision = "allow" | "ask" | "deny";
-export const WORKER_SKILLS = new Set(["b-browser", "b-debug", "b-implement", "b-refactor", "b-research", "b-test"]);
-export const PLANNER_DISABLED_TOOLS = new Set(["edit", "write"]);
-export const PLANNER_CODEGRAPH_COMMANDS = new Set([
-  "affected", "callees", "callers", "explore", "files", "help", "impact", "node", "query", "status", "version",
-]);
-export const PLANNER_READ_COMMANDS = new Set([
-  "[", "basename", "bat", "batcat", "cat", "cd", "df", "diff", "dirname", "du", "echo", "eza", "exa",
-  "fd", "fdfind", "file", "find", "grep", "head", "jq", "ls", "popd", "printf", "pushd", "pwd", "readlink",
-  "realpath", "rg", "sort", "stat", "tail", "test", "true", "type", "uniq", "wc", "whereis", "which",
-]);
 export const ASK_COMMANDS: string[][] = [
   ["git", "push"],
   ["git", "pull"],
@@ -96,6 +86,7 @@ export const SPECIALIZED_TOOLS = new Set([
   "edit",
   "read",
   "recall",
+  "mcpScript",
   "grep",
   "find",
   "ls",
@@ -1292,81 +1283,6 @@ export function commandDecision(
     }
   }
   return worst;
-}
-
-export function isPlannerReadOnlyGit(tokens: string[]): boolean {
-  const subcommand = tokens[1];
-  const args = tokens.slice(2);
-  if (!subcommand) return true;
-  if (new Set([
-    "blame", "describe", "diff", "for-each-ref", "grep", "log", "ls-files", "ls-remote", "ls-tree",
-    "name-rev", "rev-parse", "shortlog", "show", "show-ref", "status",
-  ]).has(subcommand)) return true;
-  if (subcommand === "branch") {
-    if (args.length === 0) return true;
-    if (["-a", "--all", "-r", "--remotes", "--show-current", "-v", "-vv"].includes(args[0])) return args.length === 1;
-    if (["--contains", "--no-contains", "--merged", "--no-merged"].includes(args[0])) return args.length <= 2;
-    return args[0] === "--list";
-  }
-  if (subcommand === "config") return ["--get", "--get-all", "--get-regexp"].includes(args[0]);
-  if (subcommand === "remote") return args.length === 0 || (args.length === 1 && args[0] === "-v") || ["get-url", "show"].includes(args[0]);
-  if (subcommand === "stash") return args[0] === "list";
-  if (subcommand === "tag") return args.length === 0 || args[0] === "--list" || args[0] === "-l";
-  return false;
-}
-
-export function hasPlannerMutationCapableArgs(tokens: string[]): boolean {
-  const command = tokens[0];
-  const args = tokens.slice(1);
-  if (command === "find") return args.some((arg) =>
-    ["-delete", "-exec", "-execdir", "-ok", "-okdir", "-fls", "-fprint", "-fprint0", "-fprintf"].includes(arg));
-  if (command === "fd" || command === "fdfind") return args.some((arg) =>
-    /^-[xX]/.test(arg) || ["--exec", "--exec-batch"].includes(arg) || arg.startsWith("--exec=") || arg.startsWith("--exec-batch="));
-  if (command === "rg") return args.some((arg) => arg === "--pre" || arg.startsWith("--pre="));
-  if (command === "sort") return args.some((arg) =>
-    arg === "-o" || /^-o.+/.test(arg) || arg === "--output" || arg.startsWith("--output=") ||
-    arg === "--compress-program" || arg.startsWith("--compress-program="));
-  if (command === "bat" || command === "batcat") return args.some((arg) => arg === "--pager" || arg.startsWith("--pager="));
-  if (command === "git") return args.some((arg) =>
-    arg === "--ext-diff" || arg === "--textconv" || arg === "-O" || arg.startsWith("-O") ||
-    arg === "--open-files-in-pager" || arg.startsWith("--open-files-in-pager=") ||
-    arg === "--output" || arg.startsWith("--output="));
-  return false;
-}
-
-export function hasPlannerUnsafeGitConfig(tokens: string[]): boolean {
-  const stripped = stripWrappers(tokens);
-  if (baseName(stripped[0] || "") !== "git") return false;
-  return stripped.slice(1).some((arg) =>
-    arg === "-c" || (arg.startsWith("-c") && arg.length > 2) ||
-    arg === "--config-env" || arg.startsWith("--config-env="));
-}
-
-export function plannerCommandDecision(command: string): { decision: "allow" | "deny"; reason: string } {
-  const base = commandDecision(command);
-  if (base.decision !== "allow") {
-    return { decision: "deny", reason: `Planner mode is read-only: ${base.reason || "command is not read-only"}` };
-  }
-  for (const segment of splitShellSegments(command.trim())) {
-    const rawTokens = tokenize(segment);
-    if (hasPlannerUnsafeGitConfig(rawTokens)) {
-      return { decision: "deny", reason: "Planner mode is read-only: inline Git configuration can execute repository programs" };
-    }
-    const tokens = normalizeTokens(rawTokens);
-    if (tokens.length === 0) continue;
-    if (hasPlannerMutationCapableArgs(tokens)) {
-      return { decision: "deny", reason: `Planner mode is read-only: mutation-capable ${tokens[0]} arguments blocked` };
-    }
-    if (tokens[0] === "git" && isPlannerReadOnlyGit(tokens)) continue;
-    if (tokens[0] === "codegraph" && (tokens.length === 1 || PLANNER_CODEGRAPH_COMMANDS.has(tokens[1]))) continue;
-    if (isVersionCheck(tokens)) continue;
-    if (PLANNER_READ_COMMANDS.has(tokens[0])) continue;
-    return {
-      decision: "deny",
-      reason: `Planner mode is read-only: command is not in the read-only set (${tokens[0]})`,
-    };
-  }
-  return { decision: "allow", reason: "" };
 }
 
 export function nativePathDecision(toolName: string, pathValue: string): { decision: Decision; reason: string } {

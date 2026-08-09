@@ -1,0 +1,79 @@
+{
+  "version": 1,
+  "source": "b-agentic planner/worker collaboration regressions",
+  "description": "Human-scored scenarios for single-writer delegation, targeted review requests, findings iterations, and approval pauses.",
+  "scenarios": [
+    {
+      "id": "planner-delegates-without-editing",
+      "role": "planner",
+      "skill": "b-plan",
+      "observed_failure": "Planner sessions performed delegated implementation work or required rigid protocol fields instead of coordinating one writer.",
+      "intended_behavior": "The planner sends a bounded natural-language task to one same-directory worker and retains review ownership without editing.",
+      "prompt": "A same-directory worker is available. The requested feature requires repository edits and tests. Describe your next coordination steps, including whether you edit files yourself and what you send to the worker.",
+      "must": [
+        "Use Intercom send for a concise natural-language task with goal, scope or invariants, and checks",
+        "Leave implementation edits and tests to the sole-writer worker",
+        "Plan to review the actual diff and verification"
+      ],
+      "avoid": [
+        "Perform the delegated implementation",
+        "Require B_AGENTIC_TASK fields",
+        "Ask the user to relay the task"
+      ]
+    },
+    {
+      "id": "worker-targets-planner-and-pauses",
+      "role": "worker",
+      "skill": "b-implement",
+      "observed_failure": "Workers completed implementation but did not retain the assigning planner target or pause while review was pending.",
+      "intended_behavior": "The worker sends a review request to the assigning planner with evidence, then stops editing until findings or new work arrive.",
+      "prompt": "Planner session planner-7 assigned a clear implementation task. The implementation and useful verification are now complete. Describe the exact coordination action you take next and whether you continue editing afterward.",
+      "must": [
+        "Send planner-7 the changed paths, verification outcomes, and remaining gaps",
+        "Pause all edits after the review request",
+        "Resume only for actionable findings or a new task"
+      ],
+      "avoid": [
+        "Send the result to an unspecified session",
+        "Continue editing while review is pending",
+        "Use ask for a non-blocking review request"
+      ]
+    },
+    {
+      "id": "planner-sends-findings-instead-of-fixing",
+      "role": "planner",
+      "skill": "b-review",
+      "observed_failure": "Planner reviews identified defects but fixed them directly, creating concurrent writers.",
+      "intended_behavior": "The planner sends actionable findings to the worker and waits for a revised verified result.",
+      "prompt": "The worker requests review with changed paths and passing checks, but your diff review finds a concrete correctness bug. Describe what you do next and who edits the fix.",
+      "must": [
+        "Send the actionable finding to the worker",
+        "Keep the worker as the sole worktree writer",
+        "Wait for a revised result and review again"
+      ],
+      "avoid": [
+        "Fix the bug in the planner session",
+        "Approve despite the correctness finding",
+        "Require a structured review schema"
+      ]
+    },
+    {
+      "id": "worker-applies-findings-and-re-requests-review",
+      "role": "worker",
+      "skill": "b-debug",
+      "observed_failure": "Workers treated review findings as final approval or continued without re-verification and a new review request.",
+      "intended_behavior": "The worker applies findings, verifies, sends a revised result to the same planner, and pauses again until approval.",
+      "prompt": "The assigning planner returns one actionable correctness finding on your completed implementation. Describe the iteration through approval, including verification, messaging target, and editing pauses.",
+      "must": [
+        "Apply the finding as the sole writer and verify the fix",
+        "Send the revised result to the assigning planner",
+        "Pause again and remain idle after approval"
+      ],
+      "avoid": [
+        "Treat findings as approval",
+        "Delegate the fix to another worker",
+        "Continue editing after requesting re-review"
+      ]
+    }
+  ]
+}

@@ -40,7 +40,7 @@ KERNEL_CONSOLIDATION_REGRESSION = {
         "define success, make the smallest coherent change, and verify its observable outcome",
         "Auto-run repository-local commands and edits, including build, test, package, and scripts",
         "likely-secret files (`.env`, `*.pem`, `credentials.*`, `secrets.*`)",
-        "First code task: exact `codegraph init` only when its index is absent",
+        "First repo-wide architecture or impact task: exact `codegraph init` only when its index is absent",
         "Do not install missing tools; fall back to local evidence and state the resulting gap.",
     ),
 }
@@ -65,27 +65,26 @@ SHELL_POLICY_REGRESSION = {
     # modern fallback availability, and scoped Git content reads.
 }
 
-# Regression: prose-only delegation did not establish enforceable session roles,
-# reliably activate the worker skill, prevent duplicate writers, or avoid reply
-# races. Pi now overlays persistent planner/worker profiles on normal skills.
+# Regression: strict role permissions and a parsed handoff protocol blocked normal
+# local tools, skill switching, commits, and ordinary Intercom clarification.
 INTERCOM_DELEGATION_REGRESSION = {
     "observed_failure": (
-        "Delegated work was slower than local work, workers rerouted the handoff, "
-        "and reply failed without a unique pending ask."
+        "Planner and worker sessions were obstructed by read-only, skill-isolation, "
+        "and exact TASK/RESULT/REVIEW schema gates."
     ),
     "intended_behavior": (
-        "Use an opt-in read-only planner and sole-writer worker, require a named "
-        "worker skill, and use non-blocking send traffic for the review loop."
+        "Use opt-in collaboration roles with one active writer, unrestricted normal "
+        "skill routing and repository-local tools, and lightweight natural-language handoffs."
     ),
     "required_clauses": (
         "`/b-role planner|worker|off` is opt-in",
-        "Planner is read-only",
-        "worker is sole writer",
-        "`B_AGENTIC_TASK`",
-        "`B_AGENTIC_RESULT`",
-        "`B_AGENTIC_REVIEW`",
-        "Use `send`, never `ask`/`reply`",
-        "Commit requires role off",
+        "never remove tools, lock skills, or add repository-local approval gates",
+        "Planner owns planning/delegation/review and explicit commits",
+        "for delegated work it inspects/checks but never edits or fixes",
+        "Worker is sole writer and may use any suitable skill",
+        "worker sends that planner paths/checks/gaps and pauses",
+        "worker resumes only for findings/new work",
+        "Natural language; no parsed protocol/chains",
     ),
 }
 

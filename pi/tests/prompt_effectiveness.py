@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -21,6 +22,7 @@ DEFAULT_FIXTURES = ROOT / "tests" / "behavior" / "principles.json"
 ROUTING_FIXTURES = ROOT / "tests" / "behavior" / "routing.json"
 DEFAULT_KERNEL = ROOT / "references" / "kernel.template.md"
 DEFAULT_SKILL = ROOT / "skills" / "b-implement" / "SKILL.md"
+ROLE_SOURCE = ROOT / "pi" / "extensions" / "b-agentic-support" / "role.ts"
 
 
 def parse_args() -> argparse.Namespace:
@@ -72,6 +74,24 @@ def clean_output(value: str | bytes | None) -> str:
     return (value or "").strip()
 
 
+def scenario_role_prompt(scenario: dict) -> str | None:
+    role = scenario.get("role")
+    if role is None:
+        return None
+    if role not in {"planner", "worker"}:
+        raise ValueError(f"invalid scenario role: {role!r}")
+    source = ROLE_SOURCE.read_text()
+    pattern = (
+        r"export const PLANNER_PROMPT = `(.*?)`;"
+        if role == "planner"
+        else r"export function workerPrompt\(\): string \{\s+return `(.*?)`;"
+    )
+    match = re.search(pattern, source, flags=re.DOTALL)
+    if not match:
+        raise ValueError(f"cannot extract {role} prompt from {ROLE_SOURCE}")
+    return match.group(1).replace(r"\`", "`")
+
+
 def scenario_skill_path(args: argparse.Namespace, scenario: dict) -> Path:
     skill_name = scenario.get("skill")
     if skill_name is None:
@@ -81,16 +101,20 @@ def scenario_skill_path(args: argparse.Namespace, scenario: dict) -> Path:
     return ROOT / "skills" / skill_name / "SKILL.md"
 
 
-def system_addendum(args: argparse.Namespace, skill_path: Path) -> str:
+def system_addendum(args: argparse.Namespace, skill_path: Path, scenario: dict) -> str:
     parts = [args.kernel.read_text()]
     if not args.routing:
         # Explicit-skill scenarios disable tools, so inject the full body instead
         # of relying on progressive disclosure through the read tool.
         parts.append(skill_path.read_text())
+    role_prompt = scenario_role_prompt(scenario)
+    if role_prompt:
+        parts.append(role_prompt)
     return "\n\n".join(parts)
 
 
-def pi_command(args: argparse.Namespace, prompt: str, skill_path: Path) -> list[str]:
+def pi_command(args: argparse.Namespace, scenario: dict, skill_path: Path) -> list[str]:
+    prompt = scenario["prompt"]
     command = [
         "pi",
         "--no-session",
@@ -99,7 +123,7 @@ def pi_command(args: argparse.Namespace, prompt: str, skill_path: Path) -> list[
         "--no-prompt-templates",
         "--no-context-files",
         "--append-system-prompt",
-        system_addendum(args, skill_path),
+        system_addendum(args, skill_path, scenario),
     ]
     if args.routing:
         command.extend(["--tools", "read"])
@@ -126,10 +150,13 @@ def validate_command_construction(args: argparse.Namespace, scenarios: list[dict
     kernel_text = args.kernel.read_text()
     for scenario in scenarios:
         skill_path = scenario_skill_path(args, scenario)
-        command = pi_command(args, scenario["prompt"], skill_path)
+        command = pi_command(args, scenario, skill_path)
         addendum = command[command.index("--append-system-prompt") + 1]
         if kernel_text not in addendum or str(args.kernel) == addendum:
             raise ValueError("Pi command does not inject the kernel contents")
+        role_prompt = scenario_role_prompt(scenario)
+        if role_prompt and role_prompt not in addendum:
+            raise ValueError(f"Pi command does not inject the {scenario['role']} role prompt")
         if args.provider and command[command.index("--provider") + 1] != args.provider:
             raise ValueError("Pi command does not pin the requested provider")
         if args.routing:
@@ -188,7 +215,7 @@ def main() -> int:
     for scenario in scenarios:
         try:
             completed = subprocess.run(
-                pi_command(args, scenario["prompt"], scenario_skill_path(args, scenario)),
+                pi_command(args, scenario, scenario_skill_path(args, scenario)),
                 cwd=ROOT,
                 env=environment,
                 capture_output=True,

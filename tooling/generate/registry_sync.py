@@ -189,13 +189,14 @@ def render_mcp_runtime_policy(policy: dict) -> str:
         "firecrawl": "FIRECRAWL_TRUSTED_TOOLS",
         "playwright": "PLAYWRIGHT_TRUSTED_TOOLS",
     }
-    safe = {"read-only", "conditional-read"}
+    conditional_classes = {"conditional-read", "conditional-local"}
+    safe = {"read-only", "trusted-serena", *conditional_classes}
     lines = [
         "/** Generated from references/mcp_operations.yaml. */",
         f"const MANAGED_MCP_SERVERS = new Set({json.dumps(sorted(servers), indent=2)});",
         "",
-        "/** Read operations that are autonomous only for a validated safe argument shape. */",
-        f"const MCP_CONDITIONAL_TOOLS = new Set({json.dumps(sorted(f'{server}:{tool}' for server, record in servers.items() if isinstance(record, dict) for tool, operation in record.get('tools', {}).items() if operation == 'conditional-read'), indent=2)});",
+        "/** Operations autonomous only for a validated safe argument shape. */",
+        f"const MCP_CONDITIONAL_TOOLS = new Set({json.dumps(sorted(f'{server}:{tool}' for server, record in servers.items() if isinstance(record, dict) for tool, operation in record.get('tools', {}).items() if operation in conditional_classes), indent=2)});",
         "",
         "/** Known arguments for conditional operations, generated from the canonical policy. */",
         f"const MCP_CONDITIONAL_ARGUMENTS: Record<string, readonly string[]> = {json.dumps({key: value['known'] for key, value in sorted(conditional_arguments.items())}, indent=2)};",

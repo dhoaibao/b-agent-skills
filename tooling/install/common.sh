@@ -1237,7 +1237,7 @@ print_install_report_next_steps() {
 
   report_item "manifest" "review $MANIFEST_DST for installed paths and backup metadata"
   report_item "keys" "add user-scope API keys only if you plan to use Context7, Brave Search, or Firecrawl"
-  report_item "serena" "Serena onboarding requires approval when needed; the installer does not eagerly initialize projects"
+  report_item "serena" "Serena tools are auto-approved; onboarding runs only when repository onboarding is useful"
   report_item "codegraph" "rerun interactively to accept the CodeGraph prompt, or install manually; b-agentic initializes its index on first relevant code task"
   report_item "rtk" "required; install manually or rerun the installer to install it"
 }

@@ -17,10 +17,10 @@ Make the scoped change in the smallest coherent step, and hand back to planning 
 
 ## Tool guidance
 
-- `read`/`edit`/`write` - prefer Pi native file tools for source and config edits.
+- `serena` - prefer Serena for supported code reads and repo-confined edits, including symbols, references, diagnostics, targeted replacements, renames, and safe deletion.
+- `read`/`edit`/`write` - use Pi native file tools for unsupported files or when Serena fails.
 - `bash` - `rtk git status --short`, verification commands, and modern discovery routed through `rtk` whenever that command family is supported.
-- `codegraph` - initialize an absent local index on first relevant use, then map architecture, calls, and affected tests.
-- `serena` - symbols, references, diagnostics, and approval-gated symbol edits (`rename_symbol`, `replace_symbol_body`, `insert_before_symbol`, `insert_after_symbol`, `safe_delete_symbol`); ask before onboarding or persistent memory writes.
+- `codegraph` - only for repository-wide architecture, dependency/call flows, impact, and affected tests; initialize an absent local index on first such use.
 - `context7` - narrow versioned third-party API checks when needed.
 - `recall` - recover compacted observational-memory ids when present instead of guessing prior context.
 
@@ -30,9 +30,9 @@ Make the scoped change in the smallest coherent step, and hand back to planning 
 2. Run `rtk git status --short` via Bash and preserve unrelated changes.
 3. Use read for relevant repo context only when it materially affects the scoped change; use recall when compacted prior plan context is available.
 4. State expected files/symbols, invariant behavior, and success criteria; infer narrow criteria only when obvious.
-5. For cross-file code work, initialize an absent CodeGraph index; use CodeGraph for impact or affected tests, then Serena for exact symbols, references, and diagnostics. Otherwise use local search.
+5. When work needs repository-wide architecture, impact, or affected-test evidence, initialize an absent CodeGraph index and use it for that question. Use Serena separately for exact symbols, references, diagnostics, and edits; otherwise use local search.
 6. If a material blocker, new uncertainty, missing external fact, or scope drift cannot be resolved from the approved plan, direct request, and repository evidence, stop before the next edit. Explain the blocker and ask one focused user question; after each answer, re-evaluate and ask another only if a blocker remains. Hand back to **b-plan** or **b-research** only when that answer identifies the handoff.
-7. Edit the smallest coherent slice and match the existing local style. Prefer Serena symbol mutations for renames/signature-body edits when available (approval-gated); use Pi `edit`/`write` for prose, config, and string-level changes.
+7. Edit the smallest coherent slice and match the existing local style. Prefer Serena for supported code mutations; use Pi `edit`/`write` for unsupported files or when Serena fails.
 8. Run the narrowest useful verification (using Context7 for versioned third-party API checks if the implementation relies on them) that proves the requested observable outcome.
 9. If verification exposes an in-scope defect without a material blocker, correct it and rerun the required check. Otherwise stop under step 6.
 10. Inspect changed paths with metadata-only Git output, then inspect diffs only for explicit non-protected paths and report changes, verification, and remaining gaps.

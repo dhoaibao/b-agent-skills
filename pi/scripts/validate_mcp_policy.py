@@ -54,6 +54,8 @@ def main() -> int:
     expected_policies = {
         "read-only": "Auto-approved for managed servers",
         "conditional-read": "Auto-approved for safe arguments",
+        "trusted-serena": "Auto-approved for Serena",
+        "conditional-local": "Auto-approved inside current project",
         "local-upload": "Approval required",
         "external-mutation": "Approval required",
         "monitor-lifecycle": "Approval required",
@@ -78,9 +80,9 @@ def main() -> int:
         if not isinstance(tools, dict):
             errors.append(f"{args.policy}: {server!r} must declare tools")
             continue
-        safe_tools = {tool for tool, operation in tools.items() if operation in {"read-only", "conditional-read"}}
+        safe_tools = {tool for tool, operation in tools.items() if operation in {"read-only", "conditional-read", "conditional-local", "trusted-serena"}}
         check_set(errors, source, runtime_set, safe_tools, extension, root)
-        conditional.update(f"{server}:{tool}" for tool, operation in tools.items() if operation == "conditional-read")
+        conditional.update(f"{server}:{tool}" for tool, operation in tools.items() if operation in {"conditional-read", "conditional-local"})
 
     check_set(errors, source, "MCP_CONDITIONAL_TOOLS", conditional, extension, root)
 

@@ -146,9 +146,11 @@ PROMPT_TOOL_LEVERAGE_REGRESSION = {
     ),
     "anchors": {
         "b-implement": [
-            "prefer Pi native file tools",
-            "rename_symbol",
-            "replace_symbol_body",
+            "prefer Serena for supported code reads and repo-confined edits",
+            "targeted replacements",
+            "safe deletion",
+            "Use Serena separately",
+            "repository-wide architecture, dependency/call flows, impact, and affected tests",
             "compacted observational-memory ids",
         ],
         "b-refactor": [
@@ -156,7 +158,7 @@ PROMPT_TOOL_LEVERAGE_REGRESSION = {
             "replace_symbol_body",
             "safe_delete_symbol",
         ],
-        "b-debug": ["approval-gated symbol edits", "compacted repro"],
+        "b-debug": ["prefer Serena for supported code inspection", "repo-confined fixes", "compacted repro"],
         "b-research": [
             "research_search_papers",
             "research_search_github",
@@ -258,12 +260,49 @@ else:
     if len(routing_ids) != len(set(routing_ids)):
         errors.append(f"{rel(routing_path)}: scenario ids must be unique")
 
+roles_path = ROOT / "tests" / "behavior" / "roles.json"
+roles_fixture = load_json(roles_path)
+role_scenarios = roles_fixture.get("scenarios", [])
+if roles_fixture.get("version") != 1 or not isinstance(role_scenarios, list) or not role_scenarios:
+    errors.append(f"{rel(roles_path)}: expected version 1 with non-empty scenarios")
+else:
+    role_ids: list[str] = []
+    covered_roles: set[str] = set()
+    for index, scenario in enumerate(role_scenarios, start=1):
+        label = f"{rel(roles_path)}: scenario {index}"
+        if not isinstance(scenario, dict):
+            errors.append(f"{label} must be an object")
+            continue
+        scenario_id = scenario.get("id")
+        if not isinstance(scenario_id, str) or not scenario_id:
+            errors.append(f"{label} must have a non-empty id")
+        else:
+            role_ids.append(scenario_id)
+        role = scenario.get("role")
+        if role not in {"planner", "worker"}:
+            errors.append(f"{label} has unknown role {role!r}")
+        else:
+            covered_roles.add(role)
+        if scenario.get("skill") not in skill_names:
+            errors.append(f"{label} has unknown skill {scenario.get('skill')!r}")
+        for field in ("prompt", "observed_failure", "intended_behavior"):
+            if not isinstance(scenario.get(field), str) or not scenario[field]:
+                errors.append(f"{label} {field} must be a non-empty string")
+        for field in ("must", "avoid"):
+            values = scenario.get(field)
+            if not isinstance(values, list) or not values or not all(isinstance(value, str) and value for value in values):
+                errors.append(f"{label} {field} must be a non-empty string array")
+    if len(role_ids) != len(set(role_ids)):
+        errors.append(f"{rel(roles_path)}: scenario ids must be unique")
+    if covered_roles != {"planner", "worker"}:
+        errors.append(f"{rel(roles_path)}: scenarios must cover planner and worker")
+
 prompt_runner_path = ROOT / "pi" / "tests" / "prompt_effectiveness.py"
 prompt_runner = read_text(prompt_runner_path)
 require_contains(
     prompt_runner_path,
     prompt_runner,
-    ["--allow-model-calls", '"--no-session"', '"--no-tools"', '"--routing"', 'environment["PI_TELEMETRY"] = "0"'],
+    ["--allow-model-calls", '"--no-session"', '"--no-tools"', '"--routing"', "scenario_role_prompt", "ROLE_SOURCE", 'environment["PI_TELEMETRY"] = "0"'],
     "prompt-effectiveness safety marker",
 )
 
@@ -404,16 +443,30 @@ if "RTK never bypasses these protections" not in kernel_template:
     errors.append(
         "references/kernel.template.md: RTK must not be described as bypassing protections"
     )
+# Regression: independent Serena and CodeGraph reads were needlessly sequential,
+# increasing latency despite the adapter's bounded read-only fan-out support.
+for tool_boundary_marker in [
+    "Serena owns symbols",
+    "CodeGraph owns repo-wide architecture",
+    "Never duplicate questions",
+    "Parallelize independent read calls in one `mcpScript`",
+    "nested tools keep policy",
+    "All classified Serena tools auto-approve for safe inputs",
+]:
+    if tool_boundary_marker not in kernel_template:
+        errors.append(
+            f"references/kernel.template.md: Serena/CodeGraph boundary missing {tool_boundary_marker!r}"
+        )
+
 for intercom_marker in [
     "`/b-role planner|worker|off` is opt-in",
-    "Planner is read-only",
-    "worker is sole writer",
-    "`B_AGENTIC_TASK`",
-    "`B_AGENTIC_RESULT`",
-    "`B_AGENTIC_REVIEW`",
-    "Use `send`, never `ask`/`reply`",
-    "Commit requires role off",
-    "Schema-valid Intercom calls stay approval-free",
+    "never remove tools, lock skills, or add repository-local approval gates",
+    "Planner owns planning/delegation/review and explicit commits",
+    "for delegated work it inspects/checks but never edits or fixes",
+    "Worker is sole writer and may use any suitable skill",
+    "worker sends that planner paths/checks/gaps and pauses",
+    "worker resumes only for findings/new work",
+    "Natural language; no parsed protocol/chains",
 ]:
     if intercom_marker not in kernel_template:
         errors.append(

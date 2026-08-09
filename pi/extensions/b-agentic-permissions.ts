@@ -1,8 +1,8 @@
 /**
  * b-agentic shell/filesystem/local-tool policy for Pi.
  *
- * MCP/custom-tool approval, role selection, planner enforcement, and worker
- * protocol enforcement live in their purpose-specific sibling extensions.
+ * MCP/custom-tool approval and prompt-only collaboration roles live in their
+ * purpose-specific sibling extensions.
  * This entry point remains the compatibility module for policy helpers and
  * owns only local command/path gates.
  */
@@ -13,18 +13,12 @@ import {
   isProtectedPath, isProtectedLocalPath, isInstalledBAgenticSkillPath,
   SPECIALIZED_TOOLS,
 } from "./b-agentic-support/shell.ts";
-import { getRole } from "./b-agentic-support/state.ts";
 import * as shell from "./b-agentic-support/shell.ts";
 import * as mcp from "./b-agentic-support/mcp.ts";
 import * as role from "./b-agentic-support/role.ts";
-import * as worker from "./b-agentic-support/worker.ts";
 
 export default function bAgenticPermissions(pi: ExtensionAPI): void {
   pi.on("tool_call", async (event, ctx) => {
-    // Role-specific extensions own assignment/read-only gates. Consult shared
-    // role state before asking so this extension never prompts ahead of them.
-    if (getRole() !== "off" && event.toolName === "bash" && getRole() === "planner") return undefined;
-
     if (event.toolName === "bash") {
       const command = String((event.input as { command?: string }).command || "");
       const decision = commandDecision(command);
@@ -52,9 +46,6 @@ export default function bAgenticPermissions(pi: ExtensionAPI): void {
       return undefined;
     }
 
-    if (event.toolName === "grep" || event.toolName === "find" || event.toolName === "ls") {
-      return { block: true, reason: "Blocked direct discovery tool: use bash with rg/fd/eza (or grep/find/ls)" };
-    }
     return undefined;
   });
 }
@@ -65,5 +56,4 @@ export const __test__ = {
   ...shell,
   ...mcp,
   ...role,
-  ...worker,
 };

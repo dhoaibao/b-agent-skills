@@ -19,8 +19,19 @@ POLICY_PATH = ROOT / "references" / "mcp_operations.yaml"
 PI_VALIDATOR = ROOT / "pi" / "scripts" / "validate_mcp_policy.py"
 GATED_CLASSES = {"local-upload", "external-mutation", "monitor-lifecycle", "local-mutation", "auth"}
 READ_ONLY = "read-only"
-CONDITIONAL_READ = "conditional-read"
+TRUSTED_CLASSES = {"trusted-serena"}
+CONDITIONAL_CLASSES = {"conditional-read", "conditional-local"}
 MANAGED_SERVERS = {"serena", "codegraph", "context7", "brave-search", "firecrawl", "playwright"}
+EXPECTED_SERENA_TOOLS = {
+    "serena_search_for_pattern", "serena_get_symbols_overview", "serena_find_symbol",
+    "serena_find_referencing_symbols", "serena_find_implementations", "serena_find_declaration",
+    "serena_get_diagnostics_for_file", "serena_read_memory", "serena_list_memories",
+    "serena_initial_instructions", "serena_replace_content", "serena_replace_in_files",
+    "serena_replace_symbol_body", "serena_insert_after_symbol", "serena_insert_before_symbol",
+    "serena_rename_symbol", "serena_safe_delete_symbol", "serena_write_memory",
+    "serena_delete_memory", "serena_rename_memory", "serena_edit_memory",
+    "serena_open_dashboard", "serena_onboarding",
+}
 
 
 def load_policy() -> dict:
@@ -35,7 +46,7 @@ def validate_policy_shape(policy: dict, errors: list[str]) -> None:
     if not isinstance(classes, dict) or not classes:
         errors.append("references/mcp_operations.yaml: missing classes map")
         classes = {}
-    for required in [READ_ONLY, CONDITIONAL_READ, *sorted(GATED_CLASSES)]:
+    for required in [READ_ONLY, *sorted(TRUSTED_CLASSES), *sorted(CONDITIONAL_CLASSES), *sorted(GATED_CLASSES)]:
         if required not in classes:
             errors.append(f"references/mcp_operations.yaml: missing class {required!r}")
 
@@ -53,13 +64,22 @@ def validate_policy_shape(policy: dict, errors: list[str]) -> None:
         for tool, classification in tools.items():
             if classification not in classes:
                 errors.append(f"references/mcp_operations.yaml: tool {server}:{tool} has unknown class {classification!r}")
-            if classification == CONDITIONAL_READ:
+            if classification in CONDITIONAL_CLASSES:
                 conditional_tools.add(f"{server}:{tool}")
+    serena_tools = servers.get("serena", {}).get("tools", {})
+    if set(serena_tools) != EXPECTED_SERENA_TOOLS or any(
+        classification not in {"trusted-serena", "conditional-read", "conditional-local"}
+        for classification in serena_tools.values()
+    ):
+        errors.append(
+            "references/mcp_operations.yaml: every supported Serena tool must have an autonomous Serena class"
+        )
+
     conditional_arguments = policy.get("conditional_arguments")
     if not isinstance(conditional_arguments, dict) or set(conditional_arguments) != conditional_tools:
         found = sorted(conditional_arguments) if isinstance(conditional_arguments, dict) else []
         errors.append(
-            "references/mcp_operations.yaml: conditional_arguments must match conditional-read tools "
+            "references/mcp_operations.yaml: conditional_arguments must match conditional tools "
             f"(expected {sorted(conditional_tools)}, found {found})"
         )
     elif any(
@@ -70,6 +90,13 @@ def validate_policy_shape(policy: dict, errors: list[str]) -> None:
         for record in conditional_arguments.values()
     ):
         errors.append("references/mcp_operations.yaml: each conditional argument record needs a non-empty known string list")
+
+    runtime_policy = policy.get("runtime_enforcement", {}).get("pi", "")
+    for marker in ("tools.search", "tools.describe", "nested tools.call"):
+        if marker not in runtime_policy:
+            errors.append(
+                f"references/mcp_operations.yaml: mcpScript runtime policy missing {marker!r}"
+            )
 
 
 def main() -> int:

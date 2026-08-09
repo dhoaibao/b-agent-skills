@@ -21,8 +21,8 @@ Flags: `--skip-tests`, `--baseline=<path|url>`, `--range=<ref>..<ref>`, `--audit
 
 - `bash` - `rtk git status`, metadata-only Git path lists, targeted safe-path diffs, logs, and narrow verification; modern discovery routed through `rtk` whenever supported.
 - `read` - open changed files directly.
-- `codegraph` - initialize an absent local index on first relevant use, then inspect changed flows, calls, and affected tests.
-- `serena` - inspect changed symbols, references, diagnostics, and boundaries; ask before onboarding or persistent memory writes.
+- `codegraph` - only for repository-wide changed flows, impact, and affected tests; initialize an absent local index on first such use.
+- `serena` - inspect changed symbols, references, diagnostics, and boundaries.
 - `brave-search` - one narrow independent public lookup; use specialized Brave tools only when news/local/image/video/place evidence matters.
 - `recall` - recover compacted audit or prior-review memory ids when present.
 
@@ -32,7 +32,7 @@ Flags: `--skip-tests`, `--baseline=<path|url>`, `--range=<ref>..<ref>`, `--audit
 2. Classify protected paths before reading content, then inspect only explicitly named non-protected paths with targeted diffs. Use inspection tools only. If the user wants findings fixed, report them and hand off to **b-implement** after the review.
 3. Choose baseline. Without baseline, do a risk review and do not claim requirements coverage.
 4. Read repo context only when it materially affects the review; use recall for compacted prior review ids when present.
-5. For changed code, initialize an absent CodeGraph index; use CodeGraph for flows and affected tests, then Serena for exact references and diagnostics. Use Brave only when public semantics materially affect a finding.
+5. When changed code needs repository-wide flow, impact, or affected-test evidence, initialize an absent CodeGraph index and use it for that question; use Serena separately for exact references and diagnostics. Use Brave only when public semantics materially affect a finding.
 6. Inspect highest-risk changed symbols and boundaries first.
 7. Check tests, edge cases, security, operability, evidence quality, hidden assumptions, unnecessary diff, and over-abstraction.
 8. Verify evidence proves the intended observable outcome, not only command success (using Brave to look up API semantics if needed).
