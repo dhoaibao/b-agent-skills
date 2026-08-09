@@ -228,6 +228,7 @@ if (!t) {
 const handlers = {};
 const registrations = {};
 const commands = {};
+const tools = {};
 const flags = {};
 const persistedEntries = [];
 const branchEntries = [];
@@ -249,6 +250,7 @@ const extensionHost = {
   registerFlag() {},
   getFlag(name) { return flags[name]; },
   registerCommand(name, definition) { commands[name] = definition; },
+  registerTool(definition) { tools[definition.name] = definition; },
   getActiveTools() { return [...activeTools]; },
   setActiveTools(names) { activeTools = [...names]; },
   appendEntry(customType, data) {
@@ -294,7 +296,25 @@ expect(t.isAutoApprovedIntercomCall('intercom', { action: 'reply', replyTo: 'mes
 
 expect(typeof toolCallHandler === 'function', 'permission extension must register a tool_call handler');
 expect(typeof mcpApprovalHandler === 'function', 'permission extension must register the MCP approval broker');
+expect(tools.b_agentic_confirm_commit, 'permission extension must register the commit confirmation tool');
+let commitConfirmation;
+const approvedCommit = await tools.b_agentic_confirm_commit.execute('', { proposal: '1. fix: preserve test\n   Files: tests/smoke/install.sh' }, undefined, () => {}, {
+  hasUI: true,
+  ui: {
+    confirm: async (title, message) => {
+      commitConfirmation = { title, message };
+      return true;
+    },
+  },
+});
+expect(approvedCommit.details.approved === true && approvedCommit.details.uiAvailable === true, 'approved commit confirmation must report approval');
+expect(commitConfirmation.title === 'Confirm commits' && commitConfirmation.message.includes('fix: preserve test'), 'commit confirmation must show the exact proposal');
+const declinedCommit = await tools.b_agentic_confirm_commit.execute('', { proposal: 'proposal' }, undefined, () => {}, { hasUI: true, ui: { confirm: async () => false } });
+expect(declinedCommit.details.approved === false && declinedCommit.details.uiAvailable === true, 'declined commit confirmation must not approve commits');
+const unavailableCommit = await tools.b_agentic_confirm_commit.execute('', { proposal: 'proposal' }, undefined, () => {}, { hasUI: false, ui: { confirm: async () => true } });
+expect(unavailableCommit.details.approved === false && unavailableCommit.details.uiAvailable === false, 'commit confirmation must require an interactive UI');
 const noUiContext = { hasUI: false, ui: { confirm: async () => true } };
+expect(await toolCallHandler({ toolName: 'b_agentic_confirm_commit', input: { proposal: 'proposal' } }, noUiContext) === undefined, 'commit confirmation must bypass generic custom-tool approval');
 let rolePickerCalls = 0;
 const roleContext = {
   cwd: root,
@@ -725,6 +745,7 @@ for (const command of [...rtkRequiredCommands, ...rtkDiscoveryCommands]) {
 }
 expect(t.RTK_OPTIONAL_COMMANDS.size === 0, 'RTK-supported command families retain a single documentation list');
 expect(t.SPECIALIZED_TOOLS.has('recall'), 'recall must be a first-party specialized tool');
+expect(t.SPECIALIZED_TOOLS.has('b_agentic_confirm_commit'), 'commit confirmation must bypass generic custom-tool approval');
 expect(t.SPECIALIZED_TOOLS.has('mcpScript'), 'mcpScript must be a trusted container whose nested calls retain policy');
 expect(t.isMcpOrCustomTool('recall', { id: 'aaaaaaaaaaaa' }) === false, 'recall must not require custom-tool approval');
 expect(t.commandDecision('pip show requests').decision === 'allow', 'regular package metadata reads must not require RTK');

@@ -28,6 +28,7 @@ Create approved, cohesive commits from the current working tree, or draft one me
 ## Tool guidance
 
 - `bash` - `rtk git status --short`, metadata-only Git path lists, targeted safe-path diffs, exact staging, and approved commit creation.
+- `b_agentic_confirm_commit` - interactive yes/no confirmation for the exact proposed commits; use text confirmation only when it reports no interactive UI.
 
 ## Steps
 
@@ -38,7 +39,7 @@ Create approved, cohesive commits from the current working tree, or draft one me
 5. Propose the smallest set of cohesive commit groups. Treat a pre-existing staged set as user-curated: preserve it as one group and do not reset or reorganize it without explicit approval.
 6. Block if a group mixes unrelated concerns, a protected file needs permission, or a file cannot be assigned confidently.
 7. For each group, choose the narrowest accurate type: `feat`, `fix`, `refactor`, `perf`, `docs`, `test`, `chore`, or `style`; write an imperative subject of at most 50 characters with no trailing punctuation.
-8. Present the groups, exact file paths, and proposed commit messages. Ask once for confirmation before staging or creating any commit.
+8. Present the groups, exact file paths, and proposed commit messages. Call `b_agentic_confirm_commit` with that exact proposal and proceed only when its result reports `approved: true`. If it reports no interactive UI, ask once for text confirmation instead. Stop on a decline.
 9. After confirmation, verify the snapshot is unchanged. Stage only the approved paths for each unstaged group; do not use broad staging commands that can capture unrelated files.
 10. Reinspect each staged group immediately before committing with a targeted non-protected-path diff. Create its commit on the current branch, then continue to the next approved group. Stop on the first Git error; do not amend, reset, push, or retry by changing history.
 11. Report commit hashes, messages, remaining changes, and any blockers. Recommend `b-pr-summary <commit-count>` for PR copy.
@@ -52,7 +53,7 @@ Proposed commits:
 1. <type>: <subject>
    Files: <paths>
 
-CONFIRM: stage and create these commits
+Select Yes in the confirmation dialog to stage and create these commits; use text confirmation only when no interactive UI is available.
 ```
 
 For a message-only request:

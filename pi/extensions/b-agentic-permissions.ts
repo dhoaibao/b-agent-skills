@@ -17,7 +17,37 @@ import * as shell from "./b-agentic-support/shell.ts";
 import * as mcp from "./b-agentic-support/mcp.ts";
 import * as role from "./b-agentic-support/role.ts";
 
+// Keep this standalone extension free of package-resolution dependencies.
+const COMMIT_CONFIRMATION_PARAMETERS = {
+  type: "object",
+  properties: {
+    proposal: { type: "string", description: "Exact commit messages and file paths proposed for staging." },
+  },
+  required: ["proposal"],
+  additionalProperties: false,
+};
+
 export default function bAgenticPermissions(pi: ExtensionAPI): void {
+  pi.registerTool({
+    name: "b_agentic_confirm_commit",
+    label: "Confirm commits",
+    description: "Open a yes/no confirmation for the exact proposed commits. Call only after presenting the proposal to the user.",
+    parameters: COMMIT_CONFIRMATION_PARAMETERS as any,
+    async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
+      if (!ctx.hasUI) {
+        return {
+          content: [{ type: "text", text: "No interactive UI is available; ask the user for text confirmation." }],
+          details: { approved: false, uiAvailable: false },
+        };
+      }
+      const approved = await ctx.ui.confirm("Confirm commits", `${params.proposal}\n\nStage and create these commits?`);
+      return {
+        content: [{ type: "text", text: approved ? "Commit creation approved." : "Commit creation declined." }],
+        details: { approved, uiAvailable: true },
+      };
+    },
+  });
+
   pi.on("tool_call", async (event, ctx) => {
     if (event.toolName === "bash") {
       const command = String((event.input as { command?: string }).command || "");
