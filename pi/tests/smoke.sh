@@ -665,6 +665,8 @@ expect(t.nativePathDecision('read', '/etc/passwd').decision === 'ask', 'outside-
 expect(t.nativePathDecision('write', '/etc/hosts').decision === 'ask', 'outside-project native writes must ask');
 expect(t.nativePathDecision('write', 'pi/tests/new-file.ts').decision === 'allow', 'project-local native writes must allow');
 const installedSkillFixture = mkdtempSync(path.join(os.tmpdir(), 'b-agentic-installed-skills-'));
+const installedSkillAliasParent = mkdtempSync(path.join(os.tmpdir(), 'b-agentic-installed-skills-alias-'));
+const installedSkillAlias = path.join(installedSkillAliasParent, 'agent');
 const externalSkillFixture = mkdtempSync(path.join(os.tmpdir(), 'b-agentic-external-skill-'));
 const previousPiAgentDir = process.env.PI_CODING_AGENT_DIR;
 try {
@@ -678,8 +680,9 @@ try {
   writeFileSync(installedOtherPath, 'user data');
   writeFileSync(installedCustomSkillPath, 'user skill');
   writeFileSync(outsideSkillTarget, 'outside target');
-  process.env.PI_CODING_AGENT_DIR = installedSkillFixture;
-  expect(t.nativePathDecision('read', installedSkillPath).decision === 'allow', 'installed b-agentic skill reads must auto-allow');
+  symlinkSync(installedSkillFixture, installedSkillAlias, 'dir');
+  process.env.PI_CODING_AGENT_DIR = installedSkillAlias;
+  expect(t.nativePathDecision('read', installedSkillPath).decision === 'allow', 'installed b-agentic skill reads through a root alias must auto-allow');
   expect(t.nativePathDecision('write', installedSkillPath).decision === 'ask', 'installed skill writes must remain approval-gated');
   expect(t.nativePathDecision('read', installedOtherPath).decision === 'ask', 'other Pi-agent files must remain approval-gated');
   expect(t.nativePathDecision('read', installedCustomSkillPath).decision === 'ask', 'unknown installed skills must remain approval-gated');
@@ -690,6 +693,7 @@ try {
 } finally {
   if (previousPiAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
   else process.env.PI_CODING_AGENT_DIR = previousPiAgentDir;
+  rmSync(installedSkillAliasParent, { recursive: true, force: true });
   rmSync(installedSkillFixture, { recursive: true, force: true });
   rmSync(externalSkillFixture, { recursive: true, force: true });
 }
@@ -736,14 +740,21 @@ expect(t.isMcpOrCustomTool('bash') === false, 'bash is specialized');
 expect(t.isMcpOrCustomTool('mcp', { search: 'symbol' }) === true, 'MCP metadata search requires the approval gate');
 expect(t.isMcpOrCustomTool('mcp', { describe: 'tool' }) === true, 'MCP metadata describe requires the approval gate');
 expect(t.isMcpOrCustomTool('mcp', { action: 'ui-messages' }) === true, 'MCP UI message retrieval requires the approval gate');
-expect(t.isMcpOrCustomTool('mcp', { server: 'serena', tool: 'serena_read_memory' }) === false, 'classified managed read-only gateway execution must auto-allow');
+expect(t.isMcpOrCustomTool('mcp', { server: 'serena', tool: 'serena_read_memory' }) === false, 'classified Serena memory gateway execution must auto-allow');
+expect(t.isMcpOrCustomTool('mcp', { server: 'serena', tool: 'serena_initial_instructions' }) === false, 'Serena initial instructions gateway execution must auto-allow');
+for (const tool of ['serena_read_memory', 'serena_list_memories', 'serena_write_memory', 'serena_delete_memory', 'serena_rename_memory', 'serena_edit_memory']) {
+  expect(t.isMcpOrCustomTool('mcp', { server: 'serena', tool }) === false, `${tool} gateway execution must auto-allow`);
+}
 expect(t.isMcpOrCustomTool('mcp', { server: 'firecrawl', tool: 'firecrawl_search', args: '{"query":"Pi","limit":1}' }) === false, 'validated conditional gateway execution must auto-allow');
 expect(t.isMcpOrCustomTool('mcp', { tool: 'serena_read_memory' }) === true, 'gateway execution without explicit server ownership must require approval');
 expect(t.isMcpOrCustomTool('mcp', { tool: 'serena_onboarding', args: '{}' }) === true, 'managed Serena gateway execution requires the top-level gate');
 expect(t.isMcpOrCustomTool('mcp', { tool: 'serena_onboarding', args: '{"unexpected":true}' }) === true, 'managed Serena gateway execution requires the top-level gate');
+expect(t.isMcpOrCustomTool('mcp', { server: 'serena', tool: 'serena_onboarding', args: '{}' }) === false, 'Serena onboarding gateway execution must auto-allow');
 expect(t.isMcpOrCustomTool('mcp', { tool: 'serena_write_memory', args: JSON.stringify({ memory_name: 'core', content: 'repo map' }) }) === true, 'managed Serena gateway execution requires the top-level gate');
 expect(t.isMcpOrCustomTool('mcp', { tool: 'serena_write_memory', args: JSON.stringify({ memory_name: 'task_note', content: 'do not persist' }) }) === true, 'managed Serena gateway execution requires the top-level gate');
 expect(t.isMcpOrCustomTool('mcp', { tool: 'serena_replace_content' }) === true, 'managed Serena gateway execution requires the top-level gate');
+expect(t.isMcpOrCustomTool('mcp', { server: 'serena', tool: 'serena_replace_content' }) === true, 'Serena code-edit gateway execution must remain approval-gated');
+expect(t.isMcpOrCustomTool('mcp', { server: 'serena', tool: 'serena_open_dashboard' }) === true, 'Serena dashboard gateway execution must remain approval-gated');
 expect(t.isMcpOrCustomTool('mcp', { tool: 'firecrawl_parse' }) === true, 'managed Firecrawl gateway execution requires the top-level gate');
 expect(t.isMcpOrCustomTool('mcp', { tool: 'mcpScript' }) === true, 'MCP scripting remains approval-gated');
 expect(t.isMcpOrCustomTool('mcp', { tool: 'playwright_browser_click' }) === true, 'managed Playwright gateway execution requires the top-level gate');

@@ -316,6 +316,8 @@ const MCP_CONDITIONAL_ARGUMENTS: Record<string, readonly string[]> = {
 };
 
 const SERENA_TRUSTED_TOOLS = new Set([
+  "serena_delete_memory",
+  "serena_edit_memory",
   "serena_find_declaration",
   "serena_find_implementations",
   "serena_find_referencing_symbols",
@@ -324,8 +326,11 @@ const SERENA_TRUSTED_TOOLS = new Set([
   "serena_get_symbols_overview",
   "serena_initial_instructions",
   "serena_list_memories",
+  "serena_onboarding",
   "serena_read_memory",
-  "serena_search_for_pattern"
+  "serena_rename_memory",
+  "serena_search_for_pattern",
+  "serena_write_memory"
 ]);
 
 const CODEGRAPH_TRUSTED_TOOLS = new Set([
@@ -939,7 +944,7 @@ function isInstalledBAgenticSkillPath(pathValue: string): boolean {
   try {
     const configuredAgentDir = process.env.PI_CODING_AGENT_DIR?.trim() || resolve(homedir(), ".pi", "agent");
     const agentRoot = realpathSync(expandLocalPath(configuredAgentDir));
-    const absoluteTarget = expandLocalPath(pathValue);
+    const absoluteTarget = realpathSync(expandLocalPath(pathValue));
     const targetParts = relative(agentRoot, absoluteTarget).split(/[\\/]/);
     if (targetParts.length !== 3 || targetParts[0] !== "skills" || !B_AGENTIC_SKILL_NAMES.has(targetParts[1]) || targetParts[2] !== "SKILL.md") return false;
     return isConfinedRelativePath(realpathSync(absoluteTarget), agentRoot);
