@@ -403,9 +403,9 @@ if "Prefer modern shell tools when available" not in kernel_template:
     errors.append(
         "references/kernel.template.md: modern shell-tool preference must remain explicit"
     )
-if "RTK never bypasses these approvals" not in kernel_template:
+if "RTK never bypasses these protections" not in kernel_template:
     errors.append(
-        "references/kernel.template.md: RTK must not be described as bypassing approvals"
+        "references/kernel.template.md: RTK must not be described as bypassing protections"
     )
 if "coordinator that delegates an eligible task MUST remain read-only" not in kernel_template or "worker may implement and verify only its assigned task" not in kernel_template:
     errors.append(
@@ -465,10 +465,8 @@ for forbidden in ["hooks", "subagent", "strict", "state-machine", "conformance"]
 # (e.g. Pi's adapter-only model) are checked against their shipped extension.
 SAFETY_GATES = [
     # (command tokens, minimum severity)
-    (["git", "commit"], "ask"),
     (["git", "push"], "ask"),
     (["git", "pull"], "ask"),
-    (["git", "revert"], "ask"),
     (["npm", "install"], "ask"),
     (["pnpm", "install"], "ask"),
     (["yarn", "install"], "ask"),

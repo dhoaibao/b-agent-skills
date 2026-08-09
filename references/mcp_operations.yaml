@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
   "format": "json-subset-of-yaml",
-  "description": "Canonical managed MCP operation classification. Only adapter-owned read-only and safe conditional-read operations are auto-approved; top-level mcp gateway and mcpScript calls require approval.",
+  "description": "Canonical managed MCP operation classification. Classified read-only and safe conditional-read operations are auto-approved through adapter-owned calls and unambiguous top-level mcp gateway calls; mcpScript calls require approval.",
   "classes": {
     "read-only": {
       "policy": "Auto-approved for managed servers",
-      "notes": "Bounded search/extraction and observational browser evidence after adapter ownership; top-level mcp gateway calls require approval."
+      "notes": "Bounded search/extraction and observational browser evidence; top-level mcp gateway calls auto-approve only with an explicit managed server and matching classified tool."
     },
     "conditional-read": {
       "policy": "Auto-approved for safe arguments",
@@ -194,6 +194,6 @@
     }
   },
   "runtime_enforcement": {
-    "pi": "The adapter approval broker trusts only classified safe operations after adapter ownership; Pi tool_call gates all top-level mcp gateway and mcpScript calls. Validation requires runtime safe sets to match this policy."
+    "pi": "The adapter approval broker and Pi tool_call trust only classified safe operations. The top-level mcp gateway requires an explicit managed server, matching tool name, and validated arguments; mcpScript and all other selectors remain approval-gated. Validation requires runtime safe sets to match this policy."
   }
 }

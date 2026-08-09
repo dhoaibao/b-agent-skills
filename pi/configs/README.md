@@ -52,9 +52,9 @@ settings can expose selected tools individually when needed.
 Pi has no native permission model. b-agentic installs a first-party extension
 that listens for `tool_call` events and:
 
-- asks before commits, pushes, pulls, reverts, dependency writes, long-lived
-  services, destructive Git worktree/stash operations, and other
-  destructive-but-approvable actions
+- auto-allows regular repository-local commands and asks before dependency
+  execution, external/shared mutations, destructive Git worktree/stash
+  operations, and other dangerous-but-approvable actions
 - blocks prohibited git/Docker families and protected native writes/edits;
   protected native reads require explicit UI approval and fail closed without UI
 - inspects compound shell segments (`&&`, `;`, `|`), approval-gates literal or
@@ -65,10 +65,13 @@ that listens for `tool_call` events and:
   interpreter modules/script files (`bash script.sh`, `node app.js`,
   `python -m package`, …), and relative executable paths whose code is opaque
   to static matching
-- requires RTK for every supported native command family, including local discovery; unsupported command families use available modern shell tools and otherwise
-  run directly, and `rtk proxy` is unwrapped for the same safety classification
-  as its effective command; allows MCP metadata
-  discovery and only the explicitly classified read-only operations of managed MCP servers after the top-level approval gate; direct adapter tool names and top-level MCP gateway executions remain top-level approval-gated because Pi shares that namespace with custom tools; when pi-mcp-adapter is present, its approval broker applies the same policy to adapter-owned direct, proxy, resource, script, and iframe-originated MCP calls without prompting twice for the already-approved top-level call
+- recommends RTK for supported native command families, including local discovery;
+  `rtk proxy` is unwrapped for the same safety classification as its effective
+  command; auto-allows classified read-only and safe conditional-read managed
+  MCP operations through the adapter and through an unambiguous top-level
+  gateway call with an explicit managed server, matching tool name, and validated
+  arguments; direct adapter tool names remain approval-gated because they share
+  Pi's custom-tool namespace
 - confines autonomous Serena symbol reads to the current repository and asks for Serena onboarding, memory writes, and other local mutations; asks for Firecrawl external-mutation or
   local-upload tools (agent/crawl/interact/monitor/feedback/parse), Playwright
   page-mutating tools (click/type/upload/evaluate/…), screenshots (the server

@@ -9,10 +9,10 @@ function isAutoApprovedIntercomCall(toolName: string, input: unknown): boolean {
  * b-agentic permission extension for Pi.
  *
  * Enforces kernel safety gates via Pi's tool_call event:
- * - ask: commits, external/shared mutations, opaque execution, dependency writes, services, rm -rf
+ * - ask: dangerous, external/shared, opaque, dependency, and outside-project operations
  * - deny: destructive git history/worktree rewrites and selected docker prune/rm families
  * - block write/edit to secret and repository-control paths
- * - allow metadata discovery plus classified read-only and safe conditional-read MCP operations after ownership gating
+ * - allow project-local regular commands plus classified read-only and safe conditional-read MCP operations
  * - broker adapter-originated MCP calls, including proxy/direct/resource/script/iframe origins
  * - ask before managed mutations/uploads, user/unknown MCP servers, auth actions, and other custom tools
  *
@@ -42,10 +42,8 @@ type McpToolApprovalRequest = {
 const MCP_TOOL_APPROVAL_REQUEST_EVENT = "pi-mcp-adapter:tool-approval-request";
 
 const ASK_COMMANDS: string[][] = [
-  ["git", "commit"],
   ["git", "push"],
   ["git", "pull"],
-  ["git", "revert"],
   ["npm", "install"], ["npm", "i"], ["npm", "ci"], ["npm", "add"], ["npm", "remove"], ["npm", "uninstall"], ["npm", "update"],
   ["pnpm", "install"], ["pnpm", "i"], ["pnpm", "add"], ["pnpm", "remove"], ["pnpm", "uninstall"], ["pnpm", "update"], ["pnpm", "up"],
   ["yarn", "install"], ["yarn", "add"], ["yarn", "remove"], ["yarn", "uninstall"], ["yarn", "upgrade"], ["yarn", "up"],
@@ -1117,7 +1115,7 @@ function isRmRecursive(tokens: string[]): boolean {
 function hasOpaqueGitOptions(tokens: string[]): boolean {
   if (tokens[0] !== "git") return false;
   const valueOptions = new Set(["-C", "-c", "--git-dir", "--work-tree", "--namespace", "--config-env"]);
-  const valuelessOptions = new Set(["--no-pager", "--bare", "--literal-pathspecs", "--no-optional-locks"]);
+  const valuelessOptions = new Set(["--no-pager", "--bare", "--literal-pathspecs", "--no-optional-locks", "--version"]);
   for (let i = 1; i < tokens.length; i += 1) {
     const token = tokens[i];
     if (!token.startsWith("-")) return false;
@@ -1305,6 +1303,10 @@ function isUnscopedGitContentRead(tokens: string[]): boolean {
   return tokens.slice(pathSeparator + 1).some((pathspec) => !isLiteralGitContentPath(pathspec));
 }
 
+function isVersionCheck(tokens: string[]): boolean {
+  return tokens.length === 2 && ["--version", "-V"].includes(tokens[1]);
+}
+
 function hasShellExecutionProxy(tokens: string[]): boolean {
   return tokens[0] === "xargs" || (
     tokens[0] === "find" && tokens.some((token) => ["-exec", "-execdir", "-ok", "-okdir"].includes(token))
@@ -1341,8 +1343,6 @@ function segmentDecision(
     return { decision: "allow", reason: "" };
   }
 
-  const rtkSupported = isRtkSupportedCommand(rawTokens, tokens);
-
   // Shell access to a literal protected path is always approval-gated, even
   // through rtk/wrapper commands or in a compound segment. This deliberately
   // covers both reads and writes: the shell parser cannot reliably infer intent.
@@ -1374,14 +1374,6 @@ function segmentDecision(
     };
   }
 
-  const replacement = availableModernReplacement(tokens, modernTools);
-  if (replacement) {
-    return {
-      decision: "ask",
-      reason: `Requires approval: use ${replacement} instead of ${tokens[0]} while it is available`,
-    };
-  }
-
   // Inline aliases can execute arbitrary shell payloads. Parse neither their
   // definitions nor bodies; fail closed when the configured alias is invoked.
   const rawUnwrappedTokens = stripWrappers(rawTokens);
@@ -1398,12 +1390,6 @@ function segmentDecision(
       decision: "ask",
       reason: "Requires approval: unrecognized pre-operation option is opaque",
     };
-  }
-
-  // The sole autonomous CodeGraph shell bootstrap is exact, local index creation.
-  if (tokens[0] === "codegraph") {
-    if (rawTokens.length === 2 && rawTokens[0] === "codegraph" && rawTokens[1] === "init" && needsCodegraphInitialization()) return { decision: "allow", reason: "" };
-    return { decision: "ask", reason: "Requires approval: CodeGraph command outside absent-index initialization" };
   }
 
   if (hasShellExecutionProxy(tokens)) {
@@ -1457,6 +1443,10 @@ function segmentDecision(
     }
   }
 
+  if (unwrapTokens(rawTokens).wrappers.has("sudo")) {
+    return { decision: "ask", reason: "Requires approval: sudo elevates command privileges" };
+  }
+
   // Interpreter wrappers and executable paths outside trusted system roots hide code from static matching.
   if (isInterpreterOpaque(tokens) || isOpaqueExecutablePath(rawTokens)) {
     return {
@@ -1481,12 +1471,12 @@ function segmentDecision(
     }
   }
 
-  if (hasGitMutationRisk(tokens)) {
-    return { decision: "ask", reason: "Requires approval: Git operation may mutate repository or worktree state" };
-  }
-
   if (hasDependencyWrite(tokens)) {
     return { decision: "ask", reason: "Requires approval: dependency write" };
+  }
+
+  if (isVersionCheck(tokens)) {
+    return { decision: "allow", reason: "" };
   }
 
   if (hasOpaquePackageExecution(tokens)) {
@@ -1504,28 +1494,6 @@ function segmentDecision(
         reason: `Requires approval: ${pattern.join(" ")}`,
       };
     }
-  }
-
-  for (const pattern of SERVICE_COMMANDS) {
-    if (matchesPrefix(tokens, pattern)) {
-      return {
-        decision: "ask",
-        reason: `Requires approval for long-lived service: ${pattern.join(" ")}`,
-      };
-    }
-  }
-
-  // RTK only removes the wrapper requirement for commands already classified
-  // as safe; approvals and denials above remain independent of RTK.
-  if (rtkSupported) {
-    return { decision: "allow", reason: "" };
-  }
-
-  if (isDirectRtkRequiredCommand(rawTokens, tokens)) {
-    return {
-      decision: "ask",
-      reason: "Requires approval: use RTK for supported command families",
-    };
   }
 
   return { decision: "allow", reason: "" };
@@ -1937,20 +1905,47 @@ function isTrustedManagedTool(server: string, toolName: string, input?: unknown)
   return false;
 }
 
+/** Parse an `mcp` gateway call without accepting selector mixtures or JSON primitives. */
+function gatewayArgs(value: unknown): Record<string, unknown> | undefined {
+  if (value === undefined) return {};
+  if (isPlainObject(value)) return value;
+  if (typeof value !== "string") return undefined;
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return isPlainObject(parsed) ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function gatewayToolMatchesServer(server: string, toolName: string): boolean {
+  if (toolName.startsWith("mcp__")) {
+    const parts = toolName.split("__");
+    return parts.length >= 3 && normalizeServerId(parts[1]) === server;
+  }
+  return true;
+}
+
 /**
- * Returns true when the top-level tool call needs the custom/MCP approval prompt.
- * The adapter gateway shares Pi's custom-tool namespace, so every top-level
- * MCP call remains gated until adapter ownership is independently established.
+ * A gateway name shares Pi's custom-tool namespace, so auto-allow only an
+ * unambiguous call to an explicitly classified managed operation.
  */
-function isMcpOrCustomTool(toolName: string, _input?: unknown): boolean {
-  if (SPECIALIZED_TOOLS.has(toolName)) {
-    return false;
-  }
-  // Direct names and the top-level gateway can collide with custom tools.
-  if (toolName === "mcp") {
-    return true;
-  }
-  // Direct non-managed MCP tools or any other non-built-in extension tool require approval.
+function isTrustedManagedGatewayCall(input: unknown): boolean {
+  if (!isPlainObject(input)) return false;
+  if (!Object.keys(input).every((key) => ["server", "tool", "args"].includes(key))) return false;
+  if (typeof input.server !== "string" || typeof input.tool !== "string") return false;
+  const server = normalizeServerId(input.server);
+  const args = gatewayArgs(input.args);
+  return args !== undefined && isManagedServer(server) &&
+    gatewayToolMatchesServer(server, input.tool) &&
+    isTrustedManagedTool(server, input.tool, args);
+}
+
+/** Returns true when the top-level tool call needs the custom/MCP approval prompt. */
+function isMcpOrCustomTool(toolName: string, input?: unknown): boolean {
+  if (SPECIALIZED_TOOLS.has(toolName)) return false;
+  if (toolName === "mcp") return !isTrustedManagedGatewayCall(input);
+  // Direct tool names remain ambiguous with custom extensions.
   return true;
 }
 
@@ -2118,6 +2113,8 @@ export const __test__ = {
   commandDecision,
   isProtectedPath,
   isMcpOrCustomTool,
+  isTrustedManagedGatewayCall,
+  gatewayArgs,
   isAutoApprovedIntercomCall,
   isTrustedManagedTool,
   brokerApprovalDecision,
@@ -2128,6 +2125,7 @@ export const __test__ = {
   hasAmbiguousShellSyntax,
   hasShellControlSyntax,
   hasUnbalancedQuotes,
+  isVersionCheck,
   isInterpreterOpaque,
   isOpaqueExecutablePath,
   hasOpaquePackageExecution,

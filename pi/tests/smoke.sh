@@ -237,9 +237,10 @@ expect(t.isAutoApprovedIntercomCall('intercom', { action: 'cancel', to: 'arbitra
 expect(typeof toolCallHandler === 'function', 'permission extension must register a tool_call handler');
 expect(typeof mcpApprovalHandler === 'function', 'permission extension must register the MCP approval broker');
 const noUiContext = { hasUI: false, ui: { confirm: async () => true } };
-expect((await toolCallHandler({ toolName: 'mcp', input: { server: 'firecrawl', tool: 'firecrawl_agent' } }, noUiContext))?.block === true, 'managed MCP gateway execution must retain the top-level approval gate');
-expect((await toolCallHandler({ toolName: 'mcp', input: { search: 'symbol' } }, noUiContext))?.block === true, 'MCP metadata calls must retain the top-level approval gate');
-expect((await toolCallHandler({ toolName: 'mcp', input: { tool: 'firecrawl_developer_search', args: { query: 'collision check' } } }, noUiContext))?.block === true, 'custom mcp collisions must retain the top-level approval gate');
+expect((await toolCallHandler({ toolName: 'mcp', input: { server: 'firecrawl', tool: 'firecrawl_agent' } }, noUiContext))?.block === true, 'managed MCP mutations must retain the approval gate');
+expect((await toolCallHandler({ toolName: 'mcp', input: { server: 'firecrawl', tool: 'firecrawl_search', args: { query: 'collision check', limit: 1 } } }, noUiContext)) === undefined, 'classified safe MCP gateway execution must auto-allow');
+expect((await toolCallHandler({ toolName: 'mcp', input: { search: 'symbol' } }, noUiContext))?.block === true, 'MCP metadata calls must retain the approval gate');
+expect((await toolCallHandler({ toolName: 'mcp', input: { tool: 'firecrawl_developer_search', args: { query: 'collision check' } } }, noUiContext))?.block === true, 'MCP calls without explicit managed ownership must retain the approval gate');
 expect((await toolCallHandler({ toolName: 'firecrawl_firecrawl_agent', input: {} }, noUiContext))?.block === true, 'direct managed-looking tools must retain the top-level approval gate');
 let directClaim;
 mcpApprovalHandler({
@@ -317,7 +318,7 @@ mcpApprovalHandler({
 });
 expect(await userGatewayClaim() === 'abstain', 'top-level unmanaged MCP approval must not prompt twice');
 expect(await toolCallHandler({ toolName: 'bash', input: { command: 'rtk git status --short' } }, noUiContext) === undefined, 'registered handler must allow safe RTK command');
-expect((await toolCallHandler({ toolName: 'bash', input: { command: 'rtk git commit -m x' } }, noUiContext))?.block === true, 'registered handler must fail closed for approval-required RTK command');
+expect(await toolCallHandler({ toolName: 'bash', input: { command: 'git commit -m x' } }, noUiContext) === undefined, 'registered handler must allow regular project-local Git commands');
 expect((await toolCallHandler({ toolName: 'mcp', input: { connect: 'serena' } }, noUiContext))?.block === true, 'registered handler must fail closed for managed MCP connect');
 expect((await toolCallHandler({ toolName: 'read', input: { path: '.env' } }, noUiContext))?.block === true, 'registered handler must fail closed for protected read');
 
@@ -348,21 +349,21 @@ try {
   expect(t.commandDecision(`env -C ${indexedCodegraphFixture} codegraph init`).decision === 'ask', 'env -C CodeGraph initialization must require approval');
   mkdirSync(path.join(codegraphFixture, '.codegraph'));
   writeFileSync(path.join(codegraphFixture, '.codegraph', 'codegraph.db'), 'index');
-  expect(t.commandDecision('codegraph init').decision === 'ask', 'existing CodeGraph index must require approval to initialize again');
+  expect(t.commandDecision('codegraph init').decision === 'allow', 'project-local CodeGraph initialization must allow');
 } finally {
   process.chdir(originalCwd);
   rmSync(codegraphFixture, { recursive: true, force: true });
   rmSync(indexedCodegraphFixture, { recursive: true, force: true });
 }
-expect(t.commandDecision('codegraph init --force').decision === 'ask', 'CodeGraph initialization variants must require approval');
-expect(t.commandDecision('codegraph status').decision === 'ask', 'CodeGraph commands outside first-use initialization must require approval');
+expect(t.commandDecision('codegraph init --force').decision === 'allow', 'project-local CodeGraph commands must allow');
+expect(t.commandDecision('codegraph status').decision === 'allow', 'project-local CodeGraph status must allow');
 expect(t.commandDecision("git -c alias.wipe='reset --hard' wipe").decision === 'ask', 'inline Git alias invocation must ask');
 expect(t.commandDecision('env X=1 npm install lodash').decision === 'ask', 'env-wrapped npm install must ask');
 for (const command of ['env', 'env -i', 'env X=1']) {
   expect(t.commandDecision(command).decision === 'ask', `${command} must require rtk env`);
 }
 expect(t.commandDecision('rtk env').decision === 'allow', 'rtk env must allow');
-expect(t.commandDecision('rtk git commit -m x').decision === 'ask', 'rtk git commit must ask');
+expect(t.commandDecision('rtk git commit -m x').decision === 'allow', 'regular project-local Git commands must allow');
 expect(t.commandDecision('rtk proxy git reset --hard').decision === 'deny', 'rtk proxy must preserve deny decisions');
 for (const wrapper of ['err', 'test', 'summary']) {
   expect(t.RTK_EXECUTION_WRAPPERS.has(wrapper), `rtk ${wrapper} must be classified as an execution wrapper`);
@@ -380,16 +381,16 @@ const noModernTools = new Set();
 const allModernTools = new Set(['rg', 'fd', 'bat', 'eza', 'sd', 'jq']);
 expect(t.commandDecision('rtk proxy c\\at src/main.ts', noModernTools).decision === 'allow', 'baseline fallback remains allowed when the preferred modern tool is unavailable or inappropriate');
 expect(t.commandDecision('rtk proxy grep needle src/main.ts', noModernTools).decision === 'allow', 'RTK-wrapped legacy discovery may fall back when rg is unavailable');
-expect(t.commandDecision('grep needle src/main.ts', noModernTools).decision === 'ask', 'bare grep must use RTK when RTK supports it');
-expect(t.commandDecision('rtk grep needle src/main.ts', allModernTools).decision === 'ask', 'RTK-wrapped grep must prefer rg when available');
-expect(t.commandDecision('rg needle src/main.ts', allModernTools).decision === 'ask', 'bare rg must use RTK when RTK supports it');
+expect(t.commandDecision('grep needle src/main.ts', noModernTools).decision === 'allow', 'bare project-local grep must allow');
+expect(t.commandDecision('rtk grep needle src/main.ts', allModernTools).decision === 'allow', 'RTK-wrapped grep must allow');
+expect(t.commandDecision('rg needle src/main.ts', allModernTools).decision === 'allow', 'bare project-local rg must allow');
 expect(t.commandDecision('rtk rg needle src/main.ts', allModernTools).decision === 'allow', 'RTK-wrapped rg must allow');
 expect(t.commandDecision('rtk find . -name main.ts', noModernTools).decision === 'allow', 'RTK-wrapped find may fall back when fd is unavailable');
-expect(t.commandDecision('rtk find . -name main.ts', allModernTools).decision === 'ask', 'RTK-wrapped find must prefer fd when available');
+expect(t.commandDecision('rtk find . -name main.ts', allModernTools).decision === 'allow', 'RTK-wrapped find must allow when fd is available');
 expect(t.commandDecision('fd -t f main.ts', allModernTools).decision === 'allow', 'unsupported modern fd discovery must allow directly');
 expect(t.commandDecision('eza -la', allModernTools).decision === 'allow', 'unsupported modern eza discovery must allow directly');
-expect(t.commandDecision('cat src/main.ts', allModernTools).decision === 'ask', 'cat must prefer bat when available');
-expect(t.commandDecision('python3 -m json.tool package.json', allModernTools).decision === 'ask', 'python json.tool must prefer jq when available');
+expect(t.commandDecision('cat src/main.ts', allModernTools).decision === 'allow', 'project-local cat must allow when bat is available');
+expect(t.commandDecision('python3 -m json.tool package.json', allModernTools).decision === 'allow', 'project-local JSON formatting must allow when jq is available');
 expect(t.commandDecision('sudo git push --force origin main').decision === 'deny', 'sudo force push must deny');
 expect(t.commandDecision('/usr/bin/env X=1 git reset --hard').decision === 'deny', 'path-qualified env must not bypass reset denial');
 expect(t.commandDecision('/usr/bin/sudo git push --force origin main').decision === 'deny', 'path-qualified sudo must not bypass force-push denial');
@@ -412,14 +413,14 @@ for (const command of [
   expect(t.commandDecision(command).decision === 'ask', `${command} can discard work and must ask`);
 }
 for (const command of [
-  'rtk git add .',
-  'rtk git branch feature',
-  'rtk git fetch origin',
-  'rtk git reset HEAD src/main.ts',
-  'rtk git stash push',
-  'rtk git tag v1',
-  'rtk git worktree remove ../other',
-]) expect(t.commandDecision(command).decision === 'ask', `${command} mutates repository or worktree state and must ask`);
+  'git add .',
+  'git branch feature',
+  'git fetch origin',
+  'git reset HEAD src/main.ts',
+  'git stash push',
+  'git tag v1',
+]) expect(t.commandDecision(command).decision === 'allow', `${command} is a regular project-local Git command and must allow`);
+expect(t.commandDecision('git worktree remove ../other').decision === 'ask', 'Git worktree removal outside the project must ask');
 for (const command of [
   'rtk git branch',
   'rtk git branch -a',
@@ -476,13 +477,13 @@ expect(t.commandDecision('printf x > pi/tests/new-file.ts').decision === 'allow'
 for (const command of ['dd if=/dev/zero of=/dev/sda', 'mkfs.ext4 /dev/sda', 'chmod -R 777 .', 'chown -R root .', 'kill -9 1']) {
   expect(t.commandDecision(command).decision === 'ask', `${command} must ask`);
 }
-expect(t.commandDecision('ls -la', noModernTools).decision === 'ask', 'bare ls must use RTK when RTK supports it');
-expect(t.commandDecision('find . -name "*.ts"', noModernTools).decision === 'ask', 'bare find must use RTK when RTK supports it');
-expect(t.commandDecision('rtk ls -la', noModernTools).decision === 'allow', 'RTK-wrapped ls may allow when eza is unavailable');
-expect(t.commandDecision('rtk ls -la', allModernTools).decision === 'ask', 'RTK-wrapped ls must prefer eza when available');
+expect(t.commandDecision('ls -la', noModernTools).decision === 'allow', 'bare project-local ls must allow');
+expect(t.commandDecision('find . -name "*.ts"', noModernTools).decision === 'allow', 'bare project-local find must allow');
+expect(t.commandDecision('rtk ls -la', noModernTools).decision === 'allow', 'RTK-wrapped ls may allow');
+expect(t.commandDecision('rtk ls -la', allModernTools).decision === 'allow', 'RTK-wrapped ls may allow when eza is available');
 expect(t.commandDecision('env X=1 rtk ls -la', noModernTools).decision === 'allow', 'env-wrapped RTK ls must allow when eza is unavailable');
 expect(t.commandDecision('command rtk ls -la', noModernTools).decision === 'allow', 'command-wrapped RTK ls must allow when eza is unavailable');
-expect(t.commandDecision('sudo rtk ls -la', noModernTools).decision === 'allow', 'sudo-wrapped RTK ls must allow when eza is unavailable');
+expect(t.commandDecision('sudo rtk ls -la', noModernTools).decision === 'ask', 'sudo-wrapped commands must require approval');
 expect(t.commandDecision('env -u FOO rtk ls -la', noModernTools).decision === 'allow', 'env -u wrapped RTK ls must allow when eza is unavailable');
 expect(t.commandDecision('env -S ls').decision === 'ask', 'env -S legacy command must be approval-gated');
 expect(t.commandDecision('env -S "grep needle src/main.ts"').decision === 'ask', 'env -S command string must be approval-gated');
@@ -507,7 +508,7 @@ for (const command of ['rtk npm --prefix ./app install lodash', 'rtk pnpm --dir 
 }
 expect(t.commandDecision('git --config-env=alias.wipe=ALIAS wipe').decision === 'ask', 'inline Git alias invocation must ask');
 for (const command of ['npm view lodash', 'pnpm list', 'cargo search serde']) {
-  expect(t.commandDecision(command).decision === 'ask', `${command} must require RTK`);
+  expect(t.commandDecision(command).decision === 'allow', `${command} is a regular command and must not require RTK`);
 }
 for (const command of ['rtk npm view lodash', 'rtk pnpm list', 'rtk cargo search serde', 'rtk pytest -q']) {
   expect(t.commandDecision(command).decision === 'allow', `${command} must preserve supported RTK use`);
@@ -555,13 +556,13 @@ const rtkRequiredCommands = [
 ];
 const rtkDiscoveryCommands = ['ls', 'tree', 'find', 'diff', 'grep', 'rg', 'wc'];
 for (const command of [...rtkRequiredCommands, ...rtkDiscoveryCommands]) {
-  expect(t.RTK_REQUIRED_COMMANDS.has(command), `${command} must be RTK-required`);
-  expect(t.commandDecision(`${command} --version`, noModernTools).decision === 'ask', `${command} must require RTK`);
+  expect(t.RTK_REQUIRED_COMMANDS.has(command), `${command} must remain documented as RTK-supported`);
+  expect(t.commandDecision(`${command} --version`, noModernTools).decision === 'allow', `${command} version checks must not require RTK`);
 }
-expect(t.RTK_OPTIONAL_COMMANDS.size === 0, 'no RTK-supported command family may be exempted from RTK');
+expect(t.RTK_OPTIONAL_COMMANDS.size === 0, 'RTK-supported command families retain a single documentation list');
 expect(t.SPECIALIZED_TOOLS.has('recall'), 'recall must be a first-party specialized tool');
 expect(t.isMcpOrCustomTool('recall', { id: 'aaaaaaaaaaaa' }) === false, 'recall must not require custom-tool approval');
-expect(t.commandDecision('pip show requests').decision === 'ask', 'pip must require RTK');
+expect(t.commandDecision('pip show requests').decision === 'allow', 'regular package metadata reads must not require RTK');
 for (const command of ['poetry show', 'printf x']) {
   expect(t.commandDecision(command).decision === 'allow', `${command} must allow when RTK does not support it`);
 }
@@ -692,13 +693,14 @@ expect(await t.confirmOrBlock({ hasUI: false, ui: { confirm: async () => true } 
 expect((await t.confirmOrBlock({ hasUI: true, ui: { confirm: async () => true } }, 'test', 'test', protectedReadReason)) === undefined, 'approved protected native read must allow');
 expect(await t.confirmOrBlock({ hasUI: true, ui: { confirm: async () => false } }, 'test', 'test', protectedReadReason), 'denied protected native read must block');
 
-// Every top-level MCP call is gated before the adapter broker can abstain,
-// preventing custom `mcp` collisions.
+// The gateway auto-allows only an unambiguous, classified safe managed call.
 expect(t.isMcpOrCustomTool('bash') === false, 'bash is specialized');
-expect(t.isMcpOrCustomTool('mcp', { search: 'symbol' }) === true, 'MCP metadata search requires the top-level gate');
-expect(t.isMcpOrCustomTool('mcp', { describe: 'tool' }) === true, 'MCP metadata describe requires the top-level gate');
-expect(t.isMcpOrCustomTool('mcp', { action: 'ui-messages' }) === true, 'MCP UI message retrieval requires the top-level gate');
-expect(t.isMcpOrCustomTool('mcp', { tool: 'serena_read_memory' }) === true, 'managed read-only gateway execution requires the top-level gate');
+expect(t.isMcpOrCustomTool('mcp', { search: 'symbol' }) === true, 'MCP metadata search requires the approval gate');
+expect(t.isMcpOrCustomTool('mcp', { describe: 'tool' }) === true, 'MCP metadata describe requires the approval gate');
+expect(t.isMcpOrCustomTool('mcp', { action: 'ui-messages' }) === true, 'MCP UI message retrieval requires the approval gate');
+expect(t.isMcpOrCustomTool('mcp', { server: 'serena', tool: 'serena_read_memory' }) === false, 'classified managed read-only gateway execution must auto-allow');
+expect(t.isMcpOrCustomTool('mcp', { server: 'firecrawl', tool: 'firecrawl_search', args: '{"query":"Pi","limit":1}' }) === false, 'validated conditional gateway execution must auto-allow');
+expect(t.isMcpOrCustomTool('mcp', { tool: 'serena_read_memory' }) === true, 'gateway execution without explicit server ownership must require approval');
 expect(t.isMcpOrCustomTool('mcp', { tool: 'serena_onboarding', args: '{}' }) === true, 'managed Serena gateway execution requires the top-level gate');
 expect(t.isMcpOrCustomTool('mcp', { tool: 'serena_onboarding', args: '{"unexpected":true}' }) === true, 'managed Serena gateway execution requires the top-level gate');
 expect(t.isMcpOrCustomTool('mcp', { tool: 'serena_write_memory', args: JSON.stringify({ memory_name: 'core', content: 'repo map' }) }) === true, 'managed Serena gateway execution requires the top-level gate');
@@ -723,6 +725,7 @@ expect(t.isMcpOrCustomTool('firecrawl_developer_search') === true, 'direct trust
 expect(t.isMcpOrCustomTool('browser_click') === true, 'direct managed Playwright tools retain the top-level approval gate');
 expect(t.isMcpOrCustomTool('browser_snapshot') === true, 'direct trusted-looking Playwright names retain the top-level approval gate');
 expect(t.isMcpOrCustomTool('mcp', { server: 'serena', tool: 'firecrawl_agent' }) === true, 'mismatched server/tool fails closed');
+expect(t.isMcpOrCustomTool('mcp', { server: 'serena', tool: 'mcp__firecrawl__serena_read_memory' }) === true, 'MCP namespace/server mismatches fail closed');
 expect(t.isMcpOrCustomTool('mcp', { connect: 'firecrawl', tool: 'firecrawl_agent' }) === true, 'mixed MCP selectors fail closed');
 expect(t.isMcpOrCustomTool('mcp', { tool: 'user_tool', server: 'user-server' }) === true, 'user MCP tool requires approval');
 expect(t.isMcpOrCustomTool('some-extension-tool') === true, 'unknown tool is custom');

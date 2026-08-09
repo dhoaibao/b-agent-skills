@@ -54,10 +54,8 @@ if extension.exists():
     text = extension.read_text()
     for marker in [
         'tool_call',
-        '["git", "commit"]',
         '["git", "push"]',
         '["git", "pull"]',
-        '["git", "revert"]',
         '["npm", "install"]',
         '["rm", "-rf"]',
         '["git", "reset", "--hard"]',
@@ -116,8 +114,8 @@ if extension.exists():
     playwright_trusted = re.search(r'PLAYWRIGHT_TRUSTED_TOOLS = new Set\(\[(.*?)\]\)', text, re.DOTALL)
     if playwright_trusted and re.search(r'"browser_click"', playwright_trusted.group(1)):
         errors.append(f'{extension}: browser_click must not be in PLAYWRIGHT_TRUSTED_TOOLS')
-    if 'if (toolName === "mcp")' not in text or 'return true;' not in text:
-        errors.append(f'{extension}: must keep top-level MCP gateway calls approval-gated')
+    if 'isTrustedManagedGatewayCall' not in text or 'if (toolName === "mcp") return !isTrustedManagedGatewayCall(input);' not in text:
+        errors.append(f'{extension}: must classify top-level MCP gateway calls by managed ownership and safety')
     if 'Blocked' not in text or 'protected path' not in text:
         errors.append(f'{extension}: must block protected paths')
     # read must share protected-path handling with write/edit

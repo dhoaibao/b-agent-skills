@@ -38,26 +38,26 @@ KERNEL_CONSOLIDATION_REGRESSION = {
     "required_clauses": (
         "latest user instruction, approved plan, repo evidence, then stated assumptions",
         "define success, make the smallest coherent change, and verify its observable outcome",
-        "Ask before dependency writes, long-lived services, migrations, commits, pushes, PRs, destructive commands",
+        "Auto-run regular commands and edits confined to the repository. Ask before dangerous or opaque commands",
         "likely-secret files (`.env`, `*.pem`, `credentials.*`, `secrets.*`)",
         "First code task: exact `codegraph init` only when its index is absent",
         "Do not install missing tools; fall back to local evidence and state the resulting gap.",
     ),
 }
 
-# Regression: the runtime allowed direct RTK-supported discovery commands and
-# unscoped Git diffs could expose protected content without a literal path token.
+# Regression: unscoped Git diffs could expose protected content without a
+# literal path token, and RTK guidance must not weaken that protection.
 SHELL_POLICY_REGRESSION = {
     "observed_failure": (
-        "Kernel designated RTK and modern replacements, but direct RTK-supported discovery "
-        "commands remained allowed and unscoped Git content reads bypassed path protection."
+        "Kernel designated RTK and modern replacements, but unscoped Git content "
+        "reads bypassed path protection."
     ),
     "intended_behavior": (
-        "Use RTK for every supported family, use modern fallbacks only when RTK does not "
-        "support the family, and require approval for unscoped Git content reads."
+        "Recommend RTK and modern fallbacks while allowing regular repository-local "
+        "commands, and require approval for unscoped Git content reads."
     ),
     "required_clauses": (
-        "RTK never bypasses these approvals",
+        "RTK never bypasses these protections",
         "Prefer modern shell tools when available",
         "Use `rtk` for every command family it supports",
     ),
