@@ -88,7 +88,7 @@ Pi has no native permission model. b-agentic installs a first-party extension
 that listens for `tool_call` events and:
 
 - auto-allows regular repository-local commands, including routine build, test,
-  package, and script automation; asks before dependency writes, external/shared
+  package, dependency, and script automation; asks before external/shared
   mutations, destructive Git worktree/stash operations, and other dangerous-
   but-approvable actions
 - blocks prohibited git/Docker families and protected native writes/edits;
@@ -104,17 +104,18 @@ that listens for `tool_call` events and:
   paths; existing project-local scripts remain routine automation
 - recommends RTK for supported native command families, including local discovery;
   `rtk proxy` is unwrapped for the same safety classification as its effective
-  command; auto-allows every classified Serena operation through direct Serena
-  names, the adapter, and explicit managed-server gateway calls. Also auto-allows
-  classified read-only and validated conditional-read operations. Explicitly
-  targeted `mcp` proxy tool executions use b-agentic's adapter broker: safe managed
-  calls auto-allow, while unsafe or unmanaged calls prompt there. Metadata and
-  lifecycle selectors remain behind the generic approval gate. Non-Serena direct
-  adapter names remain gated because they share Pi's custom-tool namespace
+  command; auto-allows every classified Serena and CodeGraph operation through
+  matching direct or `mcp__`-prefixed names, the adapter, and explicit
+  managed-server gateway calls. Also auto-allows classified read-only and
+  validated conditional-read operations. Explicitly targeted `mcp` proxy tool
+  executions use b-agentic's adapter broker: safe managed calls auto-allow, while
+  unsafe or unmanaged calls prompt there. Metadata and lifecycle selectors remain
+  behind the generic approval gate. Other direct adapter names remain gated
+  because they share Pi's custom-tool namespace
 - uses Serena for semantic code navigation, diagnostics, precise edits/refactors,
   onboarding for unfamiliar repositories, memory tools for durable project facts,
-  and the dashboard for Serena troubleshooting; sensitive and outside-project paths
-  remain gated; uses CodeGraph only for repository-wide architecture, dependency/call
+  and the dashboard for Serena troubleshooting; sensitive and outside-project Serena
+  paths remain gated; uses CodeGraph only for repository-wide architecture, dependency/call
   flows, impact, and affected tests; avoids querying both tools for the same
   question; fans out distinct, independent read calls to both concurrently through
   one bounded auto-run `mcpScript`; read-only `tools.search`/`tools.describe` metadata

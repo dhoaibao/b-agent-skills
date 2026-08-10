@@ -483,7 +483,7 @@ expect((await toolCallHandler({ toolName: 'read', input: { path: '.env' } }, noU
 expect(t.commandDecision('cd repo && git reset --hard').decision === 'deny', 'compound reset --hard must deny');
 expect(t.commandDecision('git -C repo reset --hard').decision === 'deny', 'git -C reset --hard must deny');
 expect(t.commandDecision('/usr/bin/git reset --hard').decision === 'deny', 'path-qualified git reset --hard must deny');
-expect(t.commandDecision('/usr/bin/npm install lodash').decision === 'ask', 'path-qualified npm install must ask');
+expect(t.commandDecision('/usr/bin/npm install lodash').decision === 'allow', 'path-qualified npm install must allow local dependency automation');
 expect(t.commandDecision('/bin/rm -rf /tmp/x').decision === 'ask', 'path-qualified rm -rf must ask');
 expect(t.commandDecision('/usr/bin/printf x').decision === 'allow', 'unsupported raw command must allow');
 const originalCwd = process.cwd();
@@ -515,7 +515,7 @@ try {
 expect(t.commandDecision('codegraph init --force').decision === 'allow', 'project-local CodeGraph commands must allow');
 expect(t.commandDecision('codegraph status').decision === 'allow', 'project-local CodeGraph status must allow');
 expect(t.commandDecision("git -c alias.wipe='reset --hard' wipe").decision === 'ask', 'inline Git alias invocation must ask');
-expect(t.commandDecision('env X=1 npm install lodash').decision === 'ask', 'env-wrapped npm install must ask');
+expect(t.commandDecision('env X=1 npm install lodash').decision === 'allow', 'env-wrapped npm install must allow local dependency automation');
 for (const command of ['env', 'env -i', 'env X=1']) {
   expect(t.commandDecision(command).decision === 'ask', `${command} must require rtk env`);
 }
@@ -526,7 +526,7 @@ for (const wrapper of ['err', 'test', 'summary']) {
   expect(t.RTK_EXECUTION_WRAPPERS.has(wrapper), `rtk ${wrapper} must be classified as an execution wrapper`);
   expect(t.commandDecision(`rtk ${wrapper} git reset --hard`).decision === 'deny', `rtk ${wrapper} must preserve deny decisions`);
   expect(t.commandDecision(`rtk ${wrapper} -- git reset --hard`).decision === 'deny', `rtk ${wrapper} -- must preserve deny decisions`);
-  expect(t.commandDecision(`rtk ${wrapper} --skip-env npm install lodash`).decision === 'ask', `rtk ${wrapper} options must preserve approval gates`);
+  expect(t.commandDecision(`rtk ${wrapper} --skip-env npm install lodash`).decision === 'allow', `rtk ${wrapper} options must allow local dependency automation`);
 }
 expect(t.commandDecision('rtk run git reset --hard').decision === 'deny', 'positional rtk run must preserve deny decisions');
 expect(t.commandDecision('rtk --ultra-compact run git reset --hard').decision === 'deny', 'RTK global options must not hide deny decisions');
@@ -655,13 +655,25 @@ for (const [command, label] of [
   ['/usr/bin/npm --silent install lodash', 'path-qualified npm option install'],
   ['pnpm update', 'pnpm update'], ['pnpm up lodash', 'pnpm up'],
   ['yarn remove lodash', 'yarn remove'], ['yarn up lodash', 'yarn up'], ['bun uninstall lodash', 'bun uninstall'],
-  ['cargo remove serde', 'cargo remove'],
-  ['npm --unknown-option install lodash', 'unknown package option'], ['pip uninstall requests', 'pip uninstall'],
+  ['cargo remove serde', 'cargo remove'], ['pip uninstall requests', 'pip uninstall'],
   ['pip3 uninstall requests', 'pip3 uninstall'], ['poetry update', 'poetry update'],
   ['uv pip uninstall requests', 'uv pip uninstall'], ['uv pip sync requirements.txt', 'uv pip sync'],
-]) expect(t.commandDecision(command).decision === 'ask', `${label} must gate dependency writes`);
+]) expect(t.commandDecision(command).decision === 'allow', `${label} must allow repository-local dependency automation`);
+expect(t.commandDecision('npm --unknown-option install lodash').decision === 'ask', 'unknown package options must remain opaque');
 for (const command of ['rtk npm --prefix ./app install lodash', 'rtk pnpm --dir ./app add lodash', 'rtk cargo --manifest-path app/Cargo.toml update']) {
-  expect(t.commandDecision(command).decision === 'ask', `${command} must ask even via RTK`);
+  expect(t.commandDecision(command).decision === 'allow', `${command} must allow repository-confined dependency automation via RTK`);
+}
+for (const command of ['npm --prefix /tmp install lodash', 'pnpm --dir /tmp add lodash', 'cargo --manifest-path /tmp/Cargo.toml update', 'pip install --prefix /tmp requests', 'pip install --target /tmp requests']) {
+  expect(t.commandDecision(command).decision === 'ask', `${command} must ask for an outside-project dependency target`);
+}
+for (const command of ['pip install --prefix ./venv requests', 'pip install --target ./vendor requests']) {
+  expect(t.commandDecision(command).decision === 'allow', `${command} must allow a repository-confined dependency target`);
+}
+for (const command of ['npm install -g lodash', 'npm install --location=global lodash', 'pnpm add --global lodash', 'yarn global add lodash', 'bun install --global lodash', 'pip install --user requests', 'pip install --break-system-packages requests']) {
+  expect(t.commandDecision(command).decision === 'ask', `${command} must ask for a global dependency target`);
+}
+for (const command of ['cargo install ripgrep', 'go install example.com/tool@latest']) {
+  expect(t.commandDecision(command).decision === 'ask', `${command} must ask for an external binary install`);
 }
 expect(t.commandDecision('git --config-env=alias.wipe=ALIAS wipe').decision === 'ask', 'inline Git alias invocation must ask');
 for (const command of ['npm view lodash', 'pnpm list', 'cargo search serde']) {
@@ -900,6 +912,17 @@ const serenaArgsFor = (tool) => serenaConditionalArgs[tool] || {};
 for (const tool of trustedSerenaTools) {
   expect(t.isTrustedManagedTool('serena', tool, serenaArgsFor(tool)) === true, `${tool} must auto-allow for its safe intended input`);
 }
+const codegraphTool = 'codegraph_codegraph_explore';
+const codegraphArgs = { query: 'approval policy' };
+expect(t.isTrustedManagedTool('codegraph', codegraphTool, codegraphArgs) === true, 'classified CodeGraph exploration must be trusted');
+for (const tool of [codegraphTool]) {
+  expect(t.isMcpOrCustomTool(tool, codegraphArgs) === false, `${tool} direct execution must auto-allow`);
+  expect(t.isMcpOrCustomTool(`mcp__codegraph__${tool}`, codegraphArgs) === false, `${tool} prefixed execution must auto-allow`);
+}
+expect(t.isMcpOrCustomTool('mcp__serena__serena_replace_content', { relative_path: '/etc/hosts' }) === true, 'unsafe prefixed Serena edits retain the path gate');
+expect(t.isMcpOrCustomTool('mcp__codegraph__serena_find_symbol', codegraphArgs) === true, 'mismatched CodeGraph namespace must remain gated');
+expect(t.isMcpOrCustomTool('mcp__serena__codegraph_codegraph_explore', codegraphArgs) === true, 'mismatched Serena namespace must remain gated');
+expect(t.isMcpOrCustomTool('mcp__user_server__codegraph_codegraph_explore', codegraphArgs) === true, 'unmanaged prefixed namespaces must remain gated');
 const globalMemoryArgs = {
   serena_read_memory: { memory_name: 'global/review-notes' },
   serena_list_memories: { topic: 'global' },

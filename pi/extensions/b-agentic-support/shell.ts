@@ -6,15 +6,6 @@ export type Decision = "allow" | "ask" | "deny";
 export const ASK_COMMANDS: string[][] = [
   ["git", "push"],
   ["git", "pull"],
-  ["npm", "install"], ["npm", "i"], ["npm", "ci"], ["npm", "add"], ["npm", "remove"], ["npm", "uninstall"], ["npm", "update"],
-  ["pnpm", "install"], ["pnpm", "i"], ["pnpm", "add"], ["pnpm", "remove"], ["pnpm", "uninstall"], ["pnpm", "update"], ["pnpm", "up"],
-  ["yarn", "install"], ["yarn", "add"], ["yarn", "remove"], ["yarn", "uninstall"], ["yarn", "upgrade"], ["yarn", "up"],
-  ["bun", "install"], ["bun", "add"], ["bun", "remove"], ["bun", "uninstall"], ["bun", "update"],
-  ["cargo", "install"], ["cargo", "add"], ["cargo", "remove"], ["cargo", "update"],
-  ["go", "install"], ["go", "get"],
-  ["pip", "install"], ["pip", "uninstall"], ["pip3", "install"], ["pip3", "uninstall"],
-  ["poetry", "add"], ["poetry", "install"], ["poetry", "remove"], ["poetry", "update"],
-  ["uv", "add"], ["uv", "remove"], ["uv", "sync"], ["uv", "lock"], ["uv", "pip", "install"], ["uv", "pip", "uninstall"],
   ["rm", "-rf"],
   ["rm", "-fr"],
 ];
@@ -343,6 +334,9 @@ export function isInterpreterOpaque(tokens: string[]): boolean {
   if (!INTERPRETER_BASES.has(base)) {
     return false;
   }
+  if (base === "bun" && ["install", "i", "add", "remove", "uninstall", "update"].includes(packageOperation(tokens).operation || "")) {
+    return false;
+  }
   for (let i = 1; i < tokens.length; i += 1) {
     const t = tokens[i];
     if (
@@ -611,6 +605,40 @@ export function hasDependencyWrite(tokens: string[]): boolean {
     return tokens.slice(2).some((token) => token === "install" || token === "uninstall" || token === "sync");
   }
   return writes[manager]?.has(operation) ?? false;
+}
+
+/** Dependency managers may target another directory, but only inside this project. */
+export function hasDependencyPathRisk(tokens: string[]): boolean {
+  const manager = tokens[0];
+  const managers = new Set(["npm", "pnpm", "yarn", "bun", "cargo", "go", "pip", "pip3", "poetry", "uv"]);
+  if (!manager || !managers.has(manager)) return false;
+
+  const operation = packageOperation(tokens).operation;
+  // These install binaries into a toolchain-managed location rather than the
+  // repository, even when a package manager cache is already present.
+  if ((manager === "cargo" || manager === "go") && operation === "install") return true;
+
+  const pathOptions = new Set(["--prefix", "--dir", "--manifest-path", "--target", "--root"]);
+  const globalOptions = new Set(["-g", "--global", "--user", "--system", "--break-system-packages"]);
+  for (let i = 1; i < tokens.length; i += 1) {
+    const token = tokens[i];
+    const inline = token.match(/^(--prefix|--dir|--manifest-path|--target|--root)=(.*)$/);
+    if (inline) {
+      if (!inline[2] || !isProjectConfinedLocalPath(inline[2])) return true;
+      continue;
+    }
+    if (globalOptions.has(token) || /^(?:--global|--user|--system)=/.test(token)) return true;
+    if (/^--location=(?:global|system)$/.test(token)) return true;
+    if (token === "--location" && /^(?:global|system)$/.test(tokens[i + 1] ?? "")) return true;
+    if (pathOptions.has(token)) {
+      const target = tokens[i + 1];
+      if (!target || !isProjectConfinedLocalPath(target)) return true;
+      i += 1;
+    }
+  }
+
+  // Yarn's `global` command installs outside the repository by definition.
+  return manager === "yarn" && operation === "global";
 }
 
 export function hasOpaquePackageExecution(tokens: string[]): boolean {
@@ -1146,6 +1174,13 @@ export function segmentDecision(
     };
   }
 
+  if (hasDependencyPathRisk(tokens)) {
+    return {
+      decision: "ask",
+      reason: "Requires approval: dependency operation targets an outside-project path",
+    };
+  }
+
   if (hasShellExecutionProxy(tokens)) {
     return {
       decision: "ask",
@@ -1223,10 +1258,6 @@ export function segmentDecision(
         reason: `Requires approval: ${pattern.join(" ")}`,
       };
     }
-  }
-
-  if (hasDependencyWrite(tokens)) {
-    return { decision: "ask", reason: "Requires approval: dependency write" };
   }
 
   if (isVersionCheck(tokens)) {

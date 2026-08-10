@@ -451,7 +451,7 @@ for tool_boundary_marker in [
     "Never duplicate questions",
     "Parallelize independent read calls in one `mcpScript`",
     "nested tools keep policy",
-    "All classified Serena tools auto-approve for safe inputs",
+    "All classified Serena and CodeGraph tools auto-approve for safe inputs",
 ]:
     if tool_boundary_marker not in kernel_template:
         errors.append(
@@ -532,16 +532,6 @@ SAFETY_GATES = [
     # (command tokens, minimum severity)
     (["git", "push"], "ask"),
     (["git", "pull"], "ask"),
-    (["npm", "install"], "ask"),
-    (["pnpm", "install"], "ask"),
-    (["yarn", "install"], "ask"),
-    (["bun", "install"], "ask"),
-    (["cargo", "install"], "ask"),
-    (["go", "install"], "ask"),
-    (["pip", "install"], "ask"),
-    (["poetry", "add"], "ask"),
-    (["cargo", "add"], "ask"),
-    (["go", "get"], "ask"),
     (["rm", "-rf"], "ask"),
     (["git", "reset", "--hard"], "deny"),
     (["git", "clean", "-f"], "deny"),

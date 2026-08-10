@@ -888,18 +888,27 @@ export function isPlannerReadOnlyMcpCall(toolName: string, input: unknown): bool
       isSafeSerenaSymbolRead(base, args));
 }
 
+/** Return true only for a classified direct Serena/CodeGraph tool in its own namespace. */
+function isDirectClassifiedManagedTool(toolName: string, input: unknown, server: "serena" | "codegraph"): boolean {
+  if (toolName.startsWith("mcp__")) {
+    const parts = toolName.split("__");
+    if (parts.length < 3 || normalizeServerId(parts[1]!) !== server) return false;
+  } else {
+    const namespace = `${server.replace(/-/g, "_")}_`;
+    if (!toolName.startsWith(namespace)) return false;
+  }
+  const base = managedToolBaseName(toolName, server);
+  return isTrustedManagedTool(server, base, input);
+}
+
 /** Returns true when the top-level tool call needs the custom/MCP approval prompt. */
 export function isMcpOrCustomTool(toolName: string, input?: unknown): boolean {
   if (SPECIALIZED_TOOLS.has(toolName)) return false;
   // Only explicit adapter proxy executions reach the broker; metadata and
   // lifecycle selectors remain behind the generic custom-tool approval gate.
   if (toolName === "mcp") return !isMcpProxyToolExecution(input);
-  if (SERENA_TRUSTED_TOOLS.has(toolName) &&
-    isTrustedManagedTool("serena", toolName, input)) return false;
-  if (toolName.startsWith("mcp__serena__")) {
-    const base = managedToolBaseName(toolName, "serena");
-    if (SERENA_TRUSTED_TOOLS.has(base) && isTrustedManagedTool("serena", base, input)) return false;
-  }
+  if (isDirectClassifiedManagedTool(toolName, input, "serena") ||
+    isDirectClassifiedManagedTool(toolName, input, "codegraph")) return false;
   // Other direct tool names remain ambiguous with custom extensions.
   return true;
 }

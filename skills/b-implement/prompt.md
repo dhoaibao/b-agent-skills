@@ -50,7 +50,7 @@ Changes, verification, and any blockers or follow-up. Recommend **b-review** for
 - Stay within approved scope.
 - Every changed line should trace to the approved scope or cleanup made necessary by this change.
 - Remove imports or helpers made unused by the change; leave pre-existing dead code and adjacent comments or formatting untouched.
-- Auto-run regular repository-local commands, including routine build, test, package, and script automation; ask before dependency writes, explicit destructive or privileged commands, ambiguous shell syntax, protected or outside-project paths, external/shared mutations, PRs, or broad refactors.
+- Auto-run regular repository-local commands, including routine build, test, package, dependency, and script automation; ask before explicit destructive or privileged commands, ambiguous shell syntax, protected or outside-project paths, external/shared mutations, PRs, or broad refactors.
 - Do not add opportunistic cleanup, speculative compatibility, single-use abstractions, or handling for impossible scenarios without repo evidence.
 - Do not push through newly discovered ambiguity; route it explicitly.
 - Do not ask about details that the approved scope or repository evidence resolves; for each remaining material blocker, ask exactly one focused question and wait for its answer before asking the next.
