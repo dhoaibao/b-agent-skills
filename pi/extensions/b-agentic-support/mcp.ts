@@ -850,6 +850,44 @@ export function isTrustedManagedGatewayCall(input: unknown): boolean {
     isTrustedManagedTool(server, input.tool, args);
 }
 
+const PLANNER_SERENA_READ_TOOLS = new Set([
+  "serena_find_declaration", "serena_find_implementations", "serena_find_referencing_symbols", "serena_find_symbol", "serena_get_diagnostics_for_file", "serena_get_symbols_overview", "serena_initial_instructions", "serena_list_memories", "serena_read_memory",
+]);
+
+function plannerSerenaToolBase(toolName: string): string | undefined {
+  let name = toolName;
+  if (name.startsWith("mcp__")) {
+    const parts = name.split("__");
+    if (parts.length < 3 || normalizeServerId(parts[1]!) !== "serena") return undefined;
+    name = parts.slice(2).join("__");
+  }
+  if (!name.startsWith("serena_")) return undefined;
+  if (name.startsWith("serena_serena_")) name = name.slice("serena_".length);
+  return name;
+}
+
+/** Allow only safe Serena discovery and classified read-only managed gateway calls in planner mode. */
+export function isPlannerReadOnlyMcpCall(toolName: string, input: unknown): boolean {
+  if (toolName === "mcp") {
+    if (!isMcpProxyToolExecution(input)) return false;
+    const server = normalizeServerId(input.server);
+    if (server !== "serena") return isTrustedManagedGatewayCall(input);
+    const args = gatewayArgs(input.args);
+    const base = plannerSerenaToolBase(input.tool);
+    return args !== undefined && base !== undefined && gatewayToolMatchesServer(server, input.tool) &&
+      isTrustedManagedTool(server, base, args) &&
+      (PLANNER_SERENA_READ_TOOLS.has(base) ||
+        (base === "serena_search_for_pattern" && isSafeSerenaPatternSearch(args)) ||
+        isSafeSerenaSymbolRead(base, args));
+  }
+  const args = isPlainObject(input) ? input : undefined;
+  const base = plannerSerenaToolBase(toolName);
+  return args !== undefined && base !== undefined && isTrustedManagedTool("serena", base, args) &&
+    (PLANNER_SERENA_READ_TOOLS.has(base) ||
+      (base === "serena_search_for_pattern" && isSafeSerenaPatternSearch(args)) ||
+      isSafeSerenaSymbolRead(base, args));
+}
+
 /** Returns true when the top-level tool call needs the custom/MCP approval prompt. */
 export function isMcpOrCustomTool(toolName: string, input?: unknown): boolean {
   if (SPECIALIZED_TOOLS.has(toolName)) return false;

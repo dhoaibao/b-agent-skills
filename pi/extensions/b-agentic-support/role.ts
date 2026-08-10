@@ -1,4 +1,3 @@
-import { gatewayArgs, isSafeSerenaPatternSearch, isSafeSerenaSymbolRead, isTrustedManagedGatewayCall, isTrustedManagedTool, normalizeServerId } from "./mcp.ts";
 import { hasAmbiguousShellSyntax, hasInlineGitAliasInvocation, hasShellControlSyntax, hasUnbalancedQuotes, normalizeTokens, splitShellSegments, tokenize, unwrapTokens } from "./shell.ts";
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -18,10 +17,6 @@ export const PLANNER_ALLOWED_TOOLS = new Set(["read", "recall", "intercom", "bas
 const PLANNER_READ_COMMANDS = new Set(["eza", "exa", "fd", "fdfind", "pwd", "rg"]);
 const PLANNER_GIT_READ_COMMANDS = new Set(["blame", "branch", "describe", "diff", "grep", "log", "ls-files", "ls-tree", "remote", "rev-parse", "shortlog", "show", "status"]);
 const PLANNER_CODEGRAPH_COMMANDS = new Set(["affected", "callees", "callers", "explore", "files", "help", "impact", "init", "node", "query", "status", "version"]);
-const PLANNER_SERENA_READ_TOOLS = new Set([
-  "serena_find_declaration", "serena_find_implementations", "serena_find_referencing_symbols", "serena_find_symbol", "serena_get_diagnostics_for_file", "serena_get_symbols_overview", "serena_initial_instructions", "serena_list_memories", "serena_read_memory",
-]);
-
 /** Fail closed unless every shell segment is a local inspection command. */
 export function plannerCommandDecision(command: string): { allowed: boolean; reason: string } {
   if (hasUnbalancedQuotes(command) || hasAmbiguousShellSyntax(command) || hasShellControlSyntax(command)) {
@@ -46,20 +41,6 @@ export function plannerCommandDecision(command: string): { allowed: boolean; rea
     if (!allowed) return { allowed: false, reason: `Planner mode blocks non-read-only command: ${commandName || "unknown"}` };
   }
   return { allowed: true, reason: "" };
-}
-
-/** Allow only safe Serena inspection and classified read-only managed gateway calls. */
-export function isPlannerReadOnlyMcpCall(input: unknown): boolean {
-  if (!isPlainObject(input) || typeof input.server !== "string" || typeof input.tool !== "string") return false;
-  const server = normalizeServerId(input.server);
-  if (server !== "serena") return isTrustedManagedGatewayCall(input);
-  const args = gatewayArgs(input.args);
-  if (!args || !isTrustedManagedTool(server, input.tool, args)) return false;
-  const parts = input.tool.split("__");
-  const tool = input.tool.startsWith("mcp__") ? parts[parts.length - 1]! : input.tool;
-  return PLANNER_SERENA_READ_TOOLS.has(tool) ||
-    (tool === "serena_search_for_pattern" && isSafeSerenaPatternSearch(args)) ||
-    isSafeSerenaSymbolRead(tool, args);
 }
 
 export const PLANNER_PROMPT = `## b-agentic planner profile (read-only coordinator)

@@ -271,9 +271,35 @@ for (const command of ['rtk git status --short', 'fdfind -t f SKILL.md skills', 
 for (const command of ['rtk pytest -q', 'rtk git commit -m role-smoke', "rtk git -c 'alias.status=!touch owned' status", 'node -e "process.exit()"']) {
   expect((await toolCallHandler({ toolName: 'bash', input: { command } }, roleContext))?.block === true, `planner role must block worktree or execution command: ${command}`);
 }
-expect(await toolCallHandler({ toolName: 'mcp', input: { server: 'serena', tool: 'serena_find_symbol', args: { name_path_pattern: 'applyRole', relative_path: 'pi/extensions/b-agentic-role.ts' } } }, roleContext) === undefined, 'planner role must allow Serena symbol reads');
+const plannerSerenaReadArgs = { name_path_pattern: 'applyRole', relative_path: 'pi/extensions/b-agentic-role.ts' };
+for (const toolName of ['serena_find_symbol', 'serena_serena_find_symbol', 'mcp__serena__serena_find_symbol']) {
+  expect(await toolCallHandler({ toolName, input: plannerSerenaReadArgs }, roleContext) === undefined, `planner role must allow read-only Serena discovery: ${toolName}`);
+}
+expect(await toolCallHandler({ toolName: 'mcp', input: { server: 'serena', tool: 'serena_find_symbol', args: plannerSerenaReadArgs } }, roleContext) === undefined, 'planner role must allow Serena symbol reads');
+expect(await toolCallHandler({ toolName: 'mcp', input: { server: 'serena', tool: 'mcp__serena__serena_find_symbol', args: plannerSerenaReadArgs } }, roleContext) === undefined, 'planner role must allow prefixed Serena gateway reads');
+expect(await toolCallHandler({ toolName: 'mcp', input: { server: 'serena', tool: 'serena_initial_instructions', args: {} } }, roleContext) === undefined, 'planner role must allow Serena initial instructions');
 expect(await toolCallHandler({ toolName: 'mcp', input: { server: 'codegraph', tool: 'codegraph_codegraph_explore', args: { query: 'role enforcement' } } }, roleContext) === undefined, 'planner role must allow CodeGraph reads');
-expect((await toolCallHandler({ toolName: 'mcp', input: { server: 'serena', tool: 'serena_replace_content', args: { relative_path: 'README.md', needle: 'old', repl: 'new' } } }, roleContext))?.block === true, 'planner role must block Serena repository edits');
+const plannerSerenaEditArgs = { relative_path: 'README.md', needle: 'old', repl: 'new', mode: 'literal' };
+for (const toolName of ['serena_replace_content', 'serena_serena_replace_content', 'mcp__serena__serena_replace_content']) {
+  expect((await toolCallHandler({ toolName, input: plannerSerenaEditArgs }, roleContext))?.block === true, `planner role must block Serena repository edits: ${toolName}`);
+}
+for (const tool of ['serena_replace_content', 'mcp__serena__serena_replace_content']) {
+  expect((await toolCallHandler({ toolName: 'mcp', input: { server: 'serena', tool, args: plannerSerenaEditArgs } }, roleContext))?.block === true, `planner role must block Serena gateway repository edits: ${tool}`);
+}
+let plannerMutationClaim;
+mcpApprovalHandler({
+  serverName: 'serena', originalToolName: 'serena_replace_content', prefixedToolName: 'serena_serena_replace_content',
+  args: plannerSerenaEditArgs, origin: 'direct',
+  claim(handler) { plannerMutationClaim = handler; return true; },
+});
+expect(await plannerMutationClaim() === 'deny', 'planner role must deny Serena mutations through the MCP approval broker');
+let plannerReadClaim;
+mcpApprovalHandler({
+  serverName: 'serena', originalToolName: 'serena_find_symbol', prefixedToolName: 'serena_serena_find_symbol',
+  args: plannerSerenaReadArgs, origin: 'direct',
+  claim(handler) { plannerReadClaim = handler; return true; },
+});
+expect(await plannerReadClaim() === 'allow_once', 'planner role must allow Serena discovery through the MCP approval broker');
 expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'send', to: 'worker', message: 'Implement the approved task.' } }, roleContext) === undefined, 'planner role must allow Intercom handoffs');
 expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'ask', to: 'worker', message: 'Need clarification?' } }, roleContext) === undefined, 'planner role must allow Intercom blockers');
 expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'reply', message: 'Proceed with the narrow fix', replyTo: 'message-1' } }, roleContext) === undefined, 'planner role must allow replies');

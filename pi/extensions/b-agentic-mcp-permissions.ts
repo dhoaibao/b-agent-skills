@@ -1,6 +1,7 @@
 /** Managed MCP, custom-tool, and Intercom approval policy. */
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import * as policy from "./b-agentic-support/mcp.ts";
+import { getRole } from "./b-agentic-support/state.ts";
 
 let currentContext: ExtensionContext | undefined;
 
@@ -24,6 +25,12 @@ export default function bAgenticMcpPermissions(pi: ExtensionAPI): void {
   pi.events.on(policy.MCP_TOOL_APPROVAL_REQUEST_EVENT, (value) => {
     if (!policy.isMcpToolApprovalRequest(value)) return;
     const server = policy.normalizeServerId(value.serverName);
+    if (server === "serena" && getRole() === "planner" &&
+      (!policy.isPlannerReadOnlyMcpCall(value.originalToolName, value.args) ||
+        !policy.isPlannerReadOnlyMcpCall(value.prefixedToolName, value.args))) {
+      value.claim(() => "deny");
+      return;
+    }
     if (policy.isTrustedManagedTool(server, value.originalToolName, value.args)) {
       value.claim(() => policy.brokerApprovalDecision(value, currentContext));
       return;
