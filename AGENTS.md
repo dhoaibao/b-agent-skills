@@ -12,13 +12,14 @@ The governing principle is: slim, strong, usable. Every workflow or prompt chang
 - Treat `README.md` as the public overview and this file as maintainer guidance.
 - Edit canonical sources, not generated outputs.
 - Keep shared content under `skills/` and `references/` focused on Pi.
-- Put Pi integration paths, templates, extensions, and smoke tests under `pi/`.
+- Put Pi integration paths, templates, extensions, and Pi smoke tests under `pi/`; keep installer smoke coverage under `tests/smoke/`.
 - Preserve user-owned Pi configuration in installers.
 - Keep the skill registry YAML JSON-compatible so the Python standard library can parse it.
 - Keep skill prompts task-specific; do not duplicate global kernel rules unless a skill needs a concrete variant.
 - Keep domain-specific workflows, issue-tracker conventions, team preferences, and product-specific skills out of core unless existing phases consume them as optional inputs.
 - Do not add root documentation surfaces unless the task explicitly requires one.
 - For behavior-shaping prompt changes, record the observed failure, intended behavior change, and a narrow regression check.
+- Keep `b_agentic_confirm_commit` selection-only and fail closed when interactive UI is unavailable; never add a text-confirmation fallback.
 
 ## Source of Truth
 
