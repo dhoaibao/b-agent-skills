@@ -41,6 +41,7 @@ let activeTools = ['read', 'bash', 'edit', 'write', 'recall', 'intercom', 'mcp',
 let activeModel = { provider: 'anthropic', id: 'claude-sonnet-4-5' };
 let activeThinkingLevel = 'high';
 const roleStatuses = [];
+const roleNotifications = [];
 let mcpApprovalHandler;
 let roleChannelRegistration;
 const executedCommands = [];
@@ -153,7 +154,7 @@ const roleContext = {
       }
       return 'Allow once';
     },
-    notify() {},
+    notify(message, level) { roleNotifications.push({ message, level }); },
     theme: {
       fg(color, text) { return `<${color}>${text}</${color}>`; },
     },
@@ -176,7 +177,7 @@ branchEntries.push({
 });
 activeTools = ['read', 'bash'];
 await handlers.session_start({}, roleContext);
-expect(roleStatuses.at(-1)?.value === '<accent>b-agentic: planner (read-only)</accent>', 'planner status must use the accent color');
+expect(roleStatuses.at(-1)?.value === '<mdLink>b-agentic: planner (read-only)</mdLink>', 'planner status must use the mdLink color');
 expect(roleChannelRegistration?.namespace === 'b-agentic/roles/v1', 'roles must register an Intercom coordination channel');
 const publishedRoles = [];
 roleChannelRegistration.onReady({
@@ -196,6 +197,8 @@ const plannerAndWorker = [
 expect(roleTest.hasKnownSameCwdPeerRoles(plannerAndWorker, root, 202, new Map()) === false, 'an explicit worker must wait for existing peer roles');
 expect(roleTest.hasKnownSameCwdPeerRoles(plannerAndWorker, root, 202, new Map([['planner', 'planner']])) === true, 'an explicit worker can claim after peer role discovery');
 expect(roleTest.hasKnownSameCwdPeerRoles(plannerAndWorker, root, 202, new Map([['planner', 'off']])) === true, 'an off peer must not block role discovery');
+expect(roleTest.hasActiveSameCwdPeerWorker(plannerAndWorker, root, 202, new Map([['worker', 'worker']])) === false, 'a session must not treat its own worker role announcement as an active peer');
+expect(roleTest.hasActiveSameCwdPeerWorker(plannerAndWorker, root, 202, new Map([['planner', 'worker']])) === true, 'a same-CWD peer worker must remain active');
 const plannerAndWorkerClaim = [
   { id: 'planner', cwd: root, pid: 101, startedAt: 1 },
   { id: 'worker', cwd: root, pid: 202, startedAt: 2 },
@@ -275,7 +278,7 @@ expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'send', to
 expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'ask', to: 'worker', message: 'Need clarification?' } }, roleContext) === undefined, 'planner role must allow Intercom blockers');
 expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'reply', message: 'Proceed with the narrow fix', replyTo: 'message-1' } }, roleContext) === undefined, 'planner role must allow replies');
 const plannerStart = await handlers.before_agent_start({ systemPrompt: 'base', systemPromptOptions: { skills: [] } }, roleContext);
-expect(plannerStart.systemPrompt.includes('planner profile (read-only coordinator)') && plannerStart.systemPrompt.includes('safe repository discovery, classified read-only MCP calls') && plannerStart.systemPrompt.includes('worker is the sole worktree writer') && plannerStart.systemPrompt.includes('Never perform implementation edits') && plannerStart.systemPrompt.includes('Default to non-blocking Intercom') && plannerStart.systemPrompt.includes('After assigning a task, wait for the worker\'s result') && plannerStart.systemPrompt.includes('instead of repeatedly polling Intercom') && plannerStart.systemPrompt.includes('use `ask` only when intentionally waiting for a response') && plannerStart.systemPrompt.includes('Keep roster/status calls for selecting a worker') && plannerStart.systemPrompt.includes('Send findings and wait for a revised result') && plannerStart.systemPrompt.includes('Do not mark a delegated task complete') && plannerStart.systemPrompt.includes('`b-review` has passed') && plannerStart.systemPrompt.includes('ask the user one focused question') && plannerStart.systemPrompt.includes('keep the task open'), 'planner role must enforce delegated waiting, completion review, and unresolved-blocker escalation without blocking analysis');
+expect(plannerStart.systemPrompt.includes('planner profile (read-only coordinator)') && plannerStart.systemPrompt.includes('safe repository discovery, classified read-only MCP calls') && plannerStart.systemPrompt.includes('worker is the sole worktree writer') && plannerStart.systemPrompt.includes('Never perform implementation edits') && plannerStart.systemPrompt.includes('even when it comes directly from the user') && plannerStart.systemPrompt.includes('never authorization for you to edit') && plannerStart.systemPrompt.includes('Do not emit patches or modifying commands') && plannerStart.systemPrompt.includes('Default to non-blocking Intercom') && plannerStart.systemPrompt.includes('After assigning a task, wait for the worker\'s result') && plannerStart.systemPrompt.includes('instead of repeatedly polling Intercom') && plannerStart.systemPrompt.includes('use `ask` only when intentionally waiting for a response') && plannerStart.systemPrompt.includes('Keep roster/status calls for selecting a worker') && plannerStart.systemPrompt.includes('Send findings and wait for a revised result') && plannerStart.systemPrompt.includes('Do not mark a delegated task complete') && plannerStart.systemPrompt.includes('`b-review` has passed') && plannerStart.systemPrompt.includes('ask the user one focused question') && plannerStart.systemPrompt.includes('keep the task open'), 'planner role must enforce delegated waiting, completion review, and unresolved-blocker escalation without blocking analysis');
 
 let activePeerWorker = true;
 roleChannelRegistration.onReady({
@@ -287,12 +290,17 @@ roleChannelRegistration.onReady({
 });
 await roleChannelRegistration.onEvent({ type: 'connection', connected: true, supported: true });
 await roleChannelRegistration.onEvent({ type: 'message', fromSessionId: 'active-worker', payload: { type: 'b-agentic-role', role: 'worker' } });
+await roleChannelRegistration.onEvent({ type: 'message', fromSessionId: 'self', payload: { type: 'b-agentic-role', role: 'worker' } });
+roleNotifications.length = 0;
 await commands['b-role'].handler('worker', roleContext);
 expect(!activeTools.includes('edit') && !activeTools.includes('write'), 'an explicit worker request must not create a second writer');
+expect(roleNotifications.some(({ level }) => level === 'warning'), 'a real same-CWD peer worker must still block the worker claim');
 activePeerWorker = false;
 await roleChannelRegistration.onEvent({ type: 'session_left', sessionId: 'active-worker' });
+roleNotifications.length = 0;
 await commands['b-role'].handler('worker', roleContext);
 expect(roleStatuses.at(-1)?.value === '<success>b-agentic: worker</success>', 'worker status must use the success color');
+expect(roleNotifications.at(-1)?.level === 'info', 'a self worker announcement must not trigger a duplicate-worker warning');
 expect(activeTools.includes('edit') && activeTools.includes('write') && activeTools.includes('bash') && activeTools.includes('b_agentic_confirm_commit'), 'worker role must restore normal tools');
 expect(await toolCallHandler({ toolName: 'edit', input: { path: 'README.md', edits: [] } }, roleContext) === undefined, 'worker role must not wait for a structured assignment');
 for (const skill of ['b-implement', 'b-debug', 'b-refactor', 'b-test', 'b-browser', 'b-research', 'b-design', 'b-init']) {
@@ -346,6 +354,16 @@ mcpApprovalHandler({
   claim(handler) { directClaim = handler; return true; },
 });
 expect(await directClaim() === 'abstain', 'top-level direct MCP approval must not prompt twice');
+let directSafeClaim;
+mcpApprovalHandler({
+  serverName: 'firecrawl',
+  originalToolName: 'firecrawl_search',
+  prefixedToolName: 'firecrawl_firecrawl_search',
+  args: { query: 'Pi', limit: 10 },
+  origin: 'direct',
+  claim(handler) { directSafeClaim = handler; return true; },
+});
+expect(await directSafeClaim() === 'allow_once', 'direct safe managed adapter calls must auto-allow');
 await toolCallHandler({ toolName: 'bash', input: { command: 'rtk git status --short' } }, noUiContext);
 let parallelProxyClaim;
 mcpApprovalHandler({

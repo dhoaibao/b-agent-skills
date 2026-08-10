@@ -15,6 +15,10 @@ function hasKnownSameCwdPeerRoles(sessions: RoleSession[], cwd: string, pid: num
   return sessions.filter((session) => session.cwd === cwd && session.pid !== pid).every((session) => peerRoles.has(session.id));
 }
 
+function hasActiveSameCwdPeerWorker(sessions: RoleSession[], cwd: string, pid: number, peerRoles: ReadonlyMap<string, CoordinatedRole>): boolean {
+  return sessions.some((session) => session.cwd === cwd && session.pid !== pid && peerRoles.get(session.id) === "worker");
+}
+
 function canClaimWorker(sessions: RoleSession[], cwd: string): boolean {
   return sessions.filter((session) => session.cwd === cwd).length <= 2;
 }
@@ -37,7 +41,7 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
   const updateStatus = (ctx: ExtensionContext): void => {
     const role = getRole();
     const status = role === "planner"
-      ? ctx.ui.theme.fg("accent", "b-agentic: planner (read-only)")
+      ? ctx.ui.theme.fg("mdLink", "b-agentic: planner (read-only)")
       : role === "worker"
         ? ctx.ui.theme.fg("success", "b-agentic: worker")
         : undefined;
@@ -99,7 +103,7 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
       if (!hasKnownSameCwdPeerRoles(sessions, ctx.cwd, process.pid, peerRoles)) return;
       if (!canClaimWorker(sessions, ctx.cwd)) return;
       pendingWorkerClaim = false;
-      if ([...peerRoles.entries()].some(([id, role]) => role === "worker" && sessions.some((session) => session.id === id && session.cwd === ctx.cwd))) {
+      if (hasActiveSameCwdPeerWorker(sessions, ctx.cwd, process.pid, peerRoles)) {
         ctx.ui.notify("A same-CWD b-agentic worker is already active", "warning");
         return;
       }
@@ -197,4 +201,4 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
   });
 }
 
-export const __test__ = { ROLE_ENTRY_TYPE, parseRole, latestRoleState, loadRoleModelPreferences, saveRoleModelPreference, hasKnownSameCwdPeerRoles, canClaimWorker };
+export const __test__ = { ROLE_ENTRY_TYPE, parseRole, latestRoleState, loadRoleModelPreferences, saveRoleModelPreference, hasKnownSameCwdPeerRoles, hasActiveSameCwdPeerWorker, canClaimWorker };

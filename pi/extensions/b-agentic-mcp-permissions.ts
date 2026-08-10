@@ -23,9 +23,8 @@ export default function bAgenticMcpPermissions(pi: ExtensionAPI): void {
 
   pi.events.on(policy.MCP_TOOL_APPROVAL_REQUEST_EVENT, (value) => {
     if (!policy.isMcpToolApprovalRequest(value)) return;
-    if (value.origin === "direct" &&
-      policy.normalizeServerId(value.serverName) === "serena" &&
-      policy.isTrustedManagedTool("serena", value.originalToolName, value.args)) {
+    const server = policy.normalizeServerId(value.serverName);
+    if (policy.isTrustedManagedTool(server, value.originalToolName, value.args)) {
       value.claim(() => policy.brokerApprovalDecision(value, currentContext));
       return;
     }

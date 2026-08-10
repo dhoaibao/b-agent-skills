@@ -129,6 +129,24 @@
         "Invent a structured coordination state machine",
         "Continue issuing implementation requests while the worker edits"
       ]
+    },
+    {
+      "id": "planner-direct-user-request-remains-delegated",
+      "role": "planner",
+      "skill": "b-implement",
+      "observed_failure": "Planner sessions treated an implementation or fix request from the user as permission to edit, emit patches, or run modifying commands themselves.",
+      "intended_behavior": "The planner treats every implementation or fix request, including a direct user request, as work for the sole worker writer and delegates it or waits/provisions when no worker is ready.",
+      "prompt": "The user directly asks you to implement a fix. Describe whether that request authorizes you to edit, emit a patch, or run modifying commands, and what you do when a ready worker is unavailable.",
+      "must": [
+        "State that a direct user implementation or fix request is not authorization for planner edits",
+        "Delegate to a ready worker or provision/wait when none is ready",
+        "Do not emit patches or modifying commands"
+      ],
+      "avoid": [
+        "Edit files in the planner session",
+        "Treat user wording as an exception to sole-worker ownership",
+        "Fall back to implementation when no worker is ready"
+      ]
     }
   ]
 }
