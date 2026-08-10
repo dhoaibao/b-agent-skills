@@ -42,6 +42,7 @@ let activeModel = { provider: 'anthropic', id: 'claude-sonnet-4-5' };
 let activeThinkingLevel = 'high';
 const roleStatuses = [];
 const roleNotifications = [];
+const sentMessages = [];
 let mcpApprovalHandler;
 let roleChannelRegistration;
 const executedCommands = [];
@@ -71,6 +72,7 @@ const extensionHost = {
   async setModel(model) { activeModel = model; return true; },
   getThinkingLevel() { return activeThinkingLevel; },
   setThinkingLevel(level) { activeThinkingLevel = level; },
+  sendMessage(message, options) { sentMessages.push({ message, options }); },
   appendEntry(customType, data) {
     const entry = { type: 'custom', customType, data };
     persistedEntries.push(entry);
@@ -841,6 +843,32 @@ expect(t.nativePathDecision('read', 'src/main.ts').decision === 'allow', 'normal
 expect(t.nativePathDecision('read', '/etc/passwd').decision === 'ask', 'outside-project native reads must ask');
 expect(t.nativePathDecision('write', '/etc/hosts').decision === 'ask', 'outside-project native writes must ask');
 expect(t.nativePathDecision('write', 'pi/tests/new-file.ts').decision === 'allow', 'project-local native writes must allow');
+const nativeToolContext = { ...noUiContext, cwd: root };
+await handlers.turn_start({ type: 'turn_start', turnIndex: 1, timestamp: 1 }, nativeToolContext);
+expect(await toolCallHandler({ toolName: 'edit', input: { path: 'README.md', edits: [{ oldText: 'one', newText: 'two' }] } }, nativeToolContext) === undefined, 'first native edit for a path must remain allowed');
+const duplicateEdit = await toolCallHandler({ toolName: 'edit', input: { path: './README.md', edits: [{ oldText: 'three', newText: 'four' }] } }, nativeToolContext);
+expect(duplicateEdit?.block === true && duplicateEdit.reason.includes('merge disjoint replacements into one edits[] call') && duplicateEdit.reason.includes('reread and retry next turn'), 'same-turn duplicate native edit must be blocked with recovery guidance');
+await handlers.turn_start({ type: 'turn_start', turnIndex: 2, timestamp: 2 }, nativeToolContext);
+expect(await toolCallHandler({ toolName: 'edit', input: { path: 'README.md', edits: [{ oldText: 'five', newText: 'six' }] } }, nativeToolContext) === undefined, 'native edit must be permitted again on a later turn');
+sentMessages.length = 0;
+await handlers.tool_result({
+  type: 'tool_result', toolCallId: 'edit-1', toolName: 'edit', input: { path: 'README.md' },
+  content: [{ type: 'text', text: 'Could not find edits[0] in README.md. The oldText must match exactly including all whitespace and newlines.' }],
+  isError: true,
+}, nativeToolContext);
+expect(sentMessages.length === 1 && sentMessages[0].options.deliverAs === 'steer' && sentMessages[0].message.display === false && sentMessages[0].message.details.path === 'README.md' && sentMessages[0].message.content.includes('Immediately read README.md') && sentMessages[0].message.content.includes('one exact retry'), 'exact-oldText failures must enqueue a path-specific recovery steer');
+await handlers.tool_result({
+  type: 'tool_result', toolCallId: 'edit-2', toolName: 'edit', input: { path: 'README.md' },
+  content: [{ type: 'text', text: 'Could not find the exact text in README.md. The old text must match exactly including all whitespace and newlines.' }],
+  isError: true,
+}, nativeToolContext);
+expect(sentMessages.length === 2 && sentMessages[1].message.details.path === 'README.md' && sentMessages[1].options.deliverAs === 'steer', 'single-edit exact-oldText failures must enqueue recovery for the runtime wording');
+await handlers.tool_result({
+  type: 'tool_result', toolCallId: 'edit-3', toolName: 'edit', input: { path: 'README.md' },
+  content: [{ type: 'text', text: 'Could not edit README.md: permission denied.' }],
+  isError: true,
+}, nativeToolContext);
+expect(sentMessages.length === 2, 'unrelated native edit errors must not enqueue recovery');
 const installedSkillFixture = mkdtempSync(path.join(os.tmpdir(), 'b-agentic-installed-skills-'));
 const installedSkillAliasParent = mkdtempSync(path.join(os.tmpdir(), 'b-agentic-installed-skills-alias-'));
 const installedSkillAlias = path.join(installedSkillAliasParent, 'agent');
