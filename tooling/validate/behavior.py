@@ -77,11 +77,11 @@ INTERCOM_DELEGATION_REGRESSION = {
         "read-only ownership and retaining worker-local repository automation."
     ),
     "required_clauses": (
-        "Planner and worker are the default collaboration roles",
-        "The first same-CWD session is planner",
+        "b-agentic defaults to Off for a single-session workflow",
+        "The two-role workflow is explicit",
         "Planner owns `b-plan`, `b-research`, `b-review`, and `b-pr-summary`",
         "Worker is the sole worktree writer",
-        "Use the role-aware same-CWD worker roster before delegation",
+        "Use the role-aware same-CWD worker roster after explicit role selection",
         "worker sends that planner paths/checks/gaps and pauses",
         "worker resumes only for findings/new work",
         "Natural language; no parsed protocol/chains",

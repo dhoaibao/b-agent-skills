@@ -4,8 +4,6 @@ import { ROLE_ENTRY_TYPE, PLANNER_ALLOWED_TOOLS, parseRole, latestRoleState } fr
 import { loadRoleModelPreferences, saveRoleModelPreference, type RoleModelPreference } from "./b-agentic-support/role-models.ts";
 import { getRole, setRole, getToolsBeforePlanner, setToolsBeforePlanner } from "./b-agentic-support/state.ts";
 
-type AvailableModel = ReturnType<ExtensionContext["modelRegistry"]["getAvailable"]>[number];
-type ScopedModelContext = { scopedModels?: ReadonlyArray<{ model: AvailableModel }> };
 type CoordinatedRole = "off" | "planner" | "worker";
 type RoleSession = { id: string; cwd: string; name?: string; pid: number; startedAt: number };
 type RoleChannel = {
@@ -13,33 +11,12 @@ type RoleChannel = {
   listSessions(): Promise<RoleSession[]>;
 };
 
-function sameCwdSessionPosition(sessions: RoleSession[], cwd: string, pid: number): number | undefined {
-  const ordered = sessions.filter((session) => session.cwd === cwd).sort((left, right) => left.startedAt - right.startedAt || left.id.localeCompare(right.id));
-  const position = ordered.findIndex((session) => session.pid === pid);
-  return position === -1 ? undefined : position;
-}
-
-function isFirstSameCwdSession(sessions: RoleSession[], cwd: string, pid: number): boolean {
-  return sameCwdSessionPosition(sessions, cwd, pid) === 0;
-}
-
-function automaticRoleForSession(sessions: RoleSession[], cwd: string, pid: number): "planner" | "worker" | undefined {
-  const position = sameCwdSessionPosition(sessions, cwd, pid);
-  if (position === undefined) return undefined;
-  return position === 1 ? "worker" : "planner";
-}
-
-function isAutomaticWorkerSession(sessions: RoleSession[], cwd: string, pid: number): boolean {
-  return automaticRoleForSession(sessions, cwd, pid) === "worker";
-}
-
 function hasKnownSameCwdPeerRoles(sessions: RoleSession[], cwd: string, pid: number, peerRoles: ReadonlyMap<string, CoordinatedRole>): boolean {
   return sessions.filter((session) => session.cwd === cwd && session.pid !== pid).every((session) => peerRoles.has(session.id));
 }
 
-function canClaimWorker(sessions: RoleSession[], cwd: string, pid: number): boolean {
-  const sameCwdSessions = sessions.filter((session) => session.cwd === cwd);
-  return sameCwdSessions.length === 1 || automaticRoleForSession(sessions, cwd, pid) === "worker";
+function canClaimWorker(sessions: RoleSession[], cwd: string): boolean {
+  return sessions.filter((session) => session.cwd === cwd).length <= 2;
 }
 type RoleChannelEvent =
   | { type: "connection"; connected: boolean; supported: boolean }
@@ -54,7 +31,6 @@ function isRole(value: unknown): value is CoordinatedRole {
 export default function bAgenticRole(pi: ExtensionAPI): void {
   let applyingSavedModel = false;
   let channel: RoleChannel | undefined;
-  let automaticRole = false;
   let pendingWorkerClaim = false;
   const peerRoles = new Map<string, CoordinatedRole>();
 
@@ -69,7 +45,7 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
     try { channel?.publish({ type: "b-agentic-role-request" }, { audience: "capable" }); } catch { /* Connection events retry discovery. */ }
   };
   const persist = (): void => {
-    pi.appendEntry(ROLE_ENTRY_TYPE, { role: getRole(), automatic: automaticRole, toolsBeforePlanner: getToolsBeforePlanner() });
+    pi.appendEntry(ROLE_ENTRY_TYPE, { role: getRole(), automatic: false, toolsBeforePlanner: getToolsBeforePlanner() });
   };
   const saveModel = (role: "planner" | "worker", model: { provider: string; id: string }): void => {
     const preference: RoleModelPreference = { provider: model.provider, model: model.id, thinkingLevel: pi.getThinkingLevel() };
@@ -95,28 +71,6 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
       applyingSavedModel = false;
     }
   };
-  const chooseModel = async (role: "planner" | "worker", ctx: ExtensionContext): Promise<void> => {
-    const scoped = (ctx as unknown as ScopedModelContext).scopedModels ?? [];
-    const models = scoped.length > 0 ? scoped.map((entry) => entry.model) : ctx.modelRegistry.getAvailable();
-    if (models.length === 0) {
-      ctx.ui.notify("No authenticated models are available for this session", "warning");
-      return;
-    }
-    const byKey = new Map(models.map((model) => [`${model.provider}/${model.id}`, model]));
-    const preference = loadRoleModelPreferences()[role];
-    const saved = preference ? `${preference.provider}/${preference.model}` : undefined;
-    const selected = await ctx.ui.select(`Select model for b-agentic ${role}`, [...byKey.keys()].map((key) => key === saved ? `${key} (saved ${role} model)` : key));
-    if (!selected) return;
-    const key = selected.replace(/ \(saved (?:planner|worker) model\)$/, "");
-    const model = byKey.get(key);
-    if (!model) return;
-    if (!await pi.setModel(model)) {
-      ctx.ui.notify(`No configured authentication for ${key}`, "error");
-      return;
-    }
-    saveModel(role, model);
-    ctx.ui.notify(`b-agentic ${role} model set to ${key}`, "info");
-  };
   const applyRole = (next: "off" | "planner" | "worker", ctx: ExtensionContext, shouldPersist = true): void => {
     const previous = getRole();
     if (previous === "planner" && next !== "planner" && getToolsBeforePlanner()) {
@@ -138,7 +92,7 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
     try {
       const sessions = await channel.listSessions();
       if (!hasKnownSameCwdPeerRoles(sessions, ctx.cwd, process.pid, peerRoles)) return;
-      if (!canClaimWorker(sessions, ctx.cwd, process.pid)) return;
+      if (!canClaimWorker(sessions, ctx.cwd)) return;
       pendingWorkerClaim = false;
       if ([...peerRoles.entries()].some(([id, role]) => role === "worker" && sessions.some((session) => session.id === id && session.cwd === ctx.cwd))) {
         ctx.ui.notify("A same-CWD b-agentic worker is already active", "warning");
@@ -149,36 +103,20 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
       // Stay planner-safe until a connection or peer-role event retries the claim.
     }
   };
-  const reconcileAutomaticRole = async (ctx: ExtensionContext): Promise<void> => {
-    if (!automaticRole || !channel) return;
-    try {
-      const sessions = await channel.listSessions();
-      const expectedRole = automaticRoleForSession(sessions, ctx.cwd, process.pid);
-      if (!expectedRole || getRole() === expectedRole) return;
-      if (expectedRole === "worker" && !hasKnownSameCwdPeerRoles(sessions, ctx.cwd, process.pid, peerRoles)) return;
-      if (expectedRole === "worker" && [...peerRoles.entries()].some(([id, role]) => role === "worker" && sessions.some((session) => session.id === id && session.cwd === ctx.cwd))) return;
-      applyRole(expectedRole, ctx);
-    } catch {
-      // The next connection or session event retries after a transient broker disconnect.
-    }
-  };
   const handleChannelEvent = async (event: RoleChannelEvent, ctx: ExtensionContext): Promise<void> => {
     if (event.type === "session_left") {
       peerRoles.delete(event.sessionId);
       await resolvePendingWorkerClaim(ctx);
-      await reconcileAutomaticRole(ctx);
       return;
     }
     if (event.type === "connection" && event.connected && event.supported) {
       publishRole();
       requestPeerRoles();
       await resolvePendingWorkerClaim(ctx);
-      await reconcileAutomaticRole(ctx);
       return;
     }
     if (event.type === "session_joined") {
       publishRole();
-      await reconcileAutomaticRole(ctx);
       return;
     }
     if (event.type !== "message" || !event.payload || typeof event.payload !== "object") return;
@@ -190,14 +128,13 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
     if (payload.type === "b-agentic-role" && isRole(payload.role)) {
       peerRoles.set(event.fromSessionId, payload.role);
       await resolvePendingWorkerClaim(ctx);
-      await reconcileAutomaticRole(ctx);
       return;
     }
   };
 
-  pi.registerFlag("b-role", { description: "Set b-agentic role: planner or worker", type: "string" });
+  pi.registerFlag("b-role", { description: "Set b-agentic role: off, planner, or worker", type: "string" });
   pi.registerCommand("b-role", {
-    description: "Choose b-agentic role and model: planner, worker, or off",
+    description: "Set b-agentic role: planner, worker, or off",
     getArgumentCompletions: (prefix) => ["planner", "worker", "off"].filter((role) => role.startsWith(prefix.trim().toLowerCase())).map((role) => ({ value: role, label: role })),
     handler: async (args, ctx) => {
       const explicitRole = parseRole(args);
@@ -207,13 +144,8 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
         ctx.ui.notify(args.trim() ? "Usage: /b-role planner|worker|off" : `b-agentic role: ${getRole()}`, args.trim() ? "error" : "info");
         return;
       }
-      automaticRole = false;
       pendingWorkerClaim = next === "worker";
       applyRole(next === "worker" ? "planner" : next, ctx);
-      if (next !== "off") {
-        if (explicitRole) await applySavedModel(next, ctx);
-        else if (ctx.hasUI) await chooseModel(next, ctx);
-      }
       if (pendingWorkerClaim) {
         requestPeerRoles();
         await resolvePendingWorkerClaim(ctx);
@@ -240,14 +172,15 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
   pi.on("session_start", async (_event, ctx) => {
     const persisted = latestRoleState(ctx.sessionManager.getBranch());
     const flagRole = parseRole(pi.getFlag("b-role"));
-    const legacyTools = persisted?.toolsBeforePlanner;
+    const legacyAutomatic = persisted?.automatic === true;
+    const legacyTools = legacyAutomatic ? undefined : persisted?.toolsBeforePlanner;
+    const persistedRole = legacyAutomatic ? undefined : persisted?.role;
     setToolsBeforePlanner(legacyTools);
-    automaticRole = !flagRole && (persisted?.automatic ?? !persisted);
     pendingWorkerClaim = flagRole === "worker";
-    const selectedRole = pendingWorkerClaim ? "planner" : flagRole ?? (automaticRole ? "planner" : persisted?.role ?? "planner");
+    const selectedRole = pendingWorkerClaim ? "planner" : flagRole ?? persistedRole ?? "off";
     applyRole(selectedRole, ctx, false);
     if (flagRole && flagRole !== "off") await applySavedModel(flagRole, ctx);
-    if (legacyTools || (flagRole && !pendingWorkerClaim) || automaticRole) persist();
+    if (legacyTools || (flagRole && !pendingWorkerClaim)) persist();
     pi.events.emit("intercom:extension-register", {
       namespace: "b-agentic/roles/v1",
       ownerEligible: false,
@@ -259,4 +192,4 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
   });
 }
 
-export const __test__ = { ROLE_ENTRY_TYPE, parseRole, latestRoleState, loadRoleModelPreferences, saveRoleModelPreference, isFirstSameCwdSession, automaticRoleForSession, isAutomaticWorkerSession, hasKnownSameCwdPeerRoles, canClaimWorker };
+export const __test__ = { ROLE_ENTRY_TYPE, parseRole, latestRoleState, loadRoleModelPreferences, saveRoleModelPreference, hasKnownSameCwdPeerRoles, canClaimWorker };
