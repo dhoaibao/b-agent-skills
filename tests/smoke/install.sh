@@ -1245,6 +1245,14 @@ main() {
 	require_bin node
 	require_bin python3
 	make_repo_snapshot "$snapshot_repo"
+	# shellcheck disable=SC1090
+	source "$ROOT_DIR/pi/tests/smoke.sh"
+	declare -F run_pi_smoke_cases >/dev/null || fail "Pi smoke suite did not define run_pi_smoke_cases"
+	echo "Running Pi smoke cases..."
+	run_pi_smoke_cases "$snapshot_repo" &
+	local pi_smoke_pid=$!
+
+	(
 	echo "Running run_rtk_latest_dry_run_case..."
 	run_rtk_latest_dry_run_case "$snapshot_repo"
 	echo "Running run_ref_install_case..."
@@ -1289,12 +1297,26 @@ main() {
 	run_existing_tool_default_skip_case "$snapshot_repo"
 	echo "Running run_skill_doctor_case..."
 	run_skill_doctor_case "$snapshot_repo"
+	) &
+	local base_pid=$!
 
-	# shellcheck disable=SC1090
-	source "$ROOT_DIR/pi/tests/smoke.sh"
-	declare -F run_pi_smoke_cases >/dev/null || fail "Pi smoke suite did not define run_pi_smoke_cases"
-	echo "Running Pi smoke cases..."
-	run_pi_smoke_cases "$snapshot_repo"
+	local base_status
+	if wait "$base_pid"; then
+		:
+	else
+		base_status=$?
+		wait "$pi_smoke_pid" 2>/dev/null || true
+		return "$base_status"
+	fi
+
+	local pi_smoke_status
+	if wait "$pi_smoke_pid"; then
+		:
+	else
+		pi_smoke_status=$?
+		return "$pi_smoke_status"
+	fi
+
 
 	printf 'smoke-install.sh passed\n'
 }
