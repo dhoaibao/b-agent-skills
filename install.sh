@@ -8,6 +8,8 @@
 #   curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agentic/main/install.sh | bash -s -- --dry-run
 #   curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agentic/main/install.sh | bash -s -- --uninstall
 #   curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agentic/main/install.sh | bash -s -- --ref=<tag-or-sha>
+#   ~/.b-agentic/install.sh --sync
+#   ~/.b-agentic/install.sh --update
 
 set -euo pipefail
 
@@ -26,6 +28,7 @@ INSTALL_SHELL_TOOLS_VALUE="${B_AGENTIC_INSTALL_SHELL_TOOLS:-auto}"
 INSTALL_PI_CLI_VALUE="${B_AGENTIC_INSTALL_PI_CLI:-auto}"
 INSTALL_SERENA_VALUE="${B_AGENTIC_INSTALL_SERENA:-auto}"
 INSTALL_CODEGRAPH_VALUE="${B_AGENTIC_INSTALL_CODEGRAPH:-auto}"
+OPERATION="install"
 
 SOURCE_DIR="$LOCAL_REPO"
 SKILLS_SRC="$SOURCE_DIR/skills"
@@ -144,7 +147,9 @@ check_dependencies() {
 	fi
 
 	# git is needed only when the installer must fetch or update its source checkout.
-	if uninstall_enabled && { [ -d "$LOCAL_REPO/.git" ] || [ -d "$LOCAL_REPO/skills" ]; }; then
+	if [ "$OPERATION" = "update" ]; then
+		dependency_label="curl, python3, local source"
+	elif uninstall_enabled && { [ -d "$LOCAL_REPO/.git" ] || [ -d "$LOCAL_REPO/skills" ]; }; then
 		dependency_label="${dependency_label}, local source"
 	else
 		require_bin git
@@ -154,6 +159,14 @@ check_dependencies() {
 	require_bin python3
 	require_python_311
 	log "Using $dependency_label"
+}
+
+set_operation() {
+	local next="$1"
+	if [ "$OPERATION" != "install" ]; then
+		die "--sync and --update cannot be combined"
+	fi
+	OPERATION="$next"
 }
 
 parse_args() {
@@ -170,6 +183,12 @@ parse_args() {
 			;;
 		--uninstall)
 			UNINSTALL_VALUE=Y
+			;;
+		--sync)
+			set_operation "sync"
+			;;
+		--update)
+			set_operation "update"
 			;;
 		--prompt-api-keys)
 			PROMPT_API_KEYS_VALUE=Y
@@ -209,9 +228,16 @@ parse_args() {
 
 validate_ref() {
 	[ -n "$REF" ] || return 0
+	[ "$OPERATION" != "update" ] || die "--ref cannot be used with --update"
 	case "$REF" in
 	-*) die "invalid ref: $REF (must not start with -)" ;;
 	esac
+}
+
+validate_operation() {
+	if uninstall_enabled && [ "$OPERATION" != "install" ]; then
+		die "--uninstall cannot be combined with --sync or --update"
+	fi
 }
 
 set_source_dir() {
@@ -294,7 +320,8 @@ sync_source() {
 }
 
 prepare_source() {
-	if uninstall_enabled && { [ -d "$LOCAL_REPO/.git" ] || [ -d "$LOCAL_REPO/skills" ]; }; then
+	if [ "$OPERATION" = "update" ] || { uninstall_enabled && { [ -d "$LOCAL_REPO/.git" ] || [ -d "$LOCAL_REPO/skills" ]; }; }; then
+		[ -d "$LOCAL_REPO/skills" ] || die "b-agentic source is not installed at $LOCAL_REPO; run the curl installer first"
 		set_source_dir "$LOCAL_REPO"
 		validate_pi_source_layout
 		return 0
@@ -304,6 +331,12 @@ prepare_source() {
 }
 
 install_app() {
+	if [ "$OPERATION" = "update" ]; then
+		log "Using installed b-agentic source without pulling changes"
+		prepare_source
+		return 0
+	fi
+
 	if uninstall_enabled; then
 		log "Preparing uninstall source"
 		prepare_source
@@ -571,6 +604,58 @@ install_serena() {
 	fi
 }
 
+update_rtk() {
+	if ! command -v rtk >/dev/null 2>&1; then
+		warn "RTK not installed; skipping update"
+		return 0
+	fi
+	log "Updating RTK"
+	if dry_run_enabled; then
+		printf '[dry-run] curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh\n' >&2
+	elif curl -fsSL "https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh" | sh; then
+		log "RTK updated"
+	else
+		warn "RTK update failed; continuing with existing RTK"
+	fi
+}
+
+update_serena() {
+	if ! command -v serena >/dev/null 2>&1 || ! command -v uv >/dev/null 2>&1; then
+		warn "Serena or uv not installed; skipping Serena update"
+		return 0
+	fi
+	log "Updating Serena"
+	if dry_run_enabled; then
+		printf '[dry-run] uv tool upgrade serena-agent\n' >&2
+	elif uv tool upgrade serena-agent; then
+		log "Serena updated"
+	else
+		warn "Serena update failed; continuing with existing Serena"
+	fi
+}
+
+update_codegraph() {
+	if ! command -v codegraph >/dev/null 2>&1; then
+		warn "CodeGraph not installed; skipping CodeGraph update"
+		return 0
+	fi
+	log "Updating CodeGraph"
+	if dry_run_enabled; then
+		printf '[dry-run] codegraph upgrade\n' >&2
+	elif codegraph upgrade; then
+		log "CodeGraph updated"
+	else
+		warn "CodeGraph update failed; continuing with existing CodeGraph"
+	fi
+}
+
+update_tooling() {
+	set_install_stage_total 3
+	run_stage "Updating RTK" update_rtk
+	run_stage "Updating Serena" update_serena
+	run_stage "Updating CodeGraph" update_codegraph
+}
+
 install_codegraph() {
 	case "${INSTALL_CODEGRAPH_VALUE:-auto}" in
 	n | N | no | NO | No | false | FALSE | 0) return 0 ;;
@@ -640,6 +725,7 @@ main() {
 	local rc=0
 
 	parse_args "$@"
+	validate_operation
 	validate_ref
 
 	if try_manifest_only_uninstall; then
@@ -651,11 +737,15 @@ main() {
 
 	source_installer_core
 
-	if ! uninstall_enabled; then
+	if [ "$OPERATION" = "install" ]; then
 		install_rtk
 		install_shell_tools
 		install_serena
 		install_codegraph
+	elif [ "$OPERATION" = "update" ]; then
+		update_tooling
+	elif [ "$OPERATION" = "sync" ]; then
+		export B_AGENTIC_UPDATE_PI_EXTENSIONS=N
 	fi
 
 	validate_pi_source_layout
@@ -675,7 +765,11 @@ main() {
 	set +e
 	(
 		set -e
-		pi_install
+		if [ "$OPERATION" = "update" ]; then
+			pi_update
+		else
+			pi_install
+		fi
 	)
 	rc=$?
 	set -e

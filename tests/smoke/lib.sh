@@ -120,8 +120,8 @@ if [ "${1:-}" = "list" ]; then
   [ "$found" -eq 1 ] || printf 'No packages installed.\n'
   exit 0
 fi
-if [ "${1:-}" = "update" ] && [ "${2:-}" = "--extensions" ]; then
-  printf 'update --extensions\n' >> "$log_dir/pi-install.log"
+if [ "${1:-}" = "update" ]; then
+  printf 'update%s\n' "${2:+ $2}" >> "$log_dir/pi-install.log"
   exit 0
 fi
 if [ "${1:-}" = "install" ]; then

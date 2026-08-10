@@ -24,6 +24,7 @@ readonly EXTENSION_NAMES=(
 	b-agentic-role.ts
 	b-agentic-planner.ts
 	b-agentic-worker.ts
+	b-agentic-sync.ts
 	b-agentic-support/shell.ts
 	b-agentic-support/mcp.ts
 	b-agentic-support/role.ts
@@ -83,6 +84,23 @@ runtime_warn_missing_cli() {
 
 runtime_cli_installed() {
 	command -v pi >/dev/null 2>&1
+}
+
+runtime_update_cli() {
+	if ! command -v pi >/dev/null 2>&1; then
+		warn "Pi CLI not found; skipping Pi update"
+		return 0
+	fi
+	if dry_run_enabled; then
+		printf '[dry-run] pi update\n' >&2
+		return 0
+	fi
+	log "Updating Pi CLI with pi update"
+	if pi update; then
+		log "Pi CLI update completed"
+	else
+		warn "Pi CLI update failed; continuing"
+	fi
 }
 
 runtime_upgrade_cli() {
@@ -434,6 +452,12 @@ install_permissions_extension() {
 }
 
 update_pi_extensions() {
+	case "${B_AGENTIC_UPDATE_PI_EXTENSIONS:-Y}" in
+	n | N | no | NO | No | false | FALSE | 0)
+		log "Skipping Pi extension update"
+		return 0
+		;;
+	esac
 	if ! command -v pi >/dev/null 2>&1; then
 		log "Pi CLI missing; skipping Pi extension update"
 		return 0
@@ -639,6 +663,12 @@ runtime_uninstall_configs() {
 
 pi_install() {
 	runtime_install_common
+}
+
+pi_update() {
+	set_install_stage_total 2
+	run_stage "Updating Pi CLI" runtime_update_cli
+	run_stage "Updating Pi extensions" update_pi_extensions
 }
 
 pi_uninstall() {

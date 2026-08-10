@@ -14,10 +14,11 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const root = process.env.ROOT_DIR || process.cwd();
+process.env.B_AGENTIC_DIR = path.join(root, '.b-agentic-test');
 const installedRoot = path.join(process.env.PI_TEST_HOME || '', '.pi/agent/extensions');
 const extensionModules = await Promise.all([
   'b-agentic-permissions.ts', 'b-agentic-mcp-permissions.ts', 'b-agentic-role.ts',
-  'b-agentic-planner.ts', 'b-agentic-worker.ts',
+  'b-agentic-planner.ts', 'b-agentic-worker.ts', 'b-agentic-sync.ts',
 ].map((name) => import(pathToFileURL(path.join(installedRoot, name)).href)));
 for (const name of ['shell.ts', 'mcp.ts', 'role.ts', 'role-models.ts', 'worker.ts', 'state.ts']) {
   await import(pathToFileURL(path.join(installedRoot, 'b-agentic-support', name)).href);
@@ -41,6 +42,7 @@ let activeModel = { provider: 'anthropic', id: 'claude-sonnet-4-5' };
 let activeThinkingLevel = 'high';
 let mcpApprovalHandler;
 let roleChannelRegistration;
+const executedCommands = [];
 const extensionHost = {
   on(eventName, handler) {
     (registrations[eventName] ||= []).push(handler);
@@ -58,6 +60,10 @@ const extensionHost = {
   getFlag(name) { return flags[name]; },
   registerCommand(name, definition) { commands[name] = definition; },
   registerTool(definition) { tools[definition.name] = definition; },
+  async exec(command, args, options) {
+    executedCommands.push({ command, args, options });
+    return { code: 0, stdout: '', stderr: '', killed: false };
+  },
   getActiveTools() { return [...activeTools]; },
   setActiveTools(names) { activeTools = [...names]; },
   async setModel(model) { activeModel = model; return true; },
@@ -203,6 +209,25 @@ activeTools = ['read', 'bash', 'edit', 'write', 'recall', 'intercom', 'mcp', 'mc
 await registrations.session_start.at(-1)({}, roleContext);
 expect(activeTools.includes('edit') && activeTools.includes('write') && activeTools.includes('b_agentic_confirm_commit'), 'a session without an explicit role must remain Off with normal tools');
 expect(commands['b-role'], 'permission extension must register /b-role');
+expect(commands['b-sync'] && commands['b-update'], 'refresh extension must register /b-sync and /b-update');
+let refreshConfirmations = 0;
+let reloads = 0;
+const refreshContext = {
+  hasUI: true,
+  ui: {
+    confirm: async () => { refreshConfirmations += 1; return true; },
+    notify() {},
+  },
+  async reload() { reloads += 1; },
+};
+await commands['b-sync'].handler('', refreshContext);
+await commands['b-update'].handler('', refreshContext);
+expect(refreshConfirmations === 2, 'refresh commands must confirm external updates');
+expect(executedCommands.at(-2)?.command === 'bash' && executedCommands.at(-2)?.args.at(-1) === '--sync', '/b-sync must run the sync-only installer mode');
+expect(executedCommands.at(-1)?.command === 'bash' && executedCommands.at(-1)?.args.at(-1) === '--update', '/b-update must run the update-only installer mode');
+expect(reloads === 2, 'successful refresh commands must reload Pi');
+await commands['b-sync'].handler('unexpected', refreshContext);
+expect(executedCommands.length === 2 && reloads === 2, '/b-sync arguments must be rejected without a refresh');
 await commands['b-role'].handler('', roleContext);
 expect(rolePickerCalls === 1, '/b-role without an argument must open a role picker');
 expect(modelPickerCalls === 0, '/b-role must not open a model picker');
@@ -1026,7 +1051,7 @@ run_pi_smoke_cases() {
 	assert_file "$sandbox/home/.pi/agent/b-agentic/references/mcp_operations.yaml"
 	assert_no_path "$sandbox/home/.pi/agent/b-agentic/references/contract"
 	assert_file "$sandbox/home/.pi/agent/mcp.json"
-	for extension in b-agentic-permissions.ts b-agentic-mcp-permissions.ts b-agentic-role.ts b-agentic-planner.ts b-agentic-worker.ts; do
+	for extension in b-agentic-permissions.ts b-agentic-mcp-permissions.ts b-agentic-role.ts b-agentic-planner.ts b-agentic-worker.ts b-agentic-sync.ts; do
 		assert_file "$sandbox/home/.pi/agent/extensions/$extension"
 		assert_file "$sandbox/home/.pi/agent/b-agentic/extensions/$extension"
 	done
@@ -1042,6 +1067,39 @@ run_pi_smoke_cases() {
 	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"extensions"'
 	assert_contains "$sandbox/home/.pi/agent/AGENTS.md" 'b-agentic-managed'
 	assert_no_path "$sandbox/smoke-bin/pi-install.log"
+
+	# Split in-session modes: sync pulls/assets only; update uses installed source without Git.
+	: >"$sandbox/smoke-bin/pi-adapter-installed"
+	HOME="$sandbox/home" \
+		PATH="$(smoke_runtime_cli_path "$sandbox")" \
+		B_AGENTIC_REPO="$snapshot_repo" \
+		B_AGENTIC_DIR="$sandbox/source" \
+		B_AGENTIC_PROMPT_API_KEYS=N \
+		B_AGENTIC_INSTALL_PI_CLI=N \
+		B_AGENTIC_INSTALL_RTK=N \
+		B_AGENTIC_INSTALL_SERENA=N \
+		B_AGENTIC_INSTALL_CODEGRAPH=N \
+		B_AGENTIC_INSTALL_PI_MCP_ADAPTER=N \
+		B_AGENTIC_INSTALL_PI_OBSERVATIONAL_MEMORY=N \
+		B_AGENTIC_INSTALL_PI_USAGE=N \
+		B_AGENTIC_INSTALL_PI_INTERCOM=N \
+		bash "$ROOT_DIR/install.sh" --sync >/dev/null 2>&1
+	assert_no_path "$sandbox/smoke-bin/pi-install.log"
+	cat >"$sandbox/smoke-bin/curl" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+	chmod +x "$sandbox/smoke-bin/curl"
+	mv "$sandbox/source/.git" "$sandbox/source/.git-without-pull"
+	HOME="$sandbox/home" \
+		PATH="$(smoke_runtime_cli_path "$sandbox")" \
+		B_AGENTIC_REPO="$snapshot_repo" \
+		B_AGENTIC_DIR="$sandbox/source" \
+		B_AGENTIC_PROMPT_API_KEYS=N \
+		bash "$ROOT_DIR/install.sh" --update >/dev/null 2>&1
+	mv "$sandbox/source/.git-without-pull" "$sandbox/source/.git"
+	assert_contains "$sandbox/smoke-bin/pi-install.log" 'update'
+	assert_contains "$sandbox/smoke-bin/pi-install.log" 'update --extensions'
 
 	local behavioral_pid
 	run_pi_permission_behavioral_fixture "$sandbox" &

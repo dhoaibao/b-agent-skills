@@ -11,7 +11,7 @@ Adapter-owned layout for Pi.
 - User MCP config: `~/.pi/agent/mcp.json` (Pi-owned override read by `pi-mcp-adapter`)
 - Permission extensions: `~/.pi/agent/extensions/b-agentic-permissions.ts`,
   `b-agentic-mcp-permissions.ts`, `b-agentic-role.ts`,
-  `b-agentic-planner.ts`, and `b-agentic-worker.ts`
+  `b-agentic-planner.ts`, `b-agentic-worker.ts`, and `b-agentic-sync.ts`
 - Extension snapshots: `~/.pi/agent/b-agentic/extensions/` (one snapshot per
   installed extension; legacy manifests with only `permissionsExtension` remain supported)
 - Shared extension helpers live under the non-discovered
@@ -55,6 +55,13 @@ Coordination is deliberately lightweight:
 There are no required `B_AGENTIC_TASK`, `B_AGENTIC_RESULT`, or `B_AGENTIC_REVIEW` markers, fields, counters, or target checks. `send` is the non-blocking default; `ask` is for intentionally waiting for a response, including a genuine blocker, and `reply` remains supported. Users never relay internal messages. This single-writer lifecycle has an enforced planner analysis-only gate; worker-local automation remains available without protocol blocks.
 After checking `pi list`, the installer runs `pi update --extensions` when
 Pi extensions are installed.
+
+## In-session refresh
+
+`/b-sync` confirms, pulls the installed b-agentic checkout, syncs its managed
+Pi assets, then reloads Pi. `/b-update` confirms and upgrades installed RTK,
+Serena, CodeGraph, Pi, and Pi extensions without pulling b-agentic, then
+reloads Pi. Both commands require an interactive session and take no arguments.
 
 `pi-observational-memory` V3 does not read V2 settings or memory entries. After
 upgrading from V2, migrate its settings and start a clean Pi session. RTK's
