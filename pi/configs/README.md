@@ -104,7 +104,10 @@ that listens for `tool_call` events and:
   `rtk proxy` is unwrapped for the same safety classification as its effective
   command; auto-allows every classified Serena operation through direct Serena
   names, the adapter, and explicit managed-server gateway calls. Also auto-allows
-  classified read-only and validated conditional-read operations. Non-Serena direct
+  classified read-only and validated conditional-read operations. Explicitly
+  targeted `mcp` proxy tool executions use b-agentic's adapter broker: safe managed
+  calls auto-allow, while unsafe or unmanaged calls prompt there. Metadata and
+  lifecycle selectors remain behind the generic approval gate. Non-Serena direct
   adapter names remain gated because they share Pi's custom-tool namespace
 - uses Serena for semantic code navigation, diagnostics, precise edits/refactors,
   onboarding for unfamiliar repositories, memory tools for durable project facts,

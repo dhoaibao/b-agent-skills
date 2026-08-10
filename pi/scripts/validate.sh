@@ -151,8 +151,8 @@ if extension.exists():
     playwright_trusted = re.search(r'PLAYWRIGHT_TRUSTED_TOOLS = new Set\(\[(.*?)\]\)', text, re.DOTALL)
     if playwright_trusted and re.search(r'"browser_click"', playwright_trusted.group(1)):
         errors.append(f'{extension}: browser_click must not be in PLAYWRIGHT_TRUSTED_TOOLS')
-    if 'isTrustedManagedGatewayCall' not in text or 'if (toolName === "mcp") return !isTrustedManagedGatewayCall(input);' not in text:
-        errors.append(f'{extension}: must classify top-level MCP gateway calls by managed ownership and safety')
+    if 'isTrustedManagedGatewayCall' not in text or 'isMcpProxyToolExecution' not in text or 'if (toolName === "mcp") return !isMcpProxyToolExecution(input);' not in text:
+        errors.append(f'{extension}: must route only explicit MCP proxy executions through the adapter broker')
     if 'Blocked' not in text or 'protected path' not in text:
         errors.append(f'{extension}: must block protected paths')
     # read must share protected-path handling with write/edit

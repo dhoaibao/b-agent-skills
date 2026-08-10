@@ -28,10 +28,12 @@ export default function bAgenticMcpPermissions(pi: ExtensionAPI): void {
       value.claim(() => policy.brokerApprovalDecision(value, currentContext));
       return;
     }
-    if (["direct", "resource", "proxy"].includes(value.origin)) {
+    if (["direct", "resource"].includes(value.origin)) {
       value.claim(() => "abstain");
       return;
     }
+    // Top-level proxy calls bypass the generic mcp handler, so unsafe and
+    // unmanaged requests must use the broker rather than abstaining.
     value.claim(() => policy.brokerApprovalDecision(value, currentContext));
   });
 }

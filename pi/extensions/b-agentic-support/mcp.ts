@@ -826,14 +826,23 @@ export function gatewayToolMatchesServer(server: string, toolName: string): bool
   return true;
 }
 
+/** Return true only for an explicitly targeted adapter proxy execution. */
+type McpProxyToolExecution = { server: string; tool: string; args?: unknown };
+
+export function isMcpProxyToolExecution(input: unknown): input is McpProxyToolExecution {
+  if (!isPlainObject(input)) return false;
+  if (!Object.keys(input).every((key) => ["server", "tool", "args"].includes(key))) return false;
+  if (typeof input.server !== "string" || input.server.trim() === "") return false;
+  if (typeof input.tool !== "string" || input.tool.trim() === "") return false;
+  return gatewayArgs(input.args) !== undefined;
+}
+
 /**
  * A gateway name shares Pi's custom-tool namespace, so auto-allow only an
  * unambiguous call to an explicitly classified managed operation.
  */
 export function isTrustedManagedGatewayCall(input: unknown): boolean {
-  if (!isPlainObject(input)) return false;
-  if (!Object.keys(input).every((key) => ["server", "tool", "args"].includes(key))) return false;
-  if (typeof input.server !== "string" || typeof input.tool !== "string") return false;
+  if (!isMcpProxyToolExecution(input)) return false;
   const server = normalizeServerId(input.server);
   const args = gatewayArgs(input.args);
   return args !== undefined && isManagedServer(server) &&
@@ -844,7 +853,9 @@ export function isTrustedManagedGatewayCall(input: unknown): boolean {
 /** Returns true when the top-level tool call needs the custom/MCP approval prompt. */
 export function isMcpOrCustomTool(toolName: string, input?: unknown): boolean {
   if (SPECIALIZED_TOOLS.has(toolName)) return false;
-  if (toolName === "mcp") return !isTrustedManagedGatewayCall(input);
+  // Only explicit adapter proxy executions reach the broker; metadata and
+  // lifecycle selectors remain behind the generic custom-tool approval gate.
+  if (toolName === "mcp") return !isMcpProxyToolExecution(input);
   if (SERENA_TRUSTED_TOOLS.has(toolName) &&
     isTrustedManagedTool("serena", toolName, input)) return false;
   if (toolName.startsWith("mcp__serena__")) {
