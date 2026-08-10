@@ -124,19 +124,19 @@ let commitConfirmation;
 const approvedCommit = await tools.b_agentic_confirm_commit.execute('', { proposal: '1. fix: preserve test\n   Files: tests/smoke/install.sh' }, undefined, () => {}, {
   hasUI: true,
   ui: {
-    confirm: async (title, message) => {
-      commitConfirmation = { title, message };
-      return true;
+    select: async (title, options) => {
+      commitConfirmation = { title, options };
+      return 'Approve';
     },
   },
 });
 expect(approvedCommit.details.approved === true && approvedCommit.details.uiAvailable === true, 'approved commit confirmation must report approval');
-expect(commitConfirmation.title === 'Confirm commits' && commitConfirmation.message.includes('fix: preserve test'), 'commit confirmation must show the exact proposal');
-const declinedCommit = await tools.b_agentic_confirm_commit.execute('', { proposal: 'proposal' }, undefined, () => {}, { hasUI: true, ui: { confirm: async () => false } });
+expect(commitConfirmation.title.includes('Confirm commits') && commitConfirmation.title.includes('fix: preserve test') && commitConfirmation.options.join(',') === 'Approve,Cancel', 'commit confirmation must show the exact proposal in a selection UI');
+const declinedCommit = await tools.b_agentic_confirm_commit.execute('', { proposal: 'proposal' }, undefined, () => {}, { hasUI: true, ui: { select: async () => 'Cancel' } });
 expect(declinedCommit.details.approved === false && declinedCommit.details.uiAvailable === true, 'declined commit confirmation must not approve commits');
-const unavailableCommit = await tools.b_agentic_confirm_commit.execute('', { proposal: 'proposal' }, undefined, () => {}, { hasUI: false, ui: { confirm: async () => true } });
+const unavailableCommit = await tools.b_agentic_confirm_commit.execute('', { proposal: 'proposal' }, undefined, () => {}, { hasUI: false, ui: { select: async () => 'Approve' } });
 expect(unavailableCommit.details.approved === false && unavailableCommit.details.uiAvailable === false, 'commit confirmation must require an interactive UI');
-const noUiContext = { hasUI: false, ui: { confirm: async () => true } };
+const noUiContext = { hasUI: false, ui: { select: async () => 'Approve' } };
 expect(await toolCallHandler({ toolName: 'b_agentic_confirm_commit', input: { proposal: 'proposal' } }, noUiContext) === undefined, 'commit confirmation must bypass generic custom-tool approval');
 let rolePickerCalls = 0;
 let modelPickerCalls = 0;

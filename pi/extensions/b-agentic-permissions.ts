@@ -59,16 +59,20 @@ export default function bAgenticPermissions(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "b_agentic_confirm_commit",
     label: "Confirm commits",
-    description: "Open a yes/no confirmation for the exact proposed commits. Call only after presenting the proposal to the user.",
+    description: "Open a selection UI for the exact proposed commits. Call only after presenting the proposal to the user.",
     parameters: COMMIT_CONFIRMATION_PARAMETERS as any,
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
       if (!ctx.hasUI) {
         return {
-          content: [{ type: "text", text: "No interactive UI is available; ask the user for text confirmation." }],
+          content: [{ type: "text", text: "No interactive UI is available; commit creation blocked." }],
           details: { approved: false, uiAvailable: false },
         };
       }
-      const approved = await ctx.ui.confirm("Confirm commits", `${params.proposal}\n\nStage and create these commits?`);
+      const choice = await ctx.ui.select(
+        `Confirm commits\n\n${params.proposal}\n\nStage and create these commits?`,
+        ["Approve", "Cancel"],
+      );
+      const approved = choice === "Approve";
       return {
         content: [{ type: "text", text: approved ? "Commit creation approved." : "Commit creation declined." }],
         details: { approved, uiAvailable: true },
