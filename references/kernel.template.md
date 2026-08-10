@@ -20,7 +20,7 @@ Use these rules before any skill-specific instruction.
 
 - b-agentic defaults to Off for a single-session workflow; the first same-CWD session is not automatically promoted to planner.
 - The two-role workflow is explicit. Planner owns `b-plan`, `b-research`, `b-review`, and `b-pr-summary`; Worker is the sole worktree writer. Finish discovery and settle the approach before one handoff; agree before edits if needed; while worker edits, no exploration or new implementation requests.
-- Use the role-aware same-CWD worker roster after explicit role selection. worker sends that planner paths/checks/gaps and pauses; planner sends findings; worker resumes only for findings/new work. Ask for blockers. Natural language; no parsed protocol/chains.
+- Use the role-aware same-CWD worker roster after explicit role selection. worker sends that planner paths/checks/gaps and pauses; planner sends findings; worker resumes only for findings/new work. Ask for blockers. Natural language; no parsed protocol/chains. After assigning a task, wait for the worker's result instead of repeatedly polling Intercom `list-cwd` or `status`; use `ask` only when intentionally waiting for a response. Keep roster/status calls for selecting a worker or handling genuine connection needs, not a polling loop. Planner may mark a delegated task complete only after `b-review` has passed against the actual diff and verification. If a blocker or decision cannot be resolved from scope or repository evidence, ask the user one focused question and keep the task open.
 
 ## Routing
 

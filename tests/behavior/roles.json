@@ -93,6 +93,42 @@
         "Delegate the fix to another worker",
         "Continue editing after requesting re-review"
       ]
+    },
+    {
+      "id": "planner-completion-gate-and-user-blocker",
+      "role": "planner",
+      "skill": "b-review",
+      "observed_failure": "Planners marked delegated tasks complete before review passed or closed unresolved blockers by inventing a decision from incomplete evidence.",
+      "intended_behavior": "The planner keeps the task open until b-review passes and asks the user when scope and repository evidence cannot resolve a blocker or decision.",
+      "prompt": "The worker has sent an implementation with verification, but b-review has not passed and a material decision cannot be resolved from the scope or repository evidence. Describe whether you mark the task done and what you send next.",
+      "must": [
+        "Keep the task open until b-review has passed against the actual diff and verification",
+        "Ask the user one focused question when the blocker or decision cannot be resolved from scope or repository evidence",
+        "Keep the worker as the sole worktree writer and use natural-language Intercom coordination"
+      ],
+      "avoid": [
+        "Mark the task done before b-review passes",
+        "Invent a decision or close the task on unresolved ambiguity",
+        "Introduce a rigid protocol or state machine"
+      ]
+    },
+    {
+      "id": "planner-waits-after-worker-handoff",
+      "role": "planner",
+      "skill": "b-plan",
+      "observed_failure": "Planners repeatedly polled list-cwd or status after assigning work instead of waiting for the worker's result, adding coordination noise without improving readiness.",
+      "intended_behavior": "The planner uses natural-language send for the handoff, waits for the worker result, and reserves ask, roster, and status calls for intentional waiting, worker selection, or genuine connection needs.",
+      "prompt": "You assigned a bounded task to a ready same-directory worker. Describe what you do after the handoff while the worker edits, including whether you repeatedly call list-cwd or status and when ask is appropriate.",
+      "must": [
+        "Wait for the worker's result after the natural-language send handoff",
+        "Use ask only when intentionally waiting for a response",
+        "Reserve list-cwd and status for selecting a worker or handling genuine connection needs"
+      ],
+      "avoid": [
+        "Repeatedly poll list-cwd or status after assignment",
+        "Invent a structured coordination state machine",
+        "Continue issuing implementation requests while the worker edits"
+      ]
     }
   ]
 }

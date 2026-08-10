@@ -47,12 +47,12 @@ The worker is the sole worktree writer. It sequences `b-implement`, `b-debug`, `
 
 Coordination is deliberately lightweight:
 
-1. The planner uses Intercom `send` for a natural-language task with goal, scope or invariants, and useful success checks.
+1. The planner uses Intercom `send` for a natural-language task with goal, scope or invariants, and useful success checks. After assigning a task, the planner waits for the worker's result instead of repeatedly polling `list-cwd` or `status`; `ask` is for intentionally waiting for a response. Roster/status calls remain for selecting a worker or handling genuine connection needs, not a polling loop.
 2. The worker implements and verifies, then uses `send` to the assigning planner for changed paths, verification outcomes, and gaps before pausing all edits.
-3. The planner reviews and uses `send` for actionable findings or approval. Findings resume worker edits; the worker fixes, verifies, and requests review again until approved.
+3. The planner reviews and uses `send` for actionable findings or approval. The planner may mark the task complete only after `b-review` has passed against the actual diff and verification. Findings resume worker edits; the worker fixes, verifies, and requests review again until approved. If a blocker or decision cannot be resolved from scope or repository evidence, ask the user one focused question and keep the task open.
 4. After approval the worker remains idle; leave planner mode before an explicit `b-commit` or release action when normally authorized.
 
-There are no required `B_AGENTIC_TASK`, `B_AGENTIC_RESULT`, or `B_AGENTIC_REVIEW` markers, fields, counters, or target checks. `send` is the non-blocking default; `ask` is only for a genuine blocker when waiting is intentional, and `reply` remains supported. Users never relay internal messages. This single-writer lifecycle has an enforced planner analysis-only gate; worker-local automation remains available without protocol blocks.
+There are no required `B_AGENTIC_TASK`, `B_AGENTIC_RESULT`, or `B_AGENTIC_REVIEW` markers, fields, counters, or target checks. `send` is the non-blocking default; `ask` is for intentionally waiting for a response, including a genuine blocker, and `reply` remains supported. Users never relay internal messages. This single-writer lifecycle has an enforced planner analysis-only gate; worker-local automation remains available without protocol blocks.
 After checking `pi list`, the installer runs `pi update --extensions` when
 Pi extensions are installed.
 

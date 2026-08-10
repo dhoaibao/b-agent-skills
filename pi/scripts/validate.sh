@@ -48,6 +48,10 @@ if kernel.exists():
         'worker sends that planner paths/checks/gaps and pauses',
         'worker resumes only for findings/new work',
         'Natural language; no parsed protocol/chains',
+        'After assigning a task, wait for the worker\'s result instead of repeatedly polling Intercom `list-cwd` or `status`',
+        'Keep roster/status calls for selecting a worker or handling genuine connection needs, not a polling loop',
+        'Planner may mark a delegated task complete only after `b-review` has passed',
+        'If a blocker or decision cannot be resolved from scope or repository evidence, ask the user one focused question and keep the task open',
     ]:
         if marker not in text:
             errors.append(f'{kernel}: missing {marker!r}')
