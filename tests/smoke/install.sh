@@ -98,6 +98,20 @@ EOF
 
 	assert_contains "$mcp_path" '"user-server"'
 	assert_contains "$mcp_path" '"codegraph"'
+	assert_json_value "$mcp_path" "data['settings']['requestTimeoutMs'] == 30000"
+
+	python3 - "$mcp_path" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+data = json.loads(path.read_text())
+data.setdefault('settings', {})['requestTimeoutMs'] = 12345
+path.write_text(json.dumps(data) + '\n')
+PY
+expect_install_status 0 "$sandbox" "$snapshot_repo"
+assert_json_value "$mcp_path" "data['settings']['requestTimeoutMs'] == 12345"
 
 	manifest_path="$sandbox/home/.pi/agent/b-agentic/install.json"
 	assert_file "$manifest_path"

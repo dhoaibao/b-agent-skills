@@ -77,8 +77,10 @@ only `permissionsExtension` are restored using the original compatibility path.
 It does not remove any of these packages.
 
 Servers default to lazy lifecycle through the adapter's proxy tool so schemas
-are not eagerly injected into context. Optional adapter-specific `directTools`
-settings can expose selected tools individually when needed.
+are not eagerly injected into context. The template sets the adapter's global
+`settings.requestTimeoutMs` to 30000 milliseconds (30 seconds), giving every
+MCP request a finite deadline. Optional adapter-specific `directTools` settings
+can expose selected tools individually when needed.
 
 ## Safety
 

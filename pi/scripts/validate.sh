@@ -68,6 +68,8 @@ if mcp.exists():
     settings = data.get('settings', {})
     if settings.get('directTools') not in (False, None):
         errors.append(f'{mcp}: default directTools must be false (proxy tool default)')
+    if settings.get('requestTimeoutMs') != 30000:
+        errors.append(f'{mcp}: default requestTimeoutMs must be 30000 milliseconds')
 
 if extension.exists():
     text = '\n'.join(path.read_text() for path in extension_files if path.exists())
