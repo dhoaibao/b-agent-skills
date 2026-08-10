@@ -16,6 +16,7 @@ import {
 import * as shell from "./b-agentic-support/shell.ts";
 import * as mcp from "./b-agentic-support/mcp.ts";
 import * as role from "./b-agentic-support/role.ts";
+import { getRole } from "./b-agentic-support/state.ts";
 
 // Keep this standalone extension free of package-resolution dependencies.
 const COMMIT_CONFIRMATION_PARAMETERS = {
@@ -47,6 +48,16 @@ export default function bAgenticPermissions(pi: ExtensionAPI): void {
       };
     },
   });
+
+  // registerTool makes the definition available, but Pi only exposes tools in
+  // its active set to the model. Add this tool for normal sessions while
+  // leaving planner activation to the role extension's safe-tool filter.
+  if (getRole() !== "planner") {
+    const activeTools = pi.getActiveTools();
+    if (!activeTools.includes("b_agentic_confirm_commit")) {
+      pi.setActiveTools([...activeTools, "b_agentic_confirm_commit"]);
+    }
+  }
 
   pi.on("tool_call", async (event, ctx) => {
     if (event.toolName === "bash") {

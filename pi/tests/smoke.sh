@@ -109,6 +109,7 @@ expect(t.isAutoApprovedIntercomCall('intercom', { action: 'reply', replyTo: 'mes
 expect(typeof toolCallHandler === 'function', 'permission extension must register a tool_call handler');
 expect(typeof mcpApprovalHandler === 'function', 'permission extension must register the MCP approval broker');
 expect(tools.b_agentic_confirm_commit, 'permission extension must register the commit confirmation tool');
+expect(activeTools.includes('b_agentic_confirm_commit'), 'registered commit confirmation tool must be active in normal sessions');
 let commitConfirmation;
 const approvedCommit = await tools.b_agentic_confirm_commit.execute('', { proposal: '1. fix: preserve test\n   Files: tests/smoke/install.sh' }, undefined, () => {}, {
   hasUI: true,
@@ -159,7 +160,7 @@ const roleContext = {
 };
 branchEntries.push({
   type: 'custom', customType: 'b-agentic-role',
-  data: { role: 'planner', toolsBeforePlanner: ['read', 'bash', 'edit', 'write'] },
+  data: { role: 'planner', toolsBeforePlanner: ['read', 'bash', 'edit', 'write', 'b_agentic_confirm_commit'] },
 });
 activeTools = ['read', 'bash'];
 await handlers.session_start({}, roleContext);
@@ -188,16 +189,17 @@ const plannerAndWorkerClaim = [
 ];
 expect(roleTest.canClaimWorker(plannerAndWorkerClaim, root) === true, 'a two-role session may claim its explicit worker');
 expect(roleTest.canClaimWorker([...plannerAndWorkerClaim, { id: 'other', cwd: root, pid: 303, startedAt: 3 }], root) === false, 'a third same-CWD session must not claim another worker');
-expect(activeTools.length === 2 && activeTools.includes('read') && activeTools.includes('bash'), 'persisted planner role must restore its safe analysis tool set');
+expect(activeTools.length === 2 && activeTools.includes('read') && activeTools.includes('bash') && !activeTools.includes('b_agentic_confirm_commit'), 'persisted planner role must restore its safe analysis tool set');
 expect(persistedEntries.at(-1)?.data.toolsBeforePlanner?.includes('write'), 'persisted planner tools must remain available for restoration after leaving the role');
 activeTools = ['read', 'bash'];
 await handlers.session_start({}, roleContext);
 expect(activeTools.length === 2 && activeTools.includes('read') && activeTools.includes('bash'), 'planner role must retain safe analysis tools on later resumes');
 await commands['b-role'].handler('off', roleContext);
+expect(activeTools.includes('b_agentic_confirm_commit'), 'leaving planner mode must restore the active commit confirmation tool');
 branchEntries.length = 0;
-activeTools = ['read', 'bash', 'edit', 'write', 'recall', 'intercom', 'mcp', 'mcpScript'];
+activeTools = ['read', 'bash', 'edit', 'write', 'recall', 'intercom', 'mcp', 'mcpScript', 'b_agentic_confirm_commit'];
 await registrations.session_start.at(-1)({}, roleContext);
-expect(activeTools.includes('edit') && activeTools.includes('write'), 'a session without an explicit role must remain Off with normal tools');
+expect(activeTools.includes('edit') && activeTools.includes('write') && activeTools.includes('b_agentic_confirm_commit'), 'a session without an explicit role must remain Off with normal tools');
 expect(commands['b-role'], 'permission extension must register /b-role');
 await commands['b-role'].handler('', roleContext);
 expect(rolePickerCalls === 1, '/b-role without an argument must open a role picker');
@@ -213,11 +215,11 @@ for (const toolName of ['edit', 'write', 'mcpScript', 'b_agentic_confirm_commit'
 branchEntries.length = 0;
 branchEntries.push({
   type: 'custom', customType: 'b-agentic-role',
-  data: { role: 'planner', automatic: true, toolsBeforePlanner: ['read', 'bash', 'edit', 'write'] },
+  data: { role: 'planner', automatic: true, toolsBeforePlanner: ['read', 'bash', 'edit', 'write', 'b_agentic_confirm_commit'] },
 });
-activeTools = ['read', 'bash', 'edit', 'write', 'recall', 'intercom', 'mcp', 'mcpScript'];
+activeTools = ['read', 'bash', 'edit', 'write', 'recall', 'intercom', 'mcp', 'mcpScript', 'b_agentic_confirm_commit'];
 await registrations.session_start.at(-1)({}, roleContext);
-expect(activeTools.includes('edit') && activeTools.includes('write'), 'legacy automatic planner state must migrate to Off');
+expect(activeTools.includes('edit') && activeTools.includes('write') && activeTools.includes('b_agentic_confirm_commit'), 'legacy automatic planner state must migrate to Off');
 const migratedLegacyStart = await handlers.before_agent_start({ systemPrompt: 'base' }, roleContext);
 expect(!migratedLegacyStart?.systemPrompt?.includes('planner profile (read-only coordinator)'), 'legacy automatic planner state must not activate planner prompt');
 branchEntries.length = 0;
@@ -225,9 +227,9 @@ branchEntries.push({
   type: 'custom', customType: 'b-agentic-role',
   data: { role: 'planner' },
 });
-activeTools = ['read', 'bash', 'edit', 'write', 'recall', 'intercom', 'mcp', 'mcpScript'];
+activeTools = ['read', 'bash', 'edit', 'write', 'recall', 'intercom', 'mcp', 'mcpScript', 'b_agentic_confirm_commit'];
 await registrations.session_start.at(-1)({}, roleContext);
-expect(!activeTools.includes('write') && !activeTools.includes('edit'), 'an explicitly persisted planner must restore planner-safe tools');
+expect(!activeTools.includes('write') && !activeTools.includes('edit') && !activeTools.includes('b_agentic_confirm_commit'), 'an explicitly persisted planner must restore planner-safe tools');
 for (const command of ['rtk git status --short', 'fdfind -t f SKILL.md skills', 'eza -la', 'codegraph init']) {
   expect(await toolCallHandler({ toolName: 'bash', input: { command } }, roleContext) === undefined, `planner role must allow safe discovery: ${command}`);
 }
@@ -258,7 +260,7 @@ expect(!activeTools.includes('edit') && !activeTools.includes('write'), 'an expl
 activePeerWorker = false;
 await roleChannelRegistration.onEvent({ type: 'session_left', sessionId: 'active-worker' });
 await commands['b-role'].handler('worker', roleContext);
-expect(activeTools.includes('edit') && activeTools.includes('write') && activeTools.includes('bash'), 'worker role must restore normal tools');
+expect(activeTools.includes('edit') && activeTools.includes('write') && activeTools.includes('bash') && activeTools.includes('b_agentic_confirm_commit'), 'worker role must restore normal tools');
 expect(await toolCallHandler({ toolName: 'edit', input: { path: 'README.md', edits: [] } }, roleContext) === undefined, 'worker role must not wait for a structured assignment');
 for (const skill of ['b-implement', 'b-debug', 'b-refactor', 'b-test', 'b-browser', 'b-research', 'b-design', 'b-init']) {
   expect(await toolCallHandler({ toolName: 'read', input: { path: path.join(root, `skills/${skill}/SKILL.md`) } }, roleContext) === undefined, `worker role must allow task-appropriate skill ${skill}`);
