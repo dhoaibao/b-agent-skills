@@ -31,11 +31,11 @@ async function runRefresh(pi: ExtensionAPI, mode: "--sync" | "--update", args: s
 
 export default function bAgenticSync(pi: ExtensionAPI): void {
   pi.registerCommand("b-sync", {
-    description: "Pull and install the latest b-agentic assets, then reload Pi",
+    description: "Pull and sync managed Pi assets, then reload Pi",
     handler: (args, ctx) => runRefresh(pi, "--sync", args, ctx),
   });
   pi.registerCommand("b-update", {
-    description: "Update installed b-agentic tooling without pulling b-agentic, then reload Pi",
+    description: "Update installed b-agentic tooling without pulling or installing b-agentic, then reload Pi",
     handler: (args, ctx) => runRefresh(pi, "--update", args, ctx),
   });
 }

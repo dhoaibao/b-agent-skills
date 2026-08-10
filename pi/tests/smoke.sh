@@ -1093,22 +1093,41 @@ run_pi_smoke_cases() {
 	assert_no_path "$sandbox/smoke-bin/pi-install.log"
 
 	# Split in-session modes: sync pulls/assets only; update uses installed source without Git.
-	: >"$sandbox/smoke-bin/pi-adapter-installed"
-	HOME="$sandbox/home" \
+	# Exercise sync with the default environment so package, Pi CLI, and MCP setup
+	# cannot be hidden by opt-out flags.
+	local sync_mcp_snapshot="$sandbox/sync-mcp.json"
+	local sync_manifest_snapshot="$sandbox/sync-manifest.json"
+	local sync_helper_snapshot="$sandbox/sync-helper.py"
+	cp "$sandbox/home/.pi/agent/mcp.json" "$sync_mcp_snapshot"
+	cp "$sandbox/home/.pi/agent/b-agentic/install.json" "$sync_manifest_snapshot"
+	cp "$sandbox/home/.pi/agent/b-agentic/tooling/install/manifest_uninstall.py" "$sync_helper_snapshot"
+	rm -rf "$sandbox/home/.pi/agent/skills/b-plan"
+	printf '\n<!-- stale sync fixture -->\n' >>"$sandbox/home/.pi/agent/AGENTS.md"
+	printf '\n// stale sync fixture\n' >>"$sandbox/home/.pi/agent/extensions/b-agentic-sync.ts"
+	env \
+		-u B_AGENTIC_PROMPT_API_KEYS \
+		-u B_AGENTIC_INSTALL_PI_CLI \
+		-u B_AGENTIC_INSTALL_RTK \
+		-u B_AGENTIC_INSTALL_SERENA \
+		-u B_AGENTIC_INSTALL_CODEGRAPH \
+		-u B_AGENTIC_INSTALL_PI_MCP_ADAPTER \
+		-u B_AGENTIC_INSTALL_PI_OBSERVATIONAL_MEMORY \
+		-u B_AGENTIC_INSTALL_PI_USAGE \
+		-u B_AGENTIC_INSTALL_PI_INTERCOM \
+		HOME="$sandbox/home" \
 		PATH="$(smoke_runtime_cli_path "$sandbox")" \
 		B_AGENTIC_REPO="$snapshot_repo" \
 		B_AGENTIC_DIR="$sandbox/source" \
-		B_AGENTIC_PROMPT_API_KEYS=N \
-		B_AGENTIC_INSTALL_PI_CLI=N \
-		B_AGENTIC_INSTALL_RTK=N \
-		B_AGENTIC_INSTALL_SERENA=N \
-		B_AGENTIC_INSTALL_CODEGRAPH=N \
-		B_AGENTIC_INSTALL_PI_MCP_ADAPTER=N \
-		B_AGENTIC_INSTALL_PI_OBSERVATIONAL_MEMORY=N \
-		B_AGENTIC_INSTALL_PI_USAGE=N \
-		B_AGENTIC_INSTALL_PI_INTERCOM=N \
 		bash "$ROOT_DIR/install.sh" --sync >/dev/null 2>&1
 	assert_no_path "$sandbox/smoke-bin/pi-install.log"
+	assert_equal_files "$sandbox/home/.pi/agent/mcp.json" "$sync_mcp_snapshot"
+	assert_equal_files "$sandbox/home/.pi/agent/b-agentic/install.json" "$sync_manifest_snapshot"
+	assert_equal_files "$sandbox/home/.pi/agent/b-agentic/tooling/install/manifest_uninstall.py" "$sync_helper_snapshot"
+	assert_equal_files "$sandbox/home/.pi/agent/skills/b-plan/SKILL.md" "$sandbox/source/skills/b-plan/SKILL.md"
+	assert_equal_files "$sandbox/home/.pi/agent/AGENTS.md" "$sandbox/source/references/kernel.template.md"
+	assert_equal_files "$sandbox/home/.pi/agent/extensions/b-agentic-sync.ts" "$sandbox/source/pi/extensions/b-agentic-sync.ts"
+	# Mark an existing package only for the update-mode proof below.
+	: >"$sandbox/smoke-bin/pi-adapter-installed"
 	cat >"$sandbox/smoke-bin/curl" <<'EOF'
 #!/usr/bin/env bash
 exit 0

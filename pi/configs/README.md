@@ -58,10 +58,12 @@ Pi extensions are installed.
 
 ## In-session refresh
 
-`/b-sync` confirms, pulls the installed b-agentic checkout, syncs its managed
-Pi assets, then reloads Pi. `/b-update` confirms and upgrades installed RTK,
-Serena, CodeGraph, Pi, and Pi extensions without pulling b-agentic, then
-reloads Pi. Both commands require an interactive session and take no arguments.
+`/b-sync` confirms, pulls the installed b-agentic checkout, and syncs only
+managed Pi skills, kernel, and first-party extensions before reloading Pi. It
+does not install packages or change MCP configuration. `/b-update` confirms
+and updates already-installed RTK, Serena, CodeGraph, Pi, and Pi extensions
+without pulling b-agentic or installing missing components, then reloads Pi.
+Both commands require an interactive session and take no arguments.
 
 `pi-observational-memory` V3 does not read V2 settings or memory entries. After
 upgrading from V2, migrate its settings and start a clean Pi session. RTK's

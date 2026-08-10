@@ -1429,6 +1429,20 @@ runtime_cli_installed() { return 1; }
 runtime_upgrade_cli() { :; }
 runtime_install_config_stage_count() { printf '0'; }
 
+runtime_sync_common() {
+  set_install_stage_total 3
+
+  run_stage "Syncing skills" install_skills
+  run_install_triplet_stage "Syncing kernel" install_kernel "preserve" "pending" "none" \
+    INSTALL_MEMORY_ACTION INSTALL_ACTIVATION_STATE INSTALL_MEMORY_BACKUP
+  run_install_triplet_stage "Syncing Pi extensions" install_permissions_extension "skip" "none" "none" \
+    INSTALL_EXTENSION_ACTION INSTALL_EXTENSION_STATE INSTALL_EXTENSION_BACKUP
+
+  if [ "$INSTALL_ACTIVATION_STATE" = "pending" ]; then
+    return 2
+  fi
+}
+
 runtime_install_common() {
   local config_stage_count=0
   local install_stage_count=5

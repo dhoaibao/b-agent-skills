@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # install.sh - Bootstrap or update b-agentic
-# Bootstraps source sync, then installs the Pi kernel, skills, config, and
-# permission extension through the shared installer core.
+# Bootstraps source sync, then installs or refreshes Pi-managed assets through
+# the shared installer core.
 #
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agentic/main/install.sh | bash
@@ -744,8 +744,6 @@ main() {
 		install_codegraph
 	elif [ "$OPERATION" = "update" ]; then
 		update_tooling
-	elif [ "$OPERATION" = "sync" ]; then
-		export B_AGENTIC_UPDATE_PI_EXTENSIONS=N
 	fi
 
 	validate_pi_source_layout
@@ -765,11 +763,11 @@ main() {
 	set +e
 	(
 		set -e
-		if [ "$OPERATION" = "update" ]; then
-			pi_update
-		else
-			pi_install
-		fi
+		case "$OPERATION" in
+		update) pi_update ;;
+		sync) pi_sync ;;
+		*) pi_install ;;
+		esac
 	)
 	rc=$?
 	set -e

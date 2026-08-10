@@ -665,6 +665,10 @@ pi_install() {
 	runtime_install_common
 }
 
+pi_sync() {
+	runtime_sync_common
+}
+
 pi_update() {
 	set_install_stage_total 2
 	run_stage "Updating Pi CLI" runtime_update_cli
