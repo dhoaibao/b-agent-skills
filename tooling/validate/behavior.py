@@ -81,6 +81,8 @@ INTERCOM_DELEGATION_REGRESSION = {
         "The two-role workflow is explicit",
         "Planner owns `b-plan`, `b-research`, `b-review`, and `b-pr-summary`",
         "Worker is the sole worktree writer",
+        "Finish discovery and settle the approach before one handoff",
+        "while worker edits, no exploration or new implementation requests",
         "Use the role-aware same-CWD worker roster after explicit role selection",
         "worker sends that planner paths/checks/gaps and pauses",
         "worker resumes only for findings/new work",

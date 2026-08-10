@@ -50,6 +50,10 @@ Figure out what to do when the task is unclear, then turn the chosen path into t
 
 For plans spanning more than 3 files, public contracts, dependencies, CI/build, or durable coordination, save a plan under `.b-agentic/b-plan/` only if it will materially help execution.
 
+## Planner/worker sequencing
+
+For a two-role task, finish discovery and settle the approach before one bounded implementation handoff. If the worker needs clarification, agree on the final approach together before edits begin. Once the worker starts editing, stop exploration and do not issue new implementation requests; wait for the result and review it.
+
 ## Output format
 
 Concise scope, recommended path, ordered steps, verification, and explicit blockers. Ask for approval before implementation.

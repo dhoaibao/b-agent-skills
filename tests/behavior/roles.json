@@ -22,6 +22,25 @@
       ]
     },
     {
+      "id": "planner-finishes-discovery-before-handoff",
+      "role": "planner",
+      "skill": "b-plan",
+      "observed_failure": "Planner handed off before finishing discovery, then continued exploring and issued new implementation requests while the worker edited, causing scope drift.",
+      "intended_behavior": "The planner finishes discovery and settles one bounded approach before handoff; planner and worker may agree on the final approach before edits, then the planner stops exploring and issuing implementation requests while the worker edits.",
+      "prompt": "A same-directory worker is available for a feature that needs repository exploration before implementation. Describe how you sequence discovery, the handoff, any approach agreement, and coordination after the worker starts editing.",
+      "must": [
+        "Finish the necessary discovery and settle the approach before one bounded handoff",
+        "Send one natural-language implementation handoff to the worker",
+        "If needed, agree with the worker on the final approach before edits begin",
+        "Stop exploration and new implementation requests once the worker starts editing"
+      ],
+      "avoid": [
+        "Send speculative follow-up implementation requests",
+        "Continue researching while the worker edits",
+        "Perform the implementation in the planner session"
+      ]
+    },
+    {
       "id": "worker-targets-planner-and-pauses",
       "role": "worker",
       "skill": "b-implement",

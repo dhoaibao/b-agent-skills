@@ -49,6 +49,10 @@ Make the scoped change in the smallest coherent step, and hand back to planning 
 9. If verification exposes an in-scope defect without a material blocker, correct it and rerun the required check. Otherwise stop under step 6.
 10. Inspect changed paths with metadata-only Git output, then inspect diffs only for explicit non-protected paths and report changes, verification, and remaining gaps.
 
+## Planner/worker sequencing
+
+For planner-assigned work, treat the handoff as bounded. Resolve ambiguity and agree on the final approach with the planner before editing; once editing starts, do not expand scope from exploratory requests. Report new material uncertainty and pause for agreement rather than continuing.
+
 ## Output format
 
 Changes, verification, and any blockers or follow-up. Recommend **b-review** for non-trivial changes.
