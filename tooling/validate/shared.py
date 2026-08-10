@@ -459,11 +459,11 @@ for tool_boundary_marker in [
         )
 
 for intercom_marker in [
-    "`/b-role planner|worker|off` is opt-in",
-    "When selected, roles enforce ownership: planner is read-only and worker is the sole repository writer",
-    "Planner owns planning/delegation/review",
-    "safe discovery and read-only MCP calls support it",
-    "Worker may use any suitable skill",
+    "Planner and worker are the default collaboration roles",
+    "The first same-CWD session is planner",
+    "Planner owns `b-plan`, `b-research`, `b-review`, and `b-pr-summary`",
+    "Worker is the sole worktree writer",
+    "Use the role-aware same-CWD worker roster before delegation",
     "worker sends that planner paths/checks/gaps and pauses",
     "worker resumes only for findings/new work",
     "Natural language; no parsed protocol/chains",

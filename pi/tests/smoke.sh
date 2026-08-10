@@ -45,7 +45,7 @@ run_pi_smoke_cases() {
 		assert_file "$sandbox/home/.pi/agent/extensions/$extension"
 		assert_file "$sandbox/home/.pi/agent/b-agentic/extensions/$extension"
 	done
-	for support in shell.ts mcp.ts role.ts worker.ts state.ts; do
+	for support in shell.ts mcp.ts role.ts role-models.ts worker.ts state.ts; do
 		assert_file "$sandbox/home/.pi/agent/extensions/b-agentic-support/$support"
 		assert_file "$sandbox/home/.pi/agent/b-agentic/extensions/b-agentic-support/$support"
 	done
@@ -200,8 +200,8 @@ PY
 	assert_file "$sandbox_skill_symlink/target-skill/SKILL.md"
 
 	# Behavioral permission coverage via node --experimental-strip-types (no Pi runtime).
-	ROOT_DIR="$ROOT_DIR" PI_TEST_HOME="$sandbox/home" node --experimental-strip-types --input-type=module - <<'NODE'
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+	ROOT_DIR="$ROOT_DIR" PI_TEST_HOME="$sandbox/home" PI_CODING_AGENT_DIR="$sandbox/home/.pi/agent" node --experimental-strip-types --input-type=module - <<'NODE'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -211,7 +211,7 @@ const installedRoot = path.join(process.env.PI_TEST_HOME || '', '.pi/agent/exten
 for (const name of ['b-agentic-permissions.ts', 'b-agentic-mcp-permissions.ts', 'b-agentic-role.ts', 'b-agentic-planner.ts', 'b-agentic-worker.ts']) {
   await import(pathToFileURL(path.join(installedRoot, name)).href);
 }
-for (const name of ['shell.ts', 'mcp.ts', 'role.ts', 'worker.ts', 'state.ts']) {
+for (const name of ['shell.ts', 'mcp.ts', 'role.ts', 'role-models.ts', 'worker.ts', 'state.ts']) {
   await import(pathToFileURL(path.join(installedRoot, 'b-agentic-support', name)).href);
 }
 const modPath = path.join(root, 'pi/extensions/b-agentic-permissions.ts');
@@ -221,6 +221,7 @@ const extensionModules = await Promise.all([
   'b-agentic-planner.ts', 'b-agentic-worker.ts',
 ].map((name) => import(pathToFileURL(path.join(root, 'pi/extensions', name)).href)));
 const t = mod.__test__;
+const roleTest = extensionModules[2].__test__;
 if (!t) {
   console.error('permission extension missing __test__ exports');
   process.exit(1);
@@ -233,7 +234,10 @@ const flags = {};
 const persistedEntries = [];
 const branchEntries = [];
 let activeTools = ['read', 'bash', 'edit', 'write', 'recall', 'intercom', 'mcp', 'mcpScript'];
+let activeModel = { provider: 'anthropic', id: 'claude-sonnet-4-5' };
+let activeThinkingLevel = 'high';
 let mcpApprovalHandler;
+let roleChannelRegistration;
 const extensionHost = {
   on(eventName, handler) {
     (registrations[eventName] ||= []).push(handler);
@@ -253,6 +257,9 @@ const extensionHost = {
   registerTool(definition) { tools[definition.name] = definition; },
   getActiveTools() { return [...activeTools]; },
   setActiveTools(names) { activeTools = [...names]; },
+  async setModel(model) { activeModel = model; return true; },
+  getThinkingLevel() { return activeThinkingLevel; },
+  setThinkingLevel(level) { activeThinkingLevel = level; },
   appendEntry(customType, data) {
     const entry = { type: 'custom', customType, data };
     persistedEntries.push(entry);
@@ -263,7 +270,9 @@ const extensionHost = {
       if (channel === 'pi-mcp-adapter:tool-approval-request') mcpApprovalHandler = handler;
       return () => {};
     },
-    emit() {},
+    emit(channel, value) {
+      if (channel === 'intercom:extension-register') roleChannelRegistration = value;
+    },
   },
 };
 for (const extension of extensionModules) extension.default(extensionHost);
@@ -326,11 +335,17 @@ const roleContext = {
         rolePickerCalls += 1;
         return 'planner';
       }
+      if (title === 'Select model for b-agentic planner') return 'anthropic/claude-sonnet-4-5';
       return 'Allow once';
     },
     notify() {},
     setStatus() {},
   },
+  modelRegistry: {
+    find: (provider, id) => provider === 'anthropic' && id === 'claude-sonnet-4-5' ? { provider, id } : undefined,
+    getAvailable: () => [{ provider: 'anthropic', id: 'claude-sonnet-4-5' }],
+  },
+  scopedModels: [],
   sessionManager: {
     getBranch: () => [...branchEntries],
   },
@@ -341,6 +356,59 @@ branchEntries.push({
 });
 activeTools = ['read', 'bash'];
 await handlers.session_start({}, roleContext);
+expect(roleChannelRegistration?.namespace === 'b-agentic/roles/v1', 'roles must register an Intercom coordination channel');
+const publishedRoles = [];
+roleChannelRegistration.onReady({
+  publish(payload) { publishedRoles.push(payload); },
+  listSessions: async () => [{ id: 'planner', cwd: root, pid: process.pid, startedAt: 1 }],
+});
+expect(publishedRoles.length === 0, 'role channel must not publish before Intercom connects');
+await roleChannelRegistration.onEvent({ type: 'connection', connected: true, supported: true });
+expect(publishedRoles.some((payload) => payload.role === 'planner'), 'role channel must publish its role after Intercom connects');
+expect(publishedRoles.some((payload) => payload.type === 'b-agentic-role-request'), 'role channel must request existing peer roles after Intercom connects');
+const roster = await registrations.before_agent_start[0]({ systemPrompt: 'base' }, roleContext);
+expect(roster.systemPrompt.includes('Ready same-CWD workers: none'), 'planner roster must use the ready Intercom channel');
+expect(roleTest.isFirstSameCwdSession([
+  { id: 'first', cwd: root, pid: 101, startedAt: 1 },
+  { id: 'second', cwd: root, pid: 202, startedAt: 2 },
+], root, 101) === true, 'the first same-CWD session must remain planner');
+expect(roleTest.isFirstSameCwdSession([
+  { id: 'first', cwd: root, pid: 101, startedAt: 1 },
+  { id: 'second', cwd: root, pid: 202, startedAt: 2 },
+], root, 202) === false, 'a later same-CWD session must not replace the planner');
+expect(roleTest.isAutomaticWorkerSession([
+  { id: 'first', cwd: root, pid: 101, startedAt: 1 },
+  { id: 'second', cwd: root, pid: 202, startedAt: 2 },
+  { id: 'third', cwd: root, pid: 303, startedAt: 3 },
+], root, 202) === true, 'only the second same-CWD session must become worker');
+const plannerAndWorker = [
+  { id: 'planner', cwd: root, pid: 101, startedAt: 1 },
+  { id: 'worker', cwd: root, pid: 202, startedAt: 2 },
+];
+expect(roleTest.hasKnownSameCwdPeerRoles(plannerAndWorker, root, 202, new Map()) === false, 'an automatic worker must wait for existing peer roles');
+expect(roleTest.hasKnownSameCwdPeerRoles(plannerAndWorker, root, 202, new Map([['planner', 'planner']])) === true, 'an automatic worker can reconcile after peer role discovery');
+expect(roleTest.hasKnownSameCwdPeerRoles(plannerAndWorker, root, 202, new Map([['planner', 'off']])) === true, 'an off peer must not block role discovery');
+const plannerAndTwoClaimants = [
+  { id: 'planner', cwd: root, pid: 101, startedAt: 1 },
+  { id: 'first-claimant', cwd: root, pid: 202, startedAt: 2 },
+  { id: 'second-claimant', cwd: root, pid: 303, startedAt: 3 },
+];
+expect(roleTest.canClaimWorker(plannerAndTwoClaimants, root, 202) === true, 'the designated second session may claim worker');
+expect(roleTest.canClaimWorker(plannerAndTwoClaimants, root, 303) === false, 'a concurrent later worker claim must remain planner-safe');
+expect(roleTest.isAutomaticWorkerSession([
+  { id: 'first', cwd: root, pid: 101, startedAt: 1 },
+  { id: 'second', cwd: root, pid: 202, startedAt: 2 },
+  { id: 'third', cwd: root, pid: 303, startedAt: 3 },
+], root, 303) === false, 'a third same-CWD session must not become another worker');
+expect(roleTest.isAutomaticWorkerSession([
+  { id: 'first', cwd: root, pid: 101, startedAt: 1 },
+  { id: 'third', cwd: root, pid: 303, startedAt: 3 },
+], root, 303) === true, 'the next session must replace a departed worker');
+expect(roleTest.automaticRoleForSession([
+  { id: 'first', cwd: root, pid: 101, startedAt: 1 },
+  { id: 'replacement', cwd: root, pid: 303, startedAt: 3 },
+  { id: 'rejoined', cwd: root, pid: 202, startedAt: 4 },
+], root, 202) === 'planner', 'a rejoined automatic worker must demote after replacement');
 expect(activeTools.length === 2 && activeTools.includes('read') && activeTools.includes('bash'), 'persisted planner role must restore its safe analysis tool set');
 expect(persistedEntries.at(-1)?.data.toolsBeforePlanner?.includes('write'), 'persisted planner tools must remain available for restoration after leaving the role');
 activeTools = ['read', 'bash'];
@@ -351,10 +419,22 @@ activeTools = ['read', 'bash', 'edit', 'write', 'recall', 'intercom', 'mcp', 'mc
 expect(commands['b-role'], 'permission extension must register /b-role');
 await commands['b-role'].handler('', roleContext);
 expect(rolePickerCalls === 1, '/b-role without an argument must open a role picker');
+expect(activeModel.provider === 'anthropic' && activeModel.id === 'claude-sonnet-4-5', '/b-role must continue from role selection to a model picker');
+await handlers.model_select({ model: { provider: 'anthropic', id: 'claude-sonnet-4-5' } }, roleContext);
+const roleModelPreferences = JSON.parse(readFileSync(path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic', 'role-models.json'), 'utf8'));
+expect(roleModelPreferences.planner.model === 'claude-sonnet-4-5' && roleModelPreferences.planner.thinkingLevel === 'high', '/model changes must persist the active role preference');
 expect(activeTools.length === 5 && activeTools.every((tool) => ['read', 'recall', 'intercom', 'bash', 'mcp'].includes(tool)), 'planner role must expose its safe analysis and coordination tools');
 for (const toolName of ['edit', 'write', 'mcpScript', 'b_agentic_confirm_commit']) {
   expect((await toolCallHandler({ toolName, input: {} }, roleContext))?.block === true, `planner role must block ${toolName}`);
 }
+branchEntries.length = 0;
+branchEntries.push({
+  type: 'custom', customType: 'b-agentic-role',
+  data: { role: 'worker', automatic: true },
+});
+activeTools = ['read', 'bash', 'edit', 'write', 'recall', 'intercom', 'mcp', 'mcpScript'];
+await registrations.session_start.at(-1)({}, roleContext);
+expect(!activeTools.includes('write') && !activeTools.includes('edit'), 'a rejoining automatic worker must start planner-safe before Intercom reconciliation');
 for (const command of ['rtk git status --short', 'fdfind -t f SKILL.md skills', 'eza -la', 'codegraph init']) {
   expect(await toolCallHandler({ toolName: 'bash', input: { command } }, roleContext) === undefined, `planner role must allow safe discovery: ${command}`);
 }
@@ -370,6 +450,20 @@ expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'reply', m
 const plannerStart = await handlers.before_agent_start({ systemPrompt: 'base', systemPromptOptions: { skills: [] } }, roleContext);
 expect(plannerStart.systemPrompt.includes('planner profile (read-only coordinator)') && plannerStart.systemPrompt.includes('safe repository discovery, classified read-only MCP calls') && plannerStart.systemPrompt.includes('worker is the sole worktree writer') && plannerStart.systemPrompt.includes('Never perform implementation edits') && plannerStart.systemPrompt.includes('Default to non-blocking Intercom') && plannerStart.systemPrompt.includes('Send findings and wait for a revised result'), 'planner role must enforce delegation without blocking analysis');
 
+let activePeerWorker = true;
+roleChannelRegistration.onReady({
+  publish(payload) { publishedRoles.push(payload); },
+  listSessions: async () => [
+    { id: 'self', cwd: root, pid: process.pid, startedAt: 1 },
+    ...(activePeerWorker ? [{ id: 'active-worker', cwd: root, pid: 202, startedAt: 2 }] : []),
+  ],
+});
+await roleChannelRegistration.onEvent({ type: 'connection', connected: true, supported: true });
+await roleChannelRegistration.onEvent({ type: 'message', fromSessionId: 'active-worker', payload: { type: 'b-agentic-role', role: 'worker' } });
+await commands['b-role'].handler('worker', roleContext);
+expect(!activeTools.includes('edit') && !activeTools.includes('write'), 'an explicit worker request must not create a second writer');
+activePeerWorker = false;
+await roleChannelRegistration.onEvent({ type: 'session_left', sessionId: 'active-worker' });
 await commands['b-role'].handler('worker', roleContext);
 expect(activeTools.includes('edit') && activeTools.includes('write') && activeTools.includes('bash'), 'worker role must restore normal tools');
 expect(await toolCallHandler({ toolName: 'edit', input: { path: 'README.md', edits: [] } }, roleContext) === undefined, 'worker role must not wait for a structured assignment');

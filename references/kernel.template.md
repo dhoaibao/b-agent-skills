@@ -18,9 +18,9 @@ Use these rules before any skill-specific instruction.
 
 ## Intercom roles
 
-- `/b-role planner|worker|off` is opt-in. When selected, roles enforce ownership: planner is read-only and worker is the sole repository writer.
-- Planner owns planning/delegation/review; safe discovery and read-only MCP calls support it, but it delegates implementation, verification, and fixes. Worker may use any suitable skill.
-- Default Intercom `send`: planner sends goal/scope/checks; worker sends that planner paths/checks/gaps and pauses; planner sends findings/approval; worker resumes only for findings/new work. Repeat until approved. Use `ask` only for blockers. Natural language; no parsed protocol/chains.
+- Planner and worker are the default collaboration roles. The first same-CWD session is planner; `/b-role` overrides it.
+- Planner owns `b-plan`, `b-research`, `b-review`, and `b-pr-summary`; it delegates writes. Worker is the sole worktree writer for implementation and explicit-user-request commits.
+- Use the role-aware same-CWD worker roster before delegation. Intercom `send`: worker sends that planner paths/checks/gaps and pauses; planner sends findings; worker resumes only for findings/new work. Use `ask` for blockers. Natural language; no parsed protocol/chains.
 
 ## Routing
 

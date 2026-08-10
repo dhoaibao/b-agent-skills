@@ -73,15 +73,15 @@ INTERCOM_DELEGATION_REGRESSION = {
         "or fixes when a worker session was available."
     ),
     "intended_behavior": (
-        "Keep opt-in natural-language handoffs while enforcing planner read-only ownership "
-        "and retaining worker-local skill routing and repository automation."
+        "Make natural-language planner-to-worker handoffs the default while enforcing planner "
+        "read-only ownership and retaining worker-local repository automation."
     ),
     "required_clauses": (
-        "`/b-role planner|worker|off` is opt-in",
-        "When selected, roles enforce ownership: planner is read-only and worker is the sole repository writer",
-        "Planner owns planning/delegation/review",
-        "safe discovery and read-only MCP calls support it",
-        "Worker may use any suitable skill",
+        "Planner and worker are the default collaboration roles",
+        "The first same-CWD session is planner",
+        "Planner owns `b-plan`, `b-research`, `b-review`, and `b-pr-summary`",
+        "Worker is the sole worktree writer",
+        "Use the role-aware same-CWD worker roster before delegation",
         "worker sends that planner paths/checks/gaps and pauses",
         "worker resumes only for findings/new work",
         "Natural language; no parsed protocol/chains",

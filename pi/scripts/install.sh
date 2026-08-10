@@ -27,6 +27,7 @@ readonly EXTENSION_NAMES=(
 	b-agentic-support/shell.ts
 	b-agentic-support/mcp.ts
 	b-agentic-support/role.ts
+	b-agentic-support/role-models.ts
 	b-agentic-support/worker.ts
 	b-agentic-support/state.ts
 )
@@ -301,11 +302,12 @@ maybe_install_pi_usage() {
 }
 
 install_pi_intercom_enabled() {
-	local value="${B_AGENTIC_INSTALL_PI_INTERCOM:-auto}"
+	local value="${B_AGENTIC_INSTALL_PI_INTERCOM:-Y}"
 	case "$value" in
 	n | N | no | NO | No | false | FALSE | 0) return 1 ;;
 	y | Y | yes | YES | Yes | true | TRUE | 1) return 0 ;;
 	auto | AUTO | Auto)
+		# Legacy opt-in behavior for callers that explicitly request it.
 		if pi_intercom_installed; then return 1; fi
 		if [ -r /dev/tty ] && [ -w /dev/tty ]; then
 			prompt_yes_no "Install Pi Intercom ($PI_INTERCOM_PACKAGE)? [y/N]" N
@@ -320,7 +322,7 @@ maybe_install_pi_intercom() {
 	if pi_intercom_installed; then INSTALL_PI_INTERCOM_ACTION="present"; INSTALL_PI_INTERCOM_STATE="ready"; return 0; fi
 	if ! command -v pi >/dev/null 2>&1; then INSTALL_PI_INTERCOM_STATE="missing-cli"; return 0; fi
 	if ! install_pi_intercom_enabled; then
-		warn "Skipping $PI_INTERCOM_PACKAGE install; set B_AGENTIC_INSTALL_PI_INTERCOM=Y or accept the interactive prompt"
+		warn "Skipping $PI_INTERCOM_PACKAGE install; planner-worker collaboration is unavailable until B_AGENTIC_INSTALL_PI_INTERCOM=Y"
 		return 0
 	fi
 	if dry_run_enabled; then
