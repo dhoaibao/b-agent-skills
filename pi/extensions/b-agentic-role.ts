@@ -41,7 +41,7 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
   const updateStatus = (ctx: ExtensionContext): void => {
     const role = getRole();
     const status = role === "planner"
-      ? ctx.ui.theme.fg("mdLink", "b-agentic: planner (read-only)")
+      ? ctx.ui.theme.fg("warning", "b-agentic: planner (read-only)")
       : role === "worker"
         ? ctx.ui.theme.fg("success", "b-agentic: worker")
         : undefined;

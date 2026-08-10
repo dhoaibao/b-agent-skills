@@ -177,7 +177,7 @@ branchEntries.push({
 });
 activeTools = ['read', 'bash'];
 await handlers.session_start({}, roleContext);
-expect(roleStatuses.at(-1)?.value === '<mdLink>b-agentic: planner (read-only)</mdLink>', 'planner status must use the mdLink color');
+expect(roleStatuses.at(-1)?.value === '<warning>b-agentic: planner (read-only)</warning>', 'planner status must use the warning color');
 expect(roleChannelRegistration?.namespace === 'b-agentic/roles/v1', 'roles must register an Intercom coordination channel');
 const publishedRoles = [];
 roleChannelRegistration.onReady({
