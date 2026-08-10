@@ -49,15 +49,16 @@ export default function bAgenticPermissions(pi: ExtensionAPI): void {
     },
   });
 
-  // registerTool makes the definition available, but Pi only exposes tools in
-  // its active set to the model. Add this tool for normal sessions while
-  // leaving planner activation to the role extension's safe-tool filter.
-  if (getRole() !== "planner") {
+  // Action methods such as getActiveTools/setActiveTools are unavailable while
+  // Pi is loading extensions. Defer activation until the first session starts.
+  // The role extension subsequently filters this tool out for planners.
+  pi.on("session_start", () => {
+    if (getRole() === "planner") return;
     const activeTools = pi.getActiveTools();
     if (!activeTools.includes("b_agentic_confirm_commit")) {
       pi.setActiveTools([...activeTools, "b_agentic_confirm_commit"]);
     }
-  }
+  });
 
   pi.on("tool_call", async (event, ctx) => {
     if (event.toolName === "bash") {

@@ -109,7 +109,7 @@ expect(t.isAutoApprovedIntercomCall('intercom', { action: 'reply', replyTo: 'mes
 expect(typeof toolCallHandler === 'function', 'permission extension must register a tool_call handler');
 expect(typeof mcpApprovalHandler === 'function', 'permission extension must register the MCP approval broker');
 expect(tools.b_agentic_confirm_commit, 'permission extension must register the commit confirmation tool');
-expect(activeTools.includes('b_agentic_confirm_commit'), 'registered commit confirmation tool must be active in normal sessions');
+expect(!activeTools.includes('b_agentic_confirm_commit'), 'commit confirmation activation must wait until session startup');
 let commitConfirmation;
 const approvedCommit = await tools.b_agentic_confirm_commit.execute('', { proposal: '1. fix: preserve test\n   Files: tests/smoke/install.sh' }, undefined, () => {}, {
   hasUI: true,
@@ -158,6 +158,8 @@ const roleContext = {
     getBranch: () => [...branchEntries],
   },
 };
+await registrations.session_start[0]({}, roleContext);
+expect(activeTools.includes('b_agentic_confirm_commit'), 'registered commit confirmation tool must activate after session startup');
 branchEntries.push({
   type: 'custom', customType: 'b-agentic-role',
   data: { role: 'planner', toolsBeforePlanner: ['read', 'bash', 'edit', 'write', 'b_agentic_confirm_commit'] },
