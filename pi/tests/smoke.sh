@@ -40,6 +40,7 @@ const branchEntries = [];
 let activeTools = ['read', 'bash', 'edit', 'write', 'recall', 'intercom', 'mcp', 'mcpScript'];
 let activeModel = { provider: 'anthropic', id: 'claude-sonnet-4-5' };
 let activeThinkingLevel = 'high';
+const roleStatuses = [];
 let mcpApprovalHandler;
 let roleChannelRegistration;
 const executedCommands = [];
@@ -153,7 +154,10 @@ const roleContext = {
       return 'Allow once';
     },
     notify() {},
-    setStatus() {},
+    theme: {
+      fg(color, text) { return `<${color}>${text}</${color}>`; },
+    },
+    setStatus(key, value) { roleStatuses.push({ key, value }); },
   },
   modelRegistry: {
     find: (provider, id) => provider === 'anthropic' && id === 'claude-sonnet-4-5' ? { provider, id } : undefined,
@@ -172,6 +176,7 @@ branchEntries.push({
 });
 activeTools = ['read', 'bash'];
 await handlers.session_start({}, roleContext);
+expect(roleStatuses.at(-1)?.value === '<accent>b-agentic: planner (read-only)</accent>', 'planner status must use the accent color');
 expect(roleChannelRegistration?.namespace === 'b-agentic/roles/v1', 'roles must register an Intercom coordination channel');
 const publishedRoles = [];
 roleChannelRegistration.onReady({
@@ -287,6 +292,7 @@ expect(!activeTools.includes('edit') && !activeTools.includes('write'), 'an expl
 activePeerWorker = false;
 await roleChannelRegistration.onEvent({ type: 'session_left', sessionId: 'active-worker' });
 await commands['b-role'].handler('worker', roleContext);
+expect(roleStatuses.at(-1)?.value === '<success>b-agentic: worker</success>', 'worker status must use the success color');
 expect(activeTools.includes('edit') && activeTools.includes('write') && activeTools.includes('bash') && activeTools.includes('b_agentic_confirm_commit'), 'worker role must restore normal tools');
 expect(await toolCallHandler({ toolName: 'edit', input: { path: 'README.md', edits: [] } }, roleContext) === undefined, 'worker role must not wait for a structured assignment');
 for (const skill of ['b-implement', 'b-debug', 'b-refactor', 'b-test', 'b-browser', 'b-research', 'b-design', 'b-init']) {

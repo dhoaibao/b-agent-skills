@@ -36,7 +36,12 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
 
   const updateStatus = (ctx: ExtensionContext): void => {
     const role = getRole();
-    ctx.ui.setStatus("b-agentic-role", role === "planner" ? "b-agentic: planner (read-only)" : role === "worker" ? "b-agentic: worker" : undefined);
+    const status = role === "planner"
+      ? ctx.ui.theme.fg("accent", "b-agentic: planner (read-only)")
+      : role === "worker"
+        ? ctx.ui.theme.fg("success", "b-agentic: worker")
+        : undefined;
+    ctx.ui.setStatus("b-agentic-role", status);
   };
   const publishRole = (): void => {
     try { channel?.publish({ type: "b-agentic-role", role: getRole() }, { audience: "capable" }); } catch { /* Connection events retry publication. */ }
