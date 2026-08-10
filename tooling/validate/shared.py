@@ -467,9 +467,12 @@ for intercom_marker in [
     "worker sends that planner paths/checks/gaps and pauses",
     "worker resumes only for findings/new work",
     "Natural language; no parsed protocol/chains",
-    "After assigning a task, wait for the worker's result instead of repeatedly polling Intercom `list-cwd` or `status`",
+    "Planners and workers must call Intercom `pending` before every `send` or `reply`; if an inbound ask exists, use `reply`; if there is nothing to reply to, call `list-cwd` again to retrieve the exact session ID, then call `send` to that exact ID",
+    "This `list-cwd` call is the explicit exception to avoiding repeated `list-cwd` polling",
+    "After assigning a task, wait for the worker's result instead of polling again",
     "Keep roster/status calls for selecting a worker or handling genuine connection needs, not a polling loop",
-    "Planner may mark a delegated task complete only after `b-review` has passed",
+    "Every task delegated by a planner to a worker must pass the actual `b-review` skill against the actual diff and verification before the planner may mark it done, complete, approved, or closed",
+    "A regular or generic review is insufficient, and this review gate must never be bypassed under any circumstances",
     "If a blocker or decision cannot be resolved from scope or repository evidence, ask the user one focused question and keep the task open",
 ]:
     if intercom_marker not in kernel_template:

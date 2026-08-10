@@ -9,6 +9,11 @@ export default function bAgenticMcpPermissions(pi: ExtensionAPI): void {
   pi.on("tool_call", async (event, ctx) => {
     currentContext = ctx;
     const input = event.input;
+    if (getRole() === "planner" &&
+      (event.toolName === "mcp" || event.toolName.startsWith("serena_") || event.toolName.startsWith("mcp__")) &&
+      !policy.isPlannerReadOnlyMcpCall(event.toolName, input)) {
+      return { block: true, reason: "Planner mode permits only classified read-only MCP calls (local-mutation Serena calls are blocked)" };
+    }
     if (policy.isAutoApprovedIntercomCall(event.toolName, input)) return undefined;
     if (policy.isMcpOrCustomTool(event.toolName, input)) {
       if (!ctx.hasUI) return { block: true, reason: `Requires approval: custom/MCP tool ${event.toolName} (no UI; fail-closed)` };
