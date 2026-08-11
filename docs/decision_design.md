@@ -10,8 +10,9 @@ source, configuration, scripts, tests, canonical prompts/references, generated
 skill assets, CI, and public/maintainer documentation. It excluded `.git`,
 ignored/generated caches, and likely-secret files or credentials.
 
-The product is intentionally small: b-agentic and Pi are treated as one
-integrated product, with Pi as the shipped runtime. The governing principle is
+The product is intentionally small: b-agentic is a personal workflow built
+around Pi, and b-agentic and Pi are treated as one integrated product, with Pi
+as the shipped runtime. The governing principle is
 "slim, strong, usable"; new workflow or prompt behavior needs an observed
 failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
 `CHANGELOG.md`.

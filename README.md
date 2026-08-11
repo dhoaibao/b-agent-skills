@@ -1,6 +1,6 @@
 # b-agentic
 
-**A slim workflow kernel for the Pi coding agent. b-agentic and Pi are one integrated product.**
+**A slim personal workflow kernel for the Pi coding agent. b-agentic and Pi are one integrated product.**
 
 b-agentic installs a compact Pi kernel, focused phase skills, a permission extension, and recommended MCP configuration. Its job is simple: route work, preserve safety gates, use the right evidence, and verify before claiming done.
 

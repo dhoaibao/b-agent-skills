@@ -3,7 +3,7 @@
 
 ## Repository Purpose
 
-b-agentic is a slim workflow kernel for the Pi coding agent. b-agentic and Pi are one product; keep changes focused on Pi workflows, safety, evidence, verification, tool use, and install reliability.
+b-agentic is a slim personal workflow kernel for the Pi coding agent. b-agentic and Pi are one product; keep changes focused on Pi workflows, safety, evidence, verification, tool use, and install reliability.
 
 The governing principle is: slim, strong, usable. Every workflow or prompt change needs a concrete failure mode or capability gap; do not add ceremony for hypothetical gains.
 
