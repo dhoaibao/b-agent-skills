@@ -133,33 +133,46 @@ for skill_name, markers in MCP_WORKFLOW_REGRESSION["anchors"].items():
             )
 
 # Regression: suite audit found skills under-specified Pi native file tools, optional
-# recall, Serena symbol mutations, and specialized research/browser surfaces that
-# policy already classifies. Narrow anchors only — not full prompt wording locks.
+# recall, targeted Serena semantic work, and specialized research/browser surfaces
+# that policy already classifies. Serena startup/tool calls can also hang or time out
+# under concurrency, so the prompts must make native-first and serialized use explicit.
 PROMPT_TOOL_LEVERAGE_REGRESSION = {
     "observed_failure": (
-        "Skill prompts under-specified Pi read/edit/write/recall and specialized MCP "
-        "surfaces already classified by mcp_operations/permissions."
+        "Skill prompts could prefer unreliable Serena calls for routine file work and "
+        "lacked explicit native-first/serialized guidance, alongside specialized MCP "
+        "leverage already classified by mcp_operations/permissions."
     ),
     "intended_behavior": (
-        "Skills teach Pi native file tools, optional recall, Serena symbol mutations, "
-        "Firecrawl research_*, specialized Brave modalities, ordered Playwright evidence, "
-        "and consistent rtk git usage where git is primary."
+        "Skills teach Pi native file tools for routine work, reserve Serena for targeted "
+        "semantic precision, serialize Serena calls, teach optional recall, Firecrawl "
+        "research_*, specialized Brave modalities, ordered Playwright evidence, and "
+        "consistent rtk git usage where git is primary."
     ),
     "anchors": {
         "b-implement": [
-            "prefer Serena for supported code reads and repo-confined edits",
-            "targeted replacements",
-            "safe deletion",
-            "Use Serena separately",
+            "Prefer native",
+            "`read`/`edit`/`write` for routine file work",
+            "materially improves safety or precision",
+            "Use native tools or local search",
             "repository-wide architecture, dependency/call flows, impact, and affected tests",
             "compacted observational-memory ids",
+            "serialize Serena requests",
+            "never parallelize or batch them",
         ],
         "b-refactor": [
-            "rename_symbol",
-            "replace_symbol_body",
-            "safe_delete_symbol",
+            "reference-aware refactor",
+            "native search for routine discovery",
+            "symbol ops only",
+            "serialize requests",
+            "never parallelize or batch them",
         ],
-        "b-debug": ["prefer Serena for supported code inspection", "repo-confined fixes", "compacted repro"],
+        "b-debug": [
+            "materially improves safety or precision",
+            "native `read`/`edit`/`write`",
+            "compacted repro",
+            "serialize Serena requests",
+            "parallelize or batch Serena calls",
+        ],
         "b-research": [
             "research_search_papers",
             "research_search_github",
@@ -169,7 +182,7 @@ PROMPT_TOOL_LEVERAGE_REGRESSION = {
         "b-browser": ["browser_snapshot", "browser_find", "browser_network_requests"],
         "b-commit": ["rtk git status --short", "rtk git diff"],
         "b-pr-summary": ["rtk git log", "rtk git show"],
-        "b-plan": ["Pi read", "compacted prior planning"],
+        "b-plan": ["Pi native `read`", "compacted prior planning"],
     },
     # Runtime companions: pi/tests/smoke.sh recall specialized + firecrawl
     # skipTlsVerification rejection; permissions RTK_OPTIONAL_COMMANDS.
@@ -444,20 +457,53 @@ if "RTK never bypasses these protections" not in kernel_template:
     errors.append(
         "references/kernel.template.md: RTK must not be described as bypassing protections"
     )
-# Regression: independent Serena and CodeGraph reads were needlessly sequential,
-# increasing latency despite the adapter's bounded read-only fan-out support.
-for tool_boundary_marker in [
-    "Serena owns symbols",
-    "CodeGraph owns repo-wide architecture",
-    "Never duplicate questions",
-    "Parallelize independent read calls in one `mcpScript`",
-    "nested tools keep policy",
-    "All classified Serena and CodeGraph tools auto-approve for safe inputs",
-]:
-    if tool_boundary_marker not in kernel_template:
-        errors.append(
-            f"references/kernel.template.md: Serena/CodeGraph boundary missing {tool_boundary_marker!r}"
-        )
+SERENA_WORKFLOW_REGRESSION = {
+    "observed_failure": (
+        "Serena startup and tool calls can hang or time out under concurrency, while "
+        "guidance preferred Serena for routine reads and edits."
+    ),
+    "intended_behavior": (
+        "The kernel and representative skills prefer native file tools for routine work, "
+        "reserve Serena for materially safer or more precise semantic tasks, prohibit "
+        "routine Serena reads/searches/edits, and serialize calls without parallel or "
+        "batched Serena requests."
+    ),
+    "anchors": {
+        "references/kernel.template.md": [
+            "Prefer Pi native `read`/`edit`/`write`",
+            "Use Serena only when it materially improves safety or precision",
+            "Do not use Serena for routine reads/searches/edits.",
+            "Never parallelize or batch Serena calls",
+            "CodeGraph owns repo-wide architecture",
+            "Never duplicate questions",
+            "nested tools keep policy",
+            "All classified Serena and CodeGraph tools auto-approve for safe inputs",
+        ],
+        "skills/b-implement/prompt.md": [
+            "Prefer native",
+            "serialize Serena requests",
+            "never parallelize or batch them",
+        ],
+        "skills/b-debug/prompt.md": [
+            "Use native `read`/`edit`/`write` for routine work",
+            "serialize Serena requests",
+            "parallelize or batch Serena calls",
+        ],
+        "skills/b-refactor/prompt.md": [
+            "native search for routine discovery",
+            "serialize requests",
+            "never parallelize or batch them",
+        ],
+    },
+}
+for relative_path, markers in SERENA_WORKFLOW_REGRESSION["anchors"].items():
+    text = read_text(ROOT / relative_path)
+    for marker in markers:
+        if marker not in text:
+            errors.append(
+                f"{relative_path}: missing Serena workflow anchor {marker!r}; "
+                f"observed failure: {SERENA_WORKFLOW_REGRESSION['observed_failure']}"
+            )
 
 for intercom_marker in [
     "b-agentic defaults to Off for a single-session workflow",

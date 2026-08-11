@@ -31,7 +31,10 @@ Find the real cause of broken behavior, then fix it minimally only when the user
 ## Tool guidance
 
 - `bash` - reproduce errors and run diagnostics/profilers/checks (`rtk` for test runners and other high-noise families).
-- `serena` - prefer Serena for supported code inspection and repo-confined fixes: symbols, call sites, implementations, diagnostics, and targeted or symbol edits.
+- `serena` - use only when it materially improves safety or precision: exact
+  symbol declarations/references/implementations, diagnostics, or
+  reference-aware refactors. Use native `read`/`edit`/`write` for routine work;
+  serialize Serena requests rather than parallelizing or batching them.
 - `read`/`edit` - use Pi native tools for unsupported files or when Serena fails.
 - `codegraph` - only for repository-wide dependency/call flows and impact; initialize an absent local index on first such use.
 - `context7` - versioned dependency/API behavior only when a library suspect remains after local evidence.
@@ -42,10 +45,10 @@ Find the real cause of broken behavior, then fix it minimally only when the user
 1. Build a feedback loop (using Bash to run commands) that can show the bug: failing test, CLI repro, HTTP script, browser script, trace replay, throwaway harness, fuzz/property loop, or bisect harness.
 2. Capture exact symptom, expected vs actual behavior, repro rate, determinism, and environment. Use read for repo context only when it materially affects the diagnosis; use recall when a compacted prior diagnosis id is available.
 3. Rank suspects from stack traces, diagnostics, recent changes, config, data shape, call paths, and the feedback loop.
-4. When a suspect requires repository-wide flow or impact evidence, initialize an absent CodeGraph index and use it for that question; use Serena separately for exact symbols and diagnostics. Use Context7 only for versioned dependency suspects.
+4. When a suspect requires repository-wide flow or impact evidence, initialize an absent CodeGraph index and use it for that question; use Serena separately only for exact symbols or diagnostics when that materially improves precision. Use Context7 only for versioned dependency suspects, and serialize rather than parallelize or batch Serena calls.
 5. Confirm root cause before fixing. Use probes only when cheaper evidence is insufficient and remove them.
 6. If the user asked only to diagnose, explain, or investigate, report the confirmed cause and stop without editing production code.
-7. If the request authorizes a fix, apply the smallest change that addresses the confirmed cause via edit or Serena symbol ops.
+7. If the request authorizes a fix, apply the smallest change that addresses the confirmed cause via native `edit`/`write`, or Serena only for a reference-aware symbol refactor.
 8. After a fix, run the original feedback loop or narrowest check proving the intended symptom changed. For perf, measure before and after.
 9. If the issue is not yet a confirmed bug, say whether the next step belongs in **b-plan**, **b-research**, or **b-test**.
 

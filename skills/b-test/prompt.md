@@ -18,14 +18,17 @@ Own code-level and simulated-DOM tests: add coverage, fix test-only failures, an
 ## Tool guidance
 
 - `bash` - run tests via `rtk` when supported (`rtk pytest`, `rtk vitest`, `rtk jest`, …) and inspect failure output.
-- `serena` - prefer Serena for supported test/source inspection and repo-confined edits; map tests to source behavior and edit test symbols.
-- `read`/`edit` - use Pi native tools for unsupported files or when Serena fails.
+- `serena` - use only when exact test/source symbols, references, or diagnostics
+  materially improve safety or precision; use native `read`/`edit`/`write` for
+  routine inspection and edits, and serialize requests rather than parallelizing
+  or batching them.
+- `read`/`edit` - use Pi native tools for routine and unsupported file work.
 - `codegraph` - only for repository-wide source-to-test impact and affected-test discovery; initialize an absent local index on first such use.
 - `context7` - versioned test-framework/API semantics only when local tests and contracts do not settle them.
 
 ## Steps
 
-1. Find the test framework and narrowest runnable command from manifests, CI, or existing tests (using Bash). Use CodeGraph only when repository-wide source-to-test impact is needed, initializing an absent index then; use Serena separately for exact test/source symbols.
+1. Find the test framework and narrowest runnable command from manifests, CI, or existing tests (using Bash). Use CodeGraph only when repository-wide source-to-test impact is needed, initializing an absent index then; use native inspection first and Serena separately only for exact test/source symbols when they materially improve precision.
 2. Confirm intended behavior from user intent, product contract, source change, existing passing tests, and materially relevant repo context. Use Context7 only for unresolved versioned framework semantics.
 3. For failing tests, run the narrow target, read the test and exercised source, edit tests only after classifying the failure.
 4. For new tests, cover requested or changed behavior through the highest practical public interface first; add edge cases only when risk requires them.

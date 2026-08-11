@@ -112,14 +112,17 @@ that listens for `tool_call` events and:
   unsafe or unmanaged calls prompt there. Metadata and lifecycle selectors remain
   behind the generic approval gate. Other direct adapter names remain gated
   because they share Pi's custom-tool namespace
-- uses Serena for semantic code navigation, diagnostics, precise edits/refactors,
-  onboarding for unfamiliar repositories, memory tools for durable project facts,
-  and the dashboard for Serena troubleshooting; sensitive and outside-project Serena
-  paths remain gated; uses CodeGraph only for repository-wide architecture, dependency/call
-  flows, impact, and affected tests; avoids querying both tools for the same
-  question; fans out distinct, independent read calls to both concurrently through
-  one bounded auto-run `mcpScript`; read-only `tools.search`/`tools.describe` metadata
-  discovery is trusted there, while each nested `tools.call` retains normal policy;
+- prefers native `read`/`edit`/`write` for routine repository work and uses Serena
+  only when it materially improves safety or precision: exact symbol declarations,
+  references, implementations, diagnostics, reference-aware refactors, relevant
+  onboarding, or durable project memories; routine Serena reads, searches, and edits
+  are prohibited, and Serena requests are serialized rather than parallelized or
+  batched because concurrency can hang or time out; sensitive and outside-project
+  Serena paths remain gated; uses CodeGraph only for repository-wide architecture,
+  dependency/call flows, impact, and affected tests; avoids querying both tools for
+  the same question; read-only `tools.search`/`tools.describe` metadata discovery is
+  trusted in the bounded auto-run `mcpScript`, while each nested `tools.call` retains
+  normal policy;
   asks for Firecrawl external-mutation or
   local-upload tools (agent/crawl/interact/monitor/feedback/parse), Playwright
   page-mutating tools (click/type/upload/evaluate/…), screenshots (the server

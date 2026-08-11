@@ -92,7 +92,7 @@ If `uv` is missing, the installer prompts to install it from `https://astral.sh/
 
 b-agentic writes a default [CodeGraph](https://github.com/colbymchenry/codegraph) MCP entry that runs `codegraph serve --mcp` with `CODEGRAPH_TELEMETRY=0`. In interactive sessions, the installer can prompt to install CodeGraph with `curl -fsSL https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh | sh`; if CodeGraph is already installed, the installer asks before running `codegraph upgrade`. Scripted upgrades require `B_AGENTIC_INSTALL_CODEGRAPH=Y`. Run `codegraph init` in each repository where you want a local pre-indexed code graph.
 
-b-agentic initializes CodeGraph for the first repository-wide architecture or impact task when the local index is absent, then uses it for architecture, dependency and call flows, impact radius, route-to-handler discovery, and affected-test discovery. Serena owns semantic code work: symbol discovery, declarations, references, implementations, diagnostics, precise edits and refactors, onboarding, and durable project memories. Do not query both tools for the same question. When their read calls answer distinct, independent questions, run them concurrently in one bounded `mcpScript` rather than sequentially. Every classified Serena and CodeGraph tool is auto-approved for safe intended inputs through direct names and `mcp__`-prefixed names when their namespace matches the managed server: use onboarding for unfamiliar repositories, memory tools only for durable project facts, and the dashboard only for Serena troubleshooting; sensitive and outside-project Serena paths remain gated. Missing CLIs are not installed automatically.
+b-agentic initializes CodeGraph for the first repository-wide architecture or impact task when the local index is absent, then uses it for architecture, dependency and call flows, impact radius, route-to-handler discovery, and affected-test discovery. Prefer Pi native `read`/`edit`/`write` for routine repository work. Use Serena only when it materially improves safety or precision: exact symbol declarations, references, implementations, diagnostics, reference-aware refactors, relevant onboarding, or durable project memories. Do not use Serena for routine reads, searches, or edits, and serialize its requests rather than parallelizing or batching them because concurrency can hang or time out. Do not query CodeGraph and Serena for the same question. Every classified Serena and CodeGraph tool is auto-approved for safe intended inputs through direct names and `mcp__`-prefixed names when their namespace matches the managed server; sensitive and outside-project Serena paths remain gated. Missing CLIs are not installed automatically.
 
 ## Pi integration
 
@@ -138,7 +138,7 @@ Pi can route natural-language requests to these skills automatically. To invoke 
 
 The installer writes recommended MCP entries for:
 
-- Serena: symbol discovery, references, diagnostics, and symbol edits.
+- Serena: optional precision work for symbols, references, diagnostics, and reference-aware edits/refactors.
 - CodeGraph: local pre-indexed code structure, flows, impact radius, and affected tests.
 - Context7: versioned library/framework docs.
 - Firecrawl: primary public web search, bounded extraction, arXiv/paper and GitHub issue/discussion lookup, and approved deeper research.

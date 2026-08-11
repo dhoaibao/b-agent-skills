@@ -34,7 +34,10 @@ Flags: `--skip-tests`, `--baseline=<path|url>`, `--range=<ref>..<ref>`.
 - `bash` - `rtk git status`, metadata-only Git path lists, targeted safe-path diffs, logs, and narrow verification; modern discovery routed through `rtk` whenever supported.
 - `read` - open changed files directly.
 - `codegraph` - only for repository-wide changed flows, impact, and affected tests; initialize an absent local index on first such use.
-- `serena` - inspect changed symbols, references, diagnostics, and boundaries.
+- `serena` - inspect changed symbols, references, or diagnostics only when they
+  materially improve review precision; use native `read`/`edit`/`write` for
+  routine file work and serialize requests rather than parallelizing or batching
+  them.
 - `brave-search` - one narrow independent public lookup; use specialized Brave tools only when news/local/image/video/place evidence matters.
 - `recall` - recover compacted audit or prior-review memory ids when present.
 
@@ -44,7 +47,7 @@ Flags: `--skip-tests`, `--baseline=<path|url>`, `--range=<ref>..<ref>`.
 2. Classify protected paths before reading content, then inspect only explicitly named non-protected paths with targeted diffs. Use inspection tools only. If the user wants findings fixed, report them and hand off to **b-implement** after the review.
 3. Choose baseline. Without baseline, do a risk review and do not claim requirements coverage.
 4. Read repo context only when it materially affects the changed-code review; use recall for compacted prior review ids when present.
-5. When changed code needs repository-wide flow, impact, or affected-test evidence, initialize an absent CodeGraph index and use it for that question; use Serena separately for exact references and diagnostics. Use Brave only when public semantics materially affect a finding.
+5. When changed code needs repository-wide flow, impact, or affected-test evidence, initialize an absent CodeGraph index and use it for that question; use native inspection first and Serena separately only for exact references or diagnostics when they materially improve precision. Use Brave only when public semantics materially affect a finding, and do not parallelize or batch Serena calls.
 6. Inspect highest-risk changed symbols and boundaries first.
 7. Check tests, edge cases, security, operability, evidence quality, hidden assumptions, unnecessary diff, and over-abstraction.
 8. Verify evidence proves the intended observable outcome, not only command success (using Brave to look up API semantics if needed).

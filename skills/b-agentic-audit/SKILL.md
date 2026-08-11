@@ -40,8 +40,10 @@ This audit supplements the automated checks; it does not mechanically prove all 
   cites; prefer sources over generated assets when comparing behavior.
 - `codegraph` - use only for repository-wide architecture, impact, or affected
   test questions that the decision record makes relevant.
-- `serena` - use for exact symbols, references, diagnostics, or boundaries when
-  source-based comparison needs semantic code evidence.
+- `serena` - use only when it materially improves safety or precision for exact
+  symbol declarations/references/implementations, diagnostics, or boundaries;
+  use native `read`/`edit`/`write` for routine file work and serialize Serena
+  requests rather than parallelizing or batching them.
 
 ## Steps
 
@@ -56,8 +58,10 @@ This audit supplements the automated checks; it does not mechanically prove all 
    compare the documented behavior, routing, safety, install, tooling, and
    verification statements against current repository behavior. Report drift,
    stale references, unsupported claims, and material omissions with paths.
-5. Use CodeGraph or Serena only for the distinct architecture/symbol questions
-   that the record or a finding requires; do not duplicate ownership queries.
+5. Use CodeGraph only for the distinct repository-wide questions the record or a
+   finding requires. Use Serena only for the distinct exact-symbol or diagnostic
+   questions that materially improve precision; do not duplicate ownership
+   queries or parallelize/batch Serena calls.
 6. Separate automated traceability/structural results from human semantic
    findings. State what was not mechanically proven, then report findings first,
    checked-and-clean areas, verification, residual risk, and follow-up scope.
