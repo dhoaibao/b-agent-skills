@@ -79,7 +79,7 @@ INTERCOM_DELEGATION_REGRESSION = {
     "required_clauses": (
         "b-agentic defaults to Off for a single-session workflow",
         "The two-role workflow is explicit",
-        "Planner owns `b-plan`, `b-research`, `b-review`, and `b-pr-summary`",
+        "Planner owns `b-plan`, `b-research`, `b-agentic-audit`, `b-review`, and `b-pr-summary`",
         "Worker is the sole worktree writer",
         "Finish discovery and settle the approach before one handoff",
         "while worker edits, no exploration or new implementation requests",
@@ -163,6 +163,7 @@ FIXTURES = [
         name="changed-code review",
         prompt="Review my working tree diff before PR.",
         expected="b-review",
+        not_expected=("b-agentic-audit",),
     ),
     Fixture(
         name="review changes",
@@ -280,9 +281,16 @@ FIXTURES = [
         not_expected=("b-commit", "b-pr-summary", "b-plan"),
     ),
     Fixture(
-        name="suite self-audit routes to review",
-        prompt="Run a b-agentic suite self-audit with --audit-suite.",
-        expected="b-review",
+        name="suite self-audit routes to audit",
+        prompt="Run a b-agentic repository suite self-audit and report decision-design drift.",
+        expected="b-agentic-audit",
+        not_expected=("b-review",),
+    ),
+    Fixture(
+        name="design-conformance audit routes to audit",
+        prompt="Run the design-conformance audit and compare documented decisions with canonical sources.",
+        expected="b-agentic-audit",
+        not_expected=("b-review",),
     ),
     # Trigger-tightening regressions (suite audit: bare add/build/error/docs over-routed).
     Fixture(

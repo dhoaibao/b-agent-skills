@@ -49,8 +49,8 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
 - The permission entrypoint is split by concern: local shell/filesystem gates
   live in `pi/extensions/b-agentic-permissions.ts`, MCP/custom-tool approval
   in `pi/extensions/b-agentic-mcp-permissions.ts`, and collaboration roles in
-  `pi/extensions/b-agentic-role.ts`, `b-agentic-planner.ts`, and
-  `b-agentic-worker.ts`.
+  `pi/extensions/b-agentic-role.ts`, `pi/extensions/b-agentic-planner.ts`, and
+  `pi/extensions/b-agentic-worker.ts`.
 - Shared helpers under `pi/extensions/b-agentic-support/` are not discovered as
   standalone Pi extensions. This keeps Pi's discovered extension set coherent
   while allowing focused policy modules and test exports.
@@ -67,16 +67,17 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
 - Route the current intent to one skill and sequence phases rather than mixing
   planning, building, validation, and shipping. The registry groups skills as
   Decide (`b-plan`, `b-research`, `b-design`), Build (`b-implement`, `b-init`,
-  `b-refactor`), Validate (`b-debug`, `b-test`, `b-browser`, `b-review`), and
-  Ship (`b-commit`, `b-pr-summary`). Evidence: `references/kernel.template.md`,
-  `skills/registry.yaml`, `README.md`.
+  `b-refactor`), Validate (`b-debug`, `b-test`, `b-browser`, `b-review`,
+  `b-agentic-audit`), and Ship (`b-commit`, `b-pr-summary`). Evidence:
+  `references/kernel.template.md`, `skills/registry.yaml`, `README.md`.
 - `b-plan` resolves ambiguity and produces an executable plan without edits;
   `b-research` supplies versioned/external facts with provenance;
   `b-implement` makes the smallest approved change; `b-refactor` owns named
   behavior-preserving transforms; `b-debug` confirms runtime causes before an
-  authorized fix; `b-test` owns test mechanics/TDD/coverage; and `b-browser`
-  owns real-browser evidence. Evidence: the corresponding
-  `skills/*/prompt.md` files.
+  authorized fix; `b-test` owns test mechanics/TDD/coverage; `b-browser`
+  owns real-browser evidence; `b-review` reviews changed code; and
+  `b-agentic-audit` compares the repository and design record for conformance
+  drift. Evidence: the corresponding `skills/*/prompt.md` files.
 - Keep shipping intent explicit: `b-commit` stages/commits only after the
   interactive exact-proposal confirmation, and `b-pr-summary` reads only local
   commit history/cached origin refs without contacting remotes. Evidence:
@@ -158,7 +159,7 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
 - Protect dotenv/credential/key/certificate files, SSH/cloud config, Git
   internals, and secret-like paths. Public `.env.example` is allowed only
   outside protected parents; compound source filenames such as
-  `provider-secrets.service.ts` are not blanket-blocked.
+  'provider-secrets.service.ts' are not blanket-blocked.
 - Native reads of protected paths ask; native writes/edits are denied. Shell
   access and symlink-resolved paths are approval-gated or denied according to
   the same boundary. Outside-project native access asks, while project-confined
@@ -302,6 +303,12 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   lane is implied by static validation. Evidence:
   `tooling/validate/mcp_doctor.py`, `skills/b-browser/prompt.md`,
   `README.md`.
+- Repository/design-conformance auditing is separate from changed-code review:
+  `scripts/b-agentic-audit.sh` runs structural and decision-design traceability
+  checks, while `b-agentic-audit` reads canonical sources and reports semantic
+  drift. The automated traceability check does not mechanically prove all
+  prose semantics. Evidence: `AGENTS.md`, `CHANGELOG.md`,
+  `scripts/b-agentic-audit.sh`.
 
 ## Intentional non-goals
 

@@ -2,16 +2,17 @@
 
 Review changed code or b-agentic itself for blockers, regressions, security risk, and missing coverage. Findings first.
 
-Flags: `--skip-tests`, `--baseline=<path|url>`, `--range=<ref>..<ref>`, `--audit-suite`.
+Flags: `--skip-tests`, `--baseline=<path|url>`, `--range=<ref>..<ref>`.
 
 ## When to use
 
-- The user wants a pre-PR/pre-commit changed-code review.
-- A risky milestone needs reviewer scrutiny.
-- The user requests a b-agentic suite audit.
+- The user wants a pre-PR/pre-commit review of changed code.
+- A risky implementation milestone needs reviewer scrutiny against a baseline.
+- A delegated worker result needs the mandatory actual diff-and-verification review.
 
 ## When NOT to use
 
+- A b-agentic repository or design-conformance audit -> use **b-agentic-audit**.
 - Something is broken and needs root-cause tracing -> use **b-debug**.
 - The task is writing or fixing tests -> use **b-test**.
 - The task is external lookup -> use **b-research**.
@@ -28,17 +29,22 @@ Flags: `--skip-tests`, `--baseline=<path|url>`, `--range=<ref>..<ref>`, `--audit
 
 ## Steps
 
-1. Scope the review: working tree, range, baseline, or suite-audit surface using Bash with `rtk git status` and metadata-only changed-path lists.
+1. Scope the changed-code review: working tree, range, baseline, or checkpoint using Bash with `rtk git status` and metadata-only changed-path lists.
 2. Classify protected paths before reading content, then inspect only explicitly named non-protected paths with targeted diffs. Use inspection tools only. If the user wants findings fixed, report them and hand off to **b-implement** after the review.
 3. Choose baseline. Without baseline, do a risk review and do not claim requirements coverage.
-4. Read repo context only when it materially affects the review; use recall for compacted prior review ids when present.
+4. Read repo context only when it materially affects the changed-code review; use recall for compacted prior review ids when present.
 5. When changed code needs repository-wide flow, impact, or affected-test evidence, initialize an absent CodeGraph index and use it for that question; use Serena separately for exact references and diagnostics. Use Brave only when public semantics materially affect a finding.
 6. Inspect highest-risk changed symbols and boundaries first.
 7. Check tests, edge cases, security, operability, evidence quality, hidden assumptions, unnecessary diff, and over-abstraction.
 8. Verify evidence proves the intended observable outcome, not only command success (using Brave to look up API semantics if needed).
 9. Emit findings ordered by severity. If none, say so and name residual risk.
 
-For `--audit-suite` or explicit b-agentic audits, check kernel slimness, real problem statement, source/generated sync, Pi integration safety, installer safety, MCP leverage, validation evidence, prompt-change evidence, domain-specific behavior in core, ceremony creep, and cleanup candidates. Run `scripts/b-agentic-audit.sh` from the b-agentic checkout for structural checks only. Supplement it with repo inspection for the criteria the script does not automate, and do not treat a passing script as production-readiness proof. Prefer source files over generated assets and lower confidence when Pi behavior is only install-validated.
+Do not run the b-agentic repository/design-conformance audit here. Use
+**b-agentic-audit** for kernel slimness, source/generated sync, decision-design
+traceability, Pi integration safety, installer safety, MCP leverage, validation
+evidence, prompt-change evidence, domain-specific behavior, ceremony creep,
+and cleanup candidates. `scripts/b-agentic-audit.sh` is an audit entrypoint,
+not a substitute for this changed-code review.
 
 Use architecture vocabulary only when design friction is material: interface, seam, adapter, locality, leverage, shallow abstraction, and deletion test. Do not turn every review into an architecture report.
 

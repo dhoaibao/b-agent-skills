@@ -98,7 +98,8 @@ prompt_regression_contracts = {
     "b-test": ["explicitly requested a tightly scoped TDD red-green loop"],
     "b-browser": ["requested UI state"],
     "b-research": ["resolved lockfiles", "go.mod"],
-    "b-review": ["structural checks only"],
+    "b-review": ["review of changed code"],
+    "b-agentic-audit": ["source-based comparison", "does not mechanically prove all prose semantics"],
     "b-commit": ["Ask before staging or committing; do not push or create a PR."],
     "b-pr-summary": ["Do not contact remotes, fetch, push, inspect merge bases, or open PR state."],
 }
@@ -461,7 +462,7 @@ for tool_boundary_marker in [
 for intercom_marker in [
     "b-agentic defaults to Off for a single-session workflow",
     "The two-role workflow is explicit",
-    "Planner owns `b-plan`, `b-research`, `b-review`, and `b-pr-summary`",
+    "Planner owns `b-plan`, `b-research`, `b-agentic-audit`, `b-review`, and `b-pr-summary`",
     "Worker is the sole worktree writer",
     "Use the role-aware same-CWD worker roster after explicit role selection",
     "worker sends that planner paths/checks/gaps and pauses",
@@ -521,7 +522,7 @@ if "`firecrawl`" in browser_prompt:
     errors.append("skills/b-browser/prompt.md: firecrawl ownership must remain in b-research")
 
 readme = read_text(ROOT / "README.md")
-for forbidden in ["hooks", "subagent", "strict", "state-machine", "conformance"]:
+for forbidden in ["hooks", "subagent", "strict", "state-machine"]:
     if re.search(rf"\b{re.escape(forbidden)}\b", readme, re.IGNORECASE):
         errors.append(f"README.md: removed product concept remains: {forbidden!r}")
 

@@ -55,7 +55,7 @@
       "id": "changed-code-review",
       "prompt": "Review the working-tree diff before a PR and report reviewer findings.",
       "expected_skill": "b-review",
-      "forbidden_skills": ["b-commit", "b-pr-summary", "b-plan"]
+      "forbidden_skills": ["b-commit", "b-pr-summary", "b-plan", "b-agentic-audit"]
     },
     {
       "id": "commit-working-tree",
@@ -79,7 +79,13 @@
       "id": "review-staged-changes",
       "prompt": "Review my staged changes before committing.",
       "expected_skill": "b-review",
-      "forbidden_skills": ["b-commit"]
+      "forbidden_skills": ["b-commit", "b-agentic-audit"]
+    },
+    {
+      "id": "b-agentic-repository-audit",
+      "prompt": "Run a b-agentic repository audit and report decision-design drift.",
+      "expected_skill": "b-agentic-audit",
+      "forbidden_skills": ["b-review", "b-implement"]
     },
     {
       "id": "pr-summary",

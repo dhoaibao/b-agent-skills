@@ -6,7 +6,7 @@ b-agentic installs a compact Pi kernel, focused phase skills, a permission exten
 
 ## Single-session and two-role workflows
 
-b-agentic defaults to Off for a single-session workflow: it does not automatically promote the first session to planner. For the two-role workflow, explicitly start one session as planner and another as worker with `/b-role planner|worker` or `pi --b-role planner|worker`; `/b-role off` returns to solo work. The planner finishes discovery before one handoff; if needed, planner and worker agree on the approach before edits, then the planner stops exploring or issuing new implementation requests while the worker edits. The planner uses planning, research, review, and PR-summary skills; the worker owns implementation, debugging, refactoring, tests, browser checks, design/init writes, and explicit-user-request commits. Role-aware Intercom discovery coordinates the explicitly selected roles; before every planner/worker `send` or `reply`, call `pending`: if an inbound ask exists, use `reply`; if there is nothing to reply to, call `list-cwd` again to retrieve the exact session ID, then call `send` to that exact ID. This `list-cwd` call is the explicit exception to avoiding repeated `list-cwd` polling. `ask` is reserved for intentionally waiting for a response or a genuine blocker. After assigning a task, the planner waits for the worker's result rather than polling again; roster/status calls remain for selecting a worker or handling genuine connection needs, not a polling loop. The worker pauses after requesting review and resumes only for findings or a new task, repeating until approval. Every task delegated by a planner to a worker must pass the actual `b-review` skill against the actual diff and verification before the planner may mark it done, complete, approved, or closed. A regular or generic review is insufficient, and this gate must never be bypassed under any circumstances. If a blocker or decision cannot be resolved from scope or repository evidence, the planner asks the user one focused question and keeps the task open. `/b-role` selects only a role; it does not open a model picker. Role model and thinking-level preferences remain user-local for explicit `pi --b-role` startup selections and `/model` changes. See `pi/configs/README.md` for role details and CLI flags.
+b-agentic defaults to Off for a single-session workflow: it does not automatically promote the first session to planner. For the two-role workflow, explicitly start one session as planner and another as worker with `/b-role planner|worker` or `pi --b-role planner|worker`; `/b-role off` returns to solo work. The planner finishes discovery before one handoff; if needed, planner and worker agree on the approach before edits, then the planner stops exploring or issuing new implementation requests while the worker edits. The planner uses planning, research, repository-audit, changed-code review, and PR-summary skills; the worker owns implementation, debugging, refactoring, tests, browser checks, design/init writes, and explicit-user-request commits. Role-aware Intercom discovery coordinates the explicitly selected roles; before every planner/worker `send` or `reply`, call `pending`: if an inbound ask exists, use `reply`; if there is nothing to reply to, call `list-cwd` again to retrieve the exact session ID, then call `send` to that exact ID. This `list-cwd` call is the explicit exception to avoiding repeated `list-cwd` polling. `ask` is reserved for intentionally waiting for a response or a genuine blocker. After assigning a task, the planner waits for the worker's result rather than polling again; roster/status calls remain for selecting a worker or handling genuine connection needs, not a polling loop. The worker pauses after requesting review and resumes only for findings or a new task, repeating until approval. Every task delegated by a planner to a worker must pass the actual `b-review` skill against the actual diff and verification before the planner may mark it done, complete, approved, or closed. A regular or generic review is insufficient, and this gate must never be bypassed under any circumstances. If a blocker or decision cannot be resolved from scope or repository evidence, the planner asks the user one focused question and keeps the task open. `/b-role` selects only a role; it does not open a model picker. Role model and thinking-level preferences remain user-local for explicit `pi --b-role` startup selections and `/model` changes. See `pi/configs/README.md` for role details and CLI flags.
 
 ## Install
 
@@ -114,7 +114,8 @@ Pi has no native permission model, so b-agentic installs a first-party set of pu
 | `b-debug` | Validate | Find the real runtime root cause and fix it only when authorized |
 | `b-test` | Validate | Write or fix unit, integration, contract, and simulated-DOM tests |
 | `b-browser` | Validate | Collect real-browser, visual, screenshot, live UI, or e2e evidence |
-| `b-review` | Validate | Review changed code or run a b-agentic suite self-audit |
+| `b-agentic-audit` | Validate | Audit b-agentic repository and design conformance, reporting source drift |
+| `b-review` | Validate | Review changed code |
 | `b-commit` | Ship | Split working-tree changes into approved cohesive commits |
 | `b-pr-summary` | Ship | Write general PR copy for recent commits or commits ahead of cached origin |
 <!-- generated:skills-table:end -->
@@ -129,6 +130,7 @@ Pi can route natural-language requests to these skills automatically. To invoke 
 /skill:b-design [frontend design standard]
 /skill:b-debug [runtime bug]
 /skill:b-browser [UI/e2e evidence]
+/skill:b-agentic-audit [repository/design-conformance audit]
 /skill:b-refactor [behavior-preserving transform]
 ```
 
@@ -191,5 +193,6 @@ The validation suite and doctors prove generated sync, install safety, Pi config
 
 - `README.md` is the repository overview.
 - `AGENTS.md` is maintainer guidance.
+- `docs/decision_design.md` records evidence-backed product and repository design decisions.
 - `CHANGELOG.md` records shipped revisions.
 - `references/` contains the Pi kernel and canonical `mcp_operations.yaml` shipped to the Pi integration.

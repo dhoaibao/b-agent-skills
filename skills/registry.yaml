@@ -199,11 +199,29 @@
       }
     },
     {
+      "name": "b-agentic-audit",
+      "phase": "Validate",
+      "use": "Audit b-agentic repository and design conformance, reporting source drift",
+      "routing": {
+        "intent": "b-agentic repository and design-conformance audit",
+        "triggers": [
+          "b-agentic audit",
+          "suite audit",
+          "maintainer audit",
+          "design-conformance audit",
+          "decision-design drift"
+        ]
+      },
+      "prompt": {
+        "description": "Repository and design-conformance audit for b-agentic. Compares the evidence-backed decision record with canonical sources, generated assets, workflow, safety, install, tooling, and verification behavior, and reports drift without replacing separate diff checks."
+      }
+    },
+    {
       "name": "b-review",
       "phase": "Validate",
-      "use": "Review changed code or run a b-agentic suite self-audit",
+      "use": "Review changed code",
       "routing": {
-        "intent": "Pre-PR changed-code review and b-agentic suite audit",
+        "intent": "Pre-PR changed-code review",
         "triggers": [
           "code review",
           "review diff",
@@ -212,14 +230,11 @@
           "review these changes",
           "working tree diff",
           "pre-PR",
-          "\"what would a reviewer\"",
-          "b-agentic audit",
-          "suite audit",
-          "maintainer audit"
+          "\"what would a reviewer\""
         ]
       },
       "prompt": {
-        "description": "Pre-PR changed-code review for reviewer-style reads of a diff, commit range, or checkpoint after implementation, plus b-agentic suite self-audits when explicitly requested or invoked with `--audit-suite`. Do NOT invoke for general repo audits, UI/design review, plan review, or research synthesis review."
+        "description": "Pre-PR changed-code review for reviewer-style reads of a diff, commit range, or checkpoint after implementation. Do NOT invoke for b-agentic repository or design-conformance audits, UI/design review, plan review, or research synthesis review."
       }
     },
     {

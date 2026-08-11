@@ -43,7 +43,7 @@ if kernel.exists():
         'Managed MCP operations',
         'b-agentic defaults to Off for a single-session workflow',
         'The two-role workflow is explicit',
-        'Planner owns `b-plan`, `b-research`, `b-review`, and `b-pr-summary`',
+        'Planner owns `b-plan`, `b-research`, `b-agentic-audit`, `b-review`, and `b-pr-summary`',
         'Worker is the sole worktree writer',
         'Use the role-aware same-CWD worker roster after explicit role selection',
         'worker sends that planner paths/checks/gaps and pauses',

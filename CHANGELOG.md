@@ -6,6 +6,10 @@ All notable shipped revisions of b-agentic are recorded here. Released version h
 
 ### Changed
 
+- Separate repository/design-conformance audits from changed-code review:
+  - Observed failure: `b-review` mixed changed-code review with b-agentic suite audits, leaving documented-decision drift without a distinct source-comparison owner.
+  - Intended behavior: `b-agentic-audit` runs structural and decision-design traceability checks, compares the decision record with canonical sources, and reports drift; `b-review` remains changed-code-only and the mandatory delegated-diff gate is unchanged.
+  - Regression: `tooling/validate/decision_design.py`, routing fixtures, generated-sync validation, and `scripts/b-agentic-audit.sh`.
 - Planner/worker Pi profiles:
   - Observed failure: prose-only handoffs could not enforce a read-only coordinator, a sole writer, or the worker's assigned skill across Intercom sessions.
   - Intended behavior: `/b-role planner|worker|off` persists a Pi role overlay; planner mode hard-blocks mutations, worker mode requires a structured assignment and exact skill read, and `send` drives repeated result/review iterations.
