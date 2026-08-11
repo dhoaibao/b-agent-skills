@@ -250,11 +250,19 @@ explicitly selected same-directory worker, and reviews changed code with
 
 Before every planner/worker Intercom `send` or `reply`, call `pending`; an
 inbound ask uses `reply`, otherwise `list-cwd` retrieves the exact target ID
-before `send`. After assigning a task, the planner waits for the worker's
-result rather than polling. The worker reports changed paths, verification
-outcomes, and gaps, then pauses. Every delegated task must pass the actual
-`b-review` skill against the actual diff and verification before it is complete.
-Findings return to the same worker for a verified fix and another review.
+before `send`. The `to` value must be the full live session `id` from the
+immediately preceding `list-cwd` result; never use a display name, alias, or
+abbreviated prefix. Treat a handoff, result, finding, or approval as sent only
+after Intercom reports successful delivery. If `send` delivery fails, do not
+retry the stale target or continue, commit, or close: call `pending`; if an
+inbound ask exists, use `reply` and do not retry `send`; otherwise call a fresh
+`list-cwd`; retry exactly once only if the intended peer is still live,
+otherwise pause and surface the unavailable peer as the blocker. After
+assigning a task, the planner waits for the worker's result rather than
+polling. The worker reports changed paths, verification outcomes, and gaps,
+then pauses. Every delegated task must pass the actual `b-review` skill against
+the actual diff and verification before it is complete. Findings return to the
+same worker for a verified fix and another review.
 
 ## In-session refresh
 

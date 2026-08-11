@@ -23,6 +23,29 @@
       ]
     },
     {
+      "id": "intercom-delivery-failure-revalidates-peer",
+      "role": "worker",
+      "skill": "b-implement",
+      "observed_failure": "A worker used a stale or abbreviated session target, treated an undelivered Intercom message as sent, or continued after delivery failed.",
+      "intended_behavior": "Use the full live session ID from the immediately preceding list-cwd result, require successful delivery before treating a result or review request as sent, and recover one send failure by checking pending; reply without retrying when an inbound ask exists, otherwise use a fresh list-cwd before retrying once or surfacing the unavailable planner as a blocker.",
+      "prompt": "Your Intercom send to the assigning planner reports delivery failure. Describe the target you may use, what you do when pending reports an inbound ask versus none, the checks and exactly one retry you perform, and whether you continue, commit, or close if the planner is no longer live.",
+      "must": [
+        "Use only the full live session ID returned by the immediately preceding list-cwd result",
+        "Treat the result or review request as sent only after successful delivery",
+        "Do not retry the stale target or continue, commit, or close after delivery failure",
+        "Call pending after the failed send",
+        "Use reply and do not retry send when pending reports an inbound ask",
+        "Otherwise call a fresh list-cwd before retrying",
+        "Retry exactly once only if the intended planner remains live; otherwise pause and surface the unavailable planner as a blocker"
+      ],
+      "avoid": [
+        "Use a display name, alias, or abbreviated session-ID prefix",
+        "Treat a failed send as delivered",
+        "Retry the stale target more than once",
+        "Continue implementation or mark the task complete while the planner is unavailable"
+      ]
+    },
+    {
       "id": "planner-delegates-without-editing",
       "role": "planner",
       "skill": "b-plan",
