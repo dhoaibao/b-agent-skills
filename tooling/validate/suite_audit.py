@@ -44,7 +44,7 @@ def audit_slimness(errors: list[str]) -> None:
 
 
 def audit_unresolved_tokens(errors: list[str]) -> None:
-    paths = [ROOT / "README.md", ROOT / "references" / "kernel.template.md", *(ROOT / "skills" / name / "SKILL.md" for name in skill_names())]
+    paths = [ROOT / "README.md", ROOT / "REFERENCE.md", ROOT / "references" / "kernel.template.md", *(ROOT / "skills" / name / "SKILL.md" for name in skill_names())]
     for path in paths:
         if path.exists() and "{{" in path.read_text():
             errors.append(f"{path.relative_to(ROOT)}: unresolved template token")

@@ -567,7 +567,17 @@ browser_prompt = read_text(ROOT / "skills" / "b-browser" / "prompt.md")
 if "`firecrawl`" in browser_prompt:
     errors.append("skills/b-browser/prompt.md: firecrawl ownership must remain in b-research")
 
-readme = read_text(ROOT / "README.md")
+readme_path = ROOT / "README.md"
+readme = read_text(readme_path)
+reference_path = ROOT / "REFERENCE.md"
+reference = read_text(reference_path)
+if not reference_path.exists():
+    errors.append("REFERENCE.md: missing operational reference")
+else:
+    if "README.md" not in reference:
+        errors.append("REFERENCE.md: must link back to README.md")
+if "REFERENCE.md" not in readme:
+    errors.append("README.md: must link to REFERENCE.md")
 for forbidden in ["hooks", "subagent", "strict", "state-machine"]:
     if re.search(rf"\b{re.escape(forbidden)}\b", readme, re.IGNORECASE):
         errors.append(f"README.md: removed product concept remains: {forbidden!r}")
@@ -636,6 +646,7 @@ for deleted_path in ["tooling/policy", "tooling/state", "tooling/hooks", "toolin
 
 generated_paths = [
     ROOT / "README.md",
+    ROOT / "REFERENCE.md",
     ROOT / "references" / "kernel.template.md",
     *(ROOT / "skills" / name / "SKILL.md" for name in skill_names),
 ]

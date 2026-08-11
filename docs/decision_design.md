@@ -176,7 +176,7 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
 - Approved repository build and test tools can execute repository-controlled
   code. The extension protects command intent and paths; it is not a process
   isolation boundary. Use Pi sandboxing or an isolated environment for
-  genuinely untrusted code. Evidence: `README.md`,
+  genuinely untrusted code. Evidence: `REFERENCE.md`,
   `references/kernel.template.md`.
 - Commit creation is a separate exact-proposal selection UI and is blocked
   without interactive UI. Pushes are not performed by b-agentic. Evidence:
@@ -222,7 +222,7 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
 - Distinct independent CodeGraph reads may be fanned out in one bounded
   read-only `mcpScript`; Serena requests remain serialized and are not included in
   parallel or batched calls. Metadata discovery is trusted there, while every
-  nested tool call retains normal policy. Evidence: `README.md`,
+  nested tool call retains normal policy. Evidence: `REFERENCE.md`,
   `references/kernel.template.md`, `skills/b-research/prompt.md`,
   `skills/b-plan/prompt.md`, `skills/b-test/prompt.md`.
 
@@ -245,7 +245,7 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   `--ref` pins, then sources the shared Pi installer. `--sync` updates only
   managed assets; `--update` updates installed RTK/Serena/CodeGraph/Pi tooling
   without pulling b-agentic or installing missing components. Evidence:
-  `install.sh`, `pi/scripts/install.sh`, `README.md`.
+  `install.sh`, `pi/scripts/install.sh`, `REFERENCE.md`.
 - RTK is required; Pi CLI upgrades/install, shell tools, Serena, CodeGraph, and
   optional Pi packages are prompted in interactive mode or opt-in via
   environment variables. Pi MCP adapter, observational memory, usage, and
@@ -308,7 +308,7 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   processes/network activity or write approved evidence artifacts. Neither
   lane is implied by static validation. Evidence:
   `tooling/validate/mcp_doctor.py`, `skills/b-browser/prompt.md`,
-  `README.md`.
+  `REFERENCE.md`.
 - Repository/design-conformance auditing is separate from changed-code review:
   `scripts/b-agentic-audit.sh` runs structural and decision-design traceability
   checks, while `b-agentic-audit` reads canonical sources and reports semantic
@@ -322,7 +322,7 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   runtime registry: the shipped boundary is Pi. Evidence: `CHANGELOG.md`,
   `README.md`, repository layout.
 - No process sandbox, blanket protection from repository-controlled test/build
-  code, or claim that command approval is isolation. Evidence: `README.md`,
+  code, or claim that command approval is isolation. Evidence: `REFERENCE.md`,
   `references/kernel.template.md`.
 - No automatic external/shared mutation, MCP auth bootstrap, broad crawling,
   Firecrawl feedback/agent/crawl/monitor actions, Playwright navigation or

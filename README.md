@@ -2,103 +2,35 @@
 
 **A slim personal workflow kernel for the Pi coding agent. b-agentic and Pi are one integrated product.**
 
-b-agentic installs a compact Pi kernel, focused phase skills, a permission extension, and recommended MCP configuration. Its job is simple: route work, preserve safety gates, use the right evidence, and verify before claiming done.
+b-agentic routes work to focused skills, preserves safety gates, uses the right evidence, and verifies before claiming completion. It installs a compact Pi kernel, native skills, first-party extensions, and recommended MCP configuration.
 
-## Single-session and two-role workflows
+Benefits:
 
-b-agentic defaults to Off for a single-session workflow: it does not automatically promote the first session to planner. For the two-role workflow, explicitly start one session as planner and another as worker with `/b-role planner|worker` or `pi --b-role planner|worker`; `/b-role off` returns to solo work. The planner finishes discovery before one handoff; if needed, planner and worker agree on the approach before edits, then the planner stops exploring or issuing new implementation requests while the worker edits. The planner uses planning, research, repository-audit, changed-code review, and PR-summary skills; the worker owns implementation, debugging, refactoring, tests, browser checks, design/init writes, and explicit-user-request commits. Role-aware Intercom discovery coordinates the explicitly selected roles; before every planner/worker `send` or `reply`, call `pending`: if an inbound ask exists, use `reply`; if there is nothing to reply to, call `list-cwd` again to retrieve the exact session ID, then call `send` to that exact ID. This `list-cwd` call is the explicit exception to avoiding repeated `list-cwd` polling. `ask` is reserved for intentionally waiting for a response or a genuine blocker. After assigning a task, the planner waits for the worker's result rather than polling again; roster/status calls remain for selecting a worker or handling genuine connection needs, not a polling loop. The worker pauses after requesting review and resumes only for findings or a new task, repeating until approval. Every task delegated by a planner to a worker must pass the actual `b-review` skill against the actual diff and verification before the planner may mark it done, complete, approved, or closed. A regular or generic review is insufficient, and this gate must never be bypassed under any circumstances. If a blocker or decision cannot be resolved from scope or repository evidence, the planner asks the user one focused question and keeps the task open. `/b-role` selects only a role; it does not open a model picker. Role model and thinking-level preferences remain user-local for explicit `pi --b-role` startup selections and `/model` changes. See `pi/configs/README.md` for role details and CLI flags.
+- less ceremony for routine work, with planning and review when scope needs it
+- safer local automation with explicit approval for risky or external actions
+- evidence-backed workflows across code, documentation, tests, browsers, and MCPs
+
+- **[Read the full operational reference](REFERENCE.md)** for installation details, package lifecycle, MCP readiness, safety behavior, and validation.
+- Maintainer and project history: [AGENTS.md](AGENTS.md), [CHANGELOG.md](CHANGELOG.md), and [docs/decision_design.md](docs/decision_design.md).
 
 ## Install
-
-Default install for Pi:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agentic/main/install.sh | bash
 ```
 
-Default install writes b-agentic files and Pi configuration only. Interactive installs prompt before installing or upgrading the Pi CLI. Non-interactive installs skip Pi CLI changes unless `B_AGENTIC_INSTALL_PI_CLI=Y` explicitly opts in.
+Pin the bootstrap and source to a reviewed tag or commit with `B_AGENTIC_REF=<tag-or-commit>` and `--ref=<tag-or-commit>`. Use `--dry-run`, `--replace-memory`, `--uninstall`, `--sync`, or `--update` as needed. See [REFERENCE.md](REFERENCE.md) for flags, requirements, readiness checks, and safety details.
 
-For professional or shared environments, pin both the bootstrap script and installed source to a reviewed tag or commit instead of consuming whatever is currently on `main`:
+## How b-agentic works
 
-```bash
-export B_AGENTIC_REF=<tag-or-commit>
-curl -fsSL "https://raw.githubusercontent.com/dhoaibao/b-agentic/${B_AGENTIC_REF}/install.sh" | bash -s -- --ref="${B_AGENTIC_REF}"
-```
+| Phase | Skills | Purpose |
+|---|---|---|
+| **Decide** | `b-plan`, `b-research`, `b-design` | Resolve ambiguity, gather outside facts, or define a frontend standard. |
+| **Build** | `b-implement`, `b-init`, `b-refactor` | Make the smallest approved change. |
+| **Validate** | `b-debug`, `b-test`, `b-browser`, `b-agentic-audit`, `b-review` | Confirm runtime behavior, tests, browser evidence, repository conformance, and changed-code quality. |
+| **Ship** | `b-commit`, `b-pr-summary` | Create explicitly approved local commits or write PR copy from local history. |
 
-The same pin is available as `B_AGENTIC_REF=<tag-or-commit>` for scripted installs.
-
-Useful flags:
-
-- `--dry-run` previews changes
-- `--replace-memory` replaces an existing managed kernel file
-- `--uninstall` removes managed files
-- `--ref=<tag-or-commit>` checks out that b-agentic git ref before installing managed files
-- `--sync` pulls the installed checkout and syncs managed Pi skills, kernel, and first-party extensions only
-- `--update` updates already-installed RTK, Serena, CodeGraph, Pi, and Pi extensions without pulling b-agentic or installing missing components
-
-MCP servers and RTK are installed from their latest available releases. Run `scripts/mcp-doctor.sh` after setting API keys to verify local readiness. Missing credentials or dependencies fail checks by default; use `--allow-degraded` to inspect status without failing.
-
-Requirements: `bash`, `git`, Python 3.11+, and Bun (`bunx`) for MCP entries that use Bun. Pi CLI installation or upgrade is opt-in via the interactive prompt or `B_AGENTIC_INSTALL_PI_CLI=Y`.
-
-Interactive installs prepare Pi and RTK; Serena and CodeGraph remain optional installs. When modern shell tools are missing, interactive installs prompt to install them: `rg` over `grep`, `fd` or `fdfind` over `find`, `bat` (or Debian/Ubuntu's `batcat`) over `cat`, `eza` or `exa` over `ls`, `sd` over `sed` or `awk`, and `jq` over `python -m json.tool` for JSON when they improve the task. Set `B_AGENTIC_INSTALL_SHELL_TOOLS=Y` to install them non-interactively.
-
-## RTK (Rust Token Killer)
-
-During interactive installs, the installer can prompt to download and run the RTK install script from its `master` branch. If `rtk` is already installed, the installer asks separately before upgrading it; the existing installation satisfies the prerequisite. Scripted upgrades require `B_AGENTIC_INSTALL_RTK=Y`. This is a remote shell script; only use it if you trust the RTK repository. RTK is required for b-agentic sessions; installation fails if it cannot be installed.
-
-Once installed, agents use RTK for every command family it supports, including local discovery. For unsupported command families, they prefer modern shell tools (`rg`, `fd`/`fdfind`, `eza`/`exa`, `bat`/`batcat`, `sd`, `jq`) and fall back only when the replacement is missing or a worse fit. Regular repository-local commands are auto-allowed regardless of that recommendation, including routine build, test, package, dependency, and script automation; RTK does not bypass protections for explicit destructive or privileged commands, external/shared mutations, protected paths, outside-project paths, or unscoped Git content reads. Explicit destructive commands are denied. Build and test tools can execute code from the current repository, so this permission layer is not a process sandbox. Use Pi's sandbox integration or an isolated environment when running genuinely untrusted code. Examples:
-
-```bash
-rtk rg pattern src
-fd -t f '.ts$'
-eza -la
-rtk git status
-rtk cargo test
-rtk pytest -q
-```
-
-Meta commands:
-
-```bash
-rtk gain            # Token savings analytics
-rtk gain --history  # Recent command savings history
-rtk --help           # Supported command families
-rtk proxy <cmd>     # Optional raw execution with RTK tracking
-```
-
-RTK also provides an optional rewrite-only Pi extension:
-
-```bash
-rtk init --agent pi --global
-```
-
-This improves transparent command rewriting but does not replace b-agentic's permission extension or approval policy. b-agentic does not install it automatically.
-
-Verification: `rtk --version`, `rtk gain`, `which rtk`.
-
-## Serena MCP agent
-
-Interactive installs can prompt to install the Serena MCP agent, which provides symbol discovery, references, diagnostics, and symbol edits. If `serena` is already installed, the installer asks before running `uv tool upgrade serena-agent`. Scripted upgrades require `B_AGENTIC_INSTALL_SERENA=Y`.
-
-If `uv` is already installed, the installer runs:
-
-```bash
-uv tool install -p 3.13 serena-agent
-```
-
-If `uv` is missing, the installer prompts to install it from `https://astral.sh/uv/install.sh` before proceeding with Serena. As with any remote install script, only proceed if you trust the source.
-
-## CodeGraph MCP agent
-
-b-agentic writes a default [CodeGraph](https://github.com/colbymchenry/codegraph) MCP entry that runs `codegraph serve --mcp` with `CODEGRAPH_TELEMETRY=0`. In interactive sessions, the installer can prompt to install CodeGraph with `curl -fsSL https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh | sh`; if CodeGraph is already installed, the installer asks before running `codegraph upgrade`. Scripted upgrades require `B_AGENTIC_INSTALL_CODEGRAPH=Y`. Run `codegraph init` in each repository where you want a local pre-indexed code graph.
-
-b-agentic initializes CodeGraph for the first repository-wide architecture or impact task when the local index is absent, then uses it for architecture, dependency and call flows, impact radius, route-to-handler discovery, and affected-test discovery. Prefer Pi native `read`/`edit`/`write` for routine repository work. Use Serena only when it materially improves safety or precision: exact symbol declarations, references, implementations, diagnostics, reference-aware refactors, relevant onboarding, or durable project memories. Do not use Serena for routine reads, searches, or edits, and serialize its requests rather than parallelizing or batching them because concurrency can hang or time out. Do not query CodeGraph and Serena for the same question. Every classified Serena and CodeGraph tool is auto-approved for safe intended inputs through direct names and `mcp__`-prefixed names when their namespace matches the managed server; sensitive and outside-project Serena paths remain gated. Missing CLIs are not installed automatically.
-
-## Pi integration
-
-Pi discovers native skills from `~/.pi/agent/skills/` and MCP configuration from `~/.pi/agent/mcp.json` through `pi-mcp-adapter`. b-agentic preserves user-owned configuration and reports every managed change. In an active interactive Pi session, `/b-sync` pulls and syncs only managed Pi skills, kernel, and first-party extensions before reloading Pi; it does not install packages or change MCP configuration. `/b-update` updates already-installed runtime tooling and extensions without pulling b-agentic or installing missing components, then reloads Pi. Both commands ask for confirmation.
-
-Pi has no native permission model, so b-agentic installs a first-party set of purpose-specific `tool_call` extensions at `~/.pi/agent/extensions/`: `b-agentic-permissions.ts` for shell/filesystem policy, `b-agentic-mcp-permissions.ts` for managed MCP and custom-tool approval, `b-agentic-role.ts` for role selection and persistence, `b-agentic-planner.ts`/`b-agentic-worker.ts` for prompt-only collaboration profiles, and `b-agentic-sync.ts` for in-session refresh commands. The extension auto-allows every classified Serena and CodeGraph operation, plus classified managed read-only and safe conditional-read MCP operations, through direct or `mcp__`-prefixed Serena/CodeGraph names, the adapter, and unambiguous top-level gateway calls with an explicit managed server and matching tool name. Explicitly targeted `mcp` proxy tool executions go to b-agentic's adapter broker; classified safe calls receive `allow_once`, while unsafe or unmanaged calls are prompted there. Metadata and lifecycle selectors remain behind the generic approval gate. The trusted `mcpScript` container also auto-runs and permits read-only `tools.search`/`tools.describe` metadata discovery, while each nested `tools.call` retains the same policy. Top-level metadata selectors, other direct adapter tool names, and ambiguous gateway calls remain approval-gated through b-agentic's broker because Pi shares that namespace with custom tools. Non-Serena managed mutations, local uploads, lifecycle actions, auth, user/unknown MCP servers, and other custom tools require approval and fail closed without UI. Protected paths, ambiguous shell and interpreter inputs, and outside-project executable paths remain approval-gated; explicit destructive shell commands are denied. The extension is a command-policy guard, not a process sandbox: approved build and test tools may execute repository-controlled code. Pi MCP requires the community adapter `pi-mcp-adapter` (prompted interactively, or `B_AGENTIC_INSTALL_PI_MCP_ADAPTER=Y` noninteractively). The optional `pi-observational-memory` package provides long-session compaction continuity; it is prompted interactively or installed noninteractively with `B_AGENTIC_INSTALL_PI_OBSERVATIONAL_MEMORY=Y`, and should be the sole automatic memory/compaction layer. Its current V3 model does not read V2 settings or memory format; after upgrading from V2, migrate the settings and start a clean Pi session. The optional `@narumitw/pi-usage` extension is also prompted interactively and can be installed noninteractively with `B_AGENTIC_INSTALL_PI_USAGE=Y`. After checking `pi list`, the installer runs `pi update --extensions` when Pi extensions are installed. Uninstall removes managed config/extension files but not any package. Pi enforces managed MCP and RTK policy from `references/mcp_operations.yaml` and `references/kernel.template.md`.
+In a solo session, workflow is **Off**: one session routes and executes the needed phases. An optional planner/worker setup uses explicitly selected roles: the planner performs read-only discovery and review, while the worker is the sole worktree writer. The worker pauses for the actual `b-review` gate before delegated work is complete.
 
 ## Skills
 
@@ -120,79 +52,71 @@ Pi has no native permission model, so b-agentic installs a first-party set of pu
 | `b-pr-summary` | Ship | Write general PR copy for recent commits or commits ahead of cached origin |
 <!-- generated:skills-table:end -->
 
-Pi can route natural-language requests to these skills automatically. To invoke one explicitly, use Pi's native `/skill:<name>` command:
+Invoke a skill explicitly with Pi's native `/skill:<name>` command. The usual path is:
 
 ```text
 /skill:b-plan [goal] -> approve -> /skill:b-implement -> /skill:b-test -> /skill:b-review
-/skill:b-commit
-/skill:b-pr-summary [commit-count]
-/skill:b-research [external facts]
-/skill:b-design [frontend design standard]
-/skill:b-debug [runtime bug]
-/skill:b-browser [UI/e2e evidence]
-/skill:b-agentic-audit [repository/design-conformance audit]
-/skill:b-refactor [behavior-preserving transform]
 ```
 
-## MCPs
+## Managed MCPs
 
-The installer writes recommended MCP entries for:
+The installer writes all six recommended entries to Pi's MCP configuration with lazy startup. **Configured** means an entry exists; it does not mean the server is installed, authenticated, or ready. **Required** means required for the stated capability, not for every b-agentic session.
 
-- Serena: optional precision work for symbols, references, diagnostics, and reference-aware edits/refactors.
-- CodeGraph: local pre-indexed code structure, flows, impact radius, and affected tests.
-- Context7: versioned library/framework docs.
-- Firecrawl: primary public web search, bounded extraction, arXiv/paper and GitHub issue/discussion lookup, and approved deeper research.
-- Brave Search: secondary public/current discovery and alternate source finding.
-- Playwright: live browser, visual, console/network, and e2e evidence.
+| MCP | Role | Required | Default/configured state |
+|---|---|---|---|
+| Serena | Symbols, references, diagnostics, and precise semantic edits | Optional per task; CLI optional | Configured lazily; no key |
+| CodeGraph | Repository architecture, flows, impact, and affected tests | Optional per task; CLI optional | Configured lazily; initialized only for the first relevant task |
+| Context7 | Versioned library and framework documentation | Optional per task; API key required when used | Configured lazily; `CONTEXT7_API_KEY` is user-supplied |
+| Firecrawl | Bounded public research, extraction, papers, and GitHub lookup | Optional per task; Bun and API key required when used | Configured lazily; `FIRECRAWL_API_KEY` is user-supplied |
+| Brave Search | Independent current discovery and alternate search modalities | Optional per task; Bun and API key required when used | Configured lazily; `BRAVE_API_KEY` is user-supplied |
+| Playwright | Real-browser, visual, console/network, and e2e evidence | Optional per task; Bun required when used | Configured lazily; no key |
 
-The installer does not eagerly start MCP servers, install `bunx` packages, or initialize repositories. b-agentic runs `codegraph init` only for repository-wide architecture or impact work when its local index is absent; Serena onboarding is auto-approved but runs only when repository onboarding is useful. It does not install missing CLIs. It reports local MCP readiness blockers such as missing binaries or API keys. Use `scripts/mcp-doctor.sh --session-tools` to verify the active session has RTK. When live network/process activity is approved, `scripts/mcp-doctor.sh --probe-schemas` explicitly starts or connects to each configured server and compares its current tool inventory with the canonical operation policy. Run it after MCP package updates and before release candidates; normal readiness output states that live schema verification was not run. Add `--suggestions` for human-readable review records and `--suggestions-json=<path>` for a machine-readable report; suggestion mode never edits the policy or configuration.
+## Core tools
 
-## Repository Layout
+| Tool | Role | Required/default/optional | Configuration |
+|---|---|---|---|
+| `bash` | Repository-local commands and automation | Required; Pi native default | Available in Pi sessions |
+| `read`, `edit`, `write` | Routine file reads and edits | Required; Pi native default | Available in Pi sessions |
+| `recall` | Optional observational-memory continuity | Optional | Available when the memory layer supplies it |
+| `mcp` / `mcpScript` | Managed MCP gateway and bounded metadata/read orchestration | Optional; MCP adapter required to use configured servers | Configured through Pi MCP entries and policy |
+| `intercom` | Explicit planner/worker coordination | Optional workflow; package default | Enabled by `pi-intercom` unless disabled |
+| `b_agentic_confirm_commit` | Exact-proposal selection for commits | Required only for `b-commit`; first-party default | Installed with b-agentic's Pi extensions |
+
+## Pi packages
+
+| Package | Purpose | Status | Installer behavior |
+|---|---|---|---|
+| `pi-mcp-adapter` | Loads Pi MCP configuration | Required for MCP use; otherwise optional | Interactive prompt; non-interactive only with `B_AGENTIC_INSTALL_PI_MCP_ADAPTER=Y` |
+| `pi-intercom` | Provides planner/worker coordination | Default for the optional two-role workflow | Installed by default; disable with `B_AGENTIC_INSTALL_PI_INTERCOM=N` |
+| `pi-observational-memory` | Long-session compaction continuity | Optional | Interactive prompt or `B_AGENTIC_INSTALL_PI_OBSERVATIONAL_MEMORY=Y` |
+| `@narumitw/pi-usage` | Pi usage reporting | Optional | Interactive prompt or `B_AGENTIC_INSTALL_PI_USAGE=Y` |
+
+Pi CLI installation or upgrade is separately opt-in: interactive installs prompt, while non-interactive installs require `B_AGENTIC_INSTALL_PI_CLI=Y`.
+
+## First-party extensions
+
+| Extension | Purpose | Status |
+|---|---|---|
+| `b-agentic-permissions.ts` | Shell, filesystem, and dangerous-command policy | Default; installed and configured by b-agentic |
+| `b-agentic-mcp-permissions.ts` | Managed MCP and custom-tool approval | Default; installed and configured by b-agentic |
+| `b-agentic-role.ts` | Explicit solo/planner/worker role selection | Default; installed and configured by b-agentic |
+| `b-agentic-planner.ts` | Planner analysis-only enforcement | Default; installed and configured by b-agentic |
+| `b-agentic-worker.ts` | Worker collaboration profile | Default; installed and configured by b-agentic |
+| `b-agentic-sync.ts` | In-session `/b-sync` and `/b-update` refresh commands | Default; installed and configured by b-agentic |
+
+Policy helpers under `pi/extensions/b-agentic-support/` are shipped with the bundle but are not standalone discovered extensions.
+
+## Repository layout
 
 ```text
 b-agentic/
 ├── skills/                # Skill sources and generated delivery assets
-├── pi/                    # Pi integration, config, extension, and smoke lanes
+├── pi/                    # Pi integration, config, extensions, and smoke lanes
 ├── references/            # Pi kernel and MCP policy
-├── tooling/generate/      # Registry and generated asset sync
-├── tooling/install/       # Shared installer core
-├── tooling/validate/      # Validation harness
-├── tests/smoke/           # Installer smoke tests
+├── tooling/               # Generation, installation, and validation
+├── tests/smoke/           # Installer smoke coverage
 ├── install.sh             # Bootstrap installer entrypoint
-└── scripts/               # Validation and smoke wrappers
+└── scripts/               # Validation and doctor wrappers
 ```
 
-Validation:
-
-```bash
-scripts/validate-skills.sh
-scripts/validate-skills.sh --release
-scripts/b-agentic-audit.sh
-scripts/smoke-install.sh
-scripts/mcp-doctor.sh
-scripts/mcp-doctor.sh --allow-degraded
-scripts/mcp-doctor.sh --probe-schemas  # explicit live server/network probe
-scripts/mcp-doctor.sh --probe-schemas --suggestions --suggestions-json=/tmp/mcp-policy-suggestions.json
-scripts/skill-doctor.sh
-```
-
-Browser evidence is opt-in. When requested, b-browser writes only under an explicitly approved local evidence directory, records the requested UI state and collected browser evidence, and never claims screenshot coverage unless a screenshot was collected.
-
-Prompt effectiveness is an opt-in, human-scored check because it makes potentially billable model calls and is nondeterministic. Validate its default inputs without model calls, then pin the provider, model, and thinking level when comparing a baseline with a candidate:
-
-```bash
-python3 pi/tests/prompt_effectiveness.py --validate-inputs
-python3 pi/tests/prompt_effectiveness.py --allow-model-calls --provider=<provider> --model=<model> --thinking=<level> --label=baseline > baseline.json
-python3 pi/tests/prompt_effectiveness.py --routing --validate-inputs
-python3 pi/tests/prompt_effectiveness.py --routing --allow-model-calls --provider=<provider> --model=<model> --thinking=<level> --label=baseline-routing > baseline-routing.json
-```
-
-The validation suite and doctors prove generated sync, install safety, Pi config shape, skill payloads, MCP operation policy regression, and local MCP readiness blockers. The default routing check is a static heuristic over skill registry metadata. The opt-in `--routing` effectiveness lane loads every native skill with read-only tools and records the model's reported selection; both effectiveness modes require human review against their included rubrics.
-
-## Docs
-
-- `README.md` is the repository overview.
-- `AGENTS.md` is maintainer guidance.
-- `docs/decision_design.md` records evidence-backed product and repository design decisions.
-- `CHANGELOG.md` records shipped revisions.
-- `references/` contains the Pi kernel and canonical `mcp_operations.yaml` shipped to the Pi integration.
+Validation entrypoints include `scripts/validate-skills.sh`, `scripts/validate-skills.sh --release`, and `scripts/b-agentic-audit.sh`. Browser evidence, live MCP schema probing, and prompt-effectiveness model calls are opt-in.

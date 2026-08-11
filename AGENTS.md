@@ -9,7 +9,7 @@ The governing principle is: slim, strong, usable. Every workflow or prompt chang
 
 ## Working Rules
 
-- Treat `README.md` as the public overview and this file as maintainer guidance.
+- Treat `README.md` as the public overview, `REFERENCE.md` as detailed operational documentation, and this file as maintainer guidance.
 - Use `docs/decision_design.md` for the evidence-backed product, architecture, workflow, safety, tooling, install, and verification decisions behind this guide; update it only when repository evidence changes.
 - Edit canonical sources, not generated outputs.
 - Keep shared content under `skills/` and `references/` focused on Pi.
@@ -68,6 +68,7 @@ Use `--release` when install, Pi integration, kernel delivery, or release-readin
 - `tooling/validate/` — validation harness
 - `tests/smoke/` — installer and Pi smoke coverage
 - `scripts/` — validation, doctor, smoke, and acceptance entrypoints
+- `REFERENCE.md` — detailed operational installation, configuration, lifecycle, safety, MCP, and verification documentation
 - `docs/decision_design.md` — evidence-backed repository decision record
 
 ## Review Before Handoff
