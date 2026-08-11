@@ -36,6 +36,7 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
   let applyingSavedModel = false;
   let channel: RoleChannel | undefined;
   let pendingWorkerClaim = false;
+  let pendingWorkerModel = false;
   const peerRoles = new Map<string, CoordinatedRole>();
 
   const updateStatus = (ctx: ExtensionContext): void => {
@@ -103,11 +104,14 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
       if (!hasKnownSameCwdPeerRoles(sessions, ctx.cwd, process.pid, peerRoles)) return;
       if (!canClaimWorker(sessions, ctx.cwd)) return;
       pendingWorkerClaim = false;
+      const shouldApplySavedModel = pendingWorkerModel;
+      pendingWorkerModel = false;
       if (hasActiveSameCwdPeerWorker(sessions, ctx.cwd, process.pid, peerRoles)) {
         ctx.ui.notify("A same-CWD b-agentic worker is already active", "warning");
         return;
       }
       applyRole("worker", ctx);
+      if (shouldApplySavedModel) await applySavedModel("worker", ctx);
     } catch {
       // Stay planner-safe until a connection or peer-role event retries the claim.
     }
@@ -154,7 +158,9 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
         return;
       }
       pendingWorkerClaim = next === "worker";
+      pendingWorkerModel = next === "worker";
       applyRole(next === "worker" ? "planner" : next, ctx);
+      if (next === "planner") await applySavedModel("planner", ctx);
       if (pendingWorkerClaim) {
         requestPeerRoles();
         await resolvePendingWorkerClaim(ctx);
@@ -186,9 +192,13 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
     const persistedRole = legacyAutomatic ? undefined : persisted?.role;
     setToolsBeforePlanner(legacyTools);
     pendingWorkerClaim = flagRole === "worker";
+    pendingWorkerModel = false;
     const selectedRole = pendingWorkerClaim ? "planner" : flagRole ?? persistedRole ?? "off";
     applyRole(selectedRole, ctx, false);
-    if (flagRole && flagRole !== "off") await applySavedModel(flagRole, ctx);
+    const startupModelRole = flagRole && flagRole !== "off"
+      ? flagRole
+      : !pendingWorkerClaim && selectedRole !== "off" ? selectedRole : undefined;
+    if (startupModelRole) await applySavedModel(startupModelRole, ctx);
     if (legacyTools || (flagRole && !pendingWorkerClaim)) persist();
     pi.events.emit("intercom:extension-register", {
       namespace: "b-agentic/roles/v1",
