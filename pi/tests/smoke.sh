@@ -398,6 +398,20 @@ expect(await autoModeBrokerClaim() === 'allow_once', 'auto-mode must auto-allow 
 await commands['b-auto-mode'].handler('off', roleContext);
 expect(roleStatuses.at(-1)?.value === undefined && persistedEntries.at(-1)?.data.enabled === false, 'disabling auto-mode must clear status and persist off');
 expect((await toolCallHandler({ toolName: 'bash', input: { command: 'rm -rf /tmp/auto-mode-off' } }, noUiContext))?.block === true, 'off auto-mode must retain fail-closed no-UI shell asks');
+let autoModeStartupConfirmations = 0;
+branchEntries.length = 0;
+branchEntries.push({ type: 'custom', customType: 'b-agentic-auto-mode', data: { enabled: true } });
+const autoModeStartupContext = {
+  ...roleContext,
+  ui: {
+    ...roleContext.ui,
+    confirm: async () => { autoModeStartupConfirmations += 1; return true; },
+  },
+};
+await registrations.session_start[1]({}, autoModeStartupContext);
+expect(autoModeStartupConfirmations === 0, 'persisted auto-mode must restore without reopening an approval prompt');
+expect(await toolCallHandler({ toolName: 'bash', input: { command: 'rm -rf /tmp/auto-mode-restored' } }, noUiContext) === undefined, 'restored auto-mode must auto-allow shell ask decisions');
+await commands['b-auto-mode'].handler('off', roleContext);
 
 expect(await toolCallHandler({ toolName: 'mcpScript', input: { code: 'return 1;' } }, noUiContext) === undefined, 'trusted mcpScript container must auto-allow without UI');
 expect(await toolCallHandler({

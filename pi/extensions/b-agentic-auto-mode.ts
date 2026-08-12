@@ -65,6 +65,14 @@ export default function bAgenticAutoMode(pi: ExtensionAPI): void {
     const flagValue = pi.getFlag("b-auto-mode");
     const requested = flagValue === undefined ? persisted : parseAutoMode(flagValue);
     if (requested === true) {
+      // A persisted opt-in was already confirmed in an earlier session; restore
+      // it without reopening an approval prompt. Explicit startup flags still
+      // go through the confirmation above.
+      if (flagValue === undefined && persisted === true) {
+        setAutoModeEnabled(true);
+        updateStatus(ctx);
+        return;
+      }
       await enable(ctx, persisted !== undefined);
       return;
     }
