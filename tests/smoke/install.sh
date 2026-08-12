@@ -98,6 +98,7 @@ EOF
 
 	assert_contains "$mcp_path" '"user-server"'
 	assert_contains "$mcp_path" '"codegraph"'
+	assert_json_value "$mcp_path" "data['mcpServers']['linear'] == {'url': 'https://mcp.linear.app/mcp/readonly', 'auth': 'oauth', 'oauth': {'scope': 'read'}, 'includeTools': ['get_issue'], 'lifecycle': 'lazy'}"
 	assert_json_value "$mcp_path" "data['settings']['requestTimeoutMs'] == 30000"
 
 	python3 - "$mcp_path" <<'PY'
@@ -126,7 +127,33 @@ assert_json_value "$mcp_path" "data['settings']['requestTimeoutMs'] == 12345"
 	assert_contains "$sandbox/uninstall.log" 'Manifest-only uninstall complete for pi'
 	assert_contains "$mcp_path" '"user-server"'
 	assert_not_contains "$mcp_path" '"codegraph"'
+	assert_not_contains "$mcp_path" '"linear"'
 	assert_not_contains "$mcp_path" '"serena"'
+}
+
+run_user_owned_linear_readiness_case() {
+	local snapshot_repo="$1"
+	local sandbox="$WORK_DIR/user-owned-linear-readiness"
+	local mcp_path="$sandbox/home/.pi/agent/mcp.json"
+	local install_log="$sandbox/install.log"
+
+	mkdir -p "$(dirname "$mcp_path")"
+	cat >"$mcp_path" <<'EOF'
+{"mcpServers":{"linear":{"url":"https://example.invalid/mcp","auth":"oauth","oauth":{"scope":"write"},"includeTools":["list_issues"],"lifecycle":"eager"}}}
+EOF
+
+	HOME="$sandbox/home" \
+		PATH="$(smoke_runtime_cli_path "$sandbox")" \
+		B_AGENTIC_REPO="$snapshot_repo" \
+		B_AGENTIC_DIR="$sandbox/source" \
+		B_AGENTIC_PROMPT_API_KEYS=N \
+		bash "$ROOT_DIR/install.sh" >"$install_log" 2>&1
+
+	assert_json_value "$mcp_path" "data['mcpServers']['linear']['url'] == 'https://example.invalid/mcp'"
+	assert_json_value "$mcp_path" "data['mcpServers']['linear']['oauth']['scope'] == 'write'"
+	assert_json_value "$mcp_path" "data['mcpServers']['linear']['includeTools'] == ['list_issues', 'get_issue']"
+	assert_json_value "$mcp_path" "data['mcpServers']['linear']['lifecycle'] == 'eager'"
+	assert_contains "$install_log" 'linear: blocked: invalid Linear OAuth read-only config'
 }
 
 run_manifest_only_extension_restore_case() {
@@ -297,6 +324,7 @@ run_readiness_report_case() {
 	assert_contains "$sandbox/install.log" 'brave-search:'
 	assert_contains "$sandbox/install.log" 'firecrawl:'
 	assert_contains "$sandbox/install.log" 'playwright:'
+	assert_contains "$sandbox/install.log" 'linear: configured: authentication unverified'
 	assert_contains "$sandbox/install.log" 'mcp-startup:'
 	assert_contains "$sandbox/install.log" 'rtk:'
 }
@@ -435,7 +463,8 @@ EOF
 		python3 "$ROOT_DIR/tooling/validate/mcp_doctor.py" --home "$sandbox/home" >"$doctor_log"
 	rc=$?
 	set -e
-	[ "$rc" -eq 0 ] || fail "expected Pi MCP doctor to pass with latest launchers, got $rc"
+	[ "$rc" -eq 0 ] || fail "expected a valid Linear configuration to pass without an OAuth-state claim, got $rc"
+	assert_contains "$doctor_log" 'linear: configured: authentication unverified'
 	assert_contains "$doctor_log" 'mcp-adapter: ready:'
 	assert_contains "$doctor_log" 'serena: ready:'
 	assert_contains "$doctor_log" 'codegraph: ready:'
@@ -463,6 +492,27 @@ PY
 	assert_contains "$config_doctor_log" 'context7: ready:'
 	assert_contains "$config_doctor_log" 'brave-search: ready:'
 	assert_contains "$config_doctor_log" 'firecrawl: ready:'
+	assert_contains "$config_doctor_log" 'linear: configured: authentication unverified'
+
+	python3 - "$sandbox/home/.pi/agent/mcp.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+data = json.loads(path.read_text())
+data['mcpServers']['linear']['includeTools'] = ['list_issues']
+path.write_text(json.dumps(data, indent=2) + '\n')
+PY
+	set +e
+	python3 "$ROOT_DIR/tooling/validate/mcp_doctor.py" --home "$sandbox/home" >"$config_doctor_log"
+	rc=$?
+	set -e
+	[ "$rc" -eq 1 ] || fail "expected invalid Linear config to block doctor, got $rc"
+	assert_contains "$config_doctor_log" 'linear: blocked: invalid Linear OAuth read-only config'
+
+	python3 "$ROOT_DIR/tooling/validate/mcp_doctor.py" --home "$sandbox/home" --allow-degraded >"$config_doctor_log"
+	assert_contains "$config_doctor_log" 'linear: blocked: invalid Linear OAuth read-only config'
 
 	printf '[]\n' >"$sandbox/home/.pi/agent/mcp.json"
 	set +e
@@ -1046,6 +1096,7 @@ run_base_smoke_cases() {
 		run_manifest_only_custom_paths_case
 		run_manifest_only_modified_skill_case
 		run_manifest_only_merged_config_case
+		run_user_owned_linear_readiness_case
 		run_manifest_only_extension_restore_case
 		run_manifest_only_extension_symlink_case
 		run_invalid_skill_payload_case

@@ -36,7 +36,7 @@ Use these rules before any skill-specific instruction.
 ## Routing
 
 <!-- generated:kernel-routing:start -->
-- Clarify fuzzy work, compare approaches, decompose execution -> `b-plan` (triggers: plan, decompose, approach, explore, not sure, figure out, "how should I", implementation plan, clarify, requirements, scope).
+- Clarify fuzzy work, compare approaches, decompose execution -> `b-plan` (triggers: plan, decompose, approach, explore, not sure, figure out, "how should I", implementation plan, Linear issue ID, clarify, requirements, scope).
 - External docs, API facts, versions, comparisons -> `b-research` (triggers: library docs, API docs, look up, compare APIs, versioned docs, external documentation).
 - Frontend design standard and docs/DESIGN.md authoring -> `b-design` (triggers: DESIGN.md, frontend design standard, design guidelines, style guide, visual style, visual design rules, design rules, design guidance from screenshot, design guidance from mockup, document mockup design, document screenshot design, design system docs).
 - Implement approved or clearly scoped work -> `b-implement` (triggers: implement, make the change, apply the plan, code the fix, finish the implementation, build the feature).
@@ -58,7 +58,7 @@ Unclear work -> `b-plan`. `b-commit` and `b-pr-summary` need explicit request. R
 - Preserve unrelated changes; never run `git push`, `git pull`, `git reset --hard`, `git clean -f`, or `git branch -D` autonomously.
 - Never read/expose/commit likely-secret files (`.env`, `*.pem`, `credentials.*`, `secrets.*`) without explicit permission; protected paths and ambiguous shell input stay gated.
 - Prefer sources; regenerate only when required. Never invent behavior or compatibility.
-- MCP: CodeGraph/Serena/Context7/Firecrawl/Brave/Playwright; `mcpScript` metadata/read; nested tools keep policy. Classified direct and `mcp__`-prefixed Serena and CodeGraph calls bypass generic custom/MCP approval only when their namespace matches the managed server; protected/outside-project Serena inputs and unknown or mismatched tools remain gated.
+- MCP: CodeGraph/Serena/Context7/Linear/Firecrawl/Brave/Playwright; `mcpScript` metadata/read; nested tools keep policy. Classified direct and `mcp__`-prefixed Serena and CodeGraph calls bypass generic custom/MCP approval only when their namespace matches the managed server; protected/outside-project Serena inputs and unknown or mismatched tools remain gated.
 - Use CodeGraph only when native inspection leaves a concrete repository-wide architecture or impact question; run the exact `codegraph init` only then and only when its index is absent. Use Serena only for a concrete exact-symbol or diagnostic/refactor need, with onboarding for unfamiliar repos, memories for durable facts, and dashboard for troubleshooting as explicit lifecycle exceptions. Do not install missing tools; fall back to local evidence and state the resulting gap.
 
 ### Managed MCP operations

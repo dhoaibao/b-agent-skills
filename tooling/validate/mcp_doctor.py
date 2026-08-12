@@ -48,8 +48,9 @@ def load_jsonc(text: str) -> object:
     return module.loads(text)
 
 
-SUPPORTED_SERVERS = ("serena", "codegraph", "context7", "brave-search", "firecrawl", "playwright")
+SUPPORTED_SERVERS = ("serena", "codegraph", "context7", "linear", "brave-search", "firecrawl", "playwright")
 CONTEXT7_URL = "https://mcp.context7.com/mcp"
+LINEAR_URL = "https://mcp.linear.app/mcp/readonly"
 POLICY_PATH = ROOT / "references" / "mcp_operations.yaml"
 
 
@@ -133,6 +134,17 @@ def pi_server_status(server: str, config: dict) -> str:
         return "ready: codegraph command found" if valid and command_ready("codegraph") else "blocked: invalid or unavailable codegraph launcher"
     if server == "context7":
         return "ready: CONTEXT7_API_KEY available" if entry.get("url") == CONTEXT7_URL and credential_available(entry, "headers", "CONTEXT7_API_KEY") else "blocked: invalid context7 config or missing CONTEXT7_API_KEY"
+    if server == "linear":
+        oauth = entry.get("oauth")
+        valid = (
+            entry.get("url") == LINEAR_URL
+            and entry.get("auth") == "oauth"
+            and isinstance(oauth, dict)
+            and oauth.get("scope") == "read"
+            and entry.get("includeTools") == ["get_issue"]
+            and entry.get("lifecycle") == "lazy"
+        )
+        return "configured: authentication unverified; run /mcp-auth linear if needed" if valid else "blocked: invalid Linear OAuth read-only config"
     expected = {
         "brave-search": ["@brave/brave-search-mcp-server", "--transport", "stdio"],
         "firecrawl": ["firecrawl-mcp"],
@@ -238,6 +250,12 @@ def main() -> int:
                         suggestion_failures.append(
                             {"server": server, "reason": "missing config or policy entry"}
                         )
+                    blocked = True
+                    continue
+                if server == "linear":
+                    print("schema-probe linear: blocked: OAuth authentication is required; doctor does not acquire tokens")
+                    if suggestions_requested:
+                        suggestion_failures.append({"server": server, "reason": "OAuth authentication required; doctor does not acquire tokens"})
                     blocked = True
                     continue
                 try:

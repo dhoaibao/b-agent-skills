@@ -46,6 +46,7 @@ export const MANAGED_MCP_SERVERS = new Set([
   "codegraph",
   "context7",
   "firecrawl",
+  "linear",
   "playwright",
   "serena"
 ]);
@@ -326,6 +327,10 @@ export const CODEGRAPH_TRUSTED_TOOLS = new Set([
 export const CONTEXT7_TRUSTED_TOOLS = new Set([
   "context7_query-docs",
   "context7_resolve-library-id"
+]);
+
+export const LINEAR_TRUSTED_TOOLS = new Set([
+  "get_issue"
 ]);
 
 export const BRAVE_SEARCH_TRUSTED_TOOLS = new Set([
@@ -808,6 +813,7 @@ export function isTrustedManagedTool(server: string, toolName: string, input?: u
   if (server === "serena") return SERENA_TRUSTED_TOOLS.has(base);
   if (server === "codegraph") return CODEGRAPH_TRUSTED_TOOLS.has(base);
   if (server === "context7") return CONTEXT7_TRUSTED_TOOLS.has(base);
+  if (server === "linear") return LINEAR_TRUSTED_TOOLS.has(base);
   if (server === "brave-search") return BRAVE_SEARCH_TRUSTED_TOOLS.has(base);
   if (server === "firecrawl") return FIRECRAWL_TRUSTED_TOOLS.has(base);
   if (server === "playwright") return PLAYWRIGHT_TRUSTED_TOOLS.has(base);

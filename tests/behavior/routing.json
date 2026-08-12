@@ -134,6 +134,12 @@
       "prompt": "Add focused unit tests for the existing cache fallback behavior and evaluate the remaining coverage gap. Product behavior is already correct.",
       "expected_skill": "b-test",
       "forbidden_skills": ["b-implement", "b-debug"]
+    },
+    {
+      "id": "linear-issue-plan-routing",
+      "prompt": "LIN-123: use this issue to prepare an implementation plan; do not change code yet.",
+      "expected_skill": "b-plan",
+      "forbidden_skills": ["b-implement", "b-research"]
     }
   ]
 }

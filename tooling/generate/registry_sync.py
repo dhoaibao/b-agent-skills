@@ -198,6 +198,7 @@ def render_mcp_runtime_policy(policy: dict) -> str:
         "serena": "SERENA_TRUSTED_TOOLS",
         "codegraph": "CODEGRAPH_TRUSTED_TOOLS",
         "context7": "CONTEXT7_TRUSTED_TOOLS",
+        "linear": "LINEAR_TRUSTED_TOOLS",
         "brave-search": "BRAVE_SEARCH_TRUSTED_TOOLS",
         "firecrawl": "FIRECRAWL_TRUSTED_TOOLS",
         "playwright": "PLAYWRIGHT_TRUSTED_TOOLS",

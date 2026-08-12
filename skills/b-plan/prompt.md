@@ -25,6 +25,7 @@ Figure out what to do when the task is unclear, then turn the chosen path into t
   implementation, or diagnostic only when semantic tooling materially improves
   precision; serialize requests rather than parallelizing or batching them.
 - `context7` - one narrow versioned API check when it changes the plan.
+- `linear` - when the user supplies a Linear issue ID and the managed Linear server is configured and authenticated, use the `mcp` gateway to retrieve only that issue with `server: "linear"`, `tool: "get_issue"`, and its ID; request `includeRelations: true` only when directly linked context is needed.
 - `firecrawl` - bounded public docs or issue research when exact text changes scope.
 - `recall` - recover compacted planning context when observational memory ids are present.
 
@@ -33,11 +34,12 @@ Figure out what to do when the task is unclear, then turn the chosen path into t
 1. State the interpreted goal, constraints, and non-goals. Use recall when compacted prior planning ids are available.
 2. If multiple interpretations are plausible, present them briefly and choose only when the choice is low-risk; otherwise ask.
 3. Inspect only files, symbols, or relevant repo notes needed to avoid guessing. Use bash discovery and Pi native `read` for local evidence. When native inspection leaves a concrete repository-wide architecture or impact question, initialize an absent CodeGraph index and use it for that question; do not initialize one merely because the task spans files. Use Serena separately only for a specific exact symbol or reference when it materially improves precision. Use Context7 for versioned API checks and bounded Firecrawl research for public docs or issues when they affect the plan; do not parallelize or batch Serena calls.
-4. When the task is fuzzy, investigate the current code or constraints enough to compare viable paths before choosing one.
-5. Choose the smallest safe approach, surface material tradeoffs, and push back if a simpler or safer path exists.
-6. Include `Done when` verification for each step that proves the intended observable outcome, not just command success.
-7. End with either a plan that is ready for **b-implement** or one focused blocking question that must be answered before implementation.
-8. For larger plans, tag steps only when useful: `AFK` for agent-ready work, `HITL` for user decision, approval, external access, or judgment.
+4. For an optional Linear issue ID, use only `get_issue` for that exact ID. Treat its issue details and included relations as Linear facts, repository inspection as repo facts, and anything else as an assumption. If authentication, the issue, or linked context is unavailable or truncated, say so; do not list/search Linear or guess missing context.
+5. When the task is fuzzy, investigate the current code or constraints enough to compare viable paths before choosing one.
+6. Choose the smallest safe approach, surface material tradeoffs, and push back if a simpler or safer path exists.
+7. Include `Done when` verification for each step that proves the intended observable outcome, not just command success.
+8. End with either a plan that is ready for **b-implement** or one focused blocking question that must be answered before implementation.
+9. For larger plans, tag steps only when useful: `AFK` for agent-ready work, `HITL` for user decision, approval, external access, or judgment.
 
 For plans spanning more than 3 files, public contracts, dependencies, CI/build, or durable coordination, save a plan under `.b-agentic/b-plan/` only if it will materially help execution. In planner mode, instead keep the approved plan in the handoff or conversation; do not save plan files.
 

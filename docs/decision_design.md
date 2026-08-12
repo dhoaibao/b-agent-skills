@@ -226,9 +226,11 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   conditional argument keys, and runtime enforcement. Generated sets in
   `pi/extensions/b-agentic-support/mcp.ts` are checked against that source by
   `tooling/validate/mcp_policy.py` and `pi/scripts/validate_mcp_policy.py`.
-- The managed set is Serena, CodeGraph, Context7, Brave Search, Firecrawl, and
+- The managed set is Serena, CodeGraph, Context7, Linear, Brave Search, Firecrawl, and
   Playwright. Configured servers use lazy lifecycle, proxy execution by
-  default, and a 30-second request timeout. Evidence:
+  default, and a 30-second request timeout. Linear uses the hosted read-only endpoint,
+  OAuth `read` scope, and an exact `get_issue` allowlist. Public tool evidence is Linear issues
+  [#1028](https://github.com/linear/linear/issues/1028), [#1060](https://github.com/linear/linear/issues/1060), and [#747](https://github.com/linear/linear/issues/747); no authenticated live inventory was available for this change. The observed routing failure was that a bare Linear-style ID could be treated as generic implementation or research rather than planning; the intended behavior routes it to `b-plan`. Regression evidence is the human-scored `linear-issue-plan-routing` scenario in `tests/behavior/routing.json`, structurally validated with `python3 pi/tests/prompt_effectiveness.py --routing --validate-inputs --scenario=linear-issue-plan-routing`. Evidence:
   `references/mcp_operations.yaml`, `pi/configs/mcp.user.template.json`,
   `pi/scripts/validate.sh`.
 - Auto-approval is exact and least-privilege: read-only/trusted operations are
@@ -300,7 +302,8 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   `tooling/install/manifest_uninstall.py`.
 - MCP configuration is merged rather than replaced: unrelated user servers
   survive, prompted secrets are written only to user config through a private
-  input pipe, and config uses lazy servers with API-key placeholders. Evidence:
+  input pipe, and config uses lazy servers with API-key placeholders or deferred OAuth. Linear
+  authentication happens only through the adapter's normal flow when needed; readiness does not infer or claim its OAuth state. Evidence:
   `pi/configs/mcp.user.template.json`, `tooling/install/common.sh`,
   `tooling/install/json_cleanup.py`, `tests/smoke/install.sh`.
 - Uninstall can use the manifest without the source checkout, but removes only
@@ -312,8 +315,8 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
 ### Readiness is explicit and degraded states are visible
 
 - `scripts/mcp-doctor.sh` distinguishes missing adapter, malformed config,
-  missing launchers/credentials, and ready servers. Live MCP schema probing is
-  opt-in and reports drift/suggestions without editing policy.
+  missing launchers/credentials, configured OAuth-authentication-unverified state, and ready servers. A valid Linear configuration is nonblocking because the doctor cannot observe adapter OAuth state. Live MCP schema probing is
+  opt-in and reports drift/suggestions without editing policy; it does not acquire OAuth tokens, so Linear is not live-probed until an authenticated adapter path is available.
 - `scripts/skill-doctor.sh` checks installed Pi skill payloads and kernel
   discovery. Install reports expose readiness and next steps instead of hiding
   missing optional infrastructure. Evidence: `tooling/validate/mcp_doctor.py`,

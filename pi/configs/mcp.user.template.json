@@ -34,6 +34,15 @@
       },
       "lifecycle": "lazy"
     },
+    "linear": {
+      "url": "https://mcp.linear.app/mcp/readonly",
+      "auth": "oauth",
+      "oauth": {
+        "scope": "read"
+      },
+      "includeTools": ["get_issue"],
+      "lifecycle": "lazy"
+    },
     "brave-search": {
       "command": "bunx",
       "args": ["@brave/brave-search-mcp-server", "--transport", "stdio"],

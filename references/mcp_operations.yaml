@@ -79,6 +79,11 @@
         "context7_query-docs": "read-only"
       }
     },
+    "linear": {
+      "tools": {
+        "get_issue": "read-only"
+      }
+    },
     "brave-search": {
       "tools": {
         "brave_search_brave_web_search": "read-only",

@@ -21,7 +21,7 @@ GATED_CLASSES = {"local-upload", "external-mutation", "monitor-lifecycle", "loca
 READ_ONLY = "read-only"
 TRUSTED_CLASSES = {"trusted-serena"}
 CONDITIONAL_CLASSES = {"conditional-read", "conditional-local"}
-MANAGED_SERVERS = {"serena", "codegraph", "context7", "brave-search", "firecrawl", "playwright"}
+MANAGED_SERVERS = {"serena", "codegraph", "context7", "linear", "brave-search", "firecrawl", "playwright"}
 EXPECTED_SERENA_TOOLS = {
     "serena_search_for_pattern", "serena_get_symbols_overview", "serena_find_symbol",
     "serena_find_referencing_symbols", "serena_find_implementations", "serena_find_declaration",
