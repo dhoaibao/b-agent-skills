@@ -705,6 +705,11 @@ run_runtime_cli_default_skip_case() {
 		printf '#!/usr/bin/env bash\nexit 0\n' >"$bin_dir/$required_tool"
 		chmod +x "$bin_dir/$required_tool"
 	done
+	cat >"$bin_dir/curl" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+	chmod +x "$bin_dir/curl"
 
 	set +e
 	python3 - "$sandbox" "$snapshot_repo" "$install_log" "$bin_dir:$(smoke_system_path)" "$ROOT_DIR/install.sh" <<'PY'
@@ -732,6 +737,42 @@ PY
 
 	[ "$rc" -le 1 ] || fail "expected runtime CLI default install exit <=1, got $rc"
 	assert_no_path "$upgrade_log"
+}
+
+run_uninstall_skips_dependency_reconciliation_case() {
+	local snapshot_repo="$1"
+	local sandbox="$WORK_DIR/uninstall-skips-dependency-reconciliation"
+	local bin_dir="$sandbox/smoke-bin"
+	local dependency_log="$sandbox/dependency.log"
+	local install_log="$sandbox/uninstall.log"
+	local smoke_path rc tool
+
+	mkdir -p "$sandbox/home"
+	expect_install_status 0 "$sandbox" "$snapshot_repo"
+	smoke_path="$(smoke_runtime_cli_path "$sandbox")"
+	: >"$dependency_log"
+	for tool in rtk serena uv codegraph bun curl; do
+		cat >"$bin_dir/$tool" <<EOF
+#!/usr/bin/env bash
+printf '%s\\n' '$tool' >> "$dependency_log"
+exit 97
+EOF
+		chmod +x "$bin_dir/$tool"
+	done
+
+	set +e
+	HOME="$sandbox/home" \
+		PATH="$smoke_path" \
+		B_AGENTIC_REPO="$snapshot_repo" \
+		B_AGENTIC_DIR="$sandbox/source" \
+		B_AGENTIC_PROMPT_API_KEYS=N \
+		bash "$ROOT_DIR/install.sh" --uninstall >"$install_log" 2>&1
+	rc=$?
+	set -e
+
+	[ "$rc" -eq 0 ] || fail "expected uninstall without dependency reconciliation to exit 0, got $rc"
+	[ ! -s "$dependency_log" ] || fail "uninstall unexpectedly reconciled dependencies: $dependency_log"
+	assert_contains "$install_log" 'Uninstall complete.'
 }
 
 run_runtime_cli_prompt_case() {
@@ -958,6 +999,80 @@ run_rtk_latest_dry_run_case() {
 	assert_contains "$install_log" '[dry-run] curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh'
 }
 
+run_base_smoke_worker() {
+	local snapshot_repo="$1"
+	local worker_index="$2"
+	shift 2
+	local -a cases=("$@")
+	local worker_status=0 case_status case_name index
+
+	for ((index = worker_index; index < ${#cases[@]}; index += 2)); do
+		case_name="${cases[$index]}"
+		printf 'Running %s...\n' "$case_name"
+		if ( "$case_name" "$snapshot_repo" ); then
+			:
+		else
+			case_status=$?
+			printf '%s failed with status %s\n' "$case_name" "$case_status"
+			[ "$worker_status" -ne 0 ] || worker_status="$case_status"
+		fi
+	done
+	return "$worker_status"
+}
+
+run_base_smoke_cases() {
+	local snapshot_repo="$1"
+	local worker_count=2
+	local pool_dir="$WORK_DIR/base-smoke-pool"
+	local -a cases=(
+		run_rtk_latest_dry_run_case
+		run_ref_install_case
+		run_manifest_only_corrupted_manifest_case
+		run_manifest_only_custom_paths_case
+		run_manifest_only_modified_skill_case
+		run_manifest_only_merged_config_case
+		run_manifest_only_extension_restore_case
+		run_manifest_only_extension_symlink_case
+		run_invalid_skill_payload_case
+		run_skill_collision_smoke_case
+		run_readiness_report_case
+		run_optional_shell_tool_case
+		run_prompted_mcp_key_pipe_case
+		run_mcp_doctor_case
+		run_runtime_cli_default_skip_case
+		run_runtime_cli_prompt_case
+		run_runtime_cli_auto_upgrade_case
+		run_runtime_cli_upgrade_case
+		run_missing_runtime_cli_install_case
+		run_runtime_cli_update_failure_case
+		run_existing_tool_upgrade_case
+		run_existing_tool_default_skip_case
+		run_uninstall_skips_dependency_reconciliation_case
+		run_skill_doctor_case
+	)
+	local -a pids=()
+	local worker_index status rc=0
+
+	mkdir -p "$pool_dir"
+	for ((worker_index = 0; worker_index < worker_count; worker_index++)); do
+		run_base_smoke_worker "$snapshot_repo" "$worker_index" "${cases[@]}" \
+			>"$pool_dir/worker-$worker_index.log" 2>&1 &
+		pids+=("$!")
+	done
+
+	for ((worker_index = 0; worker_index < worker_count; worker_index++)); do
+		if wait "${pids[$worker_index]}"; then
+			:
+		else
+			status=$?
+			[ "$rc" -ne 0 ] || rc="$status"
+		fi
+		cat "$pool_dir/worker-$worker_index.log"
+	done
+	rm -rf "$pool_dir"
+	return "$rc"
+}
+
 main() {
 	local snapshot_repo="$WORK_DIR/repo-snapshot"
 
@@ -972,54 +1087,8 @@ main() {
 	run_pi_smoke_cases "$snapshot_repo" &
 	local pi_smoke_pid=$!
 
-	(
-	echo "Running run_rtk_latest_dry_run_case..."
-	run_rtk_latest_dry_run_case "$snapshot_repo"
-	echo "Running run_ref_install_case..."
-	run_ref_install_case "$snapshot_repo"
-	echo "Running run_manifest_only_corrupted_manifest_case..."
-	run_manifest_only_corrupted_manifest_case
-	echo "Running run_manifest_only_custom_paths_case..."
-	run_manifest_only_custom_paths_case
-	echo "Running run_manifest_only_modified_skill_case..."
-	run_manifest_only_modified_skill_case "$snapshot_repo"
-	echo "Running run_manifest_only_merged_config_case..."
-	run_manifest_only_merged_config_case "$snapshot_repo"
-	echo "Running run_manifest_only_extension_restore_case..."
-	run_manifest_only_extension_restore_case "$snapshot_repo"
-	echo "Running run_manifest_only_extension_symlink_case..."
-	run_manifest_only_extension_symlink_case "$snapshot_repo"
-	echo "Running run_invalid_skill_payload_case..."
-	run_invalid_skill_payload_case "$snapshot_repo"
-	echo "Running run_skill_collision_smoke_case..."
-	run_skill_collision_smoke_case "$snapshot_repo"
-	echo "Running run_readiness_report_case..."
-	run_readiness_report_case "$snapshot_repo"
-	echo "Running run_optional_shell_tool_case..."
-	run_optional_shell_tool_case "$snapshot_repo"
-	echo "Running run_prompted_mcp_key_pipe_case..."
-	run_prompted_mcp_key_pipe_case "$snapshot_repo"
-	echo "Running run_mcp_doctor_case..."
-	run_mcp_doctor_case "$snapshot_repo"
-	echo "Running run_runtime_cli_default_skip_case..."
-	run_runtime_cli_default_skip_case "$snapshot_repo"
-	echo "Running run_runtime_cli_prompt_case..."
-	run_runtime_cli_prompt_case "$snapshot_repo"
-	echo "Running run_runtime_cli_auto_upgrade_case..."
-	run_runtime_cli_auto_upgrade_case "$snapshot_repo"
-	echo "Running run_runtime_cli_upgrade_case..."
-	run_runtime_cli_upgrade_case "$snapshot_repo"
-	echo "Running run_missing_runtime_cli_install_case..."
-	run_missing_runtime_cli_install_case "$snapshot_repo"
-	echo "Running run_runtime_cli_update_failure_case..."
-	run_runtime_cli_update_failure_case "$snapshot_repo"
-	echo "Running run_existing_tool_upgrade_case..."
-	run_existing_tool_upgrade_case "$snapshot_repo"
-	echo "Running run_existing_tool_default_skip_case..."
-	run_existing_tool_default_skip_case "$snapshot_repo"
-	echo "Running run_skill_doctor_case..."
-	run_skill_doctor_case "$snapshot_repo"
-	) &
+	echo "Running base installer smoke cases with 2 workers..."
+	run_base_smoke_cases "$snapshot_repo" &
 	local base_pid=$!
 
 	local base_status

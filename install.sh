@@ -661,13 +661,6 @@ main() {
 
 	validate_pi_source_layout
 	load_pi_installer
-	install_shell_tools
-
-	if [ "$OPERATION" = "install" ]; then
-		run_parallel_chains dependency_install_chain install_codegraph bun_install_chain pi_install || return 1
-	elif [ "$OPERATION" = "update" ]; then
-		run_parallel_chains update_tooling pi_update || return 1
-	fi
 
 	if uninstall_enabled; then
 		set +e
@@ -678,6 +671,14 @@ main() {
 		rc=$?
 		set -e
 		return "$rc"
+	fi
+
+	install_shell_tools
+
+	if [ "$OPERATION" = "install" ]; then
+		run_parallel_chains dependency_install_chain install_codegraph bun_install_chain pi_install || return 1
+	elif [ "$OPERATION" = "update" ]; then
+		run_parallel_chains update_tooling pi_update || return 1
 	fi
 
 	if [ "$OPERATION" = "sync" ]; then

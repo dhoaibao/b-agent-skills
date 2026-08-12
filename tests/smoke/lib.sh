@@ -161,7 +161,7 @@ EOF
 #!/usr/bin/env bash
 exit 0
 EOF
-	ln -s bun "$bin_dir/bunx"
+	ln -sfn bun "$bin_dir/bunx"
 	chmod +x "$bin_dir/bun"
 	cat >"$bin_dir/sudo" <<'EOF'
 #!/usr/bin/env bash
