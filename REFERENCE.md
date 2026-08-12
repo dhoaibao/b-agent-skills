@@ -229,10 +229,19 @@ and is the sole worktree writer.
 
 The planner finishes discovery and settles one bounded handoff. If agreement is
 needed, roles resolve it before edits; once the worker starts, the planner stops
-exploring and issuing implementation requests. The planner sequences
-`b-plan`, `b-research`, and `b-agentic-audit` as needed, delegates to the
-explicitly selected same-directory worker, and reviews changed code with
-`b-review`.
+exploring and issuing implementation requests. Its generated ownership mapping
+permits read-only execution only of `b-plan`, external `b-research`,
+`b-agentic-audit`, `b-review`, and `b-pr-summary`; it delegates `b-design`,
+`b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, and
+`b-commit` to the explicitly selected same-directory worker. Ownership governs
+execution, not inspection, so the planner may read any skill for planning,
+delegation, audit, or review. Planner ownership is limited to read-only
+decision/planning, external research, audit/review, or release-summary
+coordination; implementation or mutation, runtime diagnosis, builds/tests,
+browser/operational verification, commits, mixed, and uncertain work belong to
+the worker. Direct user wording and an unavailable worker do not permit planner
+implementation; unknown ownership fails closed to worker ownership, while
+registry validation rejects missing or invalid owners.
 
 Before every planner/worker Intercom `send` or `reply`, call `pending` first;
 if `pending` reports an inbound ask, the response must use `reply` for that ask

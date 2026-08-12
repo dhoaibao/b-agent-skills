@@ -30,7 +30,7 @@ Pin the bootstrap and source to a reviewed tag or commit with `B_AGENTIC_REF=<ta
 | **Validate** | `b-debug`, `b-test`, `b-browser`, `b-agentic-audit`, `b-review` | Confirm runtime behavior, tests, browser evidence, repository conformance, and changed-code quality. |
 | **Ship** | `b-commit`, `b-pr-summary` | Create explicitly approved local commits or write PR copy from local history. |
 
-In a solo session, workflow is **Off**: one session routes and executes the needed phases. An optional planner/worker setup uses explicitly selected roles: the planner performs read-only discovery and review, while the worker is the sole worktree writer. The worker pauses for the actual `b-review` gate before delegated work is complete.
+In a solo session, workflow is **Off**: one session routes and executes the needed phases. An optional planner/worker setup uses explicitly selected roles: the planner executes read-only `b-plan`, external `b-research`, `b-agentic-audit`, `b-review`, and `b-pr-summary`; the worker executes `b-design`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, and `b-commit` as the sole worktree writer. Ownership controls execution, not reading: the planner may inspect any skill, but delegates worker-owned work. Planner ownership is limited to read-only decision/planning, external research, audit/review, or release-summary coordination; implementation, mutation, runtime diagnosis, builds/tests, browser/operational verification, commits, mixed, and uncertain work belong to the worker. Unknown ownership fails closed to the worker. The worker pauses for the actual `b-review` gate before delegated work is complete.
 
 ## Skills
 

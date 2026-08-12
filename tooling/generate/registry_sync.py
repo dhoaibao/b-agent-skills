@@ -21,6 +21,10 @@ MCP_OPERATIONS_START = "<!-- generated:mcp-operations:start -->"
 MCP_OPERATIONS_END = "<!-- generated:mcp-operations:end -->"
 KERNEL_ROUTING_START = "<!-- generated:kernel-routing:start -->"
 KERNEL_ROUTING_END = "<!-- generated:kernel-routing:end -->"
+KERNEL_SKILL_OWNERSHIP_START = "<!-- generated:skill-ownership:start -->"
+KERNEL_SKILL_OWNERSHIP_END = "<!-- generated:skill-ownership:end -->"
+ROLE_SKILL_OWNERSHIP_START = "// generated:skill-ownership:start"
+ROLE_SKILL_OWNERSHIP_END = "// generated:skill-ownership:end"
 MCP_RUNTIME_POLICY_START = "// generated:mcp-runtime-policy:start"
 MCP_RUNTIME_POLICY_END = "// generated:mcp-runtime-policy:end"
 
@@ -32,6 +36,12 @@ PROMPT_FRONTMATTER_FIELDS = [
     ("user_invocable", "user-invocable"),
 ]
 ALLOWED_PROMPT_KEYS = {"description", *[field for field, _ in PROMPT_FRONTMATTER_FIELDS]}
+SKILL_OWNERS = {"planner", "worker"}
+SKILL_OWNERSHIP_CRITERION = (
+    "Planner-owned only when execution is read-only decision/planning, external research, audit/review, or release-summary coordination inside the planner boundary. "
+    "Worker-owned when execution implements or mutates, diagnoses runtime behavior, builds/tests, performs browser/operational verification, commits, or otherwise requires worker capabilities. "
+    "Mixed or uncertain skills are worker-owned."
+)
 
 
 def load_json_subset_yaml(path: Path) -> dict:
@@ -122,6 +132,9 @@ def validate_skills(skills: list[dict]) -> list[str]:
             errors.append(f"skills[{index}]: expected object")
             continue
         name = ensure_string(skill.get("name"), f"skills[{index}].name", errors)
+        owner = ensure_string(skill.get("owner"), f"skills[{index}].owner", errors)
+        if owner and owner not in SKILL_OWNERS:
+            errors.append(f"skills[{index}].owner: expected one of {sorted(SKILL_OWNERS)}, got {owner!r}")
         phase = ensure_string(skill.get("phase"), f"skills[{index}].phase", errors)
         use = ensure_string(skill.get("use"), f"skills[{index}].use", errors)
 
@@ -213,6 +226,33 @@ def render_mcp_runtime_policy(policy: dict) -> str:
     return "\n".join(lines).rstrip()
 
 
+def render_skill_ownership(skills: list[dict]) -> str:
+    by_owner = {
+        owner: [skill["name"] for skill in skills if skill["owner"] == owner]
+        for owner in sorted(SKILL_OWNERS)
+    }
+    return "\n".join([
+        f"- Planner-owned skills: {', '.join('external `b-research`' if name == 'b-research' else f'`{name}`' for name in by_owner['planner'])}. The planner may execute these only inside its read-only coordinator boundary.",
+        f"- Worker-owned skills: {', '.join(f'`{name}`' for name in by_owner['worker'])}. The planner delegates their execution to a ready same-CWD worker.",
+        f"- Ownership governs execution, not inspection: the planner may read any skill for planning, delegation, audit, or review. {SKILL_OWNERSHIP_CRITERION} Direct user wording or no ready worker never permits planner implementation. Unknown or ambiguous skill ownership is worker-owned; registry validation rejects a missing or invalid owner.",
+    ])
+
+
+def render_role_skill_ownership(skills: list[dict]) -> str:
+    ownership = {skill["name"]: skill["owner"] for skill in skills}
+    return "\n".join([
+        "/** Generated from skills/registry.yaml. Unknown skills fail closed to worker ownership. */",
+        "export type SkillOwner = \"planner\" | \"worker\";",
+        f"export const SKILL_OWNERSHIP_CRITERION = {json.dumps(SKILL_OWNERSHIP_CRITERION)};",
+        f"export const SKILL_OWNERS: Readonly<Record<string, SkillOwner>> = {json.dumps(ownership, indent=2)};",
+        "export function skillOwner(skill: string): SkillOwner {",
+        "  return SKILL_OWNERS[skill] ?? \"worker\";",
+        "}",
+        "const PLANNER_OWNED_SKILLS = Object.entries(SKILL_OWNERS).filter(([, owner]) => owner === \"planner\").map(([skill]) => \"`\" + skill + \"`\");",
+        "const WORKER_OWNED_SKILLS = Object.entries(SKILL_OWNERS).filter(([, owner]) => owner === \"worker\").map(([skill]) => \"`\" + skill + \"`\");",
+    ])
+
+
 def render_routing(skills: list[dict]) -> str:
     lines: list[str] = []
     for skill in skills:
@@ -259,9 +299,14 @@ def render_outputs(skills: list[dict]) -> dict[Path, str]:
 
     kernel = KERNEL_TEMPLATE_PATH.read_text()
     kernel = replace_block(kernel, KERNEL_ROUTING_START, KERNEL_ROUTING_END, render_routing(skills))
+    kernel = replace_block(kernel, KERNEL_SKILL_OWNERSHIP_START, KERNEL_SKILL_OWNERSHIP_END, render_skill_ownership(skills))
     policy = load_json_subset_yaml(MCP_OPERATIONS_PATH)
     outputs[KERNEL_TEMPLATE_PATH] = replace_block(
         kernel, MCP_OPERATIONS_START, MCP_OPERATIONS_END, render_mcp_operations_table(policy)
+    )
+    role_extension = ROOT / "pi" / "extensions" / "b-agentic-support" / "role.ts"
+    outputs[role_extension] = replace_block(
+        role_extension.read_text(), ROLE_SKILL_OWNERSHIP_START, ROLE_SKILL_OWNERSHIP_END, render_role_skill_ownership(skills)
     )
     extension = ROOT / "pi" / "extensions" / "b-agentic-support" / "mcp.ts"
     runtime_policy = re.sub(r"^const ", "export const ", render_mcp_runtime_policy(policy), flags=re.MULTILINE)
@@ -271,6 +316,19 @@ def render_outputs(skills: list[dict]) -> dict[Path, str]:
     for skill in skills:
         outputs[ROOT / "skills" / skill["name"] / "SKILL.md"] = render_skill_file(skill)
     return outputs
+
+
+def validate_owner_regressions(skills: list[dict]) -> list[str]:
+    errors: list[str] = []
+    for label, owner in (("missing", None), ("invalid", "coordinator")):
+        fixture = [dict(skill) for skill in skills]
+        if owner is None:
+            fixture[0].pop("owner", None)
+        else:
+            fixture[0]["owner"] = owner
+        if not any("owner" in error for error in validate_skills(fixture)):
+            errors.append(f"ownership regression: {label} owner must be rejected")
+    return errors
 
 
 def sync_outputs(check: bool) -> int:
@@ -298,7 +356,15 @@ def sync_outputs(check: bool) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Render generated Pi assets from canonical sources.")
     parser.add_argument("--check", action="store_true", help="fail if generated outputs are stale")
-    return sync_outputs(parser.parse_args().check)
+    parser.add_argument("--self-test", action="store_true", help="verify missing and invalid skill owners fail validation")
+    args = parser.parse_args()
+    if args.self_test:
+        errors = validate_owner_regressions(load_skills())
+        if errors:
+            print("\n".join(errors), file=sys.stderr)
+            return 1
+        print("Skill ownership validation regressions passed.")
+    return sync_outputs(args.check)
 
 
 if __name__ == "__main__":

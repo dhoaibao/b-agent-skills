@@ -18,7 +18,13 @@ Use these rules before any skill-specific instruction.
 
 ## Intercom roles
 
-- b-agentic defaults to Off; select `planner` and `worker` explicitly. Planner owns `b-plan`, external `b-research`, `b-agentic-audit`, `b-review`, and `b-pr-summary`; the Worker is the sole worktree writer. Use the role-aware same-CWD Worker roster.
+- b-agentic defaults to Off; select `planner` and `worker` explicitly. The Worker is the sole worktree writer. Use the role-aware same-CWD Worker roster.
+
+<!-- generated:skill-ownership:start -->
+- Planner-owned skills: `b-plan`, external `b-research`, `b-agentic-audit`, `b-review`, `b-pr-summary`. The planner may execute these only inside its read-only coordinator boundary.
+- Worker-owned skills: `b-design`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, `b-commit`. The planner delegates their execution to a ready same-CWD worker.
+- Ownership governs execution, not inspection: the planner may read any skill for planning, delegation, audit, or review. Planner-owned only when execution is read-only decision/planning, external research, audit/review, or release-summary coordination inside the planner boundary. Worker-owned when execution implements or mutates, diagnoses runtime behavior, builds/tests, performs browser/operational verification, commits, or otherwise requires worker capabilities. Mixed or uncertain skills are worker-owned. Direct user wording or no ready worker never permits planner implementation. Unknown or ambiguous skill ownership is worker-owned; registry validation rejects a missing or invalid owner.
+<!-- generated:skill-ownership:end -->
 - Finish discovery and settle one bounded approach before handoff; agree before edits when needed. While the worker edits, the planner does not explore or issue work. Immediately after delegation, end the turn and wait for the worker's `send`: no `ask` to wait, sleep, polling, or timeout waiting. Roster/status is only for selection or a real connection need.
 - Before every Intercom `send` or `reply`, call `pending`. An inbound ask requires its `reply`—not `send` or `list-cwd`. Otherwise refresh `list-cwd`, then send only to the identifier token returned verbatim by that immediately preceding authoritative output. An authoritative short ID is valid; never guess, reconstruct, extend, further abbreviate, or use a stale token, display name, or alias. This refresh is the exception to no polling.
 - Delivery makes a handoff, result, finding, or approval real. On failed `send`, do not continue, commit, or close on the stale target: `pending`, reply if required, else fresh `list-cwd`, then retry once only if the intended peer remains live; otherwise pause with an unavailable-peer blocker.

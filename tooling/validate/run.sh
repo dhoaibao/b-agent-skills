@@ -16,6 +16,7 @@ while [ $# -gt 0 ]; do
 	shift
 done
 
+python3 "$ROOT_DIR/tooling/generate/registry_sync.py" --self-test --check
 python3 "$ROOT_DIR/tooling/validate/shared.py"
 python3 "$ROOT_DIR/tooling/validate/behavior.py"
 python3 "$ROOT_DIR/tooling/validate/mcp_policy.py"

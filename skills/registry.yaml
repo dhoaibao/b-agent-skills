@@ -4,6 +4,7 @@
   "skills": [
     {
       "name": "b-plan",
+      "owner": "planner",
       "phase": "Decide",
       "use": "Figure out what to do when scope or approach is fuzzy, then produce an execution-ready plan",
       "routing": {
@@ -28,6 +29,7 @@
     },
     {
       "name": "b-research",
+      "owner": "planner",
       "phase": "Decide",
       "use": "Fetch outside truth: docs, API facts, comparisons, or recent evidence",
       "routing": {
@@ -47,6 +49,7 @@
     },
     {
       "name": "b-design",
+      "owner": "worker",
       "phase": "Decide",
       "use": "Create or refresh docs/DESIGN.md as a frontend design standard",
       "routing": {
@@ -72,6 +75,7 @@
     },
     {
       "name": "b-implement",
+      "owner": "worker",
       "phase": "Build",
       "use": "Make the scoped change from an approved plan or a small direct request",
       "routing": {
@@ -91,6 +95,7 @@
     },
     {
       "name": "b-init",
+      "owner": "worker",
       "phase": "Build",
       "use": "Initialize or refresh repo-local agent instruction docs",
       "routing": {
@@ -111,6 +116,7 @@
     },
     {
       "name": "b-refactor",
+      "owner": "worker",
       "phase": "Build",
       "use": "Rename, extract, move, inline, simplify, or delete behavior-preserving code",
       "routing": {
@@ -133,6 +139,7 @@
     },
     {
       "name": "b-debug",
+      "owner": "worker",
       "phase": "Validate",
       "use": "Find the real runtime root cause and fix it only when authorized",
       "routing": {
@@ -155,6 +162,7 @@
     },
     {
       "name": "b-test",
+      "owner": "worker",
       "phase": "Validate",
       "use": "Write or fix unit, integration, contract, and simulated-DOM tests",
       "routing": {
@@ -177,6 +185,7 @@
     },
     {
       "name": "b-browser",
+      "owner": "worker",
       "phase": "Validate",
       "use": "Collect real-browser, visual, screenshot, live UI, or e2e evidence",
       "routing": {
@@ -200,6 +209,7 @@
     },
     {
       "name": "b-agentic-audit",
+      "owner": "planner",
       "phase": "Validate",
       "use": "Audit b-agentic repository and design conformance, reporting source drift",
       "routing": {
@@ -218,6 +228,7 @@
     },
     {
       "name": "b-review",
+      "owner": "planner",
       "phase": "Validate",
       "use": "Review changed code",
       "routing": {
@@ -239,6 +250,7 @@
     },
     {
       "name": "b-commit",
+      "owner": "worker",
       "phase": "Ship",
       "use": "Split working-tree changes into approved cohesive commits",
       "routing": null,
@@ -248,6 +260,7 @@
     },
     {
       "name": "b-pr-summary",
+      "owner": "planner",
       "phase": "Ship",
       "use": "Write general PR copy for recent commits or commits ahead of cached origin",
       "routing": null,

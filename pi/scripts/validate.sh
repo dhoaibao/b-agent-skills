@@ -39,7 +39,10 @@ for path in [kernel, mcp, *extension_files, readme]:
 if kernel.exists():
     text = kernel.read_text()
     for marker in [
-        'Pi Workflow Kernel', 'b-agentic defaults to Off', 'Planner owns `b-plan`, external `b-research`',
+        'Pi Workflow Kernel', 'b-agentic defaults to Off', 'Planner-owned skills: `b-plan`, external `b-research`',
+        'Worker-owned skills: `b-design`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, `b-commit`',
+        'Ownership governs execution, not inspection', 'Planner-owned only when execution is read-only decision/planning',
+        'Mixed or uncertain skills are worker-owned', 'Unknown or ambiguous skill ownership is worker-owned',
         'Worker is the sole worktree writer', 'Before every Intercom `send` or `reply`, call `pending`', 'inbound ask requires its `reply`',
         'identifier token returned verbatim', 'authoritative short ID is valid',
         'never guess, reconstruct, extend, further abbreviate, or use a stale token',
@@ -74,7 +77,9 @@ if extension.exists():
     for marker in [
         'tool_call', 'isAutoApprovedIntercomCall', 'PLANNER_PROMPT', 'workerPrompt',
         'planner profile (read-only coordinator)', 'worker profile (implementation)',
-        'sole worktree writer', 'external b-research', 'bounded worker evidence',
+        'SKILL_OWNERS', 'skillOwner', 'SKILL_OWNERSHIP_CRITERION', 'sole worktree writer', 'external b-research',
+        'Planner-owned only when execution is read-only decision/planning', 'Mixed or uncertain skills are worker-owned',
+        'Ownership governs execution, not inspection', 'bounded worker evidence',
         'applicable observable behavior', 'identifier token verbatim',
         'For a two-role material blocker', 'ask the assigning planner one focused question using its returned identifier token verbatim',
         'authoritative short ID is valid', 'never guess, reconstruct, extend, further abbreviate',
@@ -131,7 +136,10 @@ if readme.exists():
         'pi-mcp-adapter', 'pi-observational-memory', '@narumitw/pi-usage',
         'extensions/b-agentic-permissions.ts', 'mcp.json', '/b-role planner',
         'pi --b-role planner|worker', '/b-auto-mode', '/b-sync', '/b-update',
-        'Planner mode is enforced as analysis-only', 'sole worktree writer',
+        'Planner mode is enforced as analysis-only', 'generated ownership mapping gives the planner',
+        '`b-design`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, and `b-commit`',
+        'ownership governs execution, not inspection', 'Planner ownership is limited to read-only decision/planning',
+        'mixed, and uncertain work belong to the worker', 'sole worktree writer',
         'authoritative short ID is valid', 'Never guess, reconstruct, extend, further abbreviate',
         'applicable observable behavior, scope/non-goals, constraints/invariants',
         'actual `b-review` of the diff and verification', 'unchanged reviewed snapshot',

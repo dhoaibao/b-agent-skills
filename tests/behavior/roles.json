@@ -223,6 +223,26 @@
       ]
     },
     {
+      "id": "planner-inspects-worker-skill-but-delegates-execution",
+      "role": "planner",
+      "skill": "b-implement",
+      "observed_failure": "Ownership guidance could be misread as blocking planner access to worker skill text, or as allowing planner execution after inspecting it.",
+      "intended_behavior": "The planner may read any worker-owned SKILL.md for planning, delegation, audit, or review, but delegates its execution to a ready same-CWD worker. A new skill that performs browser verification is worker-owned under the classification criterion; unknown ownership also defaults to worker ownership.",
+      "prompt": "You need context from b-implement before preparing a handoff for a ready worker. Explain whether you may read that skill, who executes the requested implementation, and whether a new b-accessibility-browser-check skill belongs to planner or worker.",
+      "must": [
+        "May read b-implement for planning or delegation context",
+        "Delegate b-implement execution to the ready same-CWD worker",
+        "Classify the new browser-verification skill as worker-owned because it requires worker capabilities",
+        "Treat an unrecognized or ambiguous skill as worker-owned",
+        "Do not implement when the worker is unavailable"
+      ],
+      "avoid": [
+        "Block reading b-implement solely because it is worker-owned",
+        "Execute b-implement in the planner session",
+        "Treat direct user wording as permission to implement"
+      ]
+    },
+    {
       "id": "authoritative-short-id-is-valid",
       "role": "worker",
       "skill": "b-implement",

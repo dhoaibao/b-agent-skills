@@ -259,6 +259,18 @@ activeThinkingLevel = 'off';
 await commands['b-role'].handler('planner', roleContext);
 expect(activeModel.provider === 'anthropic' && activeModel.id === 'claude-sonnet-4-5' && activeThinkingLevel === 'low', '/b-role planner must apply its saved model and thinking preference');
 expect(activeTools.length === 5 && activeTools.every((tool) => ['read', 'recall', 'intercom', 'bash', 'mcp'].includes(tool)), 'planner role must expose its safe analysis and coordination tools');
+const expectedSkillOwners = {
+  'b-plan': 'planner', 'b-research': 'planner', 'b-design': 'worker', 'b-implement': 'worker',
+  'b-init': 'worker', 'b-refactor': 'worker', 'b-debug': 'worker', 'b-test': 'worker',
+  'b-browser': 'worker', 'b-agentic-audit': 'planner', 'b-review': 'planner',
+  'b-commit': 'worker', 'b-pr-summary': 'planner',
+};
+expect(JSON.stringify(plannerTest.SKILL_OWNERS) === JSON.stringify(expectedSkillOwners), 'generated runtime ownership must account for every registered skill');
+expect(plannerTest.skillOwner('future-or-ambiguous-skill') === 'worker', 'unknown runtime skill ownership must fail closed to worker');
+expect(plannerTest.SKILL_OWNERSHIP_CRITERION.includes('browser/operational verification') && plannerTest.SKILL_OWNERSHIP_CRITERION.includes('Mixed or uncertain skills are worker-owned'), 'generated runtime ownership criterion must classify future operational and uncertain skills as worker-owned');
+for (const skill of Object.keys(expectedSkillOwners)) {
+  expect(await toolCallHandler({ toolName: 'read', input: { path: path.join(root, `skills/${skill}/SKILL.md`) } }, roleContext) === undefined, `planner must permit inspection of ${skill} regardless of execution owner`);
+}
 for (const toolName of ['edit', 'write', 'mcpScript', 'b_agentic_confirm_commit']) {
   expect((await toolCallHandler({ toolName, input: {} }, roleContext))?.block === true, `planner role must block ${toolName}`);
 }
@@ -374,7 +386,7 @@ expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'send', to
 expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'ask', to: 'worker', message: 'Need clarification?' } }, roleContext) === undefined, 'planner role must allow Intercom blockers');
 expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'reply', message: 'Proceed with the narrow fix', replyTo: 'message-1' } }, roleContext) === undefined, 'planner role must allow replies');
 const plannerStart = await handlers.before_agent_start({ systemPrompt: 'base', systemPromptOptions: { skills: [] } }, roleContext);
-for (const marker of ['planner profile (read-only coordinator)', 'sole worktree writer', 'external b-research', 'bounded worker evidence', 'applicable observable behavior', 'scope/non-goals', 'constraints/invariants', 'paths/symbols/evidence', 'acceptance criteria', 'validation expectations', 'returned identifier token verbatim', 'authoritative short ID is valid', 'never guess, reconstruct, extend, further abbreviate', 'latest approved plan, handoff, and clarifications', 'Only delegated worktree-changing tasks require actual b-review', 'location, evidence, impact, violated baseline, smallest correction, and regression check', 'unchanged; changed content reopens review']) {
+for (const marker of ['planner profile (read-only coordinator)', 'Planner-owned: `b-plan`, `b-research`, `b-agentic-audit`, `b-review`, `b-pr-summary`', 'worker-owned: `b-design`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, `b-commit`', 'Planner-owned only when execution is read-only decision/planning', 'Mixed or uncertain skills are worker-owned', 'Ownership governs execution, not inspection', 'Unknown or ambiguous skills fail closed to worker ownership', 'sole worktree writer', 'external b-research', 'bounded worker evidence', 'applicable observable behavior', 'scope/non-goals', 'constraints/invariants', 'paths/symbols/evidence', 'acceptance criteria', 'validation expectations', 'returned identifier token verbatim', 'authoritative short ID is valid', 'never guess, reconstruct, extend, further abbreviate', 'latest approved plan, handoff, and clarifications', 'Only delegated worktree-changing tasks require actual b-review', 'location, evidence, impact, violated baseline, smallest correction, and regression check', 'unchanged; changed content reopens review']) {
   expect(plannerStart.systemPrompt.includes(marker), `planner role must include ${marker}`);
 }
 
@@ -418,7 +430,7 @@ for (const command of ['rtk git status --short', 'fdfind -t f SKILL.md skills', 
   expect(await toolCallHandler({ toolName: 'bash', input: { command } }, roleContext) === undefined, `worker role must preserve local discovery: ${command}`);
 }
 const workerStart = await handlers.before_agent_start({ systemPrompt: 'base', systemPromptOptions: { skills: [] } }, roleContext);
-for (const marker of ['worker profile (implementation)', 'sole worktree writer', 'planner owns external research', 'For a two-role material blocker', 'reply to an inbound ask without list-cwd/send/ask', 'ask the assigning planner one focused question using its returned identifier token verbatim', 'authoritative short ID is valid', 'never guess, reconstruct, extend, further abbreviate', 'implemented behavior, changed paths, acceptance coverage, exact checks/outcomes', 'deviations, assumptions, or gaps', 'actual b-review against that baseline', 'pause all edits', 'explicitly requests b-commit', 'unchanged reviewed snapshot; any content change reopens review']) {
+for (const marker of ['worker profile (implementation)', 'sole worktree writer', 'planner owns external research', 'Planner-owned only when execution is read-only decision/planning', 'Mixed or uncertain skills are worker-owned', 'Ownership governs execution, not inspection', 'Unknown or ambiguous skills fail closed to worker ownership', 'For a two-role material blocker', 'reply to an inbound ask without list-cwd/send/ask', 'ask the assigning planner one focused question using its returned identifier token verbatim', 'authoritative short ID is valid', 'never guess, reconstruct, extend, further abbreviate', 'implemented behavior, changed paths, acceptance coverage, exact checks/outcomes', 'deviations, assumptions, or gaps', 'actual b-review against that baseline', 'pause all edits', 'explicitly requests b-commit', 'unchanged reviewed snapshot; any content change reopens review']) {
   expect(workerStart.systemPrompt.includes(marker), `worker role must include ${marker}`);
 }
 expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'send', to: 'planner', message: 'Changed README.md; smoke passed; no known gaps.' } }, roleContext) === undefined, 'worker role must allow plain-language results');

@@ -1,7 +1,7 @@
 /** Planner collaboration prompt. */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { isPlannerReadOnlyMcpCall } from "./b-agentic-support/mcp.ts";
-import { PLANNER_ALLOWED_TOOLS, plannerCommandDecision, PLANNER_PROMPT } from "./b-agentic-support/role.ts";
+import { PLANNER_ALLOWED_TOOLS, PLANNER_PROMPT, SKILL_OWNERS, SKILL_OWNERSHIP_CRITERION, plannerCommandDecision, skillOwner } from "./b-agentic-support/role.ts";
 import { getRole } from "./b-agentic-support/state.ts";
 
 export default function bAgenticPlanner(pi: ExtensionAPI): void {
@@ -25,4 +25,4 @@ export default function bAgenticPlanner(pi: ExtensionAPI): void {
   });
 }
 
-export const __test__ = { isPlannerReadOnlyMcpCall, PLANNER_ALLOWED_TOOLS, plannerCommandDecision, PLANNER_PROMPT };
+export const __test__ = { isPlannerReadOnlyMcpCall, PLANNER_ALLOWED_TOOLS, PLANNER_PROMPT, SKILL_OWNERS, SKILL_OWNERSHIP_CRITERION, plannerCommandDecision, skillOwner };

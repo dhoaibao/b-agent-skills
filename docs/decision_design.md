@@ -123,10 +123,21 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
 - Planner mode is enforced as read-only analysis and coordination. It may
   inspect, recall, use safe discovery, and make classified read-only MCP calls,
   but cannot edit, write, build, test, commit, or make mutating MCP calls.
-  Direct allowlisted read-only Git/discovery commands may use unquoted glob
-  arguments; other ambiguous shell syntax remains blocked.
-  Worker mode is the sole worktree writer and retains normal repository-local
-  automation. Evidence: `pi/extensions/b-agentic-planner.ts`,
+  The registry explicitly assigns all skills: planner execution owns `b-plan`,
+  external `b-research`, `b-agentic-audit`, `b-review`, and `b-pr-summary`; the
+  worker executes `b-design`, `b-implement`, `b-init`, `b-refactor`, `b-debug`,
+  `b-test`, `b-browser`, and `b-commit`. Ownership is execution-only, so the
+  planner may read any skill; direct user wording or no ready worker never
+  permits implementation. Planner ownership is limited to read-only
+  decision/planning, external research, audit/review, or release-summary
+  coordination; implementation or mutation, runtime diagnosis, builds/tests,
+  browser/operational verification, commits, mixed, and uncertain work belong
+  to the worker. Unknown ownership defaults to worker while generation rejects
+  missing or invalid owners. Direct allowlisted read-only
+  Git/discovery commands may use unquoted glob arguments; other ambiguous shell
+  syntax remains blocked. Worker mode is the sole worktree writer and retains
+  normal repository-local automation. Evidence: `skills/registry.yaml`,
+  `tooling/generate/registry_sync.py`, `pi/extensions/b-agentic-planner.ts`,
   `pi/extensions/b-agentic-mcp-permissions.ts`,
   `pi/extensions/b-agentic-support/role.ts`,
   `pi/extensions/b-agentic-support/mcp.ts`.
