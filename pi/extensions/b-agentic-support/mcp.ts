@@ -9,11 +9,12 @@ import { isAutoModeEnabled } from "./state.ts";
 export const INTERCOM_ACTIONS = new Set(["list", "list-cwd", "send", "ask", "reply", "pending", "status", "cancel"]);
 export const INTERCOM_FIELDS = new Set(["action", "to", "message", "attachments", "replyTo", "messageId", "supersedes", "retryOf", "cwd"]);
 export const INTERCOM_ATTACHMENT_TYPES = new Set(["file", "snippet", "context"]);
+const INTERCOM_ATTACHMENT_FIELDS = new Set(["type", "name", "content", "language"]);
 
 export function isValidIntercomAttachment(value: unknown): boolean {
   if (!isPlainObject(value) || typeof value.type !== "string" || !INTERCOM_ATTACHMENT_TYPES.has(value.type) || typeof value.name !== "string" || typeof value.content !== "string") return false;
   if (value.language !== undefined && typeof value.language !== "string") return false;
-  return Object.keys(value).every((key) => ["type", "name", "content", "language"].includes(key));
+  return Object.keys(value).every((key) => INTERCOM_ATTACHMENT_FIELDS.has(key));
 }
 
 export function isAutoApprovedIntercomCall(toolName: string, input: unknown): boolean {
@@ -363,6 +364,22 @@ export const PLAYWRIGHT_TRUSTED_TOOLS = new Set([
   "browser_wait_for"
 ]);
 // generated:mcp-runtime-policy:end
+const MCP_CONDITIONAL_ARGUMENT_KEY_SETS: Record<string, ReadonlySet<string>> = Object.fromEntries(
+  Object.entries(MCP_CONDITIONAL_ARGUMENTS).map(([tool, keys]) => [tool, new Set(keys)]),
+);
+const MCP_PROXY_EXECUTION_FIELDS = new Set(["server", "tool", "args"]);
+const FIRECRAWL_SCRAPE_OPTION_KEYS = new Set([
+  "formats", "jsonOptions", "queryOptions", "screenshotOptions", "parsers", "pdfOptions",
+  "onlyMainContent", "redactPII", "includeTags", "excludeTags", "waitFor", "mobile",
+  "skipTlsVerification", "removeBase64Images", "location", "storeInCache", "zeroDataRetention",
+  "maxAge", "lockdown", "proxy",
+]);
+const PLAYWRIGHT_SNAPSHOT_KEYS = new Set(["target", "filename", "depth", "boxes"]);
+const PLAYWRIGHT_CONSOLE_MESSAGE_KEYS = new Set(["level", "all"]);
+const PLAYWRIGHT_NETWORK_REQUESTS_KEYS = new Set(["static", "filter"]);
+const PLAYWRIGHT_NETWORK_REQUEST_KEYS = new Set(["index", "part"]);
+const PLAYWRIGHT_TABS_KEYS = new Set(["action"]);
+
 export function normalizeServerId(value: string): string {
   return value.trim().toLowerCase().replace(/_/g, "-");
 }
@@ -411,7 +428,7 @@ export function isPlainObject(value: unknown): value is Record<string, unknown> 
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-export function hasOnlyKeys(value: Record<string, unknown>, allowed: Set<string>): boolean {
+export function hasOnlyKeys(value: Record<string, unknown>, allowed: ReadonlySet<string>): boolean {
   return Object.keys(value).every((key) => allowed.has(key));
 }
 
@@ -699,20 +716,13 @@ export function isSafeSerenaRepoEdit(base: string, input: Record<string, unknown
 }
 
 export function isSafeFirecrawlScrapeOptions(input: Record<string, unknown>): boolean {
-  const allowed = new Set([
-    "formats", "jsonOptions", "queryOptions", "screenshotOptions", "parsers", "pdfOptions",
-    "onlyMainContent", "redactPII", "includeTags", "excludeTags", "waitFor", "mobile",
-    "skipTlsVerification", "removeBase64Images", "location", "storeInCache", "zeroDataRetention",
-    "maxAge", "lockdown", "proxy",
-  ]);
-  return hasOnlyKeys(input, allowed) &&
+  return hasOnlyKeys(input, FIRECRAWL_SCRAPE_OPTION_KEYS) &&
     input.storeInCache !== true &&
     input.skipTlsVerification !== true;
 }
 
 export function isSafeFirecrawlSearch(input: Record<string, unknown>): boolean {
-  const known = MCP_CONDITIONAL_ARGUMENTS["firecrawl:firecrawl_search"];
-  return hasOnlyKeys(input, new Set(known)) &&
+  return hasOnlyKeys(input, MCP_CONDITIONAL_ARGUMENT_KEY_SETS["firecrawl:firecrawl_search"]) &&
     typeof input.query === "string" && Boolean(input.query.trim()) &&
     Number.isInteger(input.limit) && input.limit > 0 && input.limit <= 10 &&
     (input.scrapeOptions === undefined ||
@@ -720,16 +730,14 @@ export function isSafeFirecrawlSearch(input: Record<string, unknown>): boolean {
 }
 
 export function isSafeFirecrawlMap(input: Record<string, unknown>): boolean {
-  const known = MCP_CONDITIONAL_ARGUMENTS["firecrawl:firecrawl_map"];
-  return hasOnlyKeys(input, new Set(known)) &&
+  return hasOnlyKeys(input, MCP_CONDITIONAL_ARGUMENT_KEY_SETS["firecrawl:firecrawl_map"]) &&
     isSafeWebUrl(input.url) &&
     Number.isInteger(input.limit) && input.limit > 0 && input.limit <= 100 &&
     input.includeSubdomains !== true;
 }
 
 export function isSafeFirecrawlExtract(input: Record<string, unknown>): boolean {
-  const known = MCP_CONDITIONAL_ARGUMENTS["firecrawl:firecrawl_extract"];
-  return hasOnlyKeys(input, new Set(known)) &&
+  return hasOnlyKeys(input, MCP_CONDITIONAL_ARGUMENT_KEY_SETS["firecrawl:firecrawl_extract"]) &&
     Array.isArray(input.urls) && input.urls.length > 0 && input.urls.length <= 10 &&
     input.urls.every(isSafeWebUrl) &&
     input.allowExternalLinks !== true && input.enableWebSearch !== true && input.includeSubdomains !== true;
@@ -739,8 +747,8 @@ export function isConditionallyTrustedTool(server: string, base: string, input: 
   if (!isPlainObject(input)) return false;
 
   if (server === "serena") {
-    const known = MCP_CONDITIONAL_ARGUMENTS[`${server}:${base}`];
-    if (!known || !hasOnlyKeys(input, new Set(known)) ||
+    const known = MCP_CONDITIONAL_ARGUMENT_KEY_SETS[`${server}:${base}`];
+    if (!known || !hasOnlyKeys(input, known) ||
       hasProtectedPathArgument(input, ["relative_path", "paths_include_glob", "paths_exclude_glob"])) return false;
     if (input.relative_path !== undefined && !isProjectConfinedPath(input.relative_path)) return false;
     if (SERENA_REPO_EDIT_TOOLS.has(base)) return isSafeSerenaRepoEdit(base, input);
@@ -767,24 +775,24 @@ export function isConditionallyTrustedTool(server: string, base: string, input: 
   }
 
   if (server === "playwright" && base === "browser_snapshot") {
-    return hasOnlyKeys(input, new Set(["target", "filename", "depth", "boxes"])) &&
+    return hasOnlyKeys(input, PLAYWRIGHT_SNAPSHOT_KEYS) &&
       (input.filename === undefined || isProjectConfinedOutputPath(input.filename));
   }
 
   if (server === "playwright" && base === "browser_console_messages") {
-    return hasOnlyKeys(input, new Set(["level", "all"]));
+    return hasOnlyKeys(input, PLAYWRIGHT_CONSOLE_MESSAGE_KEYS);
   }
 
   if (server === "playwright" && base === "browser_network_requests") {
-    return hasOnlyKeys(input, new Set(["static", "filter"]));
+    return hasOnlyKeys(input, PLAYWRIGHT_NETWORK_REQUESTS_KEYS);
   }
 
   if (server === "playwright" && base === "browser_network_request") {
-    return hasOnlyKeys(input, new Set(["index", "part"]));
+    return hasOnlyKeys(input, PLAYWRIGHT_NETWORK_REQUEST_KEYS);
   }
 
   if (server === "playwright" && base === "browser_tabs") {
-    return hasOnlyKeys(input, new Set(["action"])) && input.action === "list";
+    return hasOnlyKeys(input, PLAYWRIGHT_TABS_KEYS) && input.action === "list";
   }
 
   return false;
@@ -832,7 +840,7 @@ type McpProxyToolExecution = { server: string; tool: string; args?: unknown };
 
 export function isMcpProxyToolExecution(input: unknown): input is McpProxyToolExecution {
   if (!isPlainObject(input)) return false;
-  if (!Object.keys(input).every((key) => ["server", "tool", "args"].includes(key))) return false;
+  if (!Object.keys(input).every((key) => MCP_PROXY_EXECUTION_FIELDS.has(key))) return false;
   if (typeof input.server !== "string" || input.server.trim() === "") return false;
   if (typeof input.tool !== "string" || input.tool.trim() === "") return false;
   return gatewayArgs(input.args) !== undefined;
@@ -867,6 +875,26 @@ function plannerSerenaToolBase(toolName: string): string | undefined {
   return name;
 }
 
+function isPlannerReadOnlySerenaCall(base: string, input: Record<string, unknown>): boolean {
+  if (PLANNER_SERENA_READ_TOOLS.has(base)) {
+    return isTrustedManagedTool("serena", base, input);
+  }
+  // Conditional classification performs the protected-path and descendant
+  // traversal once; do not repeat it after the trusted result is known.
+  return base === "serena_search_for_pattern" && isConditionallyTrustedTool("serena", base, input);
+}
+
+/** Reuse one Serena classification when adapter aliases identify the same operation. */
+export function isPlannerReadOnlySerenaBrokerCall(
+  originalToolName: string,
+  prefixedToolName: string,
+  input: unknown,
+): boolean {
+  const originalBase = plannerSerenaToolBase(originalToolName);
+  return originalBase !== undefined && originalBase === plannerSerenaToolBase(prefixedToolName) &&
+    isPlainObject(input) && isPlannerReadOnlySerenaCall(originalBase, input);
+}
+
 /** Allow only safe Serena discovery and classified read-only managed gateway calls in planner mode. */
 export function isPlannerReadOnlyMcpCall(toolName: string, input: unknown): boolean {
   if (toolName === "mcp") {
@@ -876,17 +904,11 @@ export function isPlannerReadOnlyMcpCall(toolName: string, input: unknown): bool
     const args = gatewayArgs(input.args);
     const base = plannerSerenaToolBase(input.tool);
     return args !== undefined && base !== undefined && gatewayToolMatchesServer(server, input.tool) &&
-      isTrustedManagedTool(server, base, args) &&
-      (PLANNER_SERENA_READ_TOOLS.has(base) ||
-        (base === "serena_search_for_pattern" && isSafeSerenaPatternSearch(args)) ||
-        isSafeSerenaSymbolRead(base, args));
+      isPlannerReadOnlySerenaCall(base, args);
   }
   const args = isPlainObject(input) ? input : undefined;
   const base = plannerSerenaToolBase(toolName);
-  return args !== undefined && base !== undefined && isTrustedManagedTool("serena", base, args) &&
-    (PLANNER_SERENA_READ_TOOLS.has(base) ||
-      (base === "serena_search_for_pattern" && isSafeSerenaPatternSearch(args)) ||
-      isSafeSerenaSymbolRead(base, args));
+  return args !== undefined && base !== undefined && isPlannerReadOnlySerenaCall(base, args);
 }
 
 /** Return true only for a classified direct Serena/CodeGraph tool in its own namespace. */

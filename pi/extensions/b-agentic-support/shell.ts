@@ -574,9 +574,34 @@ export function normalizeTokens(tokens: string[]): string[] {
   return stripped;
 }
 
+const EMPTY_MODERN_SHELL_TOOLS: ReadonlySet<string> = new Set();
+const PACKAGE_VALUE_OPTIONS = new Set(["--prefix", "--dir", "--manifest-path"]);
+const PACKAGE_VALUELESS_OPTIONS = new Set(["--silent", "--json", "--offline", "--version"]);
+const OPAQUE_PACKAGE_MANAGERS = new Set(["npm", "npx", "pnpm", "yarn", "bun", "cargo", "go", "pip", "pip3", "poetry", "uv"]);
+const DEPENDENCY_PATH_MANAGERS = new Set(["npm", "pnpm", "yarn", "bun", "cargo", "go", "pip", "pip3", "poetry", "uv"]);
+const DEPENDENCY_WRITES: Record<string, ReadonlySet<string>> = {
+  npm: new Set(["install", "i", "ci", "add", "remove", "uninstall", "update"]),
+  pnpm: new Set(["install", "i", "add", "remove", "uninstall", "update", "up"]),
+  yarn: new Set(["install", "add", "remove", "uninstall", "upgrade", "up"]),
+  bun: new Set(["install", "add", "remove", "uninstall", "update"]),
+  cargo: new Set(["install", "add", "remove", "update"]),
+  go: new Set(["install", "get"]),
+  pip: new Set(["install", "uninstall"]),
+  pip3: new Set(["install", "uninstall"]),
+  poetry: new Set(["add", "install", "remove", "update"]),
+  uv: new Set(["add", "remove", "sync", "lock"]),
+};
+const DEPENDENCY_PATH_OPTIONS = new Set(["--prefix", "--dir", "--manifest-path", "--target", "--root"]);
+const DEPENDENCY_GLOBAL_OPTIONS = new Set(["-g", "--global", "--user", "--system", "--break-system-packages"]);
+const PACKAGE_EXECUTION_OPERATIONS: Record<string, ReadonlySet<string>> = {
+  npm: new Set(["exec", "rebuild", "run", "run-script", "test", "start"]),
+  bun: new Set(["run", "test", "x"]),
+};
+const PACKAGE_NON_EXECUTION_OPERATIONS = new Set([
+  "audit", "help", "info", "licenses", "list", "outdated", "root", "search", "view", "why",
+]);
+
 export function packageOperation(tokens: string[]): { operation: string | null; opaque: boolean } {
-  const valueOptions = new Set(["--prefix", "--dir", "--manifest-path"]);
-  const valuelessOptions = new Set(["--silent", "--json", "--offline", "--version"]);
   let i = 1;
   while (i < tokens.length) {
     const token = tokens[i];
@@ -586,12 +611,12 @@ export function packageOperation(tokens: string[]): { operation: string | null; 
       i += 1;
       continue;
     }
-    if (valueOptions.has(token)) {
+    if (PACKAGE_VALUE_OPTIONS.has(token)) {
       if (!tokens[i + 1]) return { operation: null, opaque: true };
       i += 2;
       continue;
     }
-    if (valuelessOptions.has(token)) {
+    if (PACKAGE_VALUELESS_OPTIONS.has(token)) {
       i += 1;
       continue;
     }
@@ -602,45 +627,29 @@ export function packageOperation(tokens: string[]): { operation: string | null; 
 }
 
 export function hasOpaquePackageOptions(tokens: string[]): boolean {
-  return new Set(["npm", "npx", "pnpm", "yarn", "bun", "cargo", "go", "pip", "pip3", "poetry", "uv"]).has(tokens[0])
-    && packageOperation(tokens).opaque;
+  return OPAQUE_PACKAGE_MANAGERS.has(tokens[0]) && packageOperation(tokens).opaque;
 }
 
 export function hasDependencyWrite(tokens: string[]): boolean {
   const manager = tokens[0];
   const { operation } = packageOperation(tokens);
   if (!manager || !operation) return false;
-  const writes: Record<string, Set<string>> = {
-    npm: new Set(["install", "i", "ci", "add", "remove", "uninstall", "update"]),
-    pnpm: new Set(["install", "i", "add", "remove", "uninstall", "update", "up"]),
-    yarn: new Set(["install", "add", "remove", "uninstall", "upgrade", "up"]),
-    bun: new Set(["install", "add", "remove", "uninstall", "update"]),
-    cargo: new Set(["install", "add", "remove", "update"]),
-    go: new Set(["install", "get"]),
-    pip: new Set(["install", "uninstall"]),
-    pip3: new Set(["install", "uninstall"]),
-    poetry: new Set(["add", "install", "remove", "update"]),
-    uv: new Set(["add", "remove", "sync", "lock"]),
-  };
   if (manager === "uv" && operation === "pip") {
     return tokens.slice(2).some((token) => token === "install" || token === "uninstall" || token === "sync");
   }
-  return writes[manager]?.has(operation) ?? false;
+  return DEPENDENCY_WRITES[manager]?.has(operation) ?? false;
 }
 
 /** Dependency managers may target another directory, but only inside this project. */
 export function hasDependencyPathRisk(tokens: string[]): boolean {
   const manager = tokens[0];
-  const managers = new Set(["npm", "pnpm", "yarn", "bun", "cargo", "go", "pip", "pip3", "poetry", "uv"]);
-  if (!manager || !managers.has(manager)) return false;
+  if (!manager || !DEPENDENCY_PATH_MANAGERS.has(manager)) return false;
 
   const operation = packageOperation(tokens).operation;
   // These install binaries into a toolchain-managed location rather than the
   // repository, even when a package manager cache is already present.
   if ((manager === "cargo" || manager === "go") && operation === "install") return true;
 
-  const pathOptions = new Set(["--prefix", "--dir", "--manifest-path", "--target", "--root"]);
-  const globalOptions = new Set(["-g", "--global", "--user", "--system", "--break-system-packages"]);
   for (let i = 1; i < tokens.length; i += 1) {
     const token = tokens[i];
     const inline = token.match(/^(--prefix|--dir|--manifest-path|--target|--root)=(.*)$/);
@@ -648,10 +657,10 @@ export function hasDependencyPathRisk(tokens: string[]): boolean {
       if (!inline[2] || !isProjectConfinedLocalPath(inline[2])) return true;
       continue;
     }
-    if (globalOptions.has(token) || /^(?:--global|--user|--system)=/.test(token)) return true;
+    if (DEPENDENCY_GLOBAL_OPTIONS.has(token) || /^(?:--global|--user|--system)=/.test(token)) return true;
     if (/^--location=(?:global|system)$/.test(token)) return true;
     if (token === "--location" && /^(?:global|system)$/.test(tokens[i + 1] ?? "")) return true;
-    if (pathOptions.has(token)) {
+    if (DEPENDENCY_PATH_OPTIONS.has(token)) {
       const target = tokens[i + 1];
       if (!target || !isProjectConfinedLocalPath(target)) return true;
       i += 1;
@@ -667,16 +676,9 @@ export function hasOpaquePackageExecution(tokens: string[]): boolean {
   if (manager === "npx") return true;
   const { operation } = packageOperation(tokens);
   if (!manager || !operation) return false;
-  const executionOperations: Record<string, Set<string>> = {
-    npm: new Set(["exec", "rebuild", "run", "run-script", "test", "start"]),
-    bun: new Set(["run", "test", "x"]),
-  };
-  if (executionOperations[manager]?.has(operation)) return true;
+  if (PACKAGE_EXECUTION_OPERATIONS[manager]?.has(operation)) return true;
   if (manager === "pnpm" || manager === "yarn") {
-    const nonExecutionOperations = new Set([
-      "audit", "help", "info", "licenses", "list", "outdated", "root", "search", "view", "why",
-    ]);
-    return !nonExecutionOperations.has(operation);
+    return !PACKAGE_NON_EXECUTION_OPERATIONS.has(operation);
   }
   return false;
 }
@@ -1141,9 +1143,11 @@ export function hasEnvironmentBootstrapModifier(rawTokens: string[]): boolean {
 
 export function segmentDecision(
   segment: string,
-  modernTools: ReadonlySet<string> = modernShellToolAvailability(),
+  modernTools: ReadonlySet<string> = EMPTY_MODERN_SHELL_TOOLS,
   options: { allowUnquotedGlob?: boolean } = {},
 ): { decision: Decision; reason: string } {
+  // Retain the optional argument for callers and test exports; classification does not use availability.
+  void modernTools;
   const rawTokens = tokenize(segment);
   const tokens = normalizeTokens(rawTokens);
   if (hasOpaqueWrapper(rawTokens)) {
@@ -1322,7 +1326,7 @@ export function segmentDecision(
 
 export function commandDecision(
   command: string,
-  modernTools: ReadonlySet<string> = modernShellToolAvailability(),
+  modernTools: ReadonlySet<string> = EMPTY_MODERN_SHELL_TOOLS,
   options: { allowUnquotedGlob?: boolean } = {},
 ): { decision: Decision; reason: string } {
   const trimmed = command.trim();

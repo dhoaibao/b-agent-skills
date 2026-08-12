@@ -9,10 +9,15 @@ export default function bAgenticMcpPermissions(pi: ExtensionAPI): void {
   pi.on("tool_call", async (event, ctx) => {
     currentContext = ctx;
     const input = event.input;
-    if (getRole() === "planner" &&
-      (event.toolName === "mcp" || event.toolName.startsWith("serena_") || event.toolName.startsWith("mcp__")) &&
-      !policy.isPlannerReadOnlyMcpCall(event.toolName, input)) {
-      return { block: true, reason: "Planner mode permits only classified read-only MCP calls (local-mutation Serena calls are blocked)" };
+    const isPlannerMcpCall = getRole() === "planner" &&
+      (event.toolName === "mcp" || event.toolName.startsWith("serena_") || event.toolName.startsWith("mcp__"));
+    if (isPlannerMcpCall) {
+      if (!policy.isPlannerReadOnlyMcpCall(event.toolName, input)) {
+        return { block: true, reason: "Planner mode permits only classified read-only MCP calls (local-mutation Serena calls are blocked)" };
+      }
+      // The planner classifier already established this is an allowed call;
+      // avoid repeating conditional filesystem classification below.
+      return undefined;
     }
     if (policy.isAutoApprovedIntercomCall(event.toolName, input)) return undefined;
     if (policy.isMcpOrCustomTool(event.toolName, input)) {
@@ -32,12 +37,13 @@ export default function bAgenticMcpPermissions(pi: ExtensionAPI): void {
     if (!policy.isMcpToolApprovalRequest(value)) return;
     const server = policy.normalizeServerId(value.serverName);
     if (server === "serena" && getRole() === "planner" &&
-      (!policy.isPlannerReadOnlyMcpCall(value.originalToolName, value.args) ||
-        !policy.isPlannerReadOnlyMcpCall(value.prefixedToolName, value.args))) {
+      !policy.isPlannerReadOnlySerenaBrokerCall(value.originalToolName, value.prefixedToolName, value.args)) {
       value.claim(() => "deny");
       return;
     }
     if (policy.isTrustedManagedTool(server, value.originalToolName, value.args)) {
+      // Recheck conditional filesystem-sensitive trust when the broker invokes
+      // the claim: protected descendants may change between those moments.
       value.claim(() => policy.brokerApprovalDecision(value, currentContext));
       return;
     }

@@ -328,11 +328,16 @@ for (const command of ['rtk pytest -q', 'rtk git commit -m role-smoke', "rtk git
   expect((await toolCallHandler({ toolName: 'bash', input: { command } }, roleContext))?.block === true, `planner role must block worktree or execution command: ${command}`);
 }
 const plannerSerenaReadArgs = { name_path_pattern: 'applyRole', relative_path: 'pi/extensions/b-agentic-role.ts' };
+const plannerPatternSearchArgs = {
+  substring_pattern: 'applyRole', relative_path: 'pi/extensions/b-agentic-role.ts', restrict_search_to_code_files: true,
+};
 for (const toolName of ['serena_find_symbol', 'serena_serena_find_symbol', 'mcp__serena__serena_find_symbol']) {
   expect(await toolCallHandler({ toolName, input: plannerSerenaReadArgs }, roleContext) === undefined, `planner role must allow read-only Serena discovery: ${toolName}`);
 }
 expect(await toolCallHandler({ toolName: 'mcp', input: { server: 'serena', tool: 'serena_find_symbol', args: plannerSerenaReadArgs } }, roleContext) === undefined, 'planner role must allow Serena symbol reads');
 expect(await toolCallHandler({ toolName: 'mcp', input: { server: 'serena', tool: 'mcp__serena__serena_find_symbol', args: plannerSerenaReadArgs } }, roleContext) === undefined, 'planner role must allow prefixed Serena gateway reads');
+expect(await toolCallHandler({ toolName: 'serena_search_for_pattern', input: plannerPatternSearchArgs }, roleContext) === undefined, 'planner role must allow safe Serena pattern searches');
+expect(await toolCallHandler({ toolName: 'mcp', input: { server: 'serena', tool: 'serena_search_for_pattern', args: plannerPatternSearchArgs } }, roleContext) === undefined, 'planner role must allow safe Serena gateway pattern searches');
 expect(await toolCallHandler({ toolName: 'mcp', input: { server: 'serena', tool: 'serena_initial_instructions', args: {} } }, roleContext) === undefined, 'planner role must allow Serena initial instructions');
 expect(await toolCallHandler({ toolName: 'mcp', input: { server: 'codegraph', tool: 'codegraph_codegraph_explore', args: { query: 'role enforcement' } } }, roleContext) === undefined, 'planner role must allow CodeGraph reads');
 const plannerSerenaEditArgs = { relative_path: 'README.md', needle: 'old', repl: 'new', mode: 'literal' };
@@ -358,6 +363,13 @@ mcpApprovalHandler({
   claim(handler) { plannerReadClaim = handler; return true; },
 });
 expect(await plannerReadClaim() === 'allow_once', 'planner role must allow Serena discovery through the MCP approval broker');
+let plannerPatternClaim;
+mcpApprovalHandler({
+  serverName: 'serena', originalToolName: 'serena_search_for_pattern', prefixedToolName: 'serena_serena_search_for_pattern',
+  args: plannerPatternSearchArgs, origin: 'direct',
+  claim(handler) { plannerPatternClaim = handler; return true; },
+});
+expect(await plannerPatternClaim() === 'allow_once', 'planner broker must allow a safely classified Serena pattern search');
 expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'send', to: 'worker', message: 'Implement the approved task.' } }, roleContext) === undefined, 'planner role must allow Intercom handoffs');
 expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'ask', to: 'worker', message: 'Need clarification?' } }, roleContext) === undefined, 'planner role must allow Intercom blockers');
 expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'reply', message: 'Proceed with the narrow fix', replyTo: 'message-1' } }, roleContext) === undefined, 'planner role must allow replies');
@@ -745,6 +757,11 @@ expect(t.commandDecision('rtk g\\it reset --hard').decision === 'deny', 'escaped
 expect(t.commandDecision(['rtk g', '\\', '\n', 'it reset --hard'].join('')).decision === 'deny', 'line-continuation command name must not bypass reset denial');
 const noModernTools = new Set();
 const allModernTools = new Set(['rg', 'fd', 'bat', 'eza', 'sd', 'jq']);
+const defaultModernDecision = t.commandDecision('rtk grep needle src/main.ts');
+expect(defaultModernDecision.decision === t.commandDecision('rtk grep needle src/main.ts', noModernTools).decision &&
+  defaultModernDecision.reason === t.commandDecision('rtk grep needle src/main.ts', allModernTools).reason,
+'implicit modern-tool availability must not change shell policy decisions');
+expect(t.segmentDecision('rtk grep needle src/main.ts').decision === 'allow', 'segment decisions must retain the availability-free default call shape');
 expect(t.commandDecision('rtk proxy c\\at src/main.ts', noModernTools).decision === 'allow', 'baseline fallback remains allowed when the preferred modern tool is unavailable or inappropriate');
 expect(t.commandDecision('rtk proxy grep needle src/main.ts', noModernTools).decision === 'allow', 'RTK-wrapped legacy discovery may fall back when rg is unavailable');
 expect(t.commandDecision('grep needle src/main.ts', noModernTools).decision === 'allow', 'bare project-local grep must allow');
@@ -853,6 +870,8 @@ expect(t.commandDecision('sudo rtk ls -la', noModernTools).decision === 'ask', '
 expect(t.commandDecision('env -u FOO rtk ls -la', noModernTools).decision === 'allow', 'env -u wrapped RTK ls must allow when eza is unavailable');
 expect(t.commandDecision('env -S ls').decision === 'ask', 'env -S legacy command must be approval-gated');
 expect(t.commandDecision('env -S "grep needle src/main.ts"').decision === 'ask', 'env -S command string must be approval-gated');
+expect(t.hasDependencyPathRisk(['npx', '--prefix', '/tmp', 'tool']) === false, 'npx must remain outside dependency-target classification');
+expect(t.commandDecision('npx --prefix /tmp tool').decision === 'allow', 'npx prefix options must retain their existing command decision');
 for (const command of [
   'cat src/main.ts',
   'sed -n 1p src/main.ts',
@@ -1216,15 +1235,23 @@ try {
   rmSync(protectedGitDirectory, { recursive: true, force: true });
   writeFileSync(protectedSerenaPath, 'secret');
   symlinkSync(protectedSerenaPath, protectedSerenaLink);
-  expect(t.isTrustedManagedTool('serena', 'serena_search_for_pattern', {
+  const fixturePlannerPatternSearch = {
     ...serenaRootSearch,
     relative_path: serenaProtectedFixture,
-  }) === true, 'directory Serena code search must ignore non-code protected files');
+  };
+  expect(t.isTrustedManagedTool('serena', 'serena_search_for_pattern', fixturePlannerPatternSearch) === true, 'directory Serena code search must ignore non-code protected files');
+  expect(t.isPlannerReadOnlyMcpCall('serena_search_for_pattern', fixturePlannerPatternSearch) === true, 'planner pattern searches must classify safe descendants');
+  let changedDescendantBrokerClaim;
+  mcpApprovalHandler({
+    serverName: 'serena', originalToolName: 'serena_search_for_pattern', prefixedToolName: 'serena_serena_search_for_pattern',
+    args: fixturePlannerPatternSearch, origin: 'direct',
+    claim(handler) { changedDescendantBrokerClaim = handler; return true; },
+  });
   writeFileSync(path.join(serenaProtectedFixture, 'credentials.ts'), 'export const token = true;');
-  expect(t.isTrustedManagedTool('serena', 'serena_search_for_pattern', {
-    ...serenaRootSearch,
-    relative_path: serenaProtectedFixture,
-  }) === false, 'directory Serena code search must gate protected code descendants');
+  expect(t.isTrustedManagedTool('serena', 'serena_search_for_pattern', fixturePlannerPatternSearch) === false, 'directory Serena code search must gate protected code descendants');
+  await toolCallHandler({ toolName: 'intercom', input: { action: 'send', to: 'worker', message: 'Preserve broker safety.' } }, noUiContext);
+  expect(await changedDescendantBrokerClaim() === 'deny', 'broker claims must recheck changed Serena descendants before allowing');
+  expect(t.isPlannerReadOnlyMcpCall('serena_search_for_pattern', fixturePlannerPatternSearch) === false, 'planner pattern searches must recheck changed descendants without caching');
   expect(t.isTrustedManagedTool('serena', 'serena_find_symbol', {
     name_path_pattern: 'token', include_body: true,
   }) === false, 'unscoped Serena symbol reads must gate protected code descendants');

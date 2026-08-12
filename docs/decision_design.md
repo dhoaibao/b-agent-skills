@@ -62,6 +62,19 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   `pi/scripts/install.sh`, `pi/extensions/b-agentic-sync.ts`,
   `pi/configs/README.md`.
 
+### First-party extensions preserve policy while scaling cleanly
+
+- Every first-party b-agentic extension—discovered entrypoints and shipped
+  support modules under `pi/extensions/`—must follow coding best practices and
+  be designed and optimized for performance, maintainability, extensibility,
+  and long-term scalability. Optimization or refactoring must leave behavior,
+  safety gates, fail-closed semantics, and observable outputs unchanged, with
+  focused regression evidence before delivery. Evidence:
+  `pi/extensions/b-agentic-permissions.ts`,
+  `pi/extensions/b-agentic-mcp-permissions.ts`,
+  `pi/extensions/b-agentic-support/shell.ts`,
+  `pi/extensions/b-agentic-support/mcp.ts`, and `pi/tests/smoke.sh`.
+
 ## Workflow and skill design
 
 ### Route one intent to one active phase skill
