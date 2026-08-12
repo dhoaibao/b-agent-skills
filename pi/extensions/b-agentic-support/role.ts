@@ -1,4 +1,4 @@
-import { hasAmbiguousShellSyntax, hasInlineGitAliasInvocation, hasShellControlSyntax, hasUnbalancedQuotes, normalizeTokens, splitShellSegments, tokenize, unwrapTokens } from "./shell.ts";
+import { hasGitMutationRisk, hasInlineGitAliasInvocation, hasShellControlSyntax, hasUnbalancedQuotes, hasUnquotedGlob, hasUnsafeShellSyntax, isProtectedPath, isProjectConfinedLocalPath, normalizeTokens, PROTECTED_PATH_MARKERS, splitShellSegments, tokenize, unwrapTokens } from "./shell.ts";
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
@@ -15,11 +15,104 @@ export const ROLE_ENTRY_TYPE = "b-agentic-role";
 /** Tools that can perform planner-safe analysis; bash and MCP are checked again per operation. */
 export const PLANNER_ALLOWED_TOOLS = new Set(["read", "recall", "intercom", "bash", "mcp"]);
 const PLANNER_READ_COMMANDS = new Set(["eza", "exa", "fd", "fdfind", "pwd", "rg"]);
-const PLANNER_GIT_READ_COMMANDS = new Set(["blame", "branch", "describe", "diff", "grep", "log", "ls-files", "ls-tree", "remote", "rev-parse", "shortlog", "show", "status"]);
+const PLANNER_GIT_READ_COMMANDS = new Set(["blame", "branch", "cat-file", "count-objects", "describe", "diff", "diff-tree", "for-each-ref", "fsck", "grep", "log", "ls-files", "ls-tree", "merge-base", "name-rev", "reflog", "remote", "rev-list", "rev-parse", "shortlog", "show", "show-ref", "status", "tag", "verify-commit"]);
 const PLANNER_CODEGRAPH_COMMANDS = new Set(["affected", "callees", "callers", "explore", "files", "help", "impact", "init", "node", "query", "status", "version"]);
-/** Fail closed unless every shell segment is a local inspection command. */
+
+const SOURCE_FILE_EXTENSION = /(?:[cm]?[jt]sx?|py|rb|go|rs|java|kt|kts|c(?:c|pp|xx)?|h(?:pp)?|cs|php|swift|scala|vue|svelte|astro)$/i;
+
+function isCompoundSourceGlob(base: string): boolean {
+  const suffix = base.match(/^(?:credentials|secrets)\.(.+)$/i)?.[1];
+  if (!suffix) return false;
+  // Preserve shell.ts's compound-source exception for patterns such as
+  // credentials.service* and credentials.*.ts without inventing a literal
+  // path that may not exist.
+  return /^[A-Za-z0-9_-]+(?:[?*\[]|$)/.test(suffix) ||
+    (suffix.includes("*") && SOURCE_FILE_EXTENSION.test(suffix.replace(/[?*\[\]]/g, "")));
+}
+
+function hasPlannerProtectedGlob(tokens: string[]): boolean {
+  return tokens.some((token) => {
+    if (!hasUnquotedGlob(token)) return false;
+    if (/[?\[\]{}]/.test(token)) return true;
+    const normalized = token.replace(/\\/g, "/");
+    const segments = normalized.split("/");
+    const base = segments.at(-1) ?? normalized;
+    const staticPrefix = normalized.split(/[*?\[\]{}]/, 1)[0] || ".";
+    const protectedDirectory = /(?:^|\/)(?:\.env|\.config\/gh|\.aws|\.kube|\.ssh|\.git)(?:\/|$)/i.test(normalized);
+    const confinedPrefix = !staticPrefix.startsWith("..") && !staticPrefix.startsWith("/") && (isProjectConfinedLocalPath(staticPrefix) ||
+      (isCompoundSourceGlob(base) && isProjectConfinedLocalPath(".")));
+    if (!confinedPrefix || protectedDirectory) return true;
+    if (isCompoundSourceGlob(base)) return false;
+    if (/^(?:credentials|secrets)\*/i.test(base) || /(?:^|\/)(?:credentials|secrets)\/(?:\*|$)/i.test(normalized)) return true;
+    const globPattern = new RegExp(`^${normalized
+      .replace(/[.+^$()|\\\\*]/g, "\\\\$&")
+      .replace(/\\\\\*/g, ".*")}$`, "i");
+    const candidates = new Set<string>();
+    for (const marker of PROTECTED_PATH_MARKERS) {
+      const clean = marker.endsWith("/") ? marker.slice(0, -1) : marker;
+      candidates.add(clean);
+      candidates.add(`${clean}secret`);
+      candidates.add(`x${clean}`);
+      candidates.add(`foo/${clean}`);
+      candidates.add(`foo/${clean}/secret`);
+    }
+    return [...candidates].some((candidate) => globPattern.test(candidate) && isProtectedPath(candidate));
+  });
+}
+
+function hasPlannerGitGlobalOption(tokens: string[]): boolean {
+  if (tokens[0] !== "git") return false;
+  const globalOptions = new Set(["-c", "-C", "--config-env", "--git-dir", "--work-tree", "--namespace"]);
+  for (let index = 1; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    if (token === "--") break;
+    if (!token.startsWith("-")) return false;
+    const base = token.split("=", 1)[0];
+    if (globalOptions.has(token) ||
+      token.startsWith("-c") || token.startsWith("-C") ||
+      [...globalOptions].some((option) => option.startsWith("--") && base.length >= 5 && option.startsWith(base))) return true;
+  }
+  return false;
+}
+
+function hasPlannerUnsafeGitOption(tokens: string[]): boolean {
+  const separator = tokens.indexOf("--");
+  const optionTokens = tokens.slice(0, separator < 0 ? tokens.length : separator);
+  return optionTokens.some((token) =>
+    token === "-o" || token.startsWith("-o") ||
+      ["--ext-diff", "--textconv", "--output", "--no-index"].some((option) =>
+        option.startsWith(token.split("=", 1)[0]) || token.startsWith(`${option}=`))
+  );
+}
+
+function hasGitContentOutputRisk(tokens: string[]): boolean {
+  const separator = tokens.indexOf("--");
+  const options = tokens.slice(2, separator < 0 ? tokens.length : separator);
+  return options.some((token) => token === "-p" || token === "-u" || token === "-c" || token === "--cc" ||
+    ["--patch", "--patch-with-raw", "--patch-with-stat", "--binary", "--word-diff", "--color-words", "--textconv", "--ext-diff"].some((option) =>
+      option.startsWith(token) || token.startsWith(option)));
+}
+
+function isPlannerGitReadOnly(tokens: string[], rawTokens: string[]): boolean {
+  const gitTokens = tokens[0] === "rtk" ? tokens.slice(1) : tokens;
+  const operation = gitTokens[1];
+  const gitRawTokens = rawTokens[0] === "rtk" ? rawTokens.slice(1) : rawTokens;
+  if (!operation || hasPlannerGitGlobalOption(gitRawTokens) || hasPlannerUnsafeGitOption(gitRawTokens)) return false;
+  if (operation === "reflog" && !["", "show", "list"].includes(gitTokens[2] || "")) return false;
+  if (operation === "diff-tree" && hasGitContentOutputRisk(gitTokens)) return false;
+  if (operation === "remote") {
+    const remoteArgs = gitTokens.slice(2);
+    return remoteArgs.length === 0 || remoteArgs.length === 1 && remoteArgs[0] === "-v" ||
+      remoteArgs[0] === "get-url" ||
+      (remoteArgs.includes("show") && remoteArgs.includes("-n") && remoteArgs.filter((token) => token !== "-n").length === 2);
+  }
+  if (hasGitMutationRisk(gitTokens)) return false;
+  return true;
+}
+
+/** Fail closed unless every shell segment is a direct local inspection command. */
 export function plannerCommandDecision(command: string): { allowed: boolean; reason: string } {
-  if (hasUnbalancedQuotes(command) || hasAmbiguousShellSyntax(command) || hasShellControlSyntax(command)) {
+  if (hasUnbalancedQuotes(command) || hasUnsafeShellSyntax(command) || hasShellControlSyntax(command)) {
     return { allowed: false, reason: "Planner mode permits only unambiguous read-only shell commands" };
   }
   const segments = splitShellSegments(command.trim());
@@ -33,11 +126,17 @@ export function plannerCommandDecision(command: string): { allowed: boolean; rea
     }
     const tokens = normalizeTokens(rawTokens);
     const commandName = tokens[0];
-    const allowed = commandName === "git"
-      ? PLANNER_GIT_READ_COMMANDS.has(tokens[1] ?? "") && !hasInlineGitAliasInvocation(unwrapped.tokens)
+      const allowed = commandName === "git"
+      ? PLANNER_GIT_READ_COMMANDS.has(tokens[1] ?? "") && !hasInlineGitAliasInvocation(unwrapped.tokens) && isPlannerGitReadOnly(tokens, unwrapped.tokens)
       : commandName === "codegraph"
         ? PLANNER_CODEGRAPH_COMMANDS.has(tokens[1] ?? "")
         : Boolean(commandName && PLANNER_READ_COMMANDS.has(commandName));
+    if (hasPlannerProtectedGlob(rawTokens)) {
+      return { allowed: false, reason: "Planner mode blocks protected-path globs" };
+    }
+    if (hasUnquotedGlob(segment) && !allowed) {
+      return { allowed: false, reason: "Planner mode permits unquoted globs only for direct read-only commands" };
+    }
     if (!allowed) return { allowed: false, reason: `Planner mode blocks non-read-only command: ${commandName || "unknown"}` };
   }
   return { allowed: true, reason: "" };

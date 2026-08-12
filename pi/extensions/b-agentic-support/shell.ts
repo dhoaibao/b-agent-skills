@@ -287,11 +287,32 @@ export function hasUnquotedGlob(command: string): boolean {
   return false;
 }
 
+export function hasUnsafeShellSyntax(command: string): boolean {
+  // Expansions, substitutions, process substitutions, and eval make static
+  // command/path matching unreliable — fail closed with ask. Source-dot only
+  // at segment start (not path tokens like "cd .").
+  let quote: "'" | '"' | null = null;
+  for (let i = 0; i < command.length; i += 1) {
+    const ch = command[i];
+    if (quote) {
+      if (ch === quote) quote = null;
+      else if (ch === "\\" && quote === '"') i += 1;
+      continue;
+    }
+    if (ch === "'" || ch === '"') {
+      quote = ch;
+      continue;
+    }
+    if (ch === "{" && command.slice(i).match(/^\{[^}]*,/)) return true;
+  }
+  return /\$|`|[<>]\(|\bsource\b|\beval\b|(?:^|[;&|]\s*)\.\s+\S/.test(command);
+}
+
 export function hasAmbiguousShellSyntax(command: string): boolean {
-  // Expansions, substitutions, process substitutions, unquoted globs, and eval
-  // make static command/path matching unreliable — fail closed with ask.
-  // Source-dot only at segment start (not path tokens like "cd .").
-  return /\$|`|[<>]\(|\beval\b|\bsource\b|(?:^|[;&|]\s*)\.\s+\S/.test(command) || hasUnquotedGlob(command);
+  // Unquoted globs are ambiguous for general shell policy because expansion
+  // changes the paths being inspected. Planner policy may permit them only
+  // after proving the whole command is a direct read-only allowlisted command.
+  return hasUnsafeShellSyntax(command) || hasUnquotedGlob(command);
 }
 
 export function hasShellControlSyntax(command: string): boolean {
@@ -697,8 +718,8 @@ export function isInstalledBAgenticSkillPath(pathValue: string): boolean {
   }
 }
 
-export function isProjectConfinedLocalPath(pathValue: string): boolean {
-  if (!pathValue || isProtectedLocalPath(pathValue)) return false;
+function isProjectConfinedResolvedPath(pathValue: string): boolean {
+  if (!pathValue) return false;
   try {
     const projectRoot = realpathSync(process.cwd());
     const absoluteTarget = expandLocalPath(pathValue);
@@ -713,6 +734,11 @@ export function isProjectConfinedLocalPath(pathValue: string): boolean {
   } catch {
     return false;
   }
+}
+
+export function isProjectConfinedLocalPath(pathValue: string): boolean {
+  if (!pathValue || isProtectedLocalPath(pathValue)) return false;
+  return isProjectConfinedResolvedPath(pathValue);
 }
 
 export function isExistingProjectConfinedLocalPath(pathValue: string): boolean {
@@ -748,7 +774,7 @@ export function hasWorkingDirectoryChangeRisk(rawTokens: string[], tokens: strin
   return false;
 }
 
-export function hasLocalFilesystemRisk(tokens: string[]): boolean {
+export function hasLocalFilesystemRisk(tokens: string[], options: { allowUnquotedGlob?: boolean } = {}): boolean {
   if (tokens.length === 0) return false;
 
   const command = baseName(tokens[0]);
@@ -778,6 +804,11 @@ export function hasLocalFilesystemRisk(tokens: string[]): boolean {
   if (!LOCAL_PATH_COMMANDS.has(command)) return false;
   return tokens.slice(1).some((token) => {
     if (!token || token.startsWith("-") || isNegatedGlob(token) || isExternalUrl(token) || /^&?\d+$/.test(token)) return false;
+    if (options.allowUnquotedGlob && /[*?\[\]{}]/.test(token)) {
+      const staticPrefix = token.split(/[*?\[\]{}]/, 1)[0] || ".";
+      if (isProjectConfinedResolvedPath(staticPrefix)) return false;
+      return true;
+    }
     return !isProjectConfinedLocalPath(token);
   });
 }
@@ -968,10 +999,12 @@ export function hasGitMutationRisk(tokens: string[]): boolean {
   if (tokens[0] !== "git") return false;
   const operation = tokens[1];
   if (!operation) return false;
+  if (operation === "reflog") return !new Set(["", "show", "list"]).has(tokens[2] || "");
+  if (operation === "fsck" && tokens.slice(2).some((token) => token === "--lost-found" || token.startsWith("--lost"))) return true;
   const readOnlyOperations = new Set([
     "annotate", "blame", "cat-file", "count-objects", "describe", "diff", "diff-tree",
     "for-each-ref", "fsck", "grep", "help", "log", "ls-files", "ls-remote", "ls-tree",
-    "merge-base", "name-rev", "reflog", "rev-list", "rev-parse", "shortlog", "show",
+    "merge-base", "name-rev", "rev-list", "rev-parse", "shortlog", "show",
     "show-ref", "status", "verify-commit", "verify-tag", "version", "whatchanged",
   ]);
   if (readOnlyOperations.has(operation)) return false;
@@ -982,7 +1015,9 @@ export function hasGitMutationRisk(tokens: string[]): boolean {
       "--annotate", "--copy", "--create-reflog", "--delete", "--edit-description",
       "--force", "--move", "--set-upstream-to", "--sign", "--unset-upstream",
     ]);
-    if (rest.some((token) => mutationFlags.has(token))) return true;
+    if (rest.some((token) => mutationFlags.has(token) ||
+      [...mutationFlags].some((flag) => token.startsWith(`${flag}=`)) ||
+      (token.startsWith("--") && ["--delete", "--unset-upstream", "--set-upstream", "--move", "--copy", "--force"].some((flag) => flag.startsWith(token) || token.startsWith(flag))))) return true;
     const listMode = rest.some((token) => token === "-l" || token === "--list");
     const valueOptions = new Set([
       "--contains", "--format", "--merged", "--no-contains", "--no-merged", "--points-at", "--sort",
@@ -996,6 +1031,7 @@ export function hasGitMutationRisk(tokens: string[]): boolean {
     }
     return false;
   }
+  if (operation === "reflog") return !new Set(["", "show", "list"]).has(tokens[2] || "");
   if (operation === "stash") return !new Set(["list", "show"]).has(tokens[2] || "list");
   if (operation === "remote") return !new Set(["-v", "get-url", "show"]).has(tokens[2] || "show");
   return true;
@@ -1085,7 +1121,7 @@ export function isUnscopedGitContentRead(tokens: string[]): boolean {
     "--quiet", "--raw", "--shortstat", "--stat", "--summary", "-s",
   ]);
   if (options.some((token) => metadataOnly.has(token))) return false;
-  if (pathSeparator < 0) return true;
+  if (pathSeparator < 0) return operation !== "diff-tree";
   return tokens.slice(pathSeparator + 1).some((pathspec) => !isLiteralGitContentPath(pathspec));
 }
 
@@ -1106,6 +1142,7 @@ export function hasEnvironmentBootstrapModifier(rawTokens: string[]): boolean {
 export function segmentDecision(
   segment: string,
   modernTools: ReadonlySet<string> = modernShellToolAvailability(),
+  options: { allowUnquotedGlob?: boolean } = {},
 ): { decision: Decision; reason: string } {
   const rawTokens = tokenize(segment);
   const tokens = normalizeTokens(rawTokens);
@@ -1128,7 +1165,9 @@ export function segmentDecision(
   // Shell access to a literal protected path is always approval-gated, even
   // through rtk/wrapper commands or in a compound segment. This deliberately
   // covers both reads and writes: the shell parser cannot reliably infer intent.
-  if (tokens.some((token) => !isNegatedGlob(token) && (isProtectedPath(token) || isProtectedLocalPath(token)))) {
+  if (tokens.some((token) => !isNegatedGlob(token) &&
+    !(options.allowUnquotedGlob && /[*?\[\]{}]/.test(token)) &&
+    (isProtectedPath(token) || isProtectedLocalPath(token)))) {
     return {
       decision: "ask",
       reason: "Requires approval: shell command references a protected path",
@@ -1142,14 +1181,15 @@ export function segmentDecision(
     };
   }
 
-  if (hasLocalFilesystemRisk(tokens)) {
+  if (hasLocalFilesystemRisk(tokens, options)) {
     return {
       decision: "ask",
       reason: "Requires approval: shell command reads or mutates outside the project or removes local files",
     };
   }
 
-  if (isUnscopedGitContentRead(tokens)) {
+  if (isUnscopedGitContentRead(tokens) && !(options.allowUnquotedGlob &&
+    (tokens[1] === "diff-tree" || tokens.some((token) => /[*?\[\]{}]/.test(token)) || tokens.includes("--")))) {
     return {
       decision: "ask",
       reason: "Requires approval: Git content read must name existing non-protected file paths after --",
@@ -1283,13 +1323,17 @@ export function segmentDecision(
 export function commandDecision(
   command: string,
   modernTools: ReadonlySet<string> = modernShellToolAvailability(),
+  options: { allowUnquotedGlob?: boolean } = {},
 ): { decision: Decision; reason: string } {
   const trimmed = command.trim();
   if (!trimmed) {
     return { decision: "allow", reason: "" };
   }
 
-  if (hasUnbalancedQuotes(trimmed) || hasAmbiguousShellSyntax(trimmed) || hasShellControlSyntax(trimmed)) {
+  const ambiguous = options.allowUnquotedGlob
+    ? hasUnbalancedQuotes(trimmed) || hasUnsafeShellSyntax(trimmed) || hasShellControlSyntax(trimmed)
+    : hasUnbalancedQuotes(trimmed) || hasAmbiguousShellSyntax(trimmed) || hasShellControlSyntax(trimmed);
+  if (ambiguous) {
     return {
       decision: "ask",
       reason: "Requires approval: ambiguous shell syntax (quotes/expansion/control structure/eval/source)",
@@ -1309,7 +1353,7 @@ export function commandDecision(
   const rank = { allow: 0, ask: 1, deny: 2 };
 
   for (const segment of segments) {
-    const result = segmentDecision(segment, modernTools);
+    const result = segmentDecision(segment, modernTools, options);
     if (rank[result.decision] > rank[worst.decision]) {
       worst = result;
     }

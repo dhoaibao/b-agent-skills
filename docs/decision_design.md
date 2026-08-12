@@ -110,6 +110,8 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
 - Planner mode is enforced as read-only analysis and coordination. It may
   inspect, recall, use safe discovery, and make classified read-only MCP calls,
   but cannot edit, write, build, test, commit, or make mutating MCP calls.
+  Direct allowlisted read-only Git/discovery commands may use unquoted glob
+  arguments; other ambiguous shell syntax remains blocked.
   Worker mode is the sole worktree writer and retains normal repository-local
   automation. Evidence: `pi/extensions/b-agentic-planner.ts`,
   `pi/extensions/b-agentic-mcp-permissions.ts`,

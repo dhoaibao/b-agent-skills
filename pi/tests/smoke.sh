@@ -26,7 +26,8 @@ for (const name of ['shell.ts', 'mcp.ts', 'role.ts', 'role-models.ts', 'worker.t
 const mod = extensionModules[0];
 const t = mod.__test__;
 const roleTest = extensionModules[3].__test__;
-if (!t) {
+const plannerTest = extensionModules[4].__test__;
+if (!t || !plannerTest) {
   console.error('permission extension missing __test__ exports');
   process.exit(1);
 }
@@ -281,8 +282,46 @@ activeThinkingLevel = 'off';
 await registrations.session_start.at(-1)({}, roleContext);
 expect(!activeTools.includes('write') && !activeTools.includes('edit') && !activeTools.includes('b_agentic_confirm_commit'), 'an explicitly persisted planner must restore planner-safe tools');
 expect(activeModel.provider === 'anthropic' && activeModel.id === 'claude-sonnet-4-5' && activeThinkingLevel === 'low', 'a persisted planner role must restore its saved model and thinking preference');
-for (const command of ['rtk git status --short', 'fdfind -t f SKILL.md skills', 'eza -la', 'codegraph init']) {
-  expect(await toolCallHandler({ toolName: 'bash', input: { command } }, roleContext) === undefined, `planner role must allow safe discovery: ${command}`);
+const noUiPlannerContext = { ...roleContext, hasUI: false };
+const exactPlannerDiff = 'rtk git diff -- README.md REFERENCE.md docs/decision_design.md pi/configs/README.md references/kernel.template.md tooling/install/common.sh tooling/validate/behavior.py tooling/validate/shared.py skills/*/prompt.md';
+const pathNamedLikeOption = 'rtk git diff -- --output.md --config-e';
+expect(plannerTest.plannerCommandDecision(pathNamedLikeOption).allowed === true, 'planner must allow option-like Git pathspecs after --');
+expect(await toolCallHandler({ toolName: 'bash', input: { command: pathNamedLikeOption } }, noUiPlannerContext) === undefined, 'planner pipeline must allow option-like Git pathspecs after --');
+expect(await toolCallHandler({ toolName: 'bash', input: { command: exactPlannerDiff } }, noUiPlannerContext) === undefined, 'planner pipeline must allow the exact multi-path globbed diff');
+expect(await toolCallHandler({ toolName: 'bash', input: { command: "rtk rg '{foo,bar}' skills" } }, noUiPlannerContext) === undefined, 'planner pipeline must allow quoted braces');
+for (const command of ['rtk git status --short', 'rtk git diff -- skills/*/prompt.md', 'rtk git diff-tree HEAD', 'rtk git for-each-ref --format=%(refname)', 'rtk git merge-base HEAD HEAD~1', 'rtk git rev-list -1 HEAD', 'rtk git show-ref --heads', 'rtk git tag --list', 'rtk git reflog show', 'rtk git cat-file -t HEAD', 'rtk git count-objects -v', 'rtk git fsck --no-dangling', 'rtk git name-rev HEAD', 'rtk git verify-commit HEAD', 'rtk rg needle skills/*', 'rtk git diff -- credentials.service*', 'rtk git diff -- credentials.*.ts', 'rtk git diff -- provider-secrets.service*', 'rtk git remote -v', 'rtk git remote get-url origin', 'rtk git remote show -n origin', 'fdfind -t f SKILL.md skills', 'eza -la', 'codegraph init']) {
+  expect(await toolCallHandler({ toolName: 'bash', input: { command } }, noUiPlannerContext) === undefined, `planner role must allow safe discovery without UI: ${command}`);
+}
+for (const command of ['rtk git diff -- .env', 'rtk rg needle /etc/passwd', 'rtk git diff -- /tmp/x']) {
+  expect((await toolCallHandler({ toolName: 'bash', input: { command } }, noUiPlannerContext))?.block === true, `planner must retain generic protections without UI: ${command}`);
+}
+const protectedGlobIntegrationCases = ['rtk git diff -- private.pem*', 'rtk git diff -- id_rsa*', 'rtk git diff -- .npmrc*', 'rtk git diff -- .config/gh/*'];
+for (const command of protectedGlobIntegrationCases) {
+  expect((await toolCallHandler({ toolName: 'bash', input: { command } }, noUiPlannerContext))?.block === true, `planner pipeline must block protected glob: ${command}`);
+}
+const outsideGlobDir = mkdtempSync(path.join(os.tmpdir(), 'b-agentic-outside-'));
+const outsideGlobLink = path.join(root, 'link-outside');
+try {
+  symlinkSync(outsideGlobDir, outsideGlobLink, 'dir');
+  const command = 'rtk rg needle link-outside/*';
+  expect((await toolCallHandler({ toolName: 'bash', input: { command } }, noUiPlannerContext))?.block === true, 'planner pipeline must block symlink-outside glob');
+} finally {
+  rmSync(outsideGlobLink, { force: true });
+  rmSync(outsideGlobDir, { recursive: true, force: true });
+}
+for (const command of ['rtk git --config-e=foo status', 'rtk git --git-d=/tmp/repo.git status', 'rtk git diff-tree -p HEAD', 'rtk git diff-tree --patch HEAD']) {
+  expect((await toolCallHandler({ toolName: 'bash', input: { command } }, noUiPlannerContext))?.block === true, `planner pipeline must block dangerous Git form: ${command}`);
+}
+for (const command of [
+  'rtk git branch -m renamed', 'rtk git branch -D old', 'rtk git remote set-url origin https://example.com/repo.git',
+  'rtk git -c core.pager=!touch /tmp/owned diff', 'rtk git --config-env core.pager=GIT_PAGER diff',
+  'rtk git -C /tmp diff', 'rtk git --git-dir /tmp/repo.git status', 'rtk git --config-e=foo status', 'rtk git --git-d=/tmp/repo.git status', 'rtk git --work-t=/tmp status', 'rtk git --namesp=x status', 'rtk git --config-e status', 'rtk git --git-d /tmp/repo.git status', 'rtk git --work-t /tmp status', 'rtk git --namesp foo status',
+  'rtk git diff-tree -p HEAD', 'rtk git diff-tree --patch HEAD', 'rtk git diff-tree --patch-with-raw HEAD', 'rtk git diff-tree --patch-with-r HEAD', 'rtk git diff-tree -c HEAD', 'rtk git diff --no-index skills/*/prompt.md /tmp/other', 'rtk git diff -- private.{pem,key}', 'rtk git diff -- private.[p]em', 'rtk git diff -- foo/.config/{gh,gl}/*', 'rtk git reflog expire --expire=now --all', 'rtk git reflog delete HEAD@{1}', 'rtk git fsck --lost-found', 'rtk git diff --no-i skills/*/prompt.md /tmp/other', 'rtk git diff -oreport.txt -- skills/*/prompt.md',
+  'rtk git diff --output=report.txt -- skills/*/prompt.md', 'rtk git diff --out=report.txt -- skills/*/prompt.md',
+  'rtk git diff --ext-diff -- skills/*/prompt.md', 'rtk git log --ext -- skills/*/prompt.md', 'rtk git grep --textc needle -- skills/*/prompt.md',
+  'rtk rg needle ../outside/*', 'rtk git -c alias.status=!touch status', 'rtk git status; git reset --hard', 'rtk git diff -- .env*', 'rtk git diff -- credentials*', 'rtk git diff foo/.env/*', 'rtk git diff foo/credentials/*', 'rtk git diff .config/gh/*', 'rtk git diff foo/.config/gh/*', 'rtk git diff .kube/*', 'rtk git remote show origin',
+]) {
+  expect(plannerTest.plannerCommandDecision(command).allowed === false, `planner must block mutating, opaque, or ambiguous command: ${command}`);
 }
 for (const command of ['rtk pytest -q', 'rtk git commit -m role-smoke', "rtk git -c 'alias.status=!touch owned' status", 'node -e "process.exit()"']) {
   expect((await toolCallHandler({ toolName: 'bash', input: { command } }, roleContext))?.block === true, `planner role must block worktree or execution command: ${command}`);

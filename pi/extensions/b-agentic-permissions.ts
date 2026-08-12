@@ -94,7 +94,7 @@ export default function bAgenticPermissions(pi: ExtensionAPI): void {
   pi.on("tool_call", async (event, ctx) => {
     if (event.toolName === "bash") {
       const command = String((event.input as { command?: string }).command || "");
-      const decision = commandDecision(command);
+      const decision = commandDecision(command, undefined, { allowUnquotedGlob: getRole() === "planner" });
       if (decision.decision === "deny") return { block: true, reason: decision.reason };
       if (decision.decision === "ask") {
         if (isAutoModeEnabled()) return undefined;
