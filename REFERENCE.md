@@ -215,9 +215,11 @@ preferences under `~/.pi/agent/b-agentic/role-models.json` without credentials.
 
 `/b-auto-mode` is an explicit opt-in that warns and requires an interactive Y/N
 confirmation before enabling. While enabled it auto-allows every `ask` decision,
-while retaining every explicit `deny`; it persists with the session and displays
-red `b-auto-mode` in Pi's footer. `pi --b-auto-mode` requests startup enablement,
-but enabling still fails closed without an interactive UI.
+while retaining every explicit `deny`; the user choice persists across Pi restarts
+and `/new` sessions under `~/.pi/agent/b-agentic/auto-mode.json`, while legacy
+session entries remain compatible. It displays red `b-auto-mode` in Pi's footer.
+`pi --b-auto-mode` requests one-session startup enablement, but enabling still
+fails closed without an interactive UI.
 
 Planner mode is analysis-only: it permits `read`, `recall`, Intercom, safe local
 discovery commands, and classified read-only MCP calls. It blocks edits,

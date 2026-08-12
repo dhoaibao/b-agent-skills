@@ -1,6 +1,13 @@
 /** Interactive opt-in for allowing approval prompts while preserving explicit denies. */
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { AUTO_MODE_ENTRY_TYPE, latestAutoModeState, parseAutoMode } from "./b-agentic-support/auto.ts";
+import {
+  AUTO_MODE_ENTRY_TYPE,
+  autoModePath,
+  latestAutoModeState,
+  loadAutoModePreference,
+  parseAutoMode,
+  saveAutoModePreference,
+} from "./b-agentic-support/auto.ts";
 import { isAutoModeEnabled, setAutoModeEnabled } from "./b-agentic-support/state.ts";
 
 function updateStatus(ctx: ExtensionContext): void {
@@ -8,8 +15,17 @@ function updateStatus(ctx: ExtensionContext): void {
 }
 
 export default function bAgenticAutoMode(pi: ExtensionAPI): void {
-  const persist = (): void => {
+  const appendSessionState = (): void => {
     pi.appendEntry(AUTO_MODE_ENTRY_TYPE, { enabled: isAutoModeEnabled() });
+  };
+  const persist = (): void => {
+    const enabled = isAutoModeEnabled();
+    try {
+      saveAutoModePreference(enabled);
+    } catch {
+      // A session entry still preserves the choice when the durable file is unavailable.
+    }
+    appendSessionState();
   };
   const disable = (ctx: ExtensionContext, shouldPersist = true): void => {
     setAutoModeEnabled(false);
@@ -61,24 +77,35 @@ export default function bAgenticAutoMode(pi: ExtensionAPI): void {
   });
 
   pi.on("session_start", async (_event, ctx) => {
-    const persisted = latestAutoModeState(ctx.sessionManager.getBranch());
+    const sessionState = latestAutoModeState(ctx.sessionManager.getBranch());
+    const durableState = loadAutoModePreference();
     const flagValue = pi.getFlag("b-auto-mode");
-    const requested = flagValue === undefined ? persisted : parseAutoMode(flagValue);
+    const requested = flagValue === undefined ? durableState ?? sessionState : parseAutoMode(flagValue);
+    if (flagValue === undefined && durableState === undefined && sessionState !== undefined) {
+      // Migrate the legacy session entry only when no durable preference exists.
+      try { saveAutoModePreference(sessionState); } catch { /* Keep session compatibility if persistence is unavailable. */ }
+    }
     if (requested === true) {
       // A persisted opt-in was already confirmed in an earlier session; restore
       // it without reopening an approval prompt. Explicit startup flags still
-      // go through the confirmation above.
-      if (flagValue === undefined && persisted === true) {
+      // go through the confirmation above and remain one-session overrides.
+      if (flagValue === undefined) {
         setAutoModeEnabled(true);
         updateStatus(ctx);
         return;
       }
-      await enable(ctx, persisted !== undefined);
+      await enable(ctx, false);
       return;
     }
     disable(ctx, false);
-    if (requested === false && persisted === true) persist();
   });
 }
 
-export const __test__ = { AUTO_MODE_ENTRY_TYPE, parseAutoMode, latestAutoModeState };
+export const __test__ = {
+  AUTO_MODE_ENTRY_TYPE,
+  autoModePath,
+  loadAutoModePreference,
+  parseAutoMode,
+  latestAutoModeState,
+  saveAutoModePreference,
+};

@@ -23,6 +23,7 @@ const extensionModules = await Promise.all([
 for (const name of ['shell.ts', 'mcp.ts', 'role.ts', 'role-models.ts', 'worker.ts', 'state.ts', 'auto.ts']) {
   await import(pathToFileURL(path.join(installedRoot, 'b-agentic-support', name)).href);
 }
+const autoStateTest = await import(pathToFileURL(path.join(installedRoot, 'b-agentic-support', 'state.ts')).href);
 const mod = extensionModules[0];
 const t = mod.__test__;
 const roleTest = extensionModules[3].__test__;
@@ -426,9 +427,10 @@ try {
     cpSync(path.join(installedRoot, 'b-agentic-support', name), path.join(isolatedAutoModeRoot, 'b-agentic-support', name));
   }
   const isolatedCommands = {};
+  const isolatedRegistrations = {};
   const isolatedAutoMode = (await import(pathToFileURL(path.join(isolatedAutoModeRoot, 'b-agentic-auto-mode.ts')).href)).default;
   isolatedAutoMode({
-    on() {},
+    on(eventName, handler) { isolatedRegistrations[eventName] = handler; },
     registerFlag() {},
     getFlag() {},
     registerCommand(name, definition) { isolatedCommands[name] = definition; },
@@ -438,6 +440,74 @@ try {
   await isolatedCommands['b-auto-mode'].handler('on', roleContext);
   expect(await toolCallHandler({ toolName: 'mcp', input: { server: 'firecrawl' } }, noUiContext) === undefined, 'auto-mode must share enabled state with the MCP permission extension across isolated module instances for generic MCP selectors');
   await isolatedCommands['b-auto-mode'].handler('off', roleContext);
+  branchEntries.length = 0;
+  autoTest.saveAutoModePreference(true);
+  autoStateTest.setAutoModeEnabled(false);
+  let isolatedStartupConfirmations = 0;
+  await isolatedRegistrations.session_start({}, {
+    ...roleContext,
+    sessionManager: { getBranch: () => [] },
+    ui: {
+      ...roleContext.ui,
+      confirm: async () => { isolatedStartupConfirmations += 1; return true; },
+    },
+  });
+  expect(autoStateTest.isAutoModeEnabled() === true && isolatedStartupConfirmations === 0, 'a fresh auto-mode module must restore durable enabled state without confirmation');
+  await isolatedCommands['b-auto-mode'].handler('off', roleContext);
+  expect(autoTest.loadAutoModePreference() === false, 'disabling auto-mode must durably persist the disabled state');
+  autoStateTest.setAutoModeEnabled(true);
+  const secondRegistrations = {};
+  isolatedAutoMode({
+    on(eventName, handler) { secondRegistrations[eventName] = handler; },
+    registerFlag() {},
+    getFlag() {},
+    registerCommand() {},
+    appendEntry: extensionHost.appendEntry,
+  });
+  await secondRegistrations.session_start({}, { ...roleContext, sessionManager: { getBranch: () => [] } });
+  expect(autoStateTest.isAutoModeEnabled() === false, 'a fresh auto-mode module must restore durable disabled state without a session entry');
+  autoTest.saveAutoModePreference(false);
+  autoStateTest.setAutoModeEnabled(true);
+  await secondRegistrations.session_start({}, {
+    ...roleContext,
+    sessionManager: { getBranch: () => [{ type: 'custom', customType: 'b-agentic-auto-mode', data: { enabled: true } }] },
+  });
+  expect(autoStateTest.isAutoModeEnabled() === false && autoTest.loadAutoModePreference() === false, 'durable disabled state must override a conflicting legacy enabled session entry');
+  autoTest.saveAutoModePreference(true);
+  autoStateTest.setAutoModeEnabled(false);
+  await secondRegistrations.session_start({}, {
+    ...roleContext,
+    sessionManager: { getBranch: () => [{ type: 'custom', customType: 'b-agentic-auto-mode', data: { enabled: false } }] },
+  });
+  expect(autoStateTest.isAutoModeEnabled() === true && autoTest.loadAutoModePreference() === true, 'durable enabled state must override a conflicting legacy disabled session entry');
+  autoTest.saveAutoModePreference(false);
+  autoStateTest.setAutoModeEnabled(false);
+  branchEntries.length = 0;
+  branchEntries.push({ type: 'custom', customType: 'b-agentic-auto-mode', data: { enabled: true } });
+  flags['b-auto-mode'] = true;
+  let startupFlagConfirmations = 0;
+  const startupFlagContext = {
+    ...roleContext,
+    ui: {
+      ...roleContext.ui,
+      confirm: async () => { startupFlagConfirmations += 1; return true; },
+    },
+  };
+  const entriesBeforeStartupFlagOn = branchEntries.length;
+  await registrations.session_start[1]({}, startupFlagContext);
+  expect(autoStateTest.isAutoModeEnabled() === true && autoTest.loadAutoModePreference() === false && startupFlagConfirmations === 1, 'explicit auto-mode on flag must confirm without changing durable state');
+  expect(branchEntries.length === entriesBeforeStartupFlagOn, 'explicit auto-mode on flag must not append a session entry');
+  autoTest.saveAutoModePreference(true);
+  autoStateTest.setAutoModeEnabled(true);
+  branchEntries.length = 0;
+  branchEntries.push({ type: 'custom', customType: 'b-agentic-auto-mode', data: { enabled: false } });
+  flags['b-auto-mode'] = false;
+  const entriesBeforeStartupFlagOff = branchEntries.length;
+  await registrations.session_start[1]({}, startupFlagContext);
+  expect(autoStateTest.isAutoModeEnabled() === false && autoTest.loadAutoModePreference() === true, 'explicit auto-mode off flag must not change durable state');
+  expect(branchEntries.length === entriesBeforeStartupFlagOff, 'explicit auto-mode off flag must not append a session entry');
+  delete flags['b-auto-mode'];
+  autoStateTest.setAutoModeEnabled(false);
 } finally {
   rmSync(isolatedAutoModeRoot, { recursive: true, force: true });
 }
@@ -464,6 +534,7 @@ expect(roleStatuses.at(-1)?.value === undefined && persistedEntries.at(-1)?.data
 expect((await toolCallHandler({ toolName: 'bash', input: { command: 'rm -rf /tmp/auto-mode-off' } }, noUiContext))?.block === true, 'off auto-mode must retain fail-closed no-UI shell asks');
 let autoModeStartupConfirmations = 0;
 branchEntries.length = 0;
+rmSync(autoTest.autoModePath(), { force: true });
 branchEntries.push({ type: 'custom', customType: 'b-agentic-auto-mode', data: { enabled: true } });
 const autoModeStartupContext = {
   ...roleContext,
