@@ -141,6 +141,7 @@ expect(await toolCallHandler({ toolName: 'b_agentic_confirm_commit', input: { pr
 let rolePickerCalls = 0;
 let modelPickerCalls = 0;
 const roleContext = {
+  get model() { return activeModel; },
   cwd: root,
   hasUI: true,
   ui: {
@@ -245,11 +246,15 @@ expect(activeModel.provider === 'anthropic' && activeModel.id === 'claude-sonnet
 await handlers.model_select({ model: { provider: 'anthropic', id: 'claude-sonnet-4-5' } }, roleContext);
 const roleModelPreferences = JSON.parse(readFileSync(path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic', 'role-models.json'), 'utf8'));
 expect(roleModelPreferences.planner.model === 'claude-sonnet-4-5' && roleModelPreferences.planner.thinkingLevel === 'high', '/model changes must persist the active role preference');
+activeThinkingLevel = 'low';
+await handlers.thinking_level_select({ level: 'low', previousLevel: 'high' }, { ...roleContext, model: undefined });
+const updatedPlannerPreferences = JSON.parse(readFileSync(path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic', 'role-models.json'), 'utf8'));
+expect(updatedPlannerPreferences.planner.provider === 'anthropic' && updatedPlannerPreferences.planner.model === 'claude-sonnet-4-5' && updatedPlannerPreferences.planner.thinkingLevel === 'low', 'thinking-level changes must update the planner preference without changing its saved model when the current model is unavailable');
 await commands['b-role'].handler('off', roleContext);
 activeModel = { provider: 'other', id: 'other-model' };
 activeThinkingLevel = 'off';
 await commands['b-role'].handler('planner', roleContext);
-expect(activeModel.provider === 'anthropic' && activeModel.id === 'claude-sonnet-4-5' && activeThinkingLevel === 'high', '/b-role planner must apply its saved model and thinking preference');
+expect(activeModel.provider === 'anthropic' && activeModel.id === 'claude-sonnet-4-5' && activeThinkingLevel === 'low', '/b-role planner must apply its saved model and thinking preference');
 expect(activeTools.length === 5 && activeTools.every((tool) => ['read', 'recall', 'intercom', 'bash', 'mcp'].includes(tool)), 'planner role must expose its safe analysis and coordination tools');
 for (const toolName of ['edit', 'write', 'mcpScript', 'b_agentic_confirm_commit']) {
   expect((await toolCallHandler({ toolName, input: {} }, roleContext))?.block === true, `planner role must block ${toolName}`);
@@ -274,7 +279,7 @@ activeModel = { provider: 'other', id: 'other-model' };
 activeThinkingLevel = 'off';
 await registrations.session_start.at(-1)({}, roleContext);
 expect(!activeTools.includes('write') && !activeTools.includes('edit') && !activeTools.includes('b_agentic_confirm_commit'), 'an explicitly persisted planner must restore planner-safe tools');
-expect(activeModel.provider === 'anthropic' && activeModel.id === 'claude-sonnet-4-5' && activeThinkingLevel === 'high', 'a persisted planner role must restore its saved model and thinking preference');
+expect(activeModel.provider === 'anthropic' && activeModel.id === 'claude-sonnet-4-5' && activeThinkingLevel === 'low', 'a persisted planner role must restore its saved model and thinking preference');
 for (const command of ['rtk git status --short', 'fdfind -t f SKILL.md skills', 'eza -la', 'codegraph init']) {
   expect(await toolCallHandler({ toolName: 'bash', input: { command } }, roleContext) === undefined, `planner role must allow safe discovery: ${command}`);
 }
@@ -341,11 +346,15 @@ expect(roleStatuses.at(-1)?.value === '<success>b-agentic: worker</success>', 'w
 expect(roleNotifications.at(-1)?.level === 'info', 'a self worker announcement must not trigger a duplicate-worker warning');
 expect(activeTools.includes('edit') && activeTools.includes('write') && activeTools.includes('bash') && activeTools.includes('b_agentic_confirm_commit'), 'worker role must restore normal tools');
 await handlers.model_select({ model: { provider: 'anthropic', id: 'claude-sonnet-4-5' } }, roleContext);
+activeThinkingLevel = 'minimal';
+await handlers.thinking_level_select({ level: 'minimal', previousLevel: 'high' }, roleContext);
+const updatedWorkerPreferences = JSON.parse(readFileSync(path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic', 'role-models.json'), 'utf8'));
+expect(updatedWorkerPreferences.worker.model === 'claude-sonnet-4-5' && updatedWorkerPreferences.worker.thinkingLevel === 'minimal', 'thinking-level changes must update the worker preference without changing its model');
 await commands['b-role'].handler('off', roleContext);
 activeModel = { provider: 'other', id: 'other-model' };
 activeThinkingLevel = 'off';
 await commands['b-role'].handler('worker', roleContext);
-expect(activeModel.provider === 'anthropic' && activeModel.id === 'claude-sonnet-4-5' && activeThinkingLevel === 'high', '/b-role worker must apply its saved model and thinking preference');
+expect(activeModel.provider === 'anthropic' && activeModel.id === 'claude-sonnet-4-5' && activeThinkingLevel === 'minimal', '/b-role worker must apply its saved model and thinking preference');
 expect(await toolCallHandler({ toolName: 'edit', input: { path: 'README.md', edits: [] } }, roleContext) === undefined, 'worker role must not wait for a structured assignment');
 for (const skill of ['b-implement', 'b-debug', 'b-refactor', 'b-test', 'b-browser', 'b-research', 'b-design', 'b-init']) {
   expect(await toolCallHandler({ toolName: 'read', input: { path: path.join(root, `skills/${skill}/SKILL.md`) } }, roleContext) === undefined, `worker role must allow task-appropriate skill ${skill}`);

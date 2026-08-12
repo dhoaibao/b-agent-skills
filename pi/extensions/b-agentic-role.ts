@@ -184,6 +184,15 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
     if (applyingSavedModel || role === "off") return;
     try { saveModel(role, event.model); } catch { /* Preference persistence must not block model selection. */ }
   });
+  pi.on("thinking_level_select", (event) => {
+    const role = getRole();
+    if (applyingSavedModel || role === "off") return;
+    try {
+      const preference = loadRoleModelPreferences()[role];
+      if (!preference) return;
+      saveRoleModelPreference(role, { ...preference, thinkingLevel: event.level });
+    } catch { /* Preference persistence must not block thinking-level selection. */ }
+  });
   pi.on("session_start", async (_event, ctx) => {
     const persisted = latestRoleState(ctx.sessionManager.getBranch());
     const flagRole = parseRole(pi.getFlag("b-role"));
