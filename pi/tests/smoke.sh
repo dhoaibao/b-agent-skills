@@ -17,15 +17,15 @@ const root = process.env.ROOT_DIR || process.cwd();
 process.env.B_AGENTIC_DIR = path.join(root, '.b-agentic-test');
 const installedRoot = path.join(process.env.PI_TEST_HOME || '', '.pi/agent/extensions');
 const extensionModules = await Promise.all([
-  'b-agentic-permissions.ts', 'b-agentic-mcp-permissions.ts', 'b-agentic-role.ts',
+  'b-agentic-permissions.ts', 'b-agentic-mcp-permissions.ts', 'b-agentic-auto-mode.ts', 'b-agentic-role.ts',
   'b-agentic-planner.ts', 'b-agentic-worker.ts', 'b-agentic-sync.ts',
 ].map((name) => import(pathToFileURL(path.join(installedRoot, name)).href)));
-for (const name of ['shell.ts', 'mcp.ts', 'role.ts', 'role-models.ts', 'worker.ts', 'state.ts']) {
+for (const name of ['shell.ts', 'mcp.ts', 'role.ts', 'role-models.ts', 'worker.ts', 'state.ts', 'auto.ts']) {
   await import(pathToFileURL(path.join(installedRoot, 'b-agentic-support', name)).href);
 }
 const mod = extensionModules[0];
 const t = mod.__test__;
-const roleTest = extensionModules[2].__test__;
+const roleTest = extensionModules[3].__test__;
 if (!t) {
   console.error('permission extension missing __test__ exports');
   process.exit(1);
@@ -35,6 +35,7 @@ const registrations = {};
 const commands = {};
 const tools = {};
 const flags = {};
+const flagDefinitions = {};
 const persistedEntries = [];
 const branchEntries = [];
 let activeTools = ['read', 'bash', 'edit', 'write', 'recall', 'intercom', 'mcp', 'mcpScript'];
@@ -59,7 +60,7 @@ const extensionHost = {
       return result;
     };
   },
-  registerFlag() {},
+  registerFlag(name, definition) { flagDefinitions[name] = definition; },
   getFlag(name) { return flags[name]; },
   registerCommand(name, definition) { commands[name] = definition; },
   registerTool(definition) { tools[definition.name] = definition; },
@@ -369,6 +370,34 @@ expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'ask', to:
 expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'reply', message: 'Acknowledged', replyTo: 'message-2' } }, roleContext) === undefined, 'worker role must allow replies');
 expect(persistedEntries.some((entry) => entry.data.role === 'planner') && persistedEntries.some((entry) => entry.data.role === 'worker'), 'role changes must persist');
 await commands['b-role'].handler('off', roleContext);
+expect(commands['b-auto-mode'], 'auto-mode extension must register /b-auto-mode');
+expect(flagDefinitions['b-auto-mode']?.type === 'boolean', 'auto-mode must register a boolean startup flag');
+const autoTest = extensionModules[2].__test__;
+expect(autoTest.AUTO_MODE_ENTRY_TYPE === 'b-agentic-auto-mode', 'auto-mode state must use a dedicated persisted entry');
+expect(autoTest.parseAutoMode(true) === true && autoTest.parseAutoMode('off') === false && autoTest.parseAutoMode('invalid') === undefined, 'auto-mode values must parse safely');
+expect(autoTest.latestAutoModeState([{ type: 'custom', customType: 'b-agentic-auto-mode', data: { enabled: true } }]) === true, 'auto-mode state must restore from the session branch');
+await commands['b-auto-mode'].handler('on', roleContext);
+expect(roleStatuses.at(-1)?.key === 'b-auto-mode' && roleStatuses.at(-1)?.value === '<error>b-auto-mode</error>', 'enabled auto-mode must display red b-auto-mode status');
+const refreshConfirmationsBeforeAutoSync = refreshConfirmations;
+const refreshExecutionsBeforeAutoSync = executedCommands.length;
+await commands['b-sync'].handler('', refreshContext);
+expect(refreshConfirmations === refreshConfirmationsBeforeAutoSync, 'b-sync must skip its confirmation when auto-mode is enabled');
+expect(executedCommands.length === refreshExecutionsBeforeAutoSync + 1, 'auto-mode b-sync must still execute the refresh');
+expect(persistedEntries.at(-1)?.customType === 'b-agentic-auto-mode' && persistedEntries.at(-1)?.data.enabled === true, 'enabling auto-mode must persist its state');
+expect(await toolCallHandler({ toolName: 'bash', input: { command: 'rm -rf /tmp/auto-mode-ask' } }, noUiContext) === undefined, 'auto-mode must auto-allow shell ask decisions without UI');
+expect((await toolCallHandler({ toolName: 'bash', input: { command: 'git push --force origin main' } }, noUiContext))?.block === true, 'auto-mode must retain explicit shell deny decisions');
+expect(await toolCallHandler({ toolName: 'write', input: { path: '/tmp/auto-mode-write' } }, noUiContext) === undefined, 'auto-mode must auto-allow native path ask decisions without UI');
+expect((await toolCallHandler({ toolName: 'write', input: { path: '.env' } }, noUiContext))?.block === true, 'auto-mode must retain explicit native path deny decisions');
+expect(await toolCallHandler({ toolName: 'custom-tool', input: { value: 'external' } }, noUiContext) === undefined, 'auto-mode must auto-allow custom-tool asks without UI');
+let autoModeBrokerClaim;
+mcpApprovalHandler({
+  serverName: 'firecrawl', originalToolName: 'firecrawl_agent', prefixedToolName: 'firecrawl_firecrawl_agent', args: {}, origin: 'proxy',
+  claim(handler) { autoModeBrokerClaim = handler; return true; },
+});
+expect(await autoModeBrokerClaim() === 'allow_once', 'auto-mode must auto-allow broker ask decisions without UI');
+await commands['b-auto-mode'].handler('off', roleContext);
+expect(roleStatuses.at(-1)?.value === undefined && persistedEntries.at(-1)?.data.enabled === false, 'disabling auto-mode must clear status and persist off');
+expect((await toolCallHandler({ toolName: 'bash', input: { command: 'rm -rf /tmp/auto-mode-off' } }, noUiContext))?.block === true, 'off auto-mode must retain fail-closed no-UI shell asks');
 
 expect(await toolCallHandler({ toolName: 'mcpScript', input: { code: 'return 1;' } }, noUiContext) === undefined, 'trusted mcpScript container must auto-allow without UI');
 expect(await toolCallHandler({
@@ -1212,11 +1241,11 @@ run_pi_smoke_cases() {
 	assert_file "$sandbox/home/.pi/agent/b-agentic/references/mcp_operations.yaml"
 	assert_no_path "$sandbox/home/.pi/agent/b-agentic/references/contract"
 	assert_file "$sandbox/home/.pi/agent/mcp.json"
-	for extension in b-agentic-permissions.ts b-agentic-mcp-permissions.ts b-agentic-role.ts b-agentic-planner.ts b-agentic-worker.ts b-agentic-sync.ts; do
+	for extension in b-agentic-permissions.ts b-agentic-mcp-permissions.ts b-agentic-auto-mode.ts b-agentic-role.ts b-agentic-planner.ts b-agentic-worker.ts b-agentic-sync.ts; do
 		assert_file "$sandbox/home/.pi/agent/extensions/$extension"
 		assert_file "$sandbox/home/.pi/agent/b-agentic/extensions/$extension"
 	done
-	for support in shell.ts mcp.ts role.ts role-models.ts worker.ts state.ts; do
+	for support in shell.ts mcp.ts role.ts role-models.ts worker.ts state.ts auto.ts; do
 		assert_file "$sandbox/home/.pi/agent/extensions/b-agentic-support/$support"
 		assert_file "$sandbox/home/.pi/agent/b-agentic/extensions/b-agentic-support/$support"
 	done

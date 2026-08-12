@@ -10,8 +10,9 @@ Adapter-owned layout for Pi.
 - MCP template: `~/.pi/agent/b-agentic/templates/mcp.user.template.json`
 - User MCP config: `~/.pi/agent/mcp.json` (Pi-owned override read by `pi-mcp-adapter`)
 - Permission extensions: `~/.pi/agent/extensions/b-agentic-permissions.ts`,
-  `b-agentic-mcp-permissions.ts`, `b-agentic-role.ts`,
-  `b-agentic-planner.ts`, `b-agentic-worker.ts`, and `b-agentic-sync.ts`
+  `b-agentic-mcp-permissions.ts`, `b-agentic-auto-mode.ts`,
+  `b-agentic-role.ts`, `b-agentic-planner.ts`, `b-agentic-worker.ts`, and
+  `b-agentic-sync.ts`
 - Extension snapshots: `~/.pi/agent/b-agentic/extensions/` (one snapshot per
   installed extension; legacy manifests with only `permissionsExtension` remain supported)
 - Shared extension helpers live under the non-discovered
@@ -34,6 +35,8 @@ b-agentic can also install the optional `@narumitw/pi-usage` extension.
 b-agentic installs `pi-intercom` by default for its two-role workflow;  The permission extension auto-approves schema-valid Intercom actions (`list`, `list-cwd`, `status`, `pending`, `send`, `ask`, `reply`, and `cancel`), including supported optional string fields and attachment arrays; invalid actions, unknown fields, and malformed optional values remain approval-gated.
 
 b-agentic defaults to Off for a single-session workflow; the first same-CWD session is not automatically promoted to planner. For the two-role workflow, explicitly run `/b-role planner` and `/b-role worker` in the two sessions, or start them with `pi --b-role planner|worker`. Run `/b-role off` to return to solo work; tab completion supports all three role names. The role persists with the session and appears in Pi's status bar. `/b-role` selects only a role and does not open a model picker. Explicit `pi --b-role` startup selections and later `/model` changes can update the per-role provider, model, and thinking-level preference under `~/.pi/agent/b-agentic/role-models.json` without credentials.
+
+`/b-auto-mode` enables an explicit opt-in automatic approval mode. Enabling it always shows a warning and requires an interactive Y/N confirmation; disabling it does not. While enabled, every `ask` decision is auto-allowed, but explicit `deny` decisions remain blocked. The setting persists with the session, can be requested with `pi --b-auto-mode`, and appears as red `b-auto-mode` in Pi's footer. If no interactive UI is available, enabling fails closed.
 
 Planner mode is enforced as analysis-only: it permits `read`, `recall`, Intercom, safe local discovery commands, and classified read-only MCP gateway calls (including Serena and CodeGraph). It blocks edits, writes, builds/tests, commits, arbitrary shell commands, arbitrary MCP scripts, and mutating MCP calls. The planner discovers a ready worker through the injected role-aware roster and never falls back to implementation. The normal permission extension continues to protect sensitive paths, dangerous commands, and outside-project or external/shared actions. Worker mode retains normal repository-local automation.
 

@@ -4,6 +4,7 @@ import { isIP } from "node:net";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 
 import { isProtectedPath, isProtectedLocalPath, SPECIALIZED_TOOLS } from "./shell.ts";
+import { isAutoModeEnabled } from "./state.ts";
 
 export const INTERCOM_ACTIONS = new Set(["list", "list-cwd", "send", "ask", "reply", "pending", "status", "cancel"]);
 export const INTERCOM_FIELDS = new Set(["action", "to", "message", "attachments", "replyTo", "messageId", "supersedes", "retryOf", "cwd"]);
@@ -934,6 +935,9 @@ export async function brokerApprovalDecision(
 ): Promise<McpToolApprovalDecision> {
   const server = normalizeServerId(request.serverName);
   if (isTrustedManagedTool(server, request.originalToolName, request.args)) {
+    return "allow_once";
+  }
+  if (isAutoModeEnabled()) {
     return "allow_once";
   }
   if (!context?.hasUI) {

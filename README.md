@@ -99,6 +99,7 @@ Pi CLI, RTK, Serena, CodeGraph, Bun, bundled Bun MCP packages, and Pi packages i
 |---|---|---|
 | `b-agentic-permissions.ts` | Shell, filesystem, and dangerous-command policy | Default; installed and configured by b-agentic |
 | `b-agentic-mcp-permissions.ts` | Managed MCP and custom-tool approval | Default; installed and configured by b-agentic |
+| `b-agentic-auto-mode.ts` | Confirmed automatic approval mode with explicit-deny protection | Default; installed and configured by b-agentic |
 | `b-agentic-role.ts` | Explicit solo/planner/worker role selection | Default; installed and configured by b-agentic |
 | `b-agentic-planner.ts` | Planner analysis-only enforcement | Default; installed and configured by b-agentic |
 | `b-agentic-worker.ts` | Worker collaboration profile | Default; installed and configured by b-agentic |

@@ -21,6 +21,7 @@ readonly EXTENSIONS_DST="$PI_AGENT_DIR/extensions"
 readonly EXTENSION_NAMES=(
 	b-agentic-permissions.ts
 	b-agentic-mcp-permissions.ts
+	b-agentic-auto-mode.ts
 	b-agentic-role.ts
 	b-agentic-planner.ts
 	b-agentic-worker.ts
@@ -31,6 +32,7 @@ readonly EXTENSION_NAMES=(
 	b-agentic-support/role-models.ts
 	b-agentic-support/worker.ts
 	b-agentic-support/state.ts
+	b-agentic-support/auto.ts
 )
 readonly EXTENSION_DST="$EXTENSIONS_DST/b-agentic-permissions.ts"
 readonly EXTENSION_SNAPSHOT_DST="$METADATA_DIR/extensions/b-agentic-permissions.ts"

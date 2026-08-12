@@ -180,6 +180,7 @@ purpose-specific `tool_call` extensions under `~/.pi/agent/extensions/`:
 
 - `b-agentic-permissions.ts` for shell/filesystem policy.
 - `b-agentic-mcp-permissions.ts` for managed MCP and custom-tool approval.
+- `b-agentic-auto-mode.ts` for confirmed automatic approval with explicit-deny protection.
 - `b-agentic-role.ts` for role selection and persistence.
 - `b-agentic-planner.ts` and `b-agentic-worker.ts` for collaboration profiles.
 - `b-agentic-sync.ts` for in-session refresh commands.
@@ -212,6 +213,12 @@ with `/b-role planner` and `/b-role worker`, or `pi --b-role planner|worker`.
 Use `/b-role off` to return to solo work. Role selection does not open a model
 picker; explicit startup selections and `/model` changes can update per-role
 preferences under `~/.pi/agent/b-agentic/role-models.json` without credentials.
+
+`/b-auto-mode` is an explicit opt-in that warns and requires an interactive Y/N
+confirmation before enabling. While enabled it auto-allows every `ask` decision,
+while retaining every explicit `deny`; it persists with the session and displays
+red `b-auto-mode` in Pi's footer. `pi --b-auto-mode` requests startup enablement,
+but enabling still fails closed without an interactive UI.
 
 Planner mode is analysis-only: it permits `read`, `recall`, Intercom, safe local
 discovery commands, and classified read-only MCP calls. It blocks edits,
@@ -271,7 +278,7 @@ The permission extension:
 - asks before external/shared mutations, dangerous-but-approvable actions, protected reads, and unclassified or unsafe MCP operations
 - blocks prohibited destructive Git and Docker families and protected native writes/edits
 - inspects compound shell segments and strips `env`/`sudo`/`rtk` wrappers and `git -C` option prefixes before matching
-- fails closed for ambiguous expansion, opaque interpreters, outside-project executables, protected paths, and approval-required actions without UI
+- fails closed for ambiguous expansion, opaque interpreters, outside-project executables, protected paths, and approval-required actions without UI; b-auto-mode is the only opt-in exception for `ask` decisions and never overrides `deny`
 - auto-allows classified Serena and CodeGraph operations, plus classified read-only and safe conditional-read MCP operations; other custom tools require approval
 
 This is a command-policy guard, not a process sandbox: approved build and test

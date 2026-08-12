@@ -2,6 +2,7 @@
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { isAutoModeEnabled } from "./b-agentic-support/state.ts";
 
 const installerPath = (): string => join(process.env.B_AGENTIC_DIR || join(homedir(), ".b-agentic"), "install.sh");
 
@@ -16,7 +17,7 @@ async function runRefresh(pi: ExtensionAPI, mode: "--sync" | "--update", args: s
   }
 
   const label = mode === "--sync" ? "Sync b-agentic" : "Update b-agentic tooling";
-  if (mode === "--sync" && !await ctx.ui.confirm(label, "This downloads and runs updates on your machine. Continue?")) return;
+  if (mode === "--sync" && !isAutoModeEnabled() && !await ctx.ui.confirm(label, "This downloads and runs updates on your machine. Continue?")) return;
 
   ctx.ui.notify(`${label} started`, "info");
   const result = await pi.exec("bash", [installerPath(), mode], { timeout: 300_000 });

@@ -18,7 +18,7 @@ import {
 import * as shell from "./b-agentic-support/shell.ts";
 import * as mcp from "./b-agentic-support/mcp.ts";
 import * as role from "./b-agentic-support/role.ts";
-import { getRole } from "./b-agentic-support/state.ts";
+import { getRole, isAutoModeEnabled } from "./b-agentic-support/state.ts";
 
 // Keep this standalone extension free of package-resolution dependencies.
 const COMMIT_CONFIRMATION_PARAMETERS = {
@@ -97,6 +97,7 @@ export default function bAgenticPermissions(pi: ExtensionAPI): void {
       const decision = commandDecision(command);
       if (decision.decision === "deny") return { block: true, reason: decision.reason };
       if (decision.decision === "ask") {
+        if (isAutoModeEnabled()) return undefined;
         if (!ctx.hasUI) return { block: true, reason: `${decision.reason} (no UI; fail-closed)` };
         const allowed = await ctx.ui.confirm(
           "b-agentic approval",
@@ -121,6 +122,7 @@ export default function bAgenticPermissions(pi: ExtensionAPI): void {
           };
         }
         editedPathsThisTurn.add(canonicalPath);
+        if (decision.decision === "ask" && isAutoModeEnabled()) return undefined;
         if (decision.decision === "ask" && !ctx.hasUI) {
           editedPathsThisTurn.delete(canonicalPath);
           return { block: true, reason: `${decision.reason} (no UI; fail-closed)` };
@@ -134,6 +136,7 @@ export default function bAgenticPermissions(pi: ExtensionAPI): void {
       }
 
       if (decision.decision === "ask") {
+        if (isAutoModeEnabled()) return undefined;
         if (!ctx.hasUI) return { block: true, reason: `${decision.reason} (no UI; fail-closed)` };
         const allowed = await ctx.ui.confirm("b-agentic approval", `${decision.reason}\n\nAllow this tool call?`);
         return allowed ? undefined : { block: true, reason: `${decision.reason} (denied by user)` };

@@ -18,6 +18,7 @@ extension = root / 'pi/extensions/b-agentic-permissions.ts'
 extension_files = [
     extension,
     root / 'pi/extensions/b-agentic-mcp-permissions.ts',
+    root / 'pi/extensions/b-agentic-auto-mode.ts',
     root / 'pi/extensions/b-agentic-role.ts',
     root / 'pi/extensions/b-agentic-planner.ts',
     root / 'pi/extensions/b-agentic-worker.ts',
@@ -27,6 +28,7 @@ extension_files = [
     root / 'pi/extensions/b-agentic-support/role.ts',
     root / 'pi/extensions/b-agentic-support/role-models.ts',
     root / 'pi/extensions/b-agentic-support/worker.ts',
+    root / 'pi/extensions/b-agentic-support/auto.ts',
 ]
 readme = root / 'pi/configs/README.md'
 
@@ -244,6 +246,8 @@ if readme.exists():
         'other outside-project reads remain approval-gated',
         '/b-role planner',
         'pi --b-role planner|worker',
+        '/b-auto-mode',
+        'explicit `deny` decisions remain blocked',
         '`/b-role` selects only a role and does not open a model picker',
         '/b-sync',
         '/b-update',
