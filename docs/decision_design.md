@@ -116,10 +116,24 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   `pi/extensions/b-agentic-support/role.ts`,
   `pi/extensions/b-agentic-support/mcp.ts`.
 - The planner finishes discovery and settles one bounded handoff before the
-  worker edits. Both roles check Intercom `pending` before every `send` or
-  `reply`; an inbound ask uses `reply`, otherwise `list-cwd` retrieves the
-  exact target ID before `send`. After handoff the planner waits rather than
-  polling, and the worker pauses after reporting paths, checks, and gaps.
+  worker edits. Both roles check Intercom `pending` first before every `send`
+  or `reply`; if `pending` reports an inbound ask, the response must use
+  `reply` for that ask and must not call `send` or `list-cwd`; only when
+  `pending` reports no inbound ask may `list-cwd` retrieve the exact session
+  identifier returned verbatim by the immediately preceding authoritative
+  Intercom action before `send`. The target must be copied verbatim from that
+  authoritative output, such as `list-cwd`, without reconstructing, extending,
+  guessing, fabricating, or substituting a longer ID; never use a display name,
+  alias, or abbreviated prefix. After handoff the planner waits rather than
+  polling. If the worker encounters an unresolved issue or blocker, after
+  `pending` reports no inbound ask it uses `list-cwd` to retrieve the assigning
+  planner's exact session identifier and uses Intercom `ask` addressed to that
+  identifier with one focused question and waits; if `pending` reports an
+  inbound ask, it uses `reply` for it and does not call `send` or `list-cwd`.
+  It must not ask the user directly, stop midway, or send a premature
+  completion/review message while the planner waits. The planner resolves the
+  blocker via `reply` when possible; otherwise it escalates to the user and
+  keeps the task open.
 - Every delegated task remains open until the actual `b-review` skill reviews
   the actual diff and verification. Findings return to the same worker for a
   verified fix and another review; a generic review cannot substitute. There

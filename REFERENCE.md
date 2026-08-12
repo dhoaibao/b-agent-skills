@@ -226,19 +226,31 @@ exploring and issuing implementation requests. The planner sequences
 explicitly selected same-directory worker, and reviews changed code with
 `b-review`.
 
-Before every planner/worker Intercom `send` or `reply`, call `pending`; an
-inbound ask uses `reply`, otherwise `list-cwd` retrieves the exact target ID
-before `send`. The `to` value must be the full live session `id` from the
-immediately preceding `list-cwd` result; never use a display name, alias, or
-abbreviated prefix. Treat a handoff, result, finding, or approval as sent only
+Before every planner/worker Intercom `send` or `reply`, call `pending` first;
+if `pending` reports an inbound ask, the response must use `reply` for that ask
+and must not call `send` or `list-cwd`; only when `pending` reports no inbound
+ask may `list-cwd` retrieve the exact target ID before `send`. The `to` value must be the exact session identifier returned verbatim by the
+immediately preceding authoritative Intercom action, such as
+`list-cwd`; copy the send target exactly without reconstructing, extending,
+guessing, fabricating, or substituting a longer ID. Never use a display name,
+alias, or abbreviated prefix. Treat a handoff, result, finding, or approval as sent only
 after Intercom reports successful delivery. If `send` delivery fails, do not
-retry the stale target or continue, commit, or close: call `pending`; if an
-inbound ask exists, use `reply` and do not retry `send`; otherwise call a fresh
-`list-cwd`; retry exactly once only if the intended peer is still live,
+retry the stale target or continue, commit, or close: call `pending` first; if
+an inbound ask exists, use `reply` and do not call `send` or `list-cwd`; otherwise
+call a fresh `list-cwd`; retry exactly once only if the intended peer is still live,
 otherwise pause and surface the unavailable peer as the blocker. After
 assigning a task, the planner waits for the worker's result rather than
-polling. The worker reports changed paths, verification outcomes, and gaps,
-then pauses. Every delegated task must pass the actual `b-review` skill against
+polling. The worker reports changed paths, verification outcomes, and gaps, then
+pauses. If the worker encounters an unresolved issue or blocker, after `pending`
+reports no inbound ask it uses `list-cwd` to retrieve the assigning planner's
+exact session identifier and uses Intercom `ask` addressed to that identifier
+with one focused question and waits; if `pending` reports an inbound ask, it
+uses `reply` for it and does not call `send` or `list-cwd`. It must not ask the
+user directly, stop midway, or send a premature completion/review message while
+the planner waits. The planner resolves the blocker via `reply` when possible;
+otherwise it escalates to the user and keeps the task open. Every delegated task
+must pass the actual
+`b-review` skill against
 the actual diff and verification before it is complete. Findings return to the
 same worker for a verified fix and another review.
 

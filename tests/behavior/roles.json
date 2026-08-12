@@ -8,12 +8,13 @@
       "role": "planner",
       "skill": "b-plan",
       "observed_failure": "Planner and worker coordination sent messages without checking pending asks first and used ambiguous session-ID prefixes instead of retrieving exact IDs.",
-      "intended_behavior": "Both roles call pending before every send or reply; reply to an inbound ask when one exists; otherwise call list-cwd again, retrieve the exact session ID, and send to that exact ID.",
+      "intended_behavior": "Both roles call pending first before every send or reply; when pending reports an inbound ask, reply to that ask and do not call send or list-cwd; only when pending reports no inbound ask may the role call list-cwd again, retrieve the exact session ID returned there, and send to that exact ID.",
       "prompt": "You need to coordinate with the other role. Describe the Intercom check and message action you take when pending reports an inbound ask versus when it reports none, including how you retrieve the exact target.",
       "must": [
-        "Call Intercom pending before every send or reply",
+        "Call Intercom pending first before every send or reply",
         "Use reply when pending reports an inbound ask",
-        "Call list-cwd again when there is nothing to reply to",
+        "Do not call send or list-cwd when pending reports an inbound ask",
+        "Call list-cwd again only when there is nothing to reply to",
         "Send to the exact session ID returned by list-cwd"
       ],
       "avoid": [
@@ -27,14 +28,15 @@
       "role": "worker",
       "skill": "b-implement",
       "observed_failure": "A worker used a stale or abbreviated session target, treated an undelivered Intercom message as sent, or continued after delivery failed.",
-      "intended_behavior": "Use the full live session ID from the immediately preceding list-cwd result, require successful delivery before treating a result or review request as sent, and recover one send failure by checking pending; reply without retrying when an inbound ask exists, otherwise use a fresh list-cwd before retrying once or surfacing the unavailable planner as a blocker.",
+      "intended_behavior": "Use the exact session identifier returned verbatim by the immediately preceding authoritative list-cwd result, require successful delivery before treating a result or review request as sent, and recover one send failure by checking pending first; reply without calling send or list-cwd when an inbound ask exists, otherwise use a fresh list-cwd before retrying once or surfacing the unavailable planner as a blocker.",
       "prompt": "Your Intercom send to the assigning planner reports delivery failure. Describe the target you may use, what you do when pending reports an inbound ask versus none, the checks and exactly one retry you perform, and whether you continue, commit, or close if the planner is no longer live.",
       "must": [
-        "Use only the full live session ID returned by the immediately preceding list-cwd result",
+        "Use only the exact session identifier returned verbatim by the immediately preceding authoritative list-cwd result",
         "Treat the result or review request as sent only after successful delivery",
+        "Do not call send or list-cwd when pending reports an inbound ask",
         "Do not retry the stale target or continue, commit, or close after delivery failure",
-        "Call pending after the failed send",
-        "Use reply and do not retry send when pending reports an inbound ask",
+        "Call pending first after the failed send",
+        "Use reply and do not call send or list-cwd when pending reports an inbound ask",
         "Otherwise call a fresh list-cwd before retrying",
         "Retry exactly once only if the intended planner remains live; otherwise pause and surface the unavailable planner as a blocker"
       ],
@@ -101,6 +103,26 @@
       ]
     },
     {
+      "id": "worker-asks-planner-on-unresolved-blocker",
+      "role": "worker",
+      "skill": "b-implement",
+      "observed_failure": "A worker asked the user directly, stopped midway, or sent a premature completion/review message while the planner waited after encountering an unresolved issue or blocker.",
+      "intended_behavior": "The worker uses ask to the assigning planner with one focused question, waits for the planner's response, does not ask the user directly or send a premature completion/review message, and keeps the task open.",
+      "prompt": "During a bounded implementation task, you encounter an unresolved blocker that repository evidence cannot resolve. Describe who you ask, what message action you take, and whether you close, complete, or review the task while waiting.",
+      "must": [
+        "Use ask to the assigning planner with one focused question",
+        "After pending reports no inbound ask, use list-cwd for the assigning planner's exact session identifier before ask",
+        "When pending reports an inbound ask, use reply and do not call send or list-cwd",
+        "Wait for the planner's response and keep the task open",
+        "Do not ask the user directly, stop midway, or send a premature completion/review message while the planner waits"
+      ],
+      "avoid": [
+        "Ask the user directly",
+        "Send a completion or review request before the blocker is resolved",
+        "Stop midway without asking the planner"
+      ]
+    },
+    {
       "id": "planner-sends-findings-instead-of-fixing",
       "role": "planner",
       "skill": "b-review",
@@ -141,13 +163,15 @@
       "role": "planner",
       "skill": "b-review",
       "observed_failure": "Planners marked delegated tasks done, complete, approved, or closed before the actual b-review skill passed, or substituted a regular/generic review or bypassed the gate while inventing a decision from incomplete evidence.",
-      "intended_behavior": "Every delegated task stays open until the actual b-review skill passes against the actual diff and verification; a regular/generic review cannot substitute for it, and the planner asks the user when scope and repository evidence cannot resolve a blocker or decision.",
+      "intended_behavior": "Every delegated task stays open until the actual b-review skill passes against the actual diff and verification; a regular/generic review cannot substitute for it, and the planner resolves a worker's blocker via reply when possible or asks the user when scope and repository evidence cannot resolve it.",
       "prompt": "The worker has sent an implementation with verification, but the actual b-review skill has not passed and a material decision cannot be resolved from the scope or repository evidence. Describe whether you mark the task done, complete, approved, or closed and what you send next.",
       "must": [
         "Keep every delegated task open until the actual b-review skill has passed against the actual diff and verification",
         "Treat a regular or generic review as insufficient",
         "Never bypass the actual b-review gate",
+        "Resolve a worker's blocker via reply when scope or repository evidence can resolve it",
         "Ask the user one focused question when the blocker or decision cannot be resolved from scope or repository evidence",
+        "Keep the task open while waiting for the user's answer",
         "Keep the worker as the sole worktree writer and use natural-language Intercom coordination"
       ],
       "avoid": [
@@ -163,9 +187,10 @@
       "role": "planner",
       "skill": "b-plan",
       "observed_failure": "Planners repeatedly polled list-cwd or status after assigning work instead of waiting for the worker's result, adding coordination noise without improving readiness.",
-      "intended_behavior": "The planner checks pending before messaging, uses reply for an inbound ask, otherwise calls list-cwd once to retrieve the exact worker session ID and sends to it, then waits for the worker result without further polling.",
+      "intended_behavior": "The planner checks pending first before messaging; if it reports an inbound ask, the planner uses reply for that ask without calling send or list-cwd; otherwise it calls list-cwd once to retrieve the exact worker session ID and sends to it, then waits for the worker result without further polling.",
       "prompt": "You are about to assign a bounded task to a ready same-directory worker. Describe the pending check, how you retrieve the exact target before sending, and what you do after the handoff while the worker edits, including whether you repeatedly call list-cwd or status and when ask is appropriate.",
       "must": [
+        "Use reply for an inbound ask without calling send or list-cwd",
         "Call list-cwd again to retrieve the exact session ID before a send when no inbound ask is pending",
         "Send to the exact session ID returned by list-cwd",
         "Wait for the worker's result after the natural-language send handoff",
