@@ -23,11 +23,7 @@ REPLACE_MEMORY_VALUE="${B_AGENTIC_REPLACE_MEMORY:-}"
 UNINSTALL_VALUE="${B_AGENTIC_UNINSTALL:-N}"
 PROMPT_API_KEYS_VALUE="${B_AGENTIC_PROMPT_API_KEYS:-auto}"
 readonly PI_NAME="Pi"
-INSTALL_RTK_VALUE="${B_AGENTIC_INSTALL_RTK:-auto}"
-INSTALL_SHELL_TOOLS_VALUE="${B_AGENTIC_INSTALL_SHELL_TOOLS:-auto}"
-INSTALL_PI_CLI_VALUE="${B_AGENTIC_INSTALL_PI_CLI:-auto}"
-INSTALL_SERENA_VALUE="${B_AGENTIC_INSTALL_SERENA:-auto}"
-INSTALL_CODEGRAPH_VALUE="${B_AGENTIC_INSTALL_CODEGRAPH:-auto}"
+# Bundled dependencies are mandatory and are installed without prompts.
 OPERATION="install"
 
 SOURCE_DIR="$LOCAL_REPO"
@@ -79,33 +75,6 @@ uninstall_enabled() {
 	yes_value "$UNINSTALL_VALUE"
 }
 
-install_pi_cli_enabled() {
-	case "${INSTALL_PI_CLI_DECISION:-}" in
-	Y) return 0 ;;
-	N) return 1 ;;
-	esac
-
-	case "${INSTALL_PI_CLI_VALUE:-auto}" in
-	n | N | no | NO | No | false | FALSE | 0)
-		INSTALL_PI_CLI_DECISION="N"
-		;;
-	y | Y | yes | YES | Yes | true | TRUE | 1)
-		INSTALL_PI_CLI_DECISION="Y"
-		;;
-	auto | AUTO | Auto)
-		if runtime_cli_installed && prompt_yes_no "Upgrade the installed Pi CLI now? [y/N]" N; then
-			INSTALL_PI_CLI_DECISION="Y"
-		elif ! runtime_cli_installed && prompt_yes_no "Install the Pi CLI now? [y/N]" N; then
-			INSTALL_PI_CLI_DECISION="Y"
-		else
-			INSTALL_PI_CLI_DECISION="N"
-		fi
-		;;
-	*) die "invalid B_AGENTIC_INSTALL_PI_CLI value: $INSTALL_PI_CLI_VALUE" ;;
-	esac
-
-	[ "$INSTALL_PI_CLI_DECISION" = "Y" ]
-}
 
 can_prompt_api_keys() {
 	! dry_run_enabled || return 1
@@ -195,21 +164,6 @@ parse_args() {
 			;;
 		--no-prompt-api-keys)
 			PROMPT_API_KEYS_VALUE=N
-			;;
-		--no-install-rtk)
-			INSTALL_RTK_VALUE=N
-			;;
-		--no-install-shell-tools)
-			INSTALL_SHELL_TOOLS_VALUE=N
-			;;
-		--no-install-pi-cli)
-			INSTALL_PI_CLI_VALUE=N
-			;;
-		--no-install-serena)
-			INSTALL_SERENA_VALUE=N
-			;;
-		--no-install-codegraph)
-			INSTALL_CODEGRAPH_VALUE=N
 			;;
 		--runtime=* | --runtime)
 			die "b-agentic installs Pi only; remove the --runtime option"
@@ -427,27 +381,7 @@ try_manifest_only_uninstall() {
 }
 
 install_rtk() {
-	case "${INSTALL_RTK_VALUE:-auto}" in
-	n | N | no | NO | No | false | FALSE | 0)
-		if ! command -v rtk >/dev/null 2>&1; then
-			die "RTK is required; install it or rerun without --no-install-rtk"
-		fi
-		return 0
-		;;
-	y | Y | yes | YES | Yes | true | TRUE | 1) ;;
-	auto | AUTO | Auto) ;;
-	*) die "invalid B_AGENTIC_INSTALL_RTK value: $INSTALL_RTK_VALUE" ;;
-	esac
-
 	if command -v rtk >/dev/null 2>&1; then
-		case "${INSTALL_RTK_VALUE:-auto}" in
-		auto | AUTO | Auto)
-			if ! prompt_yes_no 'RTK is already installed. Upgrade it now? [y/N]' N; then
-				log "RTK already installed; skipping upgrade without explicit approval"
-				return 0
-			fi
-			;;
-		esac
 		if dry_run_enabled; then
 			printf '[dry-run] curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh\n' >&2
 			return 0
@@ -456,25 +390,13 @@ install_rtk() {
 		if curl -fsSL "https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh" | sh; then
 			log "RTK upgraded"
 		else
-			warn "RTK upgrade failed; continuing with existing RTK"
+			warn "RTK upgrade failed"
+			return 1
 		fi
 		return 0
 	fi
 
-	case "${INSTALL_RTK_VALUE:-auto}" in
-	auto | AUTO | Auto)
-		if [ ! -r /dev/tty ] || [ ! -w /dev/tty ]; then
-			die "RTK is required; set B_AGENTIC_INSTALL_RTK=Y to install it non-interactively, or install it manually"
-		fi
-		local answer=""
-		printf 'Install RTK (Rust Token Killer) to reduce shell command token usage? [y/N]: ' >/dev/tty
-		IFS= read -r answer </dev/tty || answer=""
-		case "$answer" in
-		y | Y | yes | YES | Yes | true | TRUE | 1) ;;
-		*) die "RTK is required; answer yes to install it or install it manually" ;;
-		esac
-		;;
-	esac
+	# Missing RTK is installed automatically; no TTY or confirmation is needed.
 
 	if dry_run_enabled; then
 		printf '[dry-run] curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh\n' >&2
@@ -489,35 +411,17 @@ install_rtk() {
 	fi
 }
 
-prompt_yes_no() {
-	local prompt_text="$1" default_answer="${2:-N}"
-	if [ ! -r /dev/tty ] || [ ! -w /dev/tty ]; then
-		return 1
-	fi
-	local answer=""
-	printf '%s: ' "$prompt_text" >/dev/tty
-	IFS= read -r -t 30 answer </dev/tty || answer=""
-	[ -n "$answer" ] || answer="$default_answer"
-	case "$answer" in
-	y | Y | yes | YES | Yes | true | TRUE | 1) return 0 ;;
-	*) return 1 ;;
-	esac
-}
-
 install_uv() {
 	if command -v uv >/dev/null 2>&1; then
-		log "uv already installed"
+		if dry_run_enabled; then printf '[dry-run] uv self update\n' >&2; return 0; fi
+		log "uv already installed; upgrading"
+		uv self update || return 1
 		return 0
 	fi
 
 	if dry_run_enabled; then
 		printf '[dry-run] curl -LsSf https://astral.sh/uv/install.sh | sh\n' >&2
 		return 0
-	fi
-
-	if ! prompt_yes_no 'uv is required but not installed. Install uv now? [y/N]' N; then
-		warn "uv not installed; skipping Serena installation"
-		return 1
 	fi
 
 	log "Installing uv"
@@ -548,48 +452,21 @@ install_uv() {
 }
 
 install_serena() {
-	case "${INSTALL_SERENA_VALUE:-auto}" in
-	n | N | no | NO | No | false | FALSE | 0) return 0 ;;
-	y | Y | yes | YES | Yes | true | TRUE | 1) ;;
-	auto | AUTO | Auto) ;;
-	*) die "invalid B_AGENTIC_INSTALL_SERENA value: $INSTALL_SERENA_VALUE" ;;
-	esac
-
+	install_uv || return 1
 	if command -v serena >/dev/null 2>&1; then
-		case "${INSTALL_SERENA_VALUE:-auto}" in
-		auto | AUTO | Auto)
-			if ! prompt_yes_no 'Serena is already installed. Upgrade it now? [y/N]' N; then
-				log "Serena already installed; skipping upgrade without explicit approval"
-				return 0
-			fi
-			;;
-		esac
 		if dry_run_enabled; then
 			printf '[dry-run] uv tool upgrade serena-agent\n' >&2
-			return 0
-		fi
-		if ! command -v uv >/dev/null 2>&1; then
-			warn "uv not installed; skipping Serena upgrade"
 			return 0
 		fi
 		log "Serena already installed; upgrading"
 		if uv tool upgrade serena-agent; then
 			log "Serena upgraded"
 		else
-			warn "Serena upgrade failed; continuing with existing Serena"
+			warn "Serena upgrade failed"
+			return 1
 		fi
 		return 0
 	fi
-
-	case "${INSTALL_SERENA_VALUE:-auto}" in
-	auto | AUTO | Auto)
-		if ! prompt_yes_no 'Install Serena MCP agent (requires uv)? [y/N]' N; then
-			return 0
-		fi
-		;;
-	esac
-
-	install_uv || return 0
 
 	if dry_run_enabled; then
 		printf '[dry-run] uv tool install -p 3.13 serena-agent\n' >&2
@@ -600,79 +477,130 @@ install_serena() {
 	if uv tool install -p 3.13 serena-agent; then
 		log "Serena installed"
 	else
-		warn "Serena installation failed; continuing without Serena"
+		warn "Serena installation failed"
+		return 1
 	fi
 }
 
 update_rtk() {
-	if ! command -v rtk >/dev/null 2>&1; then
-		warn "RTK not installed; skipping update"
-		return 0
-	fi
 	log "Updating RTK"
+	if ! command -v rtk >/dev/null 2>&1; then
+		install_rtk
+		return $?
+	fi
 	if dry_run_enabled; then
 		printf '[dry-run] curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh\n' >&2
 	elif curl -fsSL "https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh" | sh; then
 		log "RTK updated"
 	else
-		warn "RTK update failed; continuing with existing RTK"
+		warn "RTK update failed"
+		return 1
 	fi
 }
 
 update_serena() {
-	if ! command -v serena >/dev/null 2>&1 || ! command -v uv >/dev/null 2>&1; then
-		warn "Serena or uv not installed; skipping Serena update"
-		return 0
-	fi
 	log "Updating Serena"
+	install_uv || return 1
+	if ! command -v serena >/dev/null 2>&1; then
+		install_serena
+		return $?
+	fi
 	if dry_run_enabled; then
 		printf '[dry-run] uv tool upgrade serena-agent\n' >&2
 	elif uv tool upgrade serena-agent; then
 		log "Serena updated"
 	else
-		warn "Serena update failed; continuing with existing Serena"
+		warn "Serena update failed"
+		return 1
 	fi
 }
 
 update_codegraph() {
-	if ! command -v codegraph >/dev/null 2>&1; then
-		warn "CodeGraph not installed; skipping CodeGraph update"
-		return 0
-	fi
 	log "Updating CodeGraph"
+	if ! command -v codegraph >/dev/null 2>&1; then
+		install_codegraph
+		return $?
+	fi
 	if dry_run_enabled; then
 		printf '[dry-run] codegraph upgrade\n' >&2
 	elif codegraph upgrade; then
 		log "CodeGraph updated"
 	else
-		warn "CodeGraph update failed; continuing with existing CodeGraph"
+		warn "CodeGraph update failed"
+		return 1
 	fi
 }
 
+install_bun() {
+	if command -v bun >/dev/null 2>&1; then
+		if dry_run_enabled; then printf '[dry-run] bun upgrade\n' >&2; return 0; fi
+		log "Updating Bun"
+		bun upgrade || return 1
+		return 0
+	fi
+	if dry_run_enabled; then
+		printf '[dry-run] curl -fsSL https://bun.sh/install | bash\n' >&2
+		return 0
+	fi
+	log "Installing Bun"
+	curl -fsSL https://bun.sh/install | bash || return 1
+	export PATH="$HOME/.bun/bin:$PATH"
+	command -v bunx >/dev/null 2>&1 || { warn "Bun installed but bunx is not on PATH"; return 1; }
+}
+
+install_bun_packages() {
+	if dry_run_enabled && ! command -v bun >/dev/null 2>&1; then
+		for package in '@brave/brave-search-mcp-server' firecrawl-mcp '@playwright/mcp'; do
+			printf '[dry-run] bun install --global %s\n' "$package" >&2
+		done
+		return 0
+	fi
+	command -v bun >/dev/null 2>&1 || return 1
+	local package
+	for package in '@brave/brave-search-mcp-server' firecrawl-mcp '@playwright/mcp'; do
+		if dry_run_enabled; then printf '[dry-run] bun install --global %s\n' "$package" >&2
+		elif ! bun install --global "$package"; then return 1; fi
+	done
+}
+
+run_parallel_chains() {
+	local log_dir="$(mktemp -d "${TMPDIR:-/tmp}/b-agentic-chains.XXXXXX")"
+	local -a pids=() chains=() logs=()
+	local chain pid index status rc=0
+	for chain in "$@"; do
+		index=${#chains[@]}; chains+=("$chain"); logs+=("$log_dir/$index.log")
+		"$chain" >"${logs[$index]}" 2>&1 & pids+=("$!")
+		if [ "${#pids[@]}" -ge 3 ]; then
+			for pid in "${pids[@]}"; do wait "$pid" || { status=$?; if [ "$rc" -eq 0 ] || [ "$status" -eq 2 ]; then rc="$status"; fi; }; done
+			pids=()
+		fi
+	done
+	for pid in "${pids[@]}"; do wait "$pid" || { status=$?; if [ "$rc" -eq 0 ] || [ "$status" -eq 2 ]; then rc="$status"; fi; }; done
+	for index in "${!chains[@]}"; do
+		cat "${logs[$index]}"
+		[ -s "${logs[$index]}" ] && log "Completed chain: ${chains[$index]}"
+	done
+	rm -rf "$log_dir"
+	return "$rc"
+}
+
+dependency_install_chain() {
+	install_rtk
+	install_serena
+}
+
+bun_install_chain() {
+	install_bun
+	install_bun_packages
+}
+
 update_tooling() {
-	set_install_stage_total 3
-	run_stage "Updating RTK" update_rtk
-	run_stage "Updating Serena" update_serena
-	run_stage "Updating CodeGraph" update_codegraph
+	set_install_stage_total 6
+	run_parallel_chains update_rtk update_serena update_codegraph bun_install_chain
 }
 
 install_codegraph() {
-	case "${INSTALL_CODEGRAPH_VALUE:-auto}" in
-	n | N | no | NO | No | false | FALSE | 0) return 0 ;;
-	y | Y | yes | YES | Yes | true | TRUE | 1) ;;
-	auto | AUTO | Auto) ;;
-	*) die "invalid B_AGENTIC_INSTALL_CODEGRAPH value: $INSTALL_CODEGRAPH_VALUE" ;;
-	esac
-
 	if command -v codegraph >/dev/null 2>&1; then
-		case "${INSTALL_CODEGRAPH_VALUE:-auto}" in
-		auto | AUTO | Auto)
-			if ! prompt_yes_no 'CodeGraph is already installed. Upgrade it now? [y/N]' N; then
-				log "CodeGraph already installed; skipping upgrade without explicit approval"
-				return 0
-			fi
-			;;
-		esac
 		if dry_run_enabled; then
 			printf '[dry-run] codegraph upgrade\n' >&2
 			return 0
@@ -681,18 +609,11 @@ install_codegraph() {
 		if codegraph upgrade; then
 			log "CodeGraph upgraded"
 		else
-			warn "CodeGraph upgrade failed; continuing with existing CodeGraph"
+			warn "CodeGraph upgrade failed"
+			return 1
 		fi
 		return 0
 	fi
-
-	case "${INSTALL_CODEGRAPH_VALUE:-auto}" in
-	auto | AUTO | Auto)
-		if ! prompt_yes_no 'Install CodeGraph MCP agent? [y/N]' N; then
-			return 0
-		fi
-		;;
-	esac
 
 	if dry_run_enabled; then
 		printf '[dry-run] curl -fsSL https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh | sh\n' >&2
@@ -703,7 +624,8 @@ install_codegraph() {
 	if curl -fsSL https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh | sh; then
 		log "CodeGraph installed"
 	else
-		warn "CodeGraph installation failed; continuing without CodeGraph"
+		warn "CodeGraph installation failed"
+		return 1
 	fi
 }
 
@@ -737,17 +659,15 @@ main() {
 
 	source_installer_core
 
-	if [ "$OPERATION" = "install" ]; then
-		install_rtk
-		install_shell_tools
-		install_serena
-		install_codegraph
-	elif [ "$OPERATION" = "update" ]; then
-		update_tooling
-	fi
-
 	validate_pi_source_layout
 	load_pi_installer
+	install_shell_tools
+
+	if [ "$OPERATION" = "install" ]; then
+		run_parallel_chains dependency_install_chain install_codegraph bun_install_chain pi_install || return 1
+	elif [ "$OPERATION" = "update" ]; then
+		run_parallel_chains update_tooling pi_update || return 1
+	fi
 
 	if uninstall_enabled; then
 		set +e
@@ -760,18 +680,14 @@ main() {
 		return "$rc"
 	fi
 
-	set +e
-	(
+	if [ "$OPERATION" = "sync" ]; then
+		set +e
+		pi_sync
+		rc=$?
 		set -e
-		case "$OPERATION" in
-		update) pi_update ;;
-		sync) pi_sync ;;
-		*) pi_install ;;
-		esac
-	)
-	rc=$?
-	set -e
-	return "$rc"
+		return "$rc"
+	fi
+	return 0
 }
 
 main "$@"

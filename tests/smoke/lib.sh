@@ -145,6 +145,35 @@ EOF
 	chmod +x "$bin_dir/pi"
 
 	# Required installer prerequisites are present in the isolated smoke PATH.
+	cat >"$bin_dir/curl" <<'EOF'
+#!/usr/bin/env bash
+printf 'exit 0\n'
+EOF
+	chmod +x "$bin_dir/curl"
+	for name in uv serena codegraph; do
+		cat >"$bin_dir/$name" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+		chmod +x "$bin_dir/$name"
+	done
+	cat >"$bin_dir/bun" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+	ln -s bun "$bin_dir/bunx"
+	chmod +x "$bin_dir/bun"
+	cat >"$bin_dir/sudo" <<'EOF'
+#!/usr/bin/env bash
+"$@"
+EOF
+	cat >"$bin_dir/apt-get" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+	cp "$bin_dir/apt-get" "$bin_dir/apt"
+	chmod +x "$bin_dir/sudo" "$bin_dir/apt-get" "$bin_dir/apt"
+
 	for name in rtk rg fd bat eza sd jq; do
 		cat >"$bin_dir/$name" <<'EOF'
 #!/usr/bin/env bash
@@ -193,14 +222,6 @@ run_install_status() {
 		B_AGENTIC_REPO="$repo_snapshot" \
 		B_AGENTIC_DIR="$sandbox/source" \
 		B_AGENTIC_PROMPT_API_KEYS=N \
-		B_AGENTIC_INSTALL_PI_CLI=N \
-		B_AGENTIC_INSTALL_RTK=N \
-		B_AGENTIC_INSTALL_SERENA=N \
-		B_AGENTIC_INSTALL_CODEGRAPH=N \
-		B_AGENTIC_INSTALL_PI_MCP_ADAPTER=N \
-		B_AGENTIC_INSTALL_PI_OBSERVATIONAL_MEMORY=N \
-		B_AGENTIC_INSTALL_PI_USAGE=N \
-		B_AGENTIC_INSTALL_PI_INTERCOM=N \
 	bash "$ROOT_DIR/install.sh" "$@" >/dev/null 2>&1
 	rc=$?
 	set -e
@@ -224,15 +245,6 @@ run_install_status_in_cwd() {
 			B_AGENTIC_REPO="$repo_snapshot" \
 			B_AGENTIC_DIR="$sandbox/source" \
 			B_AGENTIC_PROMPT_API_KEYS=N \
-			B_AGENTIC_INSTALL_PI_CLI=N \
-			B_AGENTIC_INSTALL_RTK=N \
-			B_AGENTIC_INSTALL_SHELL_TOOLS=N \
-			B_AGENTIC_INSTALL_SERENA=N \
-			B_AGENTIC_INSTALL_CODEGRAPH=N \
-			B_AGENTIC_INSTALL_PI_MCP_ADAPTER=N \
-			B_AGENTIC_INSTALL_PI_OBSERVATIONAL_MEMORY=N \
-			B_AGENTIC_INSTALL_PI_USAGE=N \
-			B_AGENTIC_INSTALL_PI_INTERCOM=N \
 			bash "$ROOT_DIR/install.sh" "$@" >/dev/null 2>&1
 	)
 	rc=$?
@@ -261,15 +273,6 @@ env["HOME"] = os.path.join(sandbox, "home")
 env["PATH"] = smoke_path
 env["B_AGENTIC_REPO"] = repo_snapshot
 env["B_AGENTIC_DIR"] = os.path.join(sandbox, "source")
-env["B_AGENTIC_INSTALL_PI_CLI"] = "N"
-env["B_AGENTIC_INSTALL_RTK"] = "N"
-env["B_AGENTIC_INSTALL_SHELL_TOOLS"] = "N"
-env["B_AGENTIC_INSTALL_SERENA"] = "N"
-env["B_AGENTIC_INSTALL_CODEGRAPH"] = "N"
-env["B_AGENTIC_INSTALL_PI_MCP_ADAPTER"] = "N"
-env["B_AGENTIC_INSTALL_PI_OBSERVATIONAL_MEMORY"] = "N"
-env["B_AGENTIC_INSTALL_PI_USAGE"] = "N"
-env["B_AGENTIC_INSTALL_PI_INTERCOM"] = "N"
 
 pid, fd = pty.fork()
 if pid == 0:
@@ -325,15 +328,6 @@ env["PATH"] = smoke_path
 env["B_AGENTIC_REPO"] = repo_snapshot
 env["B_AGENTIC_DIR"] = os.path.join(sandbox, "source")
 env["B_AGENTIC_PROMPT_API_KEYS"] = "N"
-env["B_AGENTIC_INSTALL_PI_CLI"] = "N"
-env["B_AGENTIC_INSTALL_RTK"] = "N"
-env["B_AGENTIC_INSTALL_SHELL_TOOLS"] = "N"
-env["B_AGENTIC_INSTALL_SERENA"] = "N"
-env["B_AGENTIC_INSTALL_CODEGRAPH"] = "N"
-env["B_AGENTIC_INSTALL_PI_MCP_ADAPTER"] = "N"
-env["B_AGENTIC_INSTALL_PI_OBSERVATIONAL_MEMORY"] = "N"
-env["B_AGENTIC_INSTALL_PI_USAGE"] = "N"
-env["B_AGENTIC_INSTALL_PI_INTERCOM"] = "N"
 
 pid, fd = pty.fork()
 if pid == 0:

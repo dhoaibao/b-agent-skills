@@ -2,7 +2,7 @@
 
 **A slim personal workflow kernel for the Pi coding agent. b-agentic and Pi are one integrated product.**
 
-b-agentic routes work to focused skills, preserves safety gates, uses the right evidence, and verifies before claiming completion. It installs a compact Pi kernel, native skills, first-party extensions, and recommended MCP configuration.
+b-agentic routes work to focused skills, preserves safety gates, uses the right evidence, and verifies before claiming completion. It installs a compact Pi kernel, native skills, first-party extensions, and recommended MCP configuration, while reconciling bundled non-privileged dependencies.
 
 Benefits:
 
@@ -86,12 +86,12 @@ The installer writes all six recommended entries to Pi's MCP configuration with 
 
 | Package | Purpose | Status | Installer behavior |
 |---|---|---|---|
-| `pi-mcp-adapter` | Loads Pi MCP configuration | Required for MCP use; otherwise optional | Interactive prompt; non-interactive only with `B_AGENTIC_INSTALL_PI_MCP_ADAPTER=Y` |
-| `pi-intercom` | Provides planner/worker coordination | Default for the optional two-role workflow | Installed by default; disable with `B_AGENTIC_INSTALL_PI_INTERCOM=N` |
-| `pi-observational-memory` | Long-session compaction continuity | Optional | Interactive prompt or `B_AGENTIC_INSTALL_PI_OBSERVATIONAL_MEMORY=Y` |
-| `@narumitw/pi-usage` | Pi usage reporting | Optional | Interactive prompt or `B_AGENTIC_INSTALL_PI_USAGE=Y` |
+| `pi-mcp-adapter` | Loads Pi MCP configuration | Required for MCP use | Installed automatically |
+| `pi-intercom` | Provides planner/worker coordination | Default for the optional two-role workflow | Installed automatically |
+| `pi-observational-memory` | Long-session compaction continuity | Optional | Installed automatically |
+| `@narumitw/pi-usage` | Pi usage reporting | Optional | Installed automatically |
 
-Pi CLI installation or upgrade is separately opt-in: interactive installs prompt, while non-interactive installs require `B_AGENTIC_INSTALL_PI_CLI=Y`.
+Pi CLI, RTK, Serena, CodeGraph, Bun, bundled Bun MCP packages, and Pi packages install or refresh automatically without prompts. Modern shell tools are reported with an install hint because they generally require sudo.
 
 ## First-party extensions
 

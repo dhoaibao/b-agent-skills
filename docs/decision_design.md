@@ -55,9 +55,10 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
 - Shared helpers under `pi/extensions/b-agentic-support/` are not discovered as
   standalone Pi extensions. This keeps Pi's discovered extension set coherent
   while allowing focused policy modules and test exports.
-- `/b-sync` refreshes managed assets; `/b-update` updates already-installed
-  runtime tooling and extensions without pulling b-agentic or installing
-  missing components. Both require an interactive confirmation. Evidence:
+- `/b-sync` refreshes managed assets; `/b-update` installs or updates the
+  complete bundled runtime dependency set and extensions without pulling
+  b-agentic. Independent dependency chains run in bounded stages and failures
+  propagate. Evidence:
   `pi/scripts/install.sh`, `pi/extensions/b-agentic-sync.ts`,
   `pi/configs/README.md`.
 
@@ -243,15 +244,15 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
 
 - `install.sh` clones or updates a local source checkout, supports reviewed
   `--ref` pins, then sources the shared Pi installer. `--sync` updates only
-  managed assets; `--update` updates installed RTK/Serena/CodeGraph/Pi tooling
-  without pulling b-agentic or installing missing components. Evidence:
-  `install.sh`, `pi/scripts/install.sh`, `REFERENCE.md`.
-- RTK is required; Pi CLI upgrades/install, shell tools, Serena, CodeGraph, and
-  optional Pi packages are prompted in interactive mode or opt-in via
-  environment variables. Pi MCP adapter, observational memory, usage, and
-  Intercom packages remain explicit lifecycle choices (Intercom defaults on
-  for collaboration). Evidence: `install.sh`, `pi/scripts/install.sh`,
-  `pi/configs/README.md`.
+  managed assets; `--update` reconciles RTK, uv/Serena, CodeGraph, Bun, bundled
+  MCP packages, Pi, and Pi extensions, installing missing components without
+  pulling b-agentic. Evidence: `install.sh`, `pi/scripts/install.sh`,
+  `REFERENCE.md`.
+- RTK is required; Pi CLI, Serena, CodeGraph, Bun, bundled MCP packages, and Pi
+  packages reconcile automatically without prompts or opt-outs. Modern shell
+  tools remain user-installed because they generally require sudo; readiness
+  reports provide install hints. Evidence: `install.sh`, `pi/scripts/install.sh`,
+  `tooling/install/common.sh`.
 - The template installs managed assets under `~/.pi/agent`, stores snapshots,
   backups, references, templates, and an install manifest under
   `~/.pi/agent/b-agentic`, and keeps user-owned kernel/config/extension/skill

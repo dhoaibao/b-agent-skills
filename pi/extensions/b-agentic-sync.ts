@@ -16,7 +16,7 @@ async function runRefresh(pi: ExtensionAPI, mode: "--sync" | "--update", args: s
   }
 
   const label = mode === "--sync" ? "Sync b-agentic" : "Update b-agentic tooling";
-  if (!await ctx.ui.confirm(label, "This downloads and runs updates on your machine. Continue?")) return;
+  if (mode === "--sync" && !await ctx.ui.confirm(label, "This downloads and runs updates on your machine. Continue?")) return;
 
   ctx.ui.notify(`${label} started`, "info");
   const result = await pi.exec("bash", [installerPath(), mode], { timeout: 300_000 });

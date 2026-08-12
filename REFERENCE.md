@@ -13,10 +13,7 @@ Default install for Pi:
 curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agentic/main/install.sh | bash
 ```
 
-Default install writes b-agentic files and Pi configuration only. Interactive
-installs prompt before installing or upgrading the Pi CLI. Non-interactive
-installs skip Pi CLI changes unless `B_AGENTIC_INSTALL_PI_CLI=Y` explicitly opts
-in.
+Default install writes b-agentic files and Pi configuration only. Pi CLI installation and upgrade run automatically without prompts.
 
 For professional or shared environments, pin both the bootstrap script and
 installed source to a reviewed tag or commit instead of consuming whatever is
@@ -34,26 +31,19 @@ Useful flags:
 - `--uninstall` removes managed files.
 - `--ref=<tag-or-commit>` checks out that b-agentic ref before installing managed files.
 - `--sync` pulls the installed checkout and syncs managed Pi skills, kernel, and first-party extensions only.
-- `--update` updates already-installed RTK, Serena, CodeGraph, Pi, and Pi extensions without pulling b-agentic or installing missing components.
+- `--update` installs or updates RTK, Serena, CodeGraph, Bun, bundled MCP packages, Pi, and Pi extensions without pulling b-agentic.
 
-Requirements: `bash`, `git`, Python 3.11+, and Bun (`bunx`) for MCP entries
-that use Bun. Pi CLI installation or upgrade is opt-in via the interactive
-prompt or `B_AGENTIC_INSTALL_PI_CLI=Y`.
-
-Interactive installs prepare Pi and RTK; Serena and CodeGraph remain optional
-installs. When modern shell tools are missing, interactive installs prompt to
-install them: `rg` over `grep`, `fd` or `fdfind` over `find`, `bat` (or Debian /
-Ubuntu's `batcat`) over `cat`, `eza` or `exa` over `ls`, `sd` over `sed` or
-`awk`, and `jq` over `python -m json.tool` for JSON when they improve the task.
-Set `B_AGENTIC_INSTALL_SHELL_TOOLS=Y` to install them non-interactively.
+Requirements: `bash`, `git`, and Python 3.11+. Bun, Pi, RTK, Serena,
+CodeGraph, and bundled MCP packages are installed or updated automatically
+without dependency opt-in variables or prompts. Modern shell tools are not
+installed or updated automatically because they generally require sudo; the
+readiness report provides a platform-specific install hint.
 
 ## RTK (Rust Token Killer)
 
-During interactive installs, the installer can prompt to download and run the
-RTK install script from its `master` branch. If `rtk` is already installed,
-the installer asks separately before upgrading it; the existing installation
-satisfies the prerequisite. Scripted upgrades require
-`B_AGENTIC_INSTALL_RTK=Y`. This is a remote shell script; only use it if you
+The installer downloads and runs the RTK install script from its `master`
+branch when RTK is missing and reruns it to refresh an existing installation.
+This is a remote shell script; only use it if you
 trust the RTK repository. RTK is required for b-agentic sessions; installation
 fails if it cannot be installed.
 
@@ -104,9 +94,7 @@ Verification: `rtk --version`, `rtk gain`, `which rtk`.
 
 ## Serena MCP agent
 
-Interactive installs can prompt to install the Serena MCP agent. If `serena` is
-already installed, the installer asks before running `uv tool upgrade
-serena-agent`; scripted upgrades require `B_AGENTIC_INSTALL_SERENA=Y`.
+The installer installs or upgrades the Serena MCP agent automatically with uv.
 
 If `uv` is already installed, the installer runs:
 
@@ -114,7 +102,7 @@ If `uv` is already installed, the installer runs:
 uv tool install -p 3.13 serena-agent
 ```
 
-If `uv` is missing, the installer prompts to install it from
+If `uv` is missing, the installer installs it from
 `https://astral.sh/uv/install.sh` before proceeding with Serena. Only use a
 remote install script when you trust its source.
 
@@ -122,15 +110,13 @@ remote install script when you trust its source.
 
 b-agentic writes a default [CodeGraph](https://github.com/colbymchenry/codegraph)
 entry that runs `codegraph serve --mcp` with `CODEGRAPH_TELEMETRY=0`. Interactive
-sessions can prompt to install CodeGraph with:
+the installer installs CodeGraph with:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh | sh
 ```
 
-If CodeGraph is already installed, the installer asks before running
-`codegraph upgrade`. Scripted upgrades require
-`B_AGENTIC_INSTALL_CODEGRAPH=Y`. Run `codegraph init` in each repository where
+Existing CodeGraph installations are refreshed with `codegraph upgrade`. Run `codegraph init` in each repository where
 you want a local pre-indexed code graph.
 
 ## Managed MCPs
@@ -151,8 +137,8 @@ never tracked templates.
 | Brave Search | Independent corroboration and specialized current search | Bun (`bunx`) and `BRAVE_API_KEY` |
 | Playwright | Live browser, visual, console/network, and e2e evidence | Bun (`bunx`) |
 
-The installer does not eagerly start MCP servers, install `bunx` packages, or
-initialize repositories. b-agentic initializes CodeGraph only for the first
+The installer does not eagerly start MCP servers or initialize repositories;
+Bun and bundled Bun MCP packages are installed or refreshed automatically. b-agentic initializes CodeGraph only for the first
 repository-wide architecture or impact task when its local index is absent;
 Serena onboarding runs only when repository onboarding is useful. Missing CLIs
 are not installed automatically. Use `scripts/mcp-doctor.sh --session-tools`
@@ -175,26 +161,18 @@ configuration and reports every managed change.
 
 Pi does not provide native MCP. b-agentic installs MCP server entries into
 `~/.pi/agent/mcp.json` and expects the community package `pi-mcp-adapter` to load
-them. Interactive installs prompt before running
-`pi install npm:pi-mcp-adapter`; noninteractive installs do so only when
-`B_AGENTIC_INSTALL_PI_MCP_ADAPTER=Y` is set.
+them. The installer runs `pi install npm:pi-mcp-adapter` automatically.
 
 For long-session compaction continuity, b-agentic can install the optional
-`pi-observational-memory` package. Interactive installs prompt before running
-`pi install npm:pi-observational-memory`; noninteractive installs require
-`B_AGENTIC_INSTALL_PI_OBSERVATIONAL_MEMORY=Y`. Use it as the sole automatic
+`pi-observational-memory` package. The installer runs `pi install npm:pi-observational-memory` automatically. Use it as the sole automatic
 memory/compaction layer rather than combining it with another such extension.
 Its V3 model does not read V2 settings or memory entries; after upgrading from
 V2, migrate the settings and start a clean Pi session.
 
-b-agentic can install the optional `@narumitw/pi-usage` extension. Interactive
-installs prompt before running `pi install npm:@narumitw/pi-usage`;
-noninteractive installs require `B_AGENTIC_INSTALL_PI_USAGE=Y`.
+b-agentic installs the `@narumitw/pi-usage` extension automatically.
 
-b-agentic installs `pi-intercom` by default for its two-role workflow;
-`B_AGENTIC_INSTALL_PI_INTERCOM=N` explicitly disables it and leaves
-collaboration unavailable. After checking `pi list`, the installer runs
-`pi update --extensions` when Pi extensions are installed. Uninstall removes
+b-agentic installs `pi-intercom` automatically for its two-role workflow. After checking `pi list`, the installer runs
+`pi update --extensions` after reconciling required Pi packages. Uninstall removes
 managed config and extension files but not any package.
 
 Pi has no native permission model, so b-agentic installs a first-party set of
@@ -268,10 +246,10 @@ same worker for a verified fix and another review.
 
 `/b-sync` confirms, pulls the installed b-agentic checkout, and syncs only
 managed Pi skills, kernel, and first-party extensions before reloading Pi. It
-does not install packages or change MCP configuration. `/b-update` confirms and
-updates already-installed RTK, Serena, CodeGraph, Pi, and Pi extensions without
-pulling b-agentic or installing missing components, then reloads Pi. Both
-commands require an interactive session and take no arguments.
+does not install packages or change MCP configuration. `/b-update` runs without
+an additional confirmation and updates RTK, Serena, CodeGraph, Bun, Pi,
+bundled packages, and Pi extensions without pulling b-agentic, then reloads Pi.
+Both commands require an interactive session and take no arguments.
 
 ## Safety and approvals
 

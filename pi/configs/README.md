@@ -21,21 +21,17 @@ Adapter-owned layout for Pi.
 
 Pi does not provide native MCP. b-agentic installs MCP server entries into
 `~/.pi/agent/mcp.json` and expects the community package
-`pi-mcp-adapter` to load them. Interactive installs prompt before running
-`pi install npm:pi-mcp-adapter`. Noninteractive installs run that only when
-`B_AGENTIC_INSTALL_PI_MCP_ADAPTER=Y` is set.
+`pi-mcp-adapter` to load them. `pi install npm:pi-mcp-adapter`.
 
 For long-session compaction continuity, b-agentic can install the optional
-`pi-observational-memory` package. Interactive installs prompt before running
-`pi install npm:pi-observational-memory`; noninteractive installs require
-`B_AGENTIC_INSTALL_PI_OBSERVATIONAL_MEMORY=Y`. Use it as the sole automatic
+`pi-observational-memory` package. `pi install npm:pi-observational-memory`;  Use it as the sole automatic
 memory/compaction layer rather than combining it with another such extension.
 
 b-agentic can also install the optional `@narumitw/pi-usage` extension.
-Interactive installs prompt before running `pi install npm:@narumitw/pi-usage`;
-noninteractive installs require `B_AGENTIC_INSTALL_PI_USAGE=Y`.
+`pi install npm:@narumitw/pi-usage`;
 
-b-agentic installs `pi-intercom` by default for its two-role workflow; `B_AGENTIC_INSTALL_PI_INTERCOM=N` explicitly disables it and leaves collaboration unavailable. The permission extension auto-approves schema-valid Intercom actions (`list`, `list-cwd`, `status`, `pending`, `send`, `ask`, `reply`, and `cancel`), including supported optional string fields and attachment arrays; invalid actions, unknown fields, and malformed optional values remain approval-gated.
+
+b-agentic installs `pi-intercom` by default for its two-role workflow;  The permission extension auto-approves schema-valid Intercom actions (`list`, `list-cwd`, `status`, `pending`, `send`, `ask`, `reply`, and `cancel`), including supported optional string fields and attachment arrays; invalid actions, unknown fields, and malformed optional values remain approval-gated.
 
 b-agentic defaults to Off for a single-session workflow; the first same-CWD session is not automatically promoted to planner. For the two-role workflow, explicitly run `/b-role planner` and `/b-role worker` in the two sessions, or start them with `pi --b-role planner|worker`. Run `/b-role off` to return to solo work; tab completion supports all three role names. The role persists with the session and appears in Pi's status bar. `/b-role` selects only a role and does not open a model picker. Explicit `pi --b-role` startup selections and later `/model` changes can update the per-role provider, model, and thinking-level preference under `~/.pi/agent/b-agentic/role-models.json` without credentials.
 
@@ -53,16 +49,14 @@ Coordination is deliberately lightweight:
 4. After approval the worker remains idle; leave planner mode before an explicit `b-commit` or release action when normally authorized.
 
 There are no required `B_AGENTIC_TASK`, `B_AGENTIC_RESULT`, or `B_AGENTIC_REVIEW` markers, fields, counters, or target checks. `reply` is required when `pending` reports an inbound ask; otherwise call `list-cwd` again and use a `send` addressed to the exact returned session ID (the full ID), never a display name, alias, or abbreviated prefix. A coordination handoff, result, finding, or approval is not sent until delivery succeeds. On `send` failure, do not retry the stale target or continue, commit, or close; run `pending`; if an inbound ask exists, use `reply` and do not retry `send`; otherwise run a fresh `list-cwd`, retry once only if the intended peer remains live, otherwise pause and surface the unavailable peer as a blocker. `ask` is for intentionally waiting for a response, including a genuine blocker. Users never relay internal messages. The actual `b-review` gate for delegated work is mandatory and cannot be replaced by a regular or generic review or bypassed under any circumstances. This single-writer lifecycle has an enforced planner analysis-only gate; worker-local automation remains available without protocol blocks.
-After checking `pi list`, the installer runs `pi update --extensions` when
-Pi extensions are installed.
+After reconciling required Pi packages, the installer runs
+`pi update --extensions`.
 
 ## In-session refresh
 
 `/b-sync` confirms, pulls the installed b-agentic checkout, and syncs only
 managed Pi skills, kernel, and first-party extensions before reloading Pi. It
-does not install packages or change MCP configuration. `/b-update` confirms
-and updates already-installed RTK, Serena, CodeGraph, Pi, and Pi extensions
-without pulling b-agentic or installing missing components, then reloads Pi.
+does not install packages or change MCP configuration. `/b-update` runs without an additional confirmation and updates RTK, Serena, CodeGraph, Bun, Pi, bundled packages, and Pi extensions without pulling b-agentic, then reloads Pi.
 Both commands require an interactive session and take no arguments.
 
 `pi-observational-memory` V3 does not read V2 settings or memory entries. After

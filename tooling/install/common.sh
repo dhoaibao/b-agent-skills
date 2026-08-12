@@ -995,99 +995,23 @@ shell_tool_readiness_status() {
   printf 'optional tools unavailable: %s' "$(join_shell_tool_labels "${missing[@]}")"
 }
 
-run_shell_tool_install_command() {
-  local package_manager="$1"
-
-  case "$package_manager" in
-    brew)
-      run_cmd brew install ripgrep fd bat eza sd jq
-      ;;
-    apt)
-      if [ "$(id -u)" -eq 0 ]; then
-        run_cmd apt install -y $(shell_tool_debian_packages)
-      elif command -v sudo >/dev/null 2>&1; then
-        run_cmd sudo apt install -y $(shell_tool_debian_packages)
-      else
-        warn "sudo not found; install manually: ripgrep, fd-find, bat, eza or exa, sd, jq"
-        return 1
-      fi
-      ;;
-    apt-get)
-      if [ "$(id -u)" -eq 0 ]; then
-        run_cmd apt-get install -y $(shell_tool_debian_packages)
-      elif command -v sudo >/dev/null 2>&1; then
-        run_cmd sudo apt-get install -y $(shell_tool_debian_packages)
-      else
-        warn "sudo not found; install manually: ripgrep, fd-find, bat, eza or exa, sd, jq"
-        return 1
-      fi
-      ;;
-    dnf)
-      if [ "$(id -u)" -eq 0 ]; then
-        run_cmd dnf install -y --skip-unavailable ripgrep fd-find bat eza sd jq
-      elif command -v sudo >/dev/null 2>&1; then
-        run_cmd sudo dnf install -y --skip-unavailable ripgrep fd-find bat eza sd jq
-      else
-        warn "sudo not found; install manually: ripgrep, fd-find, bat, eza or exa, sd, jq"
-        return 1
-      fi
-      ;;
-    *)
-      warn "$(shell_tool_install_hint manual)"
-      return 1
-      ;;
-  esac
-}
-
 install_shell_tools() {
-  local package_manager=""
   local install_command=""
   local -a missing=()
   local label=""
-
-  case "${INSTALL_SHELL_TOOLS_VALUE:-auto}" in
-    n|N|no|NO|No|false|FALSE|0)
-      log "Skipping optional shell tooling installation"
-      return 0
-      ;;
-    auto|AUTO|Auto|y|Y|yes|YES|Yes|true|TRUE|1) ;;
-    *) die "invalid B_AGENTIC_INSTALL_SHELL_TOOLS value: $INSTALL_SHELL_TOOLS_VALUE" ;;
-  esac
 
   while IFS= read -r label; do
     [ -n "$label" ] || continue
     missing+=("$label")
   done < <(shell_tool_missing_labels)
 
-  [ "${#missing[@]}" -gt 0 ] || {
-    log "Shell tooling already installed: $(recommended_shell_commands)"
+  install_command="$(shell_tool_install_hint "$(detect_shell_tool_package_manager)")"
+  if [ "${#missing[@]}" -eq 0 ]; then
+    log "Shell tooling already installed"
     return 0
-  }
-
-  case "${INSTALL_SHELL_TOOLS_VALUE:-auto}" in
-    auto|AUTO|Auto)
-      if ! prompt_yes_no "Install optional shell tooling ($(recommended_shell_commands))? [y/N]" N; then
-        log "Skipping optional shell tooling installation without explicit approval"
-        return 0
-      fi
-      ;;
-  esac
-
-  package_manager="$(detect_shell_tool_package_manager)"
-  install_command="$(shell_tool_install_hint "$package_manager")"
-
-  if [ "$package_manager" = "manual" ]; then
-    die "requested shell tooling is missing; $install_command"
   fi
-
-  log "Installing shell tooling: $(recommended_shell_commands)"
-  if run_shell_tool_install_command "$package_manager"; then
-    log "Shell tooling install command completed"
-  else
-    die "requested shell tooling installation failed"
-  fi
-
-  [ "$(shell_tool_missing_labels)" = "" ] || die "requested shell tooling remains missing after installation"
+  log "Shell tooling hint: $install_command"
+  return 0
 }
 
 report_section() {
@@ -1215,7 +1139,7 @@ print_shell_tool_recommendations() {
   report_section "Shell tooling"
   report_item "core" "$(shell_tool_readiness_status)"
   report_item "core-install" "$(shell_tool_install_hint "$package_manager")"
-  report_item "installer" "prompts to install missing optional tools; set B_AGENTIC_INSTALL_SHELL_TOOLS=Y for non-interactive installation"
+  report_item "installer" "reports an install hint; shell tools are not changed automatically"
 }
 
 print_install_report_next_steps() {
@@ -1445,32 +1369,25 @@ runtime_sync_common() {
 
 runtime_install_common() {
   local config_stage_count=0
-  local install_stage_count=5
+  local install_stage_count=6
 
   runtime_warn_missing_cli
   config_stage_count="$(runtime_install_config_stage_count)"
-  if install_pi_cli_enabled; then
-    install_stage_count=$((install_stage_count + 1))
-  fi
   set_install_stage_total $((install_stage_count + config_stage_count))
 
   collect_installed_skills INSTALL_SKILL_NAMES
-  if install_pi_cli_enabled; then
-    run_stage "Preparing Pi CLI" runtime_upgrade_cli
-  else
-    log "Skipping Pi CLI preparation; rerun interactively to accept the prompt, or set B_AGENTIC_INSTALL_PI_CLI=Y to install or upgrade it."
-  fi
-  run_stage "Syncing skills" install_skills
-  run_stage "Syncing references and templates" install_references_and_templates
+  run_stage "Preparing Pi CLI" runtime_upgrade_cli || return $?
+  run_stage "Syncing skills" install_skills || return $?
+  run_stage "Syncing references and templates" install_references_and_templates || return $?
 
   run_install_triplet_stage "Installing kernel" install_kernel "preserve" "pending" "none" \
-    INSTALL_MEMORY_ACTION INSTALL_ACTIVATION_STATE INSTALL_MEMORY_BACKUP
+    INSTALL_MEMORY_ACTION INSTALL_ACTIVATION_STATE INSTALL_MEMORY_BACKUP || return $?
 
-  runtime_install_configs
+  runtime_install_configs || return $?
 
-  run_stage "Installing uninstall helper" install_uninstall_helper
-  run_stage "Writing install manifest" runtime_write_manifest
-  runtime_print_install_report
+  run_stage "Installing uninstall helper" install_uninstall_helper || return $?
+  run_stage "Writing install manifest" runtime_write_manifest || return $?
+  runtime_print_install_report || return $?
 
   if [ "$INSTALL_ACTIVATION_STATE" = "pending" ]; then
     return 2

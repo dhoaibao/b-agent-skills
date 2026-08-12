@@ -99,7 +99,8 @@ runtime_update_cli() {
 	if pi update; then
 		log "Pi CLI update completed"
 	else
-		warn "Pi CLI update failed; continuing"
+		warn "Pi CLI update failed"
+		return 1
 	fi
 }
 
@@ -120,12 +121,14 @@ runtime_upgrade_cli() {
 		if pi update; then
 			log "Pi CLI install/upgrade completed"
 		else
-			warn "Pi CLI install/upgrade failed; continuing"
+			warn "Pi CLI install/upgrade failed"
+			return 1
 		fi
 	elif curl -fsSL https://pi.dev/install.sh | sh; then
 		log "Pi CLI install/upgrade completed"
 	else
-		warn "Pi CLI install/upgrade failed; continuing"
+		warn "Pi CLI install/upgrade failed"
+		return 1
 	fi
 	return 0
 }
@@ -162,43 +165,6 @@ pi_intercom_installed() {
 	pi_package_installed "$PI_INTERCOM_PACKAGE"
 }
 
-pi_extensions_installed() {
-	if ! command -v pi >/dev/null 2>&1; then
-		return 1
-	fi
-	local listing
-	listing="$(
-		HOME="${HOME}" \
-			PI_CODING_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}" \
-			pi list 2>/dev/null || true
-	)"
-	case "$listing" in
-	"" | "No packages installed." | "No packages installed")
-		return 1
-		;;
-	esac
-	return 0
-}
-
-install_pi_mcp_adapter_enabled() {
-	local value="${B_AGENTIC_INSTALL_PI_MCP_ADAPTER:-auto}"
-	case "$value" in
-	n | N | no | NO | No | false | FALSE | 0) return 1 ;;
-	y | Y | yes | YES | Yes | true | TRUE | 1) return 0 ;;
-	auto | AUTO | Auto)
-		if pi_mcp_adapter_installed; then
-			return 1
-		fi
-		if [ -r /dev/tty ] && [ -w /dev/tty ]; then
-			prompt_yes_no "Install Pi MCP adapter ($PI_MCP_ADAPTER_PACKAGE)? [y/N]" N
-			return $?
-		fi
-		return 1
-		;;
-	*) die "invalid B_AGENTIC_INSTALL_PI_MCP_ADAPTER value: $value" ;;
-	esac
-}
-
 maybe_install_pi_mcp_adapter() {
 	if pi_mcp_adapter_installed; then
 		INSTALL_PI_MCP_ADAPTER_ACTION="present"
@@ -207,19 +173,11 @@ maybe_install_pi_mcp_adapter() {
 		return 0
 	fi
 
-	if ! command -v pi >/dev/null 2>&1; then
-		INSTALL_PI_MCP_ADAPTER_ACTION="skip"
-		INSTALL_PI_MCP_ADAPTER_STATE="missing-cli"
+	if ! command -v pi >/dev/null 2>&1 && ! dry_run_enabled; then
 		warn "Pi CLI missing; cannot install $PI_MCP_ADAPTER_PACKAGE"
-		return 0
+		return 1
 	fi
 
-	if ! install_pi_mcp_adapter_enabled; then
-		INSTALL_PI_MCP_ADAPTER_ACTION="skip"
-		INSTALL_PI_MCP_ADAPTER_STATE="missing"
-		warn "Skipping $PI_MCP_ADAPTER_PACKAGE install; set B_AGENTIC_INSTALL_PI_MCP_ADAPTER=Y or accept the interactive prompt"
-		return 0
-	fi
 
 	if dry_run_enabled; then
 		printf '[dry-run] pi install %s\n' "$PI_MCP_ADAPTER_SPEC" >&2
@@ -236,46 +194,9 @@ maybe_install_pi_mcp_adapter() {
 	else
 		INSTALL_PI_MCP_ADAPTER_ACTION="failed"
 		INSTALL_PI_MCP_ADAPTER_STATE="missing"
-		warn "Failed to install $PI_MCP_ADAPTER_PACKAGE; MCP will remain degraded"
+		warn "Failed to install $PI_MCP_ADAPTER_PACKAGE"
+		return 1
 	fi
-}
-
-install_pi_observational_memory_enabled() {
-	local value="${B_AGENTIC_INSTALL_PI_OBSERVATIONAL_MEMORY:-auto}"
-	case "$value" in
-	n | N | no | NO | No | false | FALSE | 0) return 1 ;;
-	y | Y | yes | YES | Yes | true | TRUE | 1) return 0 ;;
-	auto | AUTO | Auto)
-		if pi_observational_memory_installed; then
-			return 1
-		fi
-		if [ -r /dev/tty ] && [ -w /dev/tty ]; then
-			prompt_yes_no "Install Pi Observational Memory ($PI_OBSERVATIONAL_MEMORY_PACKAGE)? [y/N]" N
-			return $?
-		fi
-		return 1
-		;;
-	*) die "invalid B_AGENTIC_INSTALL_PI_OBSERVATIONAL_MEMORY value: $value" ;;
-	esac
-}
-
-install_pi_usage_enabled() {
-	local value="${B_AGENTIC_INSTALL_PI_USAGE:-auto}"
-	case "$value" in
-	n | N | no | NO | No | false | FALSE | 0) return 1 ;;
-	y | Y | yes | YES | Yes | true | TRUE | 1) return 0 ;;
-	auto | AUTO | Auto)
-		if pi_usage_installed; then
-			return 1
-		fi
-		if [ -r /dev/tty ] && [ -w /dev/tty ]; then
-			prompt_yes_no "Install Pi Usage ($PI_USAGE_PACKAGE)? [y/N]" N
-			return $?
-		fi
-		return 1
-		;;
-	*) die "invalid B_AGENTIC_INSTALL_PI_USAGE value: $value" ;;
-	esac
 }
 
 maybe_install_pi_usage() {
@@ -286,19 +207,11 @@ maybe_install_pi_usage() {
 		return 0
 	fi
 
-	if ! command -v pi >/dev/null 2>&1; then
-		INSTALL_PI_USAGE_ACTION="skip"
-		INSTALL_PI_USAGE_STATE="missing-cli"
+	if ! command -v pi >/dev/null 2>&1 && ! dry_run_enabled; then
 		warn "Pi CLI missing; cannot install $PI_USAGE_PACKAGE"
-		return 0
+		return 1
 	fi
 
-	if ! install_pi_usage_enabled; then
-		INSTALL_PI_USAGE_ACTION="skip"
-		INSTALL_PI_USAGE_STATE="missing"
-		warn "Skipping $PI_USAGE_PACKAGE install; set B_AGENTIC_INSTALL_PI_USAGE=Y or accept the interactive prompt"
-		return 0
-	fi
 
 	if dry_run_enabled; then
 		printf '[dry-run] pi install %s\n' "$PI_USAGE_SPEC" >&2
@@ -315,34 +228,14 @@ maybe_install_pi_usage() {
 	else
 		INSTALL_PI_USAGE_ACTION="failed"
 		INSTALL_PI_USAGE_STATE="missing"
-		warn "Failed to install $PI_USAGE_PACKAGE; Pi usage reporting remains unavailable"
+		warn "Failed to install $PI_USAGE_PACKAGE"
+		return 1
 	fi
-}
-
-install_pi_intercom_enabled() {
-	local value="${B_AGENTIC_INSTALL_PI_INTERCOM:-Y}"
-	case "$value" in
-	n | N | no | NO | No | false | FALSE | 0) return 1 ;;
-	y | Y | yes | YES | Yes | true | TRUE | 1) return 0 ;;
-	auto | AUTO | Auto)
-		# Legacy opt-in behavior for callers that explicitly request it.
-		if pi_intercom_installed; then return 1; fi
-		if [ -r /dev/tty ] && [ -w /dev/tty ]; then
-			prompt_yes_no "Install Pi Intercom ($PI_INTERCOM_PACKAGE)? [y/N]" N
-			return $?
-		fi
-		return 1 ;;
-	*) die "invalid B_AGENTIC_INSTALL_PI_INTERCOM value: $value" ;;
-	esac
 }
 
 maybe_install_pi_intercom() {
 	if pi_intercom_installed; then INSTALL_PI_INTERCOM_ACTION="present"; INSTALL_PI_INTERCOM_STATE="ready"; return 0; fi
-	if ! command -v pi >/dev/null 2>&1; then INSTALL_PI_INTERCOM_STATE="missing-cli"; return 0; fi
-	if ! install_pi_intercom_enabled; then
-		warn "Skipping $PI_INTERCOM_PACKAGE install; planner-worker collaboration is unavailable until B_AGENTIC_INSTALL_PI_INTERCOM=Y"
-		return 0
-	fi
+	if ! command -v pi >/dev/null 2>&1 && ! dry_run_enabled; then warn "Pi CLI missing; cannot install $PI_INTERCOM_PACKAGE"; return 1; fi
 	if dry_run_enabled; then
 		printf '[dry-run] pi install %s\n' "$PI_INTERCOM_SPEC" >&2
 		INSTALL_PI_INTERCOM_ACTION="install"; INSTALL_PI_INTERCOM_STATE="dry-run"; return 0
@@ -352,6 +245,7 @@ maybe_install_pi_intercom() {
 	else
 		INSTALL_PI_INTERCOM_ACTION="failed"; INSTALL_PI_INTERCOM_STATE="missing"
 		warn "Failed to install $PI_INTERCOM_PACKAGE"
+		return 1
 	fi
 }
 
@@ -363,19 +257,11 @@ maybe_install_pi_observational_memory() {
 		return 0
 	fi
 
-	if ! command -v pi >/dev/null 2>&1; then
-		INSTALL_PI_OBSERVATIONAL_MEMORY_ACTION="skip"
-		INSTALL_PI_OBSERVATIONAL_MEMORY_STATE="missing-cli"
+	if ! command -v pi >/dev/null 2>&1 && ! dry_run_enabled; then
 		warn "Pi CLI missing; cannot install $PI_OBSERVATIONAL_MEMORY_PACKAGE"
-		return 0
+		return 1
 	fi
 
-	if ! install_pi_observational_memory_enabled; then
-		INSTALL_PI_OBSERVATIONAL_MEMORY_ACTION="skip"
-		INSTALL_PI_OBSERVATIONAL_MEMORY_STATE="missing"
-		warn "Skipping $PI_OBSERVATIONAL_MEMORY_PACKAGE install; set B_AGENTIC_INSTALL_PI_OBSERVATIONAL_MEMORY=Y or accept the interactive prompt"
-		return 0
-	fi
 
 	if dry_run_enabled; then
 		printf '[dry-run] pi install %s\n' "$PI_OBSERVATIONAL_MEMORY_SPEC" >&2
@@ -392,7 +278,8 @@ maybe_install_pi_observational_memory() {
 	else
 		INSTALL_PI_OBSERVATIONAL_MEMORY_ACTION="failed"
 		INSTALL_PI_OBSERVATIONAL_MEMORY_STATE="missing"
-		warn "Failed to install $PI_OBSERVATIONAL_MEMORY_PACKAGE; long-session compaction continuity remains unavailable"
+		warn "Failed to install $PI_OBSERVATIONAL_MEMORY_PACKAGE"
+		return 1
 	fi
 }
 
@@ -452,19 +339,9 @@ install_permissions_extension() {
 }
 
 update_pi_extensions() {
-	case "${B_AGENTIC_UPDATE_PI_EXTENSIONS:-Y}" in
-	n | N | no | NO | No | false | FALSE | 0)
-		log "Skipping Pi extension update"
-		return 0
-		;;
-	esac
-	if ! command -v pi >/dev/null 2>&1; then
-		log "Pi CLI missing; skipping Pi extension update"
-		return 0
-	fi
-	if ! pi_extensions_installed; then
-		log "No Pi extensions installed; skipping pi update --extensions"
-		return 0
+	if ! command -v pi >/dev/null 2>&1 && ! dry_run_enabled; then
+		warn "Pi CLI missing; cannot update Pi extensions"
+		return 1
 	fi
 	if dry_run_enabled; then
 		printf '[dry-run] pi update --extensions\n' >&2
@@ -475,21 +352,22 @@ update_pi_extensions() {
 	if pi update --extensions; then
 		log "Pi extension update completed"
 	else
-		warn "Pi extension update failed; continuing"
+		warn "Pi extension update failed"
+		return 1
 	fi
 	return 0
 }
 
 runtime_install_configs() {
-	maybe_install_pi_mcp_adapter
-	maybe_install_pi_observational_memory
-	maybe_install_pi_usage
-	maybe_install_pi_intercom
-	run_stage "Updating Pi extensions" update_pi_extensions
+	maybe_install_pi_mcp_adapter || return $?
+	maybe_install_pi_observational_memory || return $?
+	maybe_install_pi_usage || return $?
+	maybe_install_pi_intercom || return $?
+	run_stage "Updating Pi extensions" update_pi_extensions || return $?
 	run_install_triplet_stage "Installing Pi permission extension" install_permissions_extension "skip" "none" "none" \
-		INSTALL_EXTENSION_ACTION INSTALL_EXTENSION_STATE INSTALL_EXTENSION_BACKUP
+		INSTALL_EXTENSION_ACTION INSTALL_EXTENSION_STATE INSTALL_EXTENSION_BACKUP || return $?
 	run_install_triplet_stage "Merging MCP config" install_mcp_config "skip" "none" "none" \
-		INSTALL_MCP_ACTION INSTALL_MCP_STATE INSTALL_MCP_BACKUP
+		INSTALL_MCP_ACTION INSTALL_MCP_STATE INSTALL_MCP_BACKUP || return $?
 	apply_prompted_mcp_keys_stage INSTALL_MCP_ACTION INSTALL_MCP_BACKUP
 }
 
@@ -619,15 +497,15 @@ runtime_print_install_report() {
 	print_shell_tool_recommendations
 	if [ "$INSTALL_PI_MCP_ADAPTER_STATE" != "ready" ]; then
 		report_section "MCP adapter"
-		report_item "status" "degraded: install $PI_MCP_ADAPTER_PACKAGE with 'pi install $PI_MCP_ADAPTER_SPEC' or B_AGENTIC_INSTALL_PI_MCP_ADAPTER=Y"
+		report_item "status" "required: install $PI_MCP_ADAPTER_PACKAGE with 'pi install $PI_MCP_ADAPTER_SPEC'"
 	fi
 	if [ "$INSTALL_PI_OBSERVATIONAL_MEMORY_STATE" != "ready" ]; then
 		report_section "Pi Observational Memory"
-		report_item "status" "optional: install $PI_OBSERVATIONAL_MEMORY_PACKAGE with 'pi install $PI_OBSERVATIONAL_MEMORY_SPEC' or B_AGENTIC_INSTALL_PI_OBSERVATIONAL_MEMORY=Y"
+		report_item "status" "required: install $PI_OBSERVATIONAL_MEMORY_PACKAGE with 'pi install $PI_OBSERVATIONAL_MEMORY_SPEC'"
 	fi
 	if [ "$INSTALL_PI_USAGE_STATE" != "ready" ]; then
 		report_section "Pi Usage"
-		report_item "status" "optional: install $PI_USAGE_PACKAGE with 'pi install $PI_USAGE_SPEC' or B_AGENTIC_INSTALL_PI_USAGE=Y"
+		report_item "status" "required: install $PI_USAGE_PACKAGE with 'pi install $PI_USAGE_SPEC'"
 	fi
 	print_install_report_next_steps "Pi"
 }
@@ -670,8 +548,13 @@ pi_sync() {
 }
 
 pi_update() {
-	set_install_stage_total 2
-	run_stage "Updating Pi CLI" runtime_update_cli
+	set_install_stage_total 8
+	run_stage "Updating Pi CLI" runtime_upgrade_cli || return $?
+	run_stage "Installing Pi MCP adapter" maybe_install_pi_mcp_adapter || return $?
+	run_stage "Installing observational memory" maybe_install_pi_observational_memory || return $?
+	run_stage "Installing Pi usage" maybe_install_pi_usage || return $?
+	run_stage "Installing Pi intercom" maybe_install_pi_intercom || return $?
+	run_stage "Syncing first-party extensions" install_permissions_extension >/dev/null || return $?
 	run_stage "Updating Pi extensions" update_pi_extensions
 }
 

@@ -232,7 +232,7 @@ const refreshContext = {
 };
 await commands['b-sync'].handler('', refreshContext);
 await commands['b-update'].handler('', refreshContext);
-expect(refreshConfirmations === 2, 'refresh commands must confirm external updates');
+expect(refreshConfirmations === 1, 'only /b-sync must confirm external updates');
 expect(executedCommands.at(-2)?.command === 'bash' && executedCommands.at(-2)?.args.at(-1) === '--sync', '/b-sync must run the sync-only installer mode');
 expect(executedCommands.at(-1)?.command === 'bash' && executedCommands.at(-1)?.args.at(-1) === '--update', '/b-update must run the update-only installer mode');
 expect(reloads === 2, 'successful refresh commands must reload Pi');
@@ -1215,10 +1215,14 @@ run_pi_smoke_cases() {
 	assert_contains "$sandbox/home/.pi/agent/mcp.json" '"codegraph"'
 	assert_contains "$sandbox/home/.pi/agent/mcp.json" '"lifecycle": "lazy"'
 	assert_contains "$sandbox/home/.pi/agent/extensions/b-agentic-permissions.ts" 'tool_call'
-	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"mcpAdapterState": "missing"'
+	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"mcpAdapterState": "ready"'
 	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"extensions"'
 	assert_contains "$sandbox/home/.pi/agent/AGENTS.md" 'b-agentic-managed'
-	assert_no_path "$sandbox/smoke-bin/pi-install.log"
+	assert_file "$sandbox/smoke-bin/pi-install.log"
+	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:pi-mcp-adapter'
+	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:pi-observational-memory'
+	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@narumitw/pi-usage'
+	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:pi-intercom'
 
 	# Split in-session modes: sync pulls/assets only; update uses installed source without Git.
 	# Exercise sync with the default environment so package, Pi CLI, and MCP setup
@@ -1234,20 +1238,11 @@ run_pi_smoke_cases() {
 	printf '\n// stale sync fixture\n' >>"$sandbox/home/.pi/agent/extensions/b-agentic-sync.ts"
 	env \
 		-u B_AGENTIC_PROMPT_API_KEYS \
-		-u B_AGENTIC_INSTALL_PI_CLI \
-		-u B_AGENTIC_INSTALL_RTK \
-		-u B_AGENTIC_INSTALL_SERENA \
-		-u B_AGENTIC_INSTALL_CODEGRAPH \
-		-u B_AGENTIC_INSTALL_PI_MCP_ADAPTER \
-		-u B_AGENTIC_INSTALL_PI_OBSERVATIONAL_MEMORY \
-		-u B_AGENTIC_INSTALL_PI_USAGE \
-		-u B_AGENTIC_INSTALL_PI_INTERCOM \
 		HOME="$sandbox/home" \
 		PATH="$(smoke_runtime_cli_path "$sandbox")" \
 		B_AGENTIC_REPO="$snapshot_repo" \
 		B_AGENTIC_DIR="$sandbox/source" \
 		bash "$ROOT_DIR/install.sh" --sync >/dev/null 2>&1
-	assert_no_path "$sandbox/smoke-bin/pi-install.log"
 	assert_equal_files "$sandbox/home/.pi/agent/mcp.json" "$sync_mcp_snapshot"
 	assert_equal_files "$sandbox/home/.pi/agent/b-agentic/install.json" "$sync_manifest_snapshot"
 	assert_equal_files "$sandbox/home/.pi/agent/b-agentic/tooling/install/manifest_uninstall.py" "$sync_helper_snapshot"
@@ -1287,13 +1282,6 @@ EOF
 		B_AGENTIC_REPO="$snapshot_repo" \
 		B_AGENTIC_DIR="$sandbox_adapter/source" \
 		B_AGENTIC_PROMPT_API_KEYS=N \
-		B_AGENTIC_INSTALL_PI_CLI=N \
-		B_AGENTIC_INSTALL_RTK=N \
-		B_AGENTIC_INSTALL_SERENA=N \
-		B_AGENTIC_INSTALL_CODEGRAPH=N \
-		B_AGENTIC_INSTALL_PI_MCP_ADAPTER=Y \
-		B_AGENTIC_INSTALL_PI_OBSERVATIONAL_MEMORY=Y \
-		B_AGENTIC_INSTALL_PI_USAGE=Y \
 		bash "$ROOT_DIR/install.sh" >/dev/null 2>&1
 	assert_file "$sandbox_adapter/home/.pi/agent/b-agentic/install.json"
 	assert_contains "$sandbox_adapter/home/.pi/agent/b-agentic/install.json" '"mcpAdapterState": "ready"'
@@ -1308,7 +1296,7 @@ EOF
 	# Preserve user-owned kernel.
 	mkdir -p "$sandbox_preserve/home/.pi/agent"
 	printf 'user-owned pi kernel\n' >"$sandbox_preserve/home/.pi/agent/AGENTS.md"
-	expect_install_status 2 "$sandbox_preserve" "$snapshot_repo"
+	expect_install_status 1 "$sandbox_preserve" "$snapshot_repo"
 	assert_file "$sandbox_preserve/home/.pi/agent/AGENTS.md"
 	assert_contains "$sandbox_preserve/home/.pi/agent/AGENTS.md" 'user-owned pi kernel'
 	assert_file "$sandbox_preserve/home/.pi/agent/b-agentic/install.json"

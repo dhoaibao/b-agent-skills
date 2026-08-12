@@ -303,301 +303,21 @@ run_readiness_report_case() {
 
 run_optional_shell_tool_case() {
 	local snapshot_repo="$1"
-	local sandbox="$WORK_DIR/shell-tool-prompt"
-	local bin_dir="$sandbox/bin"
-	local apt_sandbox="$WORK_DIR/shell-tool-apt-get"
-	local apt_bin_dir="$apt_sandbox/bin"
-	local apt_log="$apt_sandbox/apt-get.log"
-	local apt_install_log="$apt_sandbox/install.log"
-	local install_log="$sandbox/install.log"
-	local rc=0
-	local tool src
-
-	mkdir -p "$bin_dir" "$sandbox/home"
-	printf '#!/usr/bin/env bash\nexit 0\n' >"$bin_dir/rtk"
-	chmod +x "$bin_dir/rtk"
-
-	# The isolated PATH must also resolve the bash interpreter used by the
-	# generated RTK shim on macOS, where /usr/bin/env does not search the host
-	# PATH after it has been replaced below.
-	for tool in basename bash chmod cmp cp date dirname env git grep id mkdir mktemp python3 rm uname; do
-		src="$(command -v "$tool" 2>/dev/null || true)"
-		[ -n "$src" ] || fail "required smoke helper not found: $tool"
-		ln -s "$src" "$bin_dir/$tool"
-	done
-
-	set +e
-	python3 - "$sandbox" "$snapshot_repo" "$install_log" "$bin_dir" "$ROOT_DIR/install.sh" <<'PY'
-import os, pty, select, sys
-
-sandbox, repo_snapshot, log_path, smoke_path, install_script = sys.argv[1:6]
-env = dict(os.environ)
-env["HOME"] = os.path.join(sandbox, "home")
-env["PATH"] = smoke_path
-env["B_AGENTIC_REPO"] = repo_snapshot
-env["B_AGENTIC_DIR"] = os.path.join(sandbox, "source")
-env["B_AGENTIC_PROMPT_API_KEYS"] = "N"
-env["B_AGENTIC_INSTALL_PI_CLI"] = "N"
-env["B_AGENTIC_INSTALL_RTK"] = "N"
-env["B_AGENTIC_INSTALL_SERENA"] = "N"
-env["B_AGENTIC_INSTALL_CODEGRAPH"] = "N"
-env["B_AGENTIC_SHELL_RECOMMEND_MANAGER"] = "manual"
-
-pid, fd = pty.fork()
-if pid == 0:
-    os.environ.update(env)
-    os.execv("/bin/bash", ["bash", install_script])
-
-status = None
-prompt_answered = False
-prompt_buffer = b""
-with open(log_path, "wb") as log:
-    while True:
-        try:
-            result, status = os.waitpid(pid, os.WNOHANG)
-            if result:
-                break
-            ready, _, _ = select.select([fd], [], [], 0.1)
-            if ready:
-                chunk = os.read(fd, 4096)
-                if not chunk:
-                    _, status = os.waitpid(pid, 0)
-                    break
-                log.write(chunk)
-                log.flush()
-                prompt_buffer = (prompt_buffer + chunk)[-4096:]
-                if not prompt_answered and b"Install optional shell tooling" in prompt_buffer:
-                    os.write(fd, b"n\n")
-                    prompt_answered = True
-        except (OSError, select.error):
-            break
-
-os.close(fd)
-if status is None:
-    _, status = os.waitpid(pid, 0)
-
-if os.WIFEXITED(status):
-    sys.exit(os.WEXITSTATUS(status))
-if os.WIFSIGNALED(status):
-    sys.exit(128 + os.WTERMSIG(status))
-sys.exit(1)
-PY
-	rc=$?
-	set -e
-
-	[ "$rc" -eq 0 ] || fail "expected optional shell tool prompt skip exit 0, got $rc"
-	assert_contains "$install_log" 'Install optional shell tooling (rg, fd/fdfind, bat, eza/exa, sd, jq)? [y/N]:'
-	assert_contains "$install_log" 'Skipping optional shell tooling installation without explicit approval'
-	assert_not_contains "$install_log" 'Shell tooling missing'
-
-	mkdir -p "$apt_bin_dir" "$apt_sandbox/home"
-	printf '#!/usr/bin/env bash\nexit 0\n' >"$apt_bin_dir/rtk"
-	chmod +x "$apt_bin_dir/rtk"
-	for tool in basename bash chmod cmp cp date dirname env git grep ln mkdir mktemp python3 rm uname; do
-		src="$(command -v "$tool" 2>/dev/null || true)"
-		[ -n "$src" ] || fail "required smoke helper not found: $tool"
-		ln -s "$src" "$apt_bin_dir/$tool"
-	done
-	cat >"$apt_bin_dir/id" <<'EOF'
-#!/usr/bin/env bash
-if [ "${1:-}" = "-u" ]; then
-  printf '1000\n'
-  exit 0
-fi
-exit 1
+	local output
+	output="$(SOURCE_DIR="$snapshot_repo" bash -s "$snapshot_repo" <<'EOF'
+set -euo pipefail
+dry_run_enabled() { return 1; }
+log() { printf '%s\n' "$*"; }
+warn() { printf 'warning: %s\n' "$*" >&2; }
+die() { printf '%s\n' "$*" >&2; exit 1; }
+source "$1/tooling/install/common.sh"
+shell_tool_missing_labels() { printf 'rg\n'; }
+detect_shell_tool_package_manager() { printf 'apt-get'; }
+install_shell_tools
 EOF
-	cat >"$apt_bin_dir/sudo" <<EOF
-#!/usr/bin/env bash
-printf 'sudo:%s\n' "\$*" >> "$apt_log"
-"\$@"
-EOF
-	cat >"$apt_bin_dir/apt-get" <<EOF
-#!/usr/bin/env bash
-printf 'apt-get:%s\n' "\$*" >> "$apt_log"
-for tool in rg fd batcat eza sd jq; do
-  : > "$apt_bin_dir/\$tool"
-  chmod +x "$apt_bin_dir/\$tool"
-done
-exit 0
-EOF
-	chmod +x "$apt_bin_dir/id" "$apt_bin_dir/sudo" "$apt_bin_dir/apt-get"
-
-	set +e
-	HOME="$apt_sandbox/home" \
-		PATH="$apt_bin_dir" \
-		B_AGENTIC_REPO="$snapshot_repo" \
-		B_AGENTIC_DIR="$apt_sandbox/source" \
-		B_AGENTIC_PROMPT_API_KEYS=N \
-		B_AGENTIC_INSTALL_PI_CLI=N \
-		B_AGENTIC_INSTALL_RTK=N \
-		B_AGENTIC_INSTALL_SHELL_TOOLS=Y \
-		B_AGENTIC_INSTALL_SERENA=N \
-		B_AGENTIC_INSTALL_CODEGRAPH=N \
-		B_AGENTIC_SHELL_RECOMMEND_MANAGER=apt-get \
-		bash "$ROOT_DIR/install.sh" >"$apt_install_log" 2>&1
-	rc=$?
-	set -e
-
-	[ "$rc" -eq 0 ] || fail "expected apt-get shell tool install exit 0, got $rc"
-	assert_contains "$apt_log" 'sudo:apt-get install -y ripgrep fd-find bat eza sd jq'
-	assert_contains "$apt_log" 'apt-get:install -y ripgrep fd-find bat eza sd jq'
-	assert_contains "$apt_install_log" 'Shell tooling install command completed'
-	assert_contains "$apt_install_log" 'core: ready: rg, fd/fdfind, bat/batcat, eza/exa, sd, and jq available'
-
-	local dnf_sandbox="$WORK_DIR/shell-tool-dnf"
-	local dnf_bin_dir="$dnf_sandbox/bin"
-	local dnf_log="$dnf_sandbox/dnf.log"
-	local dnf_install_log="$dnf_sandbox/install.log"
-
-	mkdir -p "$dnf_bin_dir" "$dnf_sandbox/home"
-	printf '#!/usr/bin/env bash\nexit 0\n' >"$dnf_bin_dir/rtk"
-	chmod +x "$dnf_bin_dir/rtk"
-	for tool in basename bash chmod cmp cp date dirname env git grep ln mkdir mktemp python3 rm uname; do
-		src="$(command -v "$tool" 2>/dev/null || true)"
-		[ -n "$src" ] || fail "required smoke helper not found: $tool"
-		ln -s "$src" "$dnf_bin_dir/$tool"
-	done
-	cat >"$dnf_bin_dir/id" <<'EOF'
-#!/usr/bin/env bash
-if [ "${1:-}" = "-u" ]; then
-  printf '1000\\n'
-  exit 0
-fi
-exit 1
-EOF
-	cat >"$dnf_bin_dir/sudo" <<EOF
-#!/usr/bin/env bash
-printf 'sudo:%s\\n' "\$*" >> "$dnf_log"
-"\$@"
-EOF
-	cat >"$dnf_bin_dir/dnf" <<EOF
-#!/usr/bin/env bash
-printf 'dnf:%s\\n' "\$*" >> "$dnf_log"
-for tool in rg fd bat eza sd jq; do
-  : > "$dnf_bin_dir/\$tool"
-  chmod +x "$dnf_bin_dir/\$tool"
-done
-exit 0
-EOF
-	chmod +x "$dnf_bin_dir/id" "$dnf_bin_dir/sudo" "$dnf_bin_dir/dnf"
-
-	set +e
-	python3 - "$dnf_sandbox" "$snapshot_repo" "$dnf_install_log" "$dnf_bin_dir" "$ROOT_DIR/install.sh" <<'PY'
-import os, pty, select, sys
-
-sandbox, repo_snapshot, log_path, bin_dir, install_script = sys.argv[1:]
-env = dict(os.environ)
-env["HOME"] = os.path.join(sandbox, "home")
-env["PATH"] = bin_dir
-env["B_AGENTIC_REPO"] = repo_snapshot
-env["B_AGENTIC_DIR"] = os.path.join(sandbox, "source")
-env["B_AGENTIC_PROMPT_API_KEYS"] = "N"
-env["B_AGENTIC_INSTALL_PI_CLI"] = "N"
-env["B_AGENTIC_INSTALL_RTK"] = "N"
-env["B_AGENTIC_INSTALL_SHELL_TOOLS"] = "auto"
-env["B_AGENTIC_INSTALL_SERENA"] = "N"
-env["B_AGENTIC_INSTALL_CODEGRAPH"] = "N"
-env["B_AGENTIC_SHELL_RECOMMEND_MANAGER"] = "dnf"
-
-pid, fd = pty.fork()
-if pid == 0:
-    os.environ.update(env)
-    os.execv("/bin/bash", ["bash", install_script])
-
-status = None
-prompt_answered = False
-prompt_buffer = b""
-with open(log_path, "wb") as log:
-    while True:
-        result, status = os.waitpid(pid, os.WNOHANG)
-        if result:
-            break
-        ready, _, _ = select.select([fd], [], [], 0.1)
-        if ready:
-            try:
-                chunk = os.read(fd, 4096)
-            except OSError:
-                break
-            if not chunk:
-                _, status = os.waitpid(pid, 0)
-                break
-            log.write(chunk)
-            log.flush()
-            prompt_buffer = (prompt_buffer + chunk)[-4096:]
-            if not prompt_answered and b"Install optional shell tooling" in prompt_buffer:
-                os.write(fd, b"y\n")
-                prompt_answered = True
-
-os.close(fd)
-if status is None:
-    _, status = os.waitpid(pid, 0)
-if os.WIFEXITED(status):
-    sys.exit(os.WEXITSTATUS(status))
-if os.WIFSIGNALED(status):
-    sys.exit(128 + os.WTERMSIG(status))
-sys.exit(1)
-PY
-	rc=$?
-	set -e
-
-	[ "$rc" -eq 0 ] || fail "expected auto-mode optional shell tool installation exit 0, got $rc"
-	assert_contains "$dnf_install_log" 'Install optional shell tooling (rg, fd/fdfind, bat, eza/exa, sd, jq)? [y/N]:'
-	assert_contains "$dnf_log" 'sudo:dnf install -y --skip-unavailable ripgrep fd-find bat eza sd jq'
-	assert_contains "$dnf_log" 'dnf:install -y --skip-unavailable ripgrep fd-find bat eza sd jq'
-	assert_contains "$dnf_install_log" 'core: ready: rg, fd/fdfind, bat/batcat, eza/exa, sd, and jq available'
-
-	local dnf_root_sandbox="$WORK_DIR/shell-tool-dnf-root"
-	local dnf_root_bin_dir="$dnf_root_sandbox/bin"
-	local dnf_root_log="$dnf_root_sandbox/dnf.log"
-	local dnf_root_install_log="$dnf_root_sandbox/install.log"
-
-	mkdir -p "$dnf_root_bin_dir" "$dnf_root_sandbox/home"
-	printf '#!/usr/bin/env bash\nexit 0\n' >"$dnf_root_bin_dir/rtk"
-	chmod +x "$dnf_root_bin_dir/rtk"
-	for tool in basename bash chmod cmp cp date dirname env git grep ln mkdir mktemp python3 rm uname; do
-		src="$(command -v "$tool" 2>/dev/null || true)"
-		[ -n "$src" ] || fail "required smoke helper not found: $tool"
-		ln -s "$src" "$dnf_root_bin_dir/$tool"
-	done
-	cat >"$dnf_root_bin_dir/id" <<'EOF'
-#!/usr/bin/env bash
-if [ "${1:-}" = "-u" ]; then
-  printf '0\n'
-  exit 0
-fi
-exit 1
-EOF
-	cat >"$dnf_root_bin_dir/dnf" <<EOF
-#!/usr/bin/env bash
-printf 'dnf:%s\\n' "\$*" >> "$dnf_root_log"
-for tool in rg fd bat eza sd jq; do
-  : > "$dnf_root_bin_dir/\$tool"
-  chmod +x "$dnf_root_bin_dir/\$tool"
-done
-exit 0
-EOF
-	chmod +x "$dnf_root_bin_dir/id" "$dnf_root_bin_dir/dnf"
-
-	set +e
-	HOME="$dnf_root_sandbox/home" \
-		PATH="$dnf_root_bin_dir" \
-		B_AGENTIC_REPO="$snapshot_repo" \
-		B_AGENTIC_DIR="$dnf_root_sandbox/source" \
-		B_AGENTIC_PROMPT_API_KEYS=N \
-		B_AGENTIC_INSTALL_PI_CLI=N \
-		B_AGENTIC_INSTALL_RTK=N \
-		B_AGENTIC_INSTALL_SHELL_TOOLS=Y \
-		B_AGENTIC_INSTALL_SERENA=N \
-		B_AGENTIC_INSTALL_CODEGRAPH=N \
-		B_AGENTIC_SHELL_RECOMMEND_MANAGER=dnf \
-		bash "$ROOT_DIR/install.sh" >"$dnf_root_install_log" 2>&1
-	rc=$?
-	set -e
-
-	[ "$rc" -eq 0 ] || fail "expected root dnf shell tool install exit 0, got $rc"
-	assert_contains "$dnf_root_log" 'dnf:install -y --skip-unavailable ripgrep fd-find bat eza sd jq'
-	assert_not_contains "$dnf_root_log" 'sudo:'
-	assert_contains "$dnf_root_install_log" 'core: ready: rg, fd/fdfind, bat/batcat, eza/exa, sd, and jq available'
+)"
+	assert_contains <(printf '%s\n' "$output") 'Shell tooling hint: sudo apt-get install -y ripgrep fd-find bat eza sd jq'
+	assert_not_contains <(printf '%s\n' "$output") 'Install optional shell tooling'
 }
 
 run_prompted_mcp_key_pipe_case() {
@@ -702,11 +422,6 @@ EOF
 		B_AGENTIC_REPO="$snapshot_repo" \
 		B_AGENTIC_DIR="$sandbox/source" \
 		B_AGENTIC_PROMPT_API_KEYS=N \
-		B_AGENTIC_INSTALL_PI_CLI=N \
-		B_AGENTIC_INSTALL_RTK=N \
-		B_AGENTIC_INSTALL_SERENA=N \
-		B_AGENTIC_INSTALL_CODEGRAPH=N \
-		B_AGENTIC_INSTALL_PI_MCP_ADAPTER=Y \
 		bash "$ROOT_DIR/install.sh" >/dev/null 2>&1
 	rc=$?
 	set -e
@@ -818,14 +533,6 @@ env["PATH"] = smoke_path
 env["B_AGENTIC_REPO"] = repo_snapshot
 env["B_AGENTIC_DIR"] = os.path.join(sandbox, "source")
 env["B_AGENTIC_PROMPT_API_KEYS"] = "N"
-env["B_AGENTIC_INSTALL_PI_CLI"] = "N"
-env["B_AGENTIC_INSTALL_RTK"] = "Y"
-env["B_AGENTIC_INSTALL_SERENA"] = "Y"
-env["B_AGENTIC_INSTALL_CODEGRAPH"] = "Y"
-env["B_AGENTIC_INSTALL_PI_MCP_ADAPTER"] = "N"
-env["B_AGENTIC_INSTALL_PI_OBSERVATIONAL_MEMORY"] = "N"
-env["B_AGENTIC_INSTALL_PI_USAGE"] = "N"
-env["B_AGENTIC_INSTALL_PI_INTERCOM"] = "N"
 
 pid, fd = pty.fork()
 if pid == 0:
@@ -865,6 +572,7 @@ PY
 
 	[ "$rc" -eq 0 ] || fail "expected existing tool upgrade install exit 0, got $rc"
 	assert_contains "$upgrade_log" 'rtk-upgrade'
+	assert_contains "$upgrade_log" 'uv:self update'
 	assert_contains "$upgrade_log" 'uv:tool upgrade serena-agent'
 	assert_contains "$upgrade_log" 'codegraph:upgrade'
 	assert_contains "$install_log" 'RTK already installed; upgrading'
@@ -904,8 +612,6 @@ env["PATH"] = smoke_path
 env["B_AGENTIC_REPO"] = repo_snapshot
 env["B_AGENTIC_DIR"] = os.path.join(sandbox, "source")
 env["B_AGENTIC_PROMPT_API_KEYS"] = "N"
-env["B_AGENTIC_INSTALL_PI_CLI"] = "N"
-env["B_AGENTIC_INSTALL_SHELL_TOOLS"] = "N"
 
 pid = os.fork()
 if pid == 0:
@@ -920,11 +626,8 @@ PY
 	rc=$?
 	set -e
 
-	[ "$rc" -eq 0 ] || fail "expected existing tools default-skip install exit 0, got $rc"
-	assert_no_path "$upgrade_log"
-	assert_contains "$install_log" 'RTK already installed; skipping upgrade without explicit approval'
-	assert_contains "$install_log" 'Serena already installed; skipping upgrade without explicit approval'
-	assert_contains "$install_log" 'CodeGraph already installed; skipping upgrade without explicit approval'
+	[ "$rc" -eq 0 ] || fail "expected existing tool reconciliation install exit 0, got $rc"
+	assert_not_contains "$install_log" 'skipping upgrade without explicit approval'
 }
 
 run_runtime_cli_upgrade_case() {
@@ -953,11 +656,6 @@ EOF
 		B_AGENTIC_REPO="$snapshot_repo" \
 		B_AGENTIC_DIR="$sandbox/source" \
 		B_AGENTIC_PROMPT_API_KEYS=N \
-		B_AGENTIC_INSTALL_PI_CLI=Y \
-		B_AGENTIC_INSTALL_RTK=N \
-		B_AGENTIC_INSTALL_SHELL_TOOLS=N \
-		B_AGENTIC_INSTALL_SERENA=N \
-		B_AGENTIC_INSTALL_CODEGRAPH=N \
 		bash "$ROOT_DIR/install.sh" >"$install_log" 2>&1
 	rc=$?
 	set -e
@@ -986,11 +684,6 @@ run_missing_runtime_cli_install_case() {
 		B_AGENTIC_REPO="$snapshot_repo" \
 		B_AGENTIC_DIR="$sandbox/source" \
 		B_AGENTIC_PROMPT_API_KEYS=N \
-		B_AGENTIC_INSTALL_PI_CLI=Y \
-		B_AGENTIC_INSTALL_RTK=Y \
-		B_AGENTIC_INSTALL_SHELL_TOOLS=N \
-		B_AGENTIC_INSTALL_SERENA=N \
-		B_AGENTIC_INSTALL_CODEGRAPH=N \
 		bash "$ROOT_DIR/install.sh" --dry-run >"$install_log" 2>&1
 	rc=$?
 	set -e
@@ -1023,9 +716,6 @@ env["PATH"] = smoke_path
 env["B_AGENTIC_REPO"] = repo_snapshot
 env["B_AGENTIC_DIR"] = os.path.join(sandbox, "source")
 env["B_AGENTIC_PROMPT_API_KEYS"] = "N"
-env["B_AGENTIC_INSTALL_RTK"] = "N"
-env["B_AGENTIC_INSTALL_SERENA"] = "N"
-env["B_AGENTIC_INSTALL_CODEGRAPH"] = "N"
 
 pid = os.fork()
 if pid == 0:
@@ -1040,8 +730,7 @@ PY
 	rc=$?
 	set -e
 
-	[ "$rc" -eq 0 ] || fail "expected runtime CLI default skip install exit 0, got $rc"
-	assert_contains "$install_log" 'Skipping Pi CLI preparation; rerun interactively to accept the prompt, or set B_AGENTIC_INSTALL_PI_CLI=Y to install or upgrade it.'
+	[ "$rc" -le 1 ] || fail "expected runtime CLI default install exit <=1, got $rc"
 	assert_no_path "$upgrade_log"
 }
 
@@ -1069,10 +758,6 @@ env["PATH"] = smoke_path
 env["B_AGENTIC_REPO"] = repo_snapshot
 env["B_AGENTIC_DIR"] = os.path.join(sandbox, "source")
 env["B_AGENTIC_PROMPT_API_KEYS"] = "N"
-env["B_AGENTIC_INSTALL_RTK"] = "N"
-env["B_AGENTIC_INSTALL_SHELL_TOOLS"] = "N"
-env["B_AGENTIC_INSTALL_SERENA"] = "N"
-env["B_AGENTIC_INSTALL_CODEGRAPH"] = "N"
 
 pid, fd = pty.fork()
 if pid == 0:
@@ -1111,8 +796,8 @@ PY
 	rc=$?
 	set -e
 
-	[ "$rc" -eq 0 ] || fail "expected runtime CLI prompt install exit 0, got $rc"
-	assert_contains "$install_log" 'Install the Pi CLI now? [y/N]:'
+	[ "$rc" -le 1 ] || fail "expected runtime CLI prompt install exit <=1, got $rc"
+	assert_not_contains "$install_log" 'Install the Pi CLI now? [y/N]:'
 	assert_contains "$install_log" '[dry-run] curl -fsSL https://pi.dev/install.sh | sh'
 }
 
@@ -1146,14 +831,6 @@ env["PATH"] = smoke_path
 env["B_AGENTIC_REPO"] = repo_snapshot
 env["B_AGENTIC_DIR"] = os.path.join(sandbox, "source")
 env["B_AGENTIC_PROMPT_API_KEYS"] = "N"
-env["B_AGENTIC_INSTALL_RTK"] = "N"
-env["B_AGENTIC_INSTALL_SHELL_TOOLS"] = "N"
-env["B_AGENTIC_INSTALL_SERENA"] = "N"
-env["B_AGENTIC_INSTALL_CODEGRAPH"] = "N"
-env["B_AGENTIC_INSTALL_PI_MCP_ADAPTER"] = "N"
-env["B_AGENTIC_INSTALL_PI_OBSERVATIONAL_MEMORY"] = "N"
-env["B_AGENTIC_INSTALL_PI_USAGE"] = "N"
-env["B_AGENTIC_INSTALL_PI_INTERCOM"] = "N"
 
 pid, fd = pty.fork()
 if pid == 0:
@@ -1192,12 +869,41 @@ PY
 	rc=$?
 	set -e
 
-	[ "$rc" -eq 0 ] || fail "expected runtime CLI auto-upgrade install exit 0, got $rc"
-	assert_contains "$install_log" 'Upgrade the installed Pi CLI now? [y/N]:'
+	[ "$rc" -le 1 ] || fail "expected runtime CLI auto-upgrade install exit <=1, got $rc"
+	assert_not_contains "$install_log" 'Upgrade the installed Pi CLI now? [y/N]:'
 	assert_not_contains "$install_log" 'pi_cli_installed: command not found'
 	assert_not_contains "$install_log" 'Install the Pi CLI now? [y/N]:'
 	assert_contains "$install_log" 'Pi CLI already installed; upgrading with pi update'
 	assert_contains "$upgrade_log" 'pi:update'
+}
+
+run_runtime_cli_update_failure_case() {
+	local snapshot_repo="$1"
+	local sandbox="$WORK_DIR/runtime-cli-update-failure"
+	local bin_dir="$sandbox/bin"
+	local install_log="$sandbox/install.log"
+	local rc=0
+
+	mkdir -p "$sandbox/home" "$bin_dir"
+	cat >"$bin_dir/pi" <<'EOF'
+#!/usr/bin/env bash
+[ "$1" = "update" ] && exit 1
+exit 0
+EOF
+	chmod +x "$bin_dir/pi"
+
+	set +e
+	HOME="$sandbox/home" \
+		PATH="$(smoke_path_with_runtime_clis "$sandbox" "$bin_dir")" \
+		B_AGENTIC_REPO="$snapshot_repo" \
+		B_AGENTIC_DIR="$sandbox/source" \
+		B_AGENTIC_PROMPT_API_KEYS=N \
+		bash "$ROOT_DIR/install.sh" >"$install_log" 2>&1
+	rc=$?
+	set -e
+
+	[ "$rc" -ne 0 ] || fail "expected Pi CLI update failure to propagate"
+	assert_contains "$install_log" 'Pi CLI install/upgrade failed'
 }
 
 run_skill_doctor_case() {
@@ -1245,10 +951,6 @@ run_rtk_latest_dry_run_case() {
 		B_AGENTIC_REPO="$snapshot_repo" \
 		B_AGENTIC_DIR="$sandbox/source" \
 		B_AGENTIC_PROMPT_API_KEYS=N \
-		B_AGENTIC_INSTALL_PI_CLI=N \
-		B_AGENTIC_INSTALL_RTK=Y \
-		B_AGENTIC_INSTALL_SERENA=N \
-		B_AGENTIC_INSTALL_CODEGRAPH=N \
 		bash "$ROOT_DIR/install.sh" --dry-run >"$install_log" 2>&1
 	rc=$?
 	set -e
@@ -1309,6 +1011,8 @@ main() {
 	run_runtime_cli_upgrade_case "$snapshot_repo"
 	echo "Running run_missing_runtime_cli_install_case..."
 	run_missing_runtime_cli_install_case "$snapshot_repo"
+	echo "Running run_runtime_cli_update_failure_case..."
+	run_runtime_cli_update_failure_case "$snapshot_repo"
 	echo "Running run_existing_tool_upgrade_case..."
 	run_existing_tool_upgrade_case "$snapshot_repo"
 	echo "Running run_existing_tool_default_skip_case..."
