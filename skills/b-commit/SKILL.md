@@ -24,6 +24,7 @@ Create approved, cohesive commits from the current working tree, or draft one me
 - The user wants PR copy for staged changes -> commit those changes first, then use **b-pr-summary**.
 - The changes cannot be grouped confidently -> use **b-plan**.
 - The user wants a review before committing -> use **b-review**.
+- In an approved two-role workflow, the reviewed snapshot changed -> return to the worker and **b-review**.
 
 ## Tool guidance
 
@@ -84,4 +85,5 @@ BLOCKED: commit staged changes before generating PR copy
 - Preserve unrelated worktree changes and the user-curated index.
 - Evidence-only messages; do not invent behavior, verification, or impact.
 - Ask before staging or committing; do not push or create a PR.
+- After a delegated approval, the same worker may commit only on explicit user request and only if the reviewed snapshot is unchanged; any content change reopens **b-review**.
 - Never use `git add -A`, `git add .`, `git commit --amend`, reset, or history-rewriting commands.

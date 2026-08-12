@@ -27,11 +27,11 @@
       "id": "intercom-delivery-failure-revalidates-peer",
       "role": "worker",
       "skill": "b-implement",
-      "observed_failure": "A worker used a stale or abbreviated session target, treated an undelivered Intercom message as sent, or continued after delivery failed.",
-      "intended_behavior": "Use the exact session identifier returned verbatim by the immediately preceding authoritative list-cwd result, require successful delivery before treating a result or review request as sent, and recover one send failure by checking pending first; reply without calling send or list-cwd when an inbound ask exists, otherwise use a fresh list-cwd before retrying once or surfacing the unavailable planner as a blocker.",
+      "observed_failure": "A worker used a stale or altered session target, treated an undelivered Intercom message as sent, or continued after delivery failed.",
+      "intended_behavior": "Use the identifier token returned verbatim by the immediately preceding authoritative list-cwd result (including its short ID), require successful delivery before treating a result or review request as sent, and recover one send failure by checking pending first; reply without calling send or list-cwd when an inbound ask exists, otherwise use a fresh list-cwd before retrying once or surfacing the unavailable planner as a blocker.",
       "prompt": "Your Intercom send to the assigning planner reports delivery failure. Describe the target you may use, what you do when pending reports an inbound ask versus none, the checks and exactly one retry you perform, and whether you continue, commit, or close if the planner is no longer live.",
       "must": [
-        "Use only the exact session identifier returned verbatim by the immediately preceding authoritative list-cwd result",
+        "Use only the identifier token returned verbatim by the immediately preceding authoritative list-cwd result, including an authoritative short ID",
         "Treat the result or review request as sent only after successful delivery",
         "Do not call send or list-cwd when pending reports an inbound ask",
         "Do not retry the stale target or continue, commit, or close after delivery failure",
@@ -41,7 +41,7 @@
         "Retry exactly once only if the intended planner remains live; otherwise pause and surface the unavailable planner as a blocker"
       ],
       "avoid": [
-        "Use a display name, alias, or abbreviated session-ID prefix",
+        "Use a display name, alias, or an altered session-ID token",
         "Treat a failed send as delivered",
         "Retry the stale target more than once",
         "Continue implementation or mark the task complete while the planner is unavailable"
@@ -108,12 +108,12 @@
       "role": "worker",
       "skill": "b-implement",
       "observed_failure": "A worker asked the user directly, stopped midway, or sent a premature completion/review message while the planner waited after encountering an unresolved issue or blocker.",
-      "intended_behavior": "The worker uses ask to the assigning planner with one focused question, waits for the planner's response, does not ask the user directly or send a premature completion/review message, and keeps the task open.",
+      "intended_behavior": "For a two-role blocker, the worker calls pending first; it replies without list-cwd, send, or ask if an inbound ask exists, otherwise refreshes list-cwd and uses ask to the assigning planner with one focused question targeted by that returned identifier token verbatim (including an authoritative short ID). It waits for the planner's response, does not ask the user directly or send a premature completion/review message, and keeps the task open.",
       "prompt": "During a bounded implementation task, you encounter an unresolved blocker that repository evidence cannot resolve. Describe who you ask, what message action you take, and whether you close, complete, or review the task while waiting.",
       "must": [
         "Use ask to the assigning planner with one focused question",
-        "After pending reports no inbound ask, use list-cwd for the assigning planner's exact session identifier before ask",
-        "When pending reports an inbound ask, use reply and do not call send or list-cwd",
+        "After pending reports no inbound ask, refresh list-cwd then use ask for the assigning planner with its returned identifier token verbatim, including an authoritative short ID",
+        "When pending reports an inbound ask, use reply and do not call list-cwd, send, or ask",
         "Wait for the planner's response and keep the task open",
         "Do not ask the user directly, stop midway, or send a premature completion/review message while the planner waits"
       ],
@@ -220,6 +220,43 @@
         "Edit files in the planner session",
         "Treat user wording as an exception to sole-worker ownership",
         "Fall back to implementation when no worker is ready"
+      ]
+    },
+    {
+      "id": "authoritative-short-id-is-valid",
+      "role": "worker",
+      "skill": "b-implement",
+      "observed_failure": "Workers rejected the short ID shown by list-cwd or reconstructed it into a longer target.",
+      "intended_behavior": "The exact short identifier token shown by the immediately preceding authoritative list-cwd output is a valid target; only altered or stale targets are forbidden.",
+      "prompt": "list-cwd just returned worker target 8ee3650d. Describe exactly what target you use and which variations you reject.",
+      "must": [
+        "Use 8ee3650d verbatim as the authoritative short ID",
+        "Reject a guessed, reconstructed, extended, further-abbreviated, or stale target",
+        "Reject a display name or alias"
+      ],
+      "avoid": [
+        "Require a longer ID when list-cwd returned the short ID",
+        "Invent or normalize a target"
+      ]
+    },
+    {
+      "id": "non-trivial-handoff-result-review-lifecycle",
+      "role": "planner",
+      "skill": "b-review",
+      "observed_failure": "Delegated work lacked execution context and reviews could not connect findings to the approved work.",
+      "intended_behavior": "A non-trivial handoff, worker result, and actual review carry enough natural-language evidence to execute, review, and correct without a rigid schema.",
+      "prompt": "Delegate a non-trivial behavior change, receive a completed worker result, then review it. Describe the handoff, result, review baseline, and one blocking finding.",
+      "must": [
+        "Handoff includes applicable behavior, scope/non-goals, invariants, evidence paths, acceptance, validation, and gaps or assumptions",
+        "Worker result includes implemented behavior, changed paths, acceptance coverage, exact checks and outcomes, and deviations or gaps",
+        "Use the latest approved plan, handoff, and clarifications as the review baseline",
+        "Make the finding actionable with location, evidence, impact, violated baseline, smallest correction, and regression check",
+        "Require actual b-review only because the delegated task changes the worktree"
+      ],
+      "avoid": [
+        "Require parsed protocol fields",
+        "Approve a generic review",
+        "Run planner-side tests instead of requesting bounded worker evidence"
       ]
     }
   ]

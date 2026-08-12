@@ -36,7 +36,7 @@ Make the scoped change in the smallest coherent step, and hand back to planning 
 3. Use read for relevant repo context only when it materially affects the scoped change; use recall when compacted prior plan context is available.
 4. State expected files/symbols, invariant behavior, and success criteria; infer narrow criteria only when obvious.
 5. When native inspection leaves a concrete repository-wide architecture, impact, or affected-test question, initialize an absent CodeGraph index and use it for that question; do not initialize one merely because the task spans files. Use native tools or local search for routine work; use Serena separately only for a specific exact symbol, reference, diagnostic, or reference-aware refactor when that materially improves precision.
-6. If a material blocker, new uncertainty, missing external fact, or scope drift cannot be resolved from the approved plan, direct request, and repository evidence, stop before the next edit. Explain the blocker and ask one focused user question; after each answer, re-evaluate and ask another only if a blocker remains. Hand back to **b-plan** or **b-research** only when that answer identifies the handoff.
+6. If a material blocker, new uncertainty, missing external fact, or scope drift cannot be resolved from the approved plan, direct request, and repository evidence, stop before the next edit. In delegated worker work, ask the assigning planner one focused question and wait; in solo/Off work, ask the user. The planner owns external research and scope decisions. Re-evaluate each answer; hand back to **b-plan** or **b-research** only when it identifies that handoff.
 7. Edit the smallest coherent slice and match the existing local style. Use Pi native `edit`/`write` for routine changes; use Serena only for a reference-aware symbol refactor or another listed precision task, and keep its requests serialized.
 8. Run the narrowest useful verification (using Context7 for versioned third-party API checks if the implementation relies on them) that proves the requested observable outcome.
 9. If verification exposes an in-scope defect without a material blocker, correct it and rerun the required check. Otherwise stop under step 6.
@@ -44,11 +44,11 @@ Make the scoped change in the smallest coherent step, and hand back to planning 
 
 ## Planner/worker sequencing
 
-For planner-assigned work, treat the handoff as bounded. Resolve ambiguity and agree on the final approach with the planner before editing; once editing starts, do not expand scope from exploratory requests. Report new material uncertainty and pause for agreement rather than continuing.
+For planner-assigned work, treat the handoff as bounded. Resolve ambiguity and agree on the final approach with the planner before editing; once editing starts, do not expand scope from exploratory requests. The result must concisely report implemented behavior, changed paths, acceptance coverage, exact checks/outcomes, and deviations, assumptions, or gaps. Ask the planner to invoke actual **b-review** and pause all edits. Only delegated worktree-changing tasks require this review gate; its baseline is the latest approved plan, handoff, and clarifications.
 
 ## Output format
 
-Changes, verification, and any blockers or follow-up. Recommend **b-review** for non-trivial changes.
+Changes, verification, acceptance coverage, and deviations, assumptions, or gaps. For delegated worktree-changing changes, explicitly ask the planner to invoke actual **b-review** and pause.
 
 ## Rules
 

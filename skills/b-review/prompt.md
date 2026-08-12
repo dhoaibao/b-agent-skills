@@ -36,7 +36,7 @@ Flags: `--skip-tests`, `--baseline=<path|url>`, `--range=<ref>..<ref>`.
 
 1. Scope the changed-code review: working tree, range, baseline, or checkpoint using Bash with `rtk git status` and metadata-only changed-path lists.
 2. Classify protected paths before reading content, then inspect only explicitly named non-protected paths with targeted diffs. Use inspection tools only. If the user wants findings fixed, report them and hand off to **b-implement** after the review.
-3. Choose baseline. Without baseline, do a risk review and do not claim requirements coverage.
+3. Choose baseline. For delegated work, the latest approved plan, handoff, and clarifications are the baseline; otherwise, without a baseline, do a risk review and do not claim requirements coverage.
 4. Read repo context only when it materially affects the changed-code review; use recall for compacted prior review ids when present.
 5. When native inspection leaves a concrete repository-wide flow, impact, or affected-test question, initialize an absent CodeGraph index and use it for that question; do not initialize one merely because the diff spans files. Use native inspection first and Serena separately only for a specific exact reference or diagnostic when it materially improves precision. Use Brave only when public semantics materially affect a finding, and do not parallelize or batch Serena calls.
 6. Inspect highest-risk changed symbols and boundaries first.
@@ -55,7 +55,7 @@ Use architecture vocabulary only when design friction is material: interface, se
 
 ## Output format
 
-Findings, checked-and-clean areas, coverage/verification, and verdict: `READY FOR PR`, `READY WITH FOLLOW-UPS`, or `NEEDS FIXES`.
+Findings, checked-and-clean areas, coverage/verification, and verdict: `READY FOR PR`, `READY WITH FOLLOW-UPS`, or `NEEDS FIXES`. Each blocking finding must give location, evidence, impact, violated baseline, smallest correction, and regression check so the worker can act without a follow-up.
 
 ## Rules
 
@@ -64,4 +64,5 @@ Findings, checked-and-clean areas, coverage/verification, and verdict: `READY FO
 - Do not claim `READY FOR PR` without baseline and passing verification evidence.
 - Treat unrelated cleanup, speculative flexibility, and unverified success criteria as review risks.
 - Treat prompt or kernel changes without a concrete failure mode or validation story as review risks.
+- For delegated worktree-changing tasks, actual `b-review` of the diff and verification is mandatory before approval; a generic review cannot substitute.
 - Treat generated, lockfile, snapshot, vendored, and minified changes as derived unless source generation is clear.

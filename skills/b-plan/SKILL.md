@@ -50,11 +50,11 @@ Figure out what to do when the task is unclear, then turn the chosen path into t
 7. End with either a plan that is ready for **b-implement** or one focused blocking question that must be answered before implementation.
 8. For larger plans, tag steps only when useful: `AFK` for agent-ready work, `HITL` for user decision, approval, external access, or judgment.
 
-For plans spanning more than 3 files, public contracts, dependencies, CI/build, or durable coordination, save a plan under `.b-agentic/b-plan/` only if it will materially help execution.
+For plans spanning more than 3 files, public contracts, dependencies, CI/build, or durable coordination, save a plan under `.b-agentic/b-plan/` only if it will materially help execution. In planner mode, instead keep the approved plan in the handoff or conversation; do not save plan files.
 
 ## Planner/worker sequencing
 
-For a two-role task, finish discovery and settle the approach before one bounded implementation handoff. If the worker needs clarification, agree on the final approach together before edits begin. Once the worker starts editing, stop exploration and do not issue new implementation requests; wait for the result and review it.
+For a two-role task, finish discovery and settle the approach before one bounded handoff. For non-trivial work, concisely include applicable observable behavior, scope/non-goals, constraints/invariants, relevant paths/symbols/evidence, acceptance criteria, validation expectations, and assumptions, pre-existing changes, or gaps. Agree before edits if needed; once editing starts, stop exploration and new implementation requests until the result.
 
 ## Output format
 

@@ -961,7 +961,22 @@ run_skill_doctor_case() {
 	assert_contains "$doctor_log" "expected-skills: $expected_skill_count"
 	assert_contains "$doctor_log" 'kernel: ready'
 	assert_contains "$doctor_log" "skills: ready: $expected_skill_count skills installed"
+	assert_contains "$doctor_log" 'content: ready'
 	assert_contains "$doctor_log" 'discovery: ready:'
+	printf '\nstale managed skill\n' >>"$sandbox/home/.pi/agent/skills/b-plan/SKILL.md"
+	set +e
+	python3 "$ROOT_DIR/tooling/validate/skill_doctor.py" --home "$sandbox/home" >"$doctor_log"
+	rc=$?
+	set -e
+	[ "$rc" -eq 1 ] || fail "expected skill doctor to fail for stale skill content, got $rc"
+	assert_contains "$doctor_log" 'content: stale: skill b-plan'
+	printf '%s\n' '<!-- b-agentic-managed -->' >"$sandbox/home/.pi/agent/AGENTS.md"
+	set +e
+	python3 "$ROOT_DIR/tooling/validate/skill_doctor.py" --home "$sandbox/home" >"$doctor_log"
+	rc=$?
+	set -e
+	[ "$rc" -eq 1 ] || fail "expected skill doctor to fail for stale kernel content, got $rc"
+	assert_contains "$doctor_log" 'content: stale: skill b-plan,kernel'
 	rm -rf "$sandbox/home/.pi/agent/skills/b-review"
 	set +e
 	python3 "$ROOT_DIR/tooling/validate/skill_doctor.py" --home "$sandbox/home" >"$doctor_log"
@@ -969,7 +984,7 @@ run_skill_doctor_case() {
 	set -e
 	[ "$rc" -eq 1 ] || fail "expected skill doctor to fail for missing skill, got $rc"
 	assert_contains "$doctor_log" 'skills: missing or mismatched: missing b-review'
-	assert_contains "$doctor_log" 'discovery: blocked: install complete skill payload'
+	assert_contains "$doctor_log" 'discovery: blocked: install complete current skill payload'
 
 }
 

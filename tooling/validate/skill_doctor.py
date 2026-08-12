@@ -42,6 +42,20 @@ def payload_status(installed: list[str], expected: list[str]) -> str:
     return "missing or mismatched: " + "; ".join(details or ["no skills installed"])
 
 
+def stale_assets(home: Path, skills: list[str]) -> list[str]:
+    stale = []
+    for name in skills:
+        source = ROOT / "skills" / name / "SKILL.md"
+        installed = home / PI_SKILLS_ROOT / name / "SKILL.md"
+        if source.exists() and installed.exists() and source.read_bytes() != installed.read_bytes():
+            stale.append(f"skill {name}")
+    source_kernel = ROOT / "references" / "kernel.template.md"
+    installed_kernel = home / PI_KERNEL
+    if source_kernel.exists() and installed_kernel.exists() and source_kernel.read_bytes() != installed_kernel.read_bytes():
+        stale.append("kernel")
+    return stale
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Check installed b-agentic Pi skill discovery readiness.")
     parser.add_argument("--home", default=str(Path.home()), help="Home directory to inspect. Defaults to current HOME.")
@@ -54,7 +68,8 @@ def main() -> int:
     expected = registry_skill_names()
     installed = installed_skill_names(skills_root)
     skills = payload_status(installed, expected)
-    ready = kernel.exists() and skills.startswith("ready")
+    stale = stale_assets(home, expected)
+    ready = kernel.exists() and skills.startswith("ready") and not stale
 
     print("agent: Pi")
     print(f"expected-skills: {len(expected)}")
@@ -63,7 +78,8 @@ def main() -> int:
     print(f"manifest-path: {metadata_root / 'install.json'}")
     print(f"kernel: {'ready' if kernel.exists() else 'missing'}")
     print(f"skills: {skills}")
-    print(f"discovery: {'ready: native skills path populated' if ready else 'blocked: install complete skill payload'}")
+    print(f"content: {'ready' if not stale else 'stale: ' + ','.join(stale)}")
+    print(f"discovery: {'ready: native skills path populated and current' if ready else 'blocked: install complete current skill payload'}")
     return 0 if ready else 1
 
 

@@ -27,6 +27,7 @@ Fetch outside truth at the lightest reliable depth, with sourced evidence and a 
 - Runtime tracing is needed -> use **b-debug**.
 - Planning/sequencing is needed -> use **b-plan**.
 - Changed-code review is needed -> use **b-review**.
+- In a two-role workflow, the planner owns external research; workers ask the assigning planner rather than researching independently.
 
 ## Tool guidance
 
