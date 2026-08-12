@@ -183,7 +183,7 @@ branchEntries.push({
 });
 activeTools = ['read', 'bash'];
 await handlers.session_start({}, roleContext);
-expect(roleStatuses.at(-1)?.value === '<warning>b-agentic: planner (read-only)</warning>', 'planner status must use the warning color');
+expect(roleStatuses.at(-1)?.value === '<success>b-agentic: planner (read-only)</success>', 'planner status must use the success color');
 expect(roleChannelRegistration?.namespace === 'b-agentic/roles/v1', 'roles must register an Intercom coordination channel');
 const publishedRoles = [];
 roleChannelRegistration.onReady({
@@ -383,7 +383,7 @@ activePeerWorker = false;
 await roleChannelRegistration.onEvent({ type: 'session_left', sessionId: 'active-worker' });
 roleNotifications.length = 0;
 await commands['b-role'].handler('worker', roleContext);
-expect(roleStatuses.at(-1)?.value === '<success>b-agentic: worker</success>', 'worker status must use the success color');
+expect(roleStatuses.at(-1)?.value === '<warning>b-agentic: worker</warning>', 'worker status must use the warning color');
 expect(roleNotifications.at(-1)?.level === 'info', 'a self worker announcement must not trigger a duplicate-worker warning');
 expect(activeTools.includes('edit') && activeTools.includes('write') && activeTools.includes('bash') && activeTools.includes('b_agentic_confirm_commit'), 'worker role must restore normal tools');
 await handlers.model_select({ model: { provider: 'anthropic', id: 'claude-sonnet-4-5' } }, roleContext);
@@ -417,7 +417,7 @@ expect(autoTest.AUTO_MODE_ENTRY_TYPE === 'b-agentic-auto-mode', 'auto-mode state
 expect(autoTest.parseAutoMode(true) === true && autoTest.parseAutoMode('off') === false && autoTest.parseAutoMode('invalid') === undefined, 'auto-mode values must parse safely');
 expect(autoTest.latestAutoModeState([{ type: 'custom', customType: 'b-agentic-auto-mode', data: { enabled: true } }]) === true, 'auto-mode state must restore from the session branch');
 await commands['b-auto-mode'].handler('on', roleContext);
-expect(roleStatuses.at(-1)?.key === 'b-auto-mode' && roleStatuses.at(-1)?.value === '<error>b-auto-mode</error>', 'enabled auto-mode must display red b-auto-mode status');
+expect(roleStatuses.at(-1)?.key === 'b-auto-mode' && roleStatuses.at(-1)?.value === '<error>auto-mode</error>', 'enabled auto-mode must display red auto-mode status');
 await commands['b-auto-mode'].handler('off', roleContext);
 const isolatedAutoModeRoot = mkdtempSync(path.join(os.tmpdir(), 'b-agentic-isolated-auto-mode-'));
 try {

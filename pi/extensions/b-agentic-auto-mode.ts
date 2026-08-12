@@ -11,7 +11,7 @@ import {
 import { isAutoModeEnabled, setAutoModeEnabled } from "./b-agentic-support/state.ts";
 
 function updateStatus(ctx: ExtensionContext): void {
-  ctx.ui.setStatus("b-auto-mode", isAutoModeEnabled() ? ctx.ui.theme.fg("error", "b-auto-mode") : undefined);
+  ctx.ui.setStatus("b-auto-mode", isAutoModeEnabled() ? ctx.ui.theme.fg("error", "auto-mode") : undefined);
 }
 
 export default function bAgenticAutoMode(pi: ExtensionAPI): void {
