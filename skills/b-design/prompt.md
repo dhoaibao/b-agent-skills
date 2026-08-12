@@ -19,15 +19,16 @@ Create or refresh `docs/DESIGN.md`, the repo-local frontend design standard. Do 
 
 - `bash` - `rtk git status --short`, diffs, and modern discovery (`rg`, `fdfind`, `eza`).
 - `read`/`edit`/`write` - inspect sources and update only `docs/DESIGN.md` unless broader docs were approved.
-- `serena` - inspect exact symbols or references only when they materially improve
-  precision about code ownership or component patterns; use native
-  `read`/`edit`/`write` for routine file work and serialize requests.
+- `serena` - after native search/read, inspect a specific exact symbol or
+  reference only when it materially improves precision about code ownership or
+  component patterns; use native `read`/`edit`/`write` for routine file work and
+  serialize requests.
 
 ## Steps
 
 1. Confirm the source mode: user description, attached image/mockup, existing `docs/DESIGN.md`, design-token source, current frontend code, or a mix.
 2. Run `rtk git status --short` via Bash for repo work and preserve unrelated changes.
-3. Inspect the lightest useful evidence: existing design docs, frontend components, tokens, CSS, layout files, screenshots, and repo conventions. Use native `read` first; use Serena only when exact symbols or references materially improve the code-structure evidence, and do not parallelize or batch Serena calls. Do not invent a design system when evidence is thin.
+3. Inspect the lightest useful evidence: existing design docs, frontend components, tokens, CSS, layout files, screenshots, and repo conventions. Use native `read` first; use Serena only after native search/read when a specific exact symbol or reference materially improves the code-structure evidence, and do not parallelize or batch Serena calls. Do not invent a design system when evidence is thin.
 4. If analyzing images, separate observed facts from inferred rules. Treat exact dimensions, counts, colors, and spatial alignment as approximate unless supported by source files or browser evidence.
 5. Create or update only `docs/DESIGN.md` with edit/write unless the user explicitly approved a broader documentation change. Preserve useful existing content, remove generic filler, and mark unresolved product choices as open questions.
 6. Keep the document implementation-facing and concise. Prefer rules an agent can apply while coding over design theory.

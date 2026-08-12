@@ -109,17 +109,19 @@ that listens for `tool_call` events and:
   unsafe or unmanaged calls prompt there. Metadata and lifecycle selectors remain
   behind the generic approval gate. Other direct adapter names remain gated
   because they share Pi's custom-tool namespace
-- prefers native `read`/`edit`/`write` for routine repository work and uses Serena
-  only when it materially improves safety or precision: exact symbol declarations,
-  references, implementations, diagnostics, reference-aware refactors, relevant
-  onboarding, or durable project memories; routine Serena reads, searches, and edits
-  are prohibited, and Serena requests are serialized rather than parallelized or
+- prefers native `read`/`edit`/`write` for routine repository work; after native
+  search/read, uses Serena only for a concrete exact-symbol, reference,
+  implementation, diagnostic, or reference-aware refactor need where it materially
+  improves safety or precision; relevant onboarding and durable project memories
+  remain explicit exceptions; routine Serena reads, searches, and edits are
+  prohibited, and Serena requests are serialized rather than parallelized or
   batched because concurrency can hang or time out; sensitive and outside-project
-  Serena paths remain gated; uses CodeGraph only for repository-wide architecture,
-  dependency/call flows, impact, and affected tests; avoids querying both tools for
-  the same question; read-only `tools.search`/`tools.describe` metadata discovery is
-  trusted in the bounded auto-run `mcpScript`, while each nested `tools.call` retains
-  normal policy;
+  Serena paths remain gated; uses CodeGraph only when native inspection leaves a
+  concrete repository-wide architecture, dependency/call-flow, impact, or
+  affected-test question; does not initialize it merely because work spans files;
+  avoids querying both tools for the same question; read-only
+  `tools.search`/`tools.describe` metadata discovery is trusted in the bounded
+  auto-run `mcpScript`, while each nested `tools.call` retains normal policy;
   asks for Firecrawl external-mutation or
   local-upload tools (agent/crawl/interact/monitor/feedback/parse), Playwright
   page-mutating tools (click/type/upload/evaluate/…), screenshots (the server

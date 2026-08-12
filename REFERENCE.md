@@ -116,8 +116,7 @@ the installer installs CodeGraph with:
 curl -fsSL https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh | sh
 ```
 
-Existing CodeGraph installations are refreshed with `codegraph upgrade`. Run `codegraph init` in each repository where
-you want a local pre-indexed code graph.
+Existing CodeGraph installations are refreshed with `codegraph upgrade`. Run `codegraph init` only when a concrete repository-wide architecture or impact question requires it and the local index is absent; do not initialize merely because a task spans files.
 
 ## Managed MCPs
 
@@ -131,19 +130,19 @@ never tracked templates.
 | MCP | Use | Local readiness |
 |---|---|---|
 | Serena | Symbols, references, diagnostics, and semantic edits | `serena` CLI; onboarding only when useful |
-| CodeGraph | Architecture, dependency/call flows, impact, and affected tests | `codegraph` CLI; initialize on first relevant task |
+| CodeGraph | Architecture, dependency/call flows, impact, and affected tests | `codegraph` CLI; initialize only for a concrete repository-wide architecture or impact question |
 | Context7 | Versioned framework and API facts | `CONTEXT7_API_KEY` |
 | Firecrawl | Primary public research, bounded extraction, papers, and GitHub lookup | Bun (`bunx`) and `FIRECRAWL_API_KEY` |
 | Brave Search | Independent corroboration and specialized current search | Bun (`bunx`) and `BRAVE_API_KEY` |
 | Playwright | Live browser, visual, console/network, and e2e evidence | Bun (`bunx`) |
 
 The installer does not eagerly start MCP servers or initialize repositories;
-Bun and bundled Bun MCP packages are installed or refreshed automatically. b-agentic initializes CodeGraph only for the first
-repository-wide architecture or impact task when its local index is absent;
-Serena onboarding runs only when repository onboarding is useful. Missing CLIs
-are not installed automatically. Use `scripts/mcp-doctor.sh --session-tools`
-to verify the active session has RTK. Use `--allow-degraded` to inspect status
-without failing.
+Bun and bundled Bun MCP packages are installed or refreshed automatically. b-agentic initializes CodeGraph only when native inspection leaves a concrete
+repository-wide architecture or impact question and its local index is absent;
+it does not initialize merely because work spans files. Serena onboarding runs
+only when repository onboarding is useful. Missing CLIs are not installed
+automatically. Use `scripts/mcp-doctor.sh --session-tools` to verify the active
+session has RTK. Use `--allow-degraded` to inspect status without failing.
 
 When live network/process activity is approved,
 `scripts/mcp-doctor.sh --probe-schemas` explicitly starts or connects to each
@@ -285,13 +284,15 @@ This is a command-policy guard, not a process sandbox: approved build and test
 tools may execute repository-controlled code. Use Pi sandboxing or an isolated
 environment for genuinely untrusted code. b-agentic never pushes changes.
 
-Native `read`/`edit`/`write` is preferred for routine repository work. Serena is
-reserved for exact symbols, references, implementations, diagnostics,
-reference-aware refactors, relevant onboarding, and durable project memories;
-serialize Serena requests because concurrent calls can hang or time out.
+Native `read`/`edit`/`write` is preferred for routine repository work. Serena
+starts after native search/read and is reserved for concrete exact-symbol,
+reference, implementation, diagnostic, or reference-aware refactor needs;
+relevant onboarding and durable project memories remain explicit exceptions.
+Serialize Serena requests because concurrent calls can hang or time out.
 CodeGraph owns repository-wide architecture, dependency/call flows, impact,
-route-to-handler discovery, and affected-test discovery. Do not query both for
-the same question.
+route-to-handler discovery, and affected-test discovery only for concrete
+questions native inspection cannot settle. Do not initialize it merely because
+work spans files, and do not query both tools for the same question.
 
 ## Validation
 

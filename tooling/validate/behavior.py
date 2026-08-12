@@ -40,7 +40,7 @@ KERNEL_CONSOLIDATION_REGRESSION = {
         "define success, make the smallest coherent change, and verify its observable outcome",
         "Auto-run repository-local commands and edits, including build, test, package, and scripts",
         "likely-secret files (`.env`, `*.pem`, `credentials.*`, `secrets.*`)",
-        "First repo-wide architecture or impact task: exact `codegraph init` only when its index is absent",
+        "Use CodeGraph only when native inspection leaves a concrete repository-wide architecture or impact question",
         "Do not install missing tools; fall back to local evidence and state the resulting gap.",
     ),
 }

@@ -222,22 +222,26 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
 ### Tool ownership prevents duplicate architecture queries
 
 - Pi native `read`/`edit`/`write` is preferred for routine repository work. Serena
-  is reserved for tasks where it materially improves safety or precision: exact
-  symbol declarations, references, implementations, diagnostics, reference-aware
-  refactors, relevant onboarding, or durable project memories. Routine Serena
-  reads, searches, and edits are prohibited; serialize Serena requests rather than
+  starts after native search/read and is reserved for a concrete exact-symbol,
+  reference, implementation, diagnostic, or reference-aware refactor question
+  where it materially improves safety or precision; relevant onboarding and
+  durable project memories remain explicit exceptions. Routine Serena reads,
+  searches, and edits are prohibited; serialize Serena requests rather than
   parallelizing or batching them because concurrency can hang or time out.
 - CodeGraph owns repository-wide architecture, dependency/call flows, impact,
-  route-to-handler discovery, and affected-test discovery; initialize its local
-  index only for the first relevant architecture/impact task when absent.
+  route-to-handler discovery, and affected-test discovery only when native
+  inspection cannot settle a concrete question; do not initialize its local
+  index merely because work spans files, and initialize it only for that
+  question when absent.
 - Context7 is first for versioned framework/API facts. Firecrawl provides
   bounded primary public research (including `research_*` and developer
   search), and Brave provides independent corroboration or specialized search
   modalities. Private repository material is never sent to public search.
-- Distinct independent CodeGraph reads may be fanned out in one bounded
-  read-only `mcpScript`; Serena requests remain serialized and are not included in
-  parallel or batched calls. Metadata discovery is trusted there, while every
-  nested tool call retains normal policy. Evidence: `REFERENCE.md`,
+- Distinct independent CodeGraph reads for an already-established concrete
+  architecture or impact question may be fanned out in one bounded read-only
+  `mcpScript`; Serena requests remain serialized and are not included in parallel
+  or batched calls. Metadata discovery is trusted there, while every nested tool
+  call retains normal policy. Evidence: `REFERENCE.md`,
   `references/kernel.template.md`, `skills/b-research/prompt.md`,
   `skills/b-plan/prompt.md`, `skills/b-test/prompt.md`.
 

@@ -32,22 +32,22 @@ Own code-level and simulated-DOM tests: add coverage, fix test-only failures, an
 ## Tool guidance
 
 - `bash` - run tests via `rtk` when supported (`rtk pytest`, `rtk vitest`, `rtk jest`, …) and inspect failure output.
-- `serena` - use only when exact test/source symbols, references, or diagnostics
-  materially improve safety or precision; use native `read`/`edit`/`write` for
-  routine inspection and edits, and serialize requests rather than parallelizing
-  or batching them.
+- `serena` - after native search/read, use only when a specific test/source
+  symbol, reference, or diagnostic materially improves safety or precision; use
+  native `read`/`edit`/`write` for routine inspection and edits, and serialize
+  requests rather than parallelizing or batching them.
 - `read`/`edit` - use Pi native tools for routine and unsupported file work.
-- `codegraph` - only for repository-wide source-to-test impact and affected-test discovery; initialize an absent local index on first such use.
+- `codegraph` - only for a concrete repository-wide source-to-test impact or affected-test question that native discovery cannot settle; do not initialize an absent local index merely because the change spans files.
 - `context7` - versioned test-framework/API semantics only when local tests and contracts do not settle them.
 
 ## Steps
 
-1. Find the test framework and narrowest runnable command from manifests, CI, or existing tests (using Bash). Use CodeGraph only when repository-wide source-to-test impact is needed, initializing an absent index then; use native inspection first and Serena separately only for exact test/source symbols when they materially improve precision.
+1. Find the test framework and narrowest runnable command from manifests, CI, or existing tests (using Bash). Use native inspection and test discovery first. Use CodeGraph only when a concrete repository-wide source-to-test impact question remains; initialize an absent index only for that question, never merely because the change spans files. Use Serena separately only for a specific exact test/source symbol when it materially improves precision.
 2. Confirm intended behavior from user intent, product contract, source change, existing passing tests, and materially relevant repo context. Use Context7 only for unresolved versioned framework semantics.
 3. For failing tests, run the narrow target, read the test and exercised source, edit tests only after classifying the failure.
 4. For new tests, cover requested or changed behavior through the highest practical public interface first; add edge cases only when risk requires them.
 5. For explicitly requested TDD, use vertical tracer bullets: add one failing behavior test, make the smallest production change needed to pass it, verify, then continue to the next behavior. Outside explicit TDD, route production changes to **b-implement**.
-6. Select affected tests before broad suites: when a current CodeGraph index is available, ask it for changed-symbol/file impact and affected tests; otherwise use local search, test discovery, and repository scripts. Run the narrow affected set first, then expand only when the change or risk requires it.
+6. Select affected tests before broad suites: use local search, test discovery, and repository scripts by default. When a current CodeGraph index is already available and a concrete repository-wide impact question remains, ask it for changed-symbol/file impact and affected tests; do not initialize one solely for this selection. Run the narrow affected set first, then expand only when the change or risk requires it.
 7. Report the selected tests, whether CodeGraph or fallback discovery supplied them, and any remaining coverage gap. A partial or affected-only run must never be described as full-suite coverage.
 8. Run diagnostics when useful, then the narrowest relevant test, and verify the test proves the intended behavior.
 

@@ -65,7 +65,7 @@ The installer writes all six recommended entries to Pi's MCP configuration with 
 | MCP | Role | Required | Default/configured state |
 |---|---|---|---|
 | Serena | Symbols, references, diagnostics, and precise semantic edits | Optional per task; CLI optional | Configured lazily; no key |
-| CodeGraph | Repository architecture, flows, impact, and affected tests | Optional per task; CLI optional | Configured lazily; initialized only for the first relevant task |
+| CodeGraph | Repository architecture, flows, impact, and affected tests | Optional per task; CLI optional | Configured lazily; initialized only for a concrete architecture or impact question |
 | Context7 | Versioned library and framework documentation | Optional per task; API key required when used | Configured lazily; `CONTEXT7_API_KEY` is user-supplied |
 | Firecrawl | Bounded public research, extraction, papers, and GitHub lookup | Optional per task; Bun and API key required when used | Configured lazily; `FIRECRAWL_API_KEY` is user-supplied |
 | Brave Search | Independent current discovery and alternate search modalities | Optional per task; Bun and API key required when used | Configured lazily; `BRAVE_API_KEY` is user-supplied |

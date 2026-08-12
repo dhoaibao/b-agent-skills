@@ -1056,7 +1056,7 @@ serena_readiness_status() {
 
 codegraph_readiness_status() {
   if command -v codegraph >/dev/null 2>&1; then
-    printf 'ready: codegraph command found; b-agentic initializes it on first relevant use'
+    printf 'ready: codegraph command found; b-agentic initializes it only for a concrete repository-wide architecture or impact question'
   else
     printf 'blocked: install codegraph manually or rerun interactively and accept the prompt; b-agentic cannot initialize without the CLI'
   fi
@@ -1162,7 +1162,7 @@ print_install_report_next_steps() {
   report_item "manifest" "review $MANIFEST_DST for installed paths and backup metadata"
   report_item "keys" "add user-scope API keys only if you plan to use Context7, Brave Search, or Firecrawl"
   report_item "serena" "Serena tools are auto-approved; onboarding runs only when repository onboarding is useful"
-  report_item "codegraph" "rerun interactively to accept the CodeGraph prompt, or install manually; b-agentic initializes its index on first relevant code task"
+  report_item "codegraph" "rerun interactively to accept the CodeGraph prompt, or install manually; b-agentic initializes its index only for a concrete repository-wide architecture or impact question"
   report_item "rtk" "required; install manually or rerun the installer to install it"
 }
 
