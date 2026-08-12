@@ -8,7 +8,7 @@ run_pi_permission_behavioral_fixture() {
 	local sandbox="$1"
 	# Behavioral permission coverage via node --experimental-strip-types (no Pi runtime).
 	ROOT_DIR="$ROOT_DIR" PI_TEST_HOME="$sandbox/home" PI_CODING_AGENT_DIR="$sandbox/home/.pi/agent" node --experimental-strip-types --input-type=module - <<'NODE'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -378,6 +378,31 @@ expect(autoTest.parseAutoMode(true) === true && autoTest.parseAutoMode('off') ==
 expect(autoTest.latestAutoModeState([{ type: 'custom', customType: 'b-agentic-auto-mode', data: { enabled: true } }]) === true, 'auto-mode state must restore from the session branch');
 await commands['b-auto-mode'].handler('on', roleContext);
 expect(roleStatuses.at(-1)?.key === 'b-auto-mode' && roleStatuses.at(-1)?.value === '<error>b-auto-mode</error>', 'enabled auto-mode must display red b-auto-mode status');
+await commands['b-auto-mode'].handler('off', roleContext);
+const isolatedAutoModeRoot = mkdtempSync(path.join(os.tmpdir(), 'b-agentic-isolated-auto-mode-'));
+try {
+  mkdirSync(path.join(isolatedAutoModeRoot, 'b-agentic-support'));
+  cpSync(path.join(installedRoot, 'b-agentic-auto-mode.ts'), path.join(isolatedAutoModeRoot, 'b-agentic-auto-mode.ts'));
+  for (const name of ['auto.ts', 'state.ts']) {
+    cpSync(path.join(installedRoot, 'b-agentic-support', name), path.join(isolatedAutoModeRoot, 'b-agentic-support', name));
+  }
+  const isolatedCommands = {};
+  const isolatedAutoMode = (await import(pathToFileURL(path.join(isolatedAutoModeRoot, 'b-agentic-auto-mode.ts')).href)).default;
+  isolatedAutoMode({
+    on() {},
+    registerFlag() {},
+    getFlag() {},
+    registerCommand(name, definition) { isolatedCommands[name] = definition; },
+    appendEntry: extensionHost.appendEntry,
+  });
+  expect((await toolCallHandler({ toolName: 'mcp', input: { server: 'firecrawl' } }, noUiContext))?.block === true, 'generic MCP selectors must require approval while auto-mode is off');
+  await isolatedCommands['b-auto-mode'].handler('on', roleContext);
+  expect(await toolCallHandler({ toolName: 'mcp', input: { server: 'firecrawl' } }, noUiContext) === undefined, 'auto-mode must share enabled state with the MCP permission extension across isolated module instances for generic MCP selectors');
+  await isolatedCommands['b-auto-mode'].handler('off', roleContext);
+} finally {
+  rmSync(isolatedAutoModeRoot, { recursive: true, force: true });
+}
+await commands['b-auto-mode'].handler('on', roleContext);
 const refreshConfirmationsBeforeAutoSync = refreshConfirmations;
 const refreshExecutionsBeforeAutoSync = executedCommands.length;
 await commands['b-sync'].handler('', refreshContext);
