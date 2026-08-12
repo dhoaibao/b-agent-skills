@@ -92,6 +92,7 @@ const extensionHost = {
   },
 };
 for (const extension of extensionModules) extension.default(extensionHost);
+const [autoSessionStartHandler, roleSessionStartHandler] = registrations.session_start;
 const toolCallHandler = handlers.tool_call;
 
 function expect(cond, msg) {
@@ -122,7 +123,8 @@ expect(t.isAutoApprovedIntercomCall('intercom', { action: 'reply', replyTo: 'mes
 expect(typeof toolCallHandler === 'function', 'permission extension must register a tool_call handler');
 expect(typeof mcpApprovalHandler === 'function', 'permission extension must register the MCP approval broker');
 expect(tools.b_agentic_confirm_commit, 'permission extension must register the commit confirmation tool');
-expect(!activeTools.includes('b_agentic_confirm_commit'), 'commit confirmation activation must wait until session startup');
+expect(tools.b_agentic_confirm_commit.promptSnippet?.includes('selection UI for exact proposed commits'), 'commit confirmation must provide a concise prompt snippet');
+expect(!activeTools.includes('b_agentic_confirm_commit'), 'commit confirmation activation must wait until role application');
 let commitConfirmation;
 const approvedCommit = await tools.b_agentic_confirm_commit.execute('', { proposal: '1. fix: preserve test\n   Files: tests/smoke/install.sh' }, undefined, () => {}, {
   hasUI: true,
@@ -175,8 +177,9 @@ const roleContext = {
     getBranch: () => [...branchEntries],
   },
 };
-await registrations.session_start[0]({}, roleContext);
-expect(activeTools.includes('b_agentic_confirm_commit'), 'registered commit confirmation tool must activate after session startup');
+expect(typeof roleSessionStartHandler === 'function', 'role extension must register session startup handling');
+await roleSessionStartHandler({}, roleContext);
+expect(activeTools.includes('b_agentic_confirm_commit'), 'Off role application must activate commit confirmation');
 branchEntries.push({
   type: 'custom', customType: 'b-agentic-role',
   data: { role: 'planner', toolsBeforePlanner: ['read', 'bash', 'edit', 'write', 'b_agentic_confirm_commit'] },
@@ -220,8 +223,21 @@ await commands['b-role'].handler('off', roleContext);
 expect(activeTools.includes('b_agentic_confirm_commit'), 'leaving planner mode must restore the active commit confirmation tool');
 branchEntries.length = 0;
 activeTools = ['read', 'bash', 'edit', 'write', 'recall', 'intercom', 'mcp', 'mcpScript', 'b_agentic_confirm_commit'];
-await registrations.session_start.at(-1)({}, roleContext);
+await roleSessionStartHandler({}, roleContext);
 expect(activeTools.includes('edit') && activeTools.includes('write') && activeTools.includes('b_agentic_confirm_commit'), 'a session without an explicit role must remain Off with normal tools');
+branchEntries.length = 0;
+branchEntries.push({
+  type: 'custom', customType: 'b-agentic-role',
+  data: { role: 'planner', toolsBeforePlanner: ['read', 'bash', 'edit', 'write', 'b_agentic_confirm_commit'] },
+});
+activeTools = ['read', 'bash', 'edit', 'write', 'b_agentic_confirm_commit'];
+await roleSessionStartHandler({}, roleContext);
+branchEntries.length = 0;
+branchEntries.push({ type: 'custom', customType: 'b-agentic-role', data: { role: 'worker' } });
+activeTools = ['read', 'bash', 'edit', 'write'];
+await roleSessionStartHandler({}, roleContext);
+expect(roleStatuses.at(-1)?.value === '<warning>b-agentic: worker</warning>' && activeTools.includes('b_agentic_confirm_commit'), 'persisted worker restoration must add commit confirmation after stale planner state');
+activeTools = ['read', 'bash', 'edit', 'write', 'recall', 'intercom', 'mcp', 'mcpScript', 'b_agentic_confirm_commit'];
 expect(commands['b-role'], 'permission extension must register /b-role');
 expect(commands['b-sync'] && commands['b-update'], 'refresh extension must register /b-sync and /b-update');
 let refreshConfirmations = 0;
@@ -280,7 +296,7 @@ branchEntries.push({
   data: { role: 'planner', automatic: true, toolsBeforePlanner: ['read', 'bash', 'edit', 'write', 'b_agentic_confirm_commit'] },
 });
 activeTools = ['read', 'bash', 'edit', 'write', 'recall', 'intercom', 'mcp', 'mcpScript', 'b_agentic_confirm_commit'];
-await registrations.session_start.at(-1)({}, roleContext);
+await roleSessionStartHandler({}, roleContext);
 expect(activeTools.includes('edit') && activeTools.includes('write') && activeTools.includes('b_agentic_confirm_commit'), 'legacy automatic planner state must migrate to Off');
 const migratedLegacyStart = await handlers.before_agent_start({ systemPrompt: 'base' }, roleContext);
 expect(!migratedLegacyStart?.systemPrompt?.includes('planner profile (read-only coordinator)'), 'legacy automatic planner state must not activate planner prompt');
@@ -292,7 +308,7 @@ branchEntries.push({
 activeTools = ['read', 'bash', 'edit', 'write', 'recall', 'intercom', 'mcp', 'mcpScript', 'b_agentic_confirm_commit'];
 activeModel = { provider: 'other', id: 'other-model' };
 activeThinkingLevel = 'off';
-await registrations.session_start.at(-1)({}, roleContext);
+await roleSessionStartHandler({}, roleContext);
 expect(!activeTools.includes('write') && !activeTools.includes('edit') && !activeTools.includes('b_agentic_confirm_commit'), 'an explicitly persisted planner must restore planner-safe tools');
 expect(activeModel.provider === 'anthropic' && activeModel.id === 'claude-sonnet-4-5' && activeThinkingLevel === 'low', 'a persisted planner role must restore its saved model and thinking preference');
 const noUiPlannerContext = { ...roleContext, hasUI: false };
@@ -524,7 +540,8 @@ try {
     },
   };
   const entriesBeforeStartupFlagOn = branchEntries.length;
-  await registrations.session_start[1]({}, startupFlagContext);
+  expect(typeof autoSessionStartHandler === 'function', 'auto-mode extension must register session startup handling');
+  await autoSessionStartHandler({}, startupFlagContext);
   expect(autoStateTest.isAutoModeEnabled() === true && autoTest.loadAutoModePreference() === false && startupFlagConfirmations === 1, 'explicit auto-mode on flag must confirm without changing durable state');
   expect(branchEntries.length === entriesBeforeStartupFlagOn, 'explicit auto-mode on flag must not append a session entry');
   autoTest.saveAutoModePreference(true);
@@ -533,7 +550,7 @@ try {
   branchEntries.push({ type: 'custom', customType: 'b-agentic-auto-mode', data: { enabled: false } });
   flags['b-auto-mode'] = false;
   const entriesBeforeStartupFlagOff = branchEntries.length;
-  await registrations.session_start[1]({}, startupFlagContext);
+  await autoSessionStartHandler({}, startupFlagContext);
   expect(autoStateTest.isAutoModeEnabled() === false && autoTest.loadAutoModePreference() === true, 'explicit auto-mode off flag must not change durable state');
   expect(branchEntries.length === entriesBeforeStartupFlagOff, 'explicit auto-mode off flag must not append a session entry');
   delete flags['b-auto-mode'];
@@ -573,7 +590,7 @@ const autoModeStartupContext = {
     confirm: async () => { autoModeStartupConfirmations += 1; return true; },
   },
 };
-await registrations.session_start[1]({}, autoModeStartupContext);
+await autoSessionStartHandler({}, autoModeStartupContext);
 expect(autoModeStartupConfirmations === 0, 'persisted auto-mode must restore without reopening an approval prompt');
 expect(await toolCallHandler({ toolName: 'bash', input: { command: 'rm -rf /tmp/auto-mode-restored' } }, noUiContext) === undefined, 'restored auto-mode must auto-allow shell ask decisions');
 await commands['b-auto-mode'].handler('off', roleContext);

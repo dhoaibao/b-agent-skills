@@ -91,6 +91,11 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
       const tools = getToolsBeforePlanner() ?? pi.getActiveTools();
       setToolsBeforePlanner(tools);
       pi.setActiveTools(tools.filter((name) => PLANNER_ALLOWED_TOOLS.has(name)));
+    } else {
+      const tools = pi.getActiveTools();
+      if (!tools.includes("b_agentic_confirm_commit")) {
+        pi.setActiveTools([...tools, "b_agentic_confirm_commit"]);
+      }
     }
     setRole(next);
     publishRole();

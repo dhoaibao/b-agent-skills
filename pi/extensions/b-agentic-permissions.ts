@@ -60,6 +60,7 @@ export default function bAgenticPermissions(pi: ExtensionAPI): void {
     name: "b_agentic_confirm_commit",
     label: "Confirm commits",
     description: "Open a selection UI for the exact proposed commits. Call only after presenting the proposal to the user.",
+    promptSnippet: "Open a selection UI for exact proposed commits after presenting the proposal to the user.",
     parameters: COMMIT_CONFIRMATION_PARAMETERS as any,
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
       if (!ctx.hasUI) {
@@ -80,16 +81,6 @@ export default function bAgenticPermissions(pi: ExtensionAPI): void {
     },
   });
 
-  // Action methods such as getActiveTools/setActiveTools are unavailable while
-  // Pi is loading extensions. Defer activation until the first session starts.
-  // The role extension subsequently filters this tool out for planners.
-  pi.on("session_start", () => {
-    if (getRole() === "planner") return;
-    const activeTools = pi.getActiveTools();
-    if (!activeTools.includes("b_agentic_confirm_commit")) {
-      pi.setActiveTools([...activeTools, "b_agentic_confirm_commit"]);
-    }
-  });
 
   pi.on("tool_call", async (event, ctx) => {
     if (event.toolName === "bash") {

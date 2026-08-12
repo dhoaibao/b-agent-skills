@@ -215,8 +215,16 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   genuinely untrusted code. Evidence: `REFERENCE.md`,
   `references/kernel.template.md`.
 - Commit creation is a separate exact-proposal selection UI and is blocked
-  without interactive UI. Pushes are not performed by b-agentic. Evidence:
-  `pi/extensions/b-agentic-permissions.ts`, `skills/b-commit/prompt.md`.
+  without interactive UI. Pushes are not performed by b-agentic. An active
+  confirmation tool was omitted from Pi's textual Available tools without a
+  `promptSnippet`, contributing to non-invocation; its prior activation also
+  depended on stale process-global planner state during session restore. Role
+  application now solely excludes it for planners and ensures it for off/worker
+  roles, while the tool supplies a concise `promptSnippet`. Regression evidence:
+  the named prompt-snippet, planner-exclusion, and stale-planner-to-worker
+  assertions in `pi/tests/smoke.sh`. Evidence:
+  `pi/extensions/b-agentic-permissions.ts`, `pi/extensions/b-agentic-role.ts`,
+  `skills/b-commit/prompt.md`, `pi/tests/smoke.sh`.
 
 ## MCP and external-evidence design
 
