@@ -28,7 +28,7 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   `pi/`.
 - Preserve the deliberately slim surface: `references/` contains only the
   kernel template and MCP policy, and the suite audit caps the kernel at 120
-  lines/10,000 bytes. Evidence: `AGENTS.md`,
+  lines/12,000 bytes. Evidence: `AGENTS.md`,
   `tooling/validate/suite_audit.py`, `tooling/validate/shared.py`.
 
 ### Canonical sources own generated delivery assets
