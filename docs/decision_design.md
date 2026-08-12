@@ -126,11 +126,14 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   Intercom action before `send`. The target must be copied verbatim from that
   authoritative output, such as `list-cwd`, without reconstructing, extending,
   guessing, fabricating, or substituting a longer ID; never use a display name,
-  alias, or abbreviated prefix. After handoff the planner waits rather than
-  polling. If the worker encounters an unresolved issue or blocker, after
-  `pending` reports no inbound ask it uses `list-cwd` to retrieve the assigning
-  planner's exact session identifier and uses Intercom `ask` addressed to that
-  identifier with one focused question and waits; if `pending` reports an
+  alias, or abbreviated prefix. Use `send` for task delegation and worker
+  result/review reporting; after handoff the planner waits for the worker's
+  `send` rather than polling. Reserve `ask` for a worker's blocker or
+  clarification question to the planner, or for a planner's quick-answer need
+  from the worker. If the worker encounters an unresolved issue or blocker,
+  after `pending` reports no inbound ask it uses `list-cwd` to retrieve the
+  assigning planner's exact session identifier and uses Intercom `ask` addressed
+  to that identifier with one focused question and waits; if `pending` reports an
   inbound ask, it uses `reply` for it and does not call `send` or `list-cwd`.
   It must not ask the user directly, stop midway, or send a premature
   completion/review message while the planner waits. The planner resolves the

@@ -89,7 +89,7 @@
       "role": "worker",
       "skill": "b-implement",
       "observed_failure": "Workers completed implementation but did not retain the assigning planner target or pause while review was pending.",
-      "intended_behavior": "The worker sends a review request to the assigning planner with evidence, then stops editing until findings or new work arrive.",
+      "intended_behavior": "The worker uses send for the result and review request to the assigning planner with evidence, then stops editing until findings or new work arrive.",
       "prompt": "Planner session planner-7 assigned a clear implementation task. The implementation and useful verification are now complete. Describe the exact coordination action you take next and whether you continue editing afterward.",
       "must": [
         "Send planner-7 the changed paths, verification outcomes, and remaining gaps",
@@ -99,7 +99,8 @@
       "avoid": [
         "Send the result to an unspecified session",
         "Continue editing while review is pending",
-        "Use ask for a non-blocking review request"
+        "Use ask for a non-blocking review request",
+        "Use ask to make the planner wait for the worker's delegated result"
       ]
     },
     {
@@ -187,14 +188,14 @@
       "role": "planner",
       "skill": "b-plan",
       "observed_failure": "Planners repeatedly polled list-cwd or status after assigning work instead of waiting for the worker's result, adding coordination noise without improving readiness.",
-      "intended_behavior": "The planner checks pending first before messaging; if it reports an inbound ask, the planner uses reply for that ask without calling send or list-cwd; otherwise it calls list-cwd once to retrieve the exact worker session ID and sends to it, then waits for the worker result without further polling.",
+      "intended_behavior": "The planner checks pending first before messaging; if it reports an inbound ask, the planner uses reply for that ask without calling send or list-cwd; otherwise it calls list-cwd once to retrieve the exact worker session ID and sends to it, then waits for the worker's send result without further polling. Send is used for delegation and result/review reporting; ask is reserved for blockers, clarifications, or a planner's quick-answer need.",
       "prompt": "You are about to assign a bounded task to a ready same-directory worker. Describe the pending check, how you retrieve the exact target before sending, and what you do after the handoff while the worker edits, including whether you repeatedly call list-cwd or status and when ask is appropriate.",
       "must": [
         "Use reply for an inbound ask without calling send or list-cwd",
         "Call list-cwd again to retrieve the exact session ID before a send when no inbound ask is pending",
         "Send to the exact session ID returned by list-cwd",
-        "Wait for the worker's result after the natural-language send handoff",
-        "Use ask only when intentionally waiting for a response",
+        "Wait for the worker's send result after the natural-language send handoff",
+        "Reserve ask for worker blockers or clarifications, or a planner's quick-answer need from the worker—not for waiting on a delegated result",
         "Reserve further list-cwd and status calls for selecting a worker or handling genuine connection needs"
       ],
       "avoid": [

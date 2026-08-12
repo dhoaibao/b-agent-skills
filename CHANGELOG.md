@@ -16,7 +16,7 @@ All notable shipped revisions of b-agentic are recorded here. Released version h
   - Regression: role-mode behavioral fixtures in `pi/tests/smoke.sh`; kernel/extension markers in `pi/scripts/validate.sh`, `tooling/validate/behavior.py`, and `tooling/validate/shared.py`.
 - Intercom delegation protocol:
   - Observed failure: workers did not reliably activate the handoff skill, delegation duplicated serial work and ran slower than one session, and `reply` failed when neither side had a unique pending `ask`.
-  - Intended behavior: delegate only beneficial parallel work, activate one named worker skill, use `send` for handoff/completion, and reserve `ask`/`reply` for blocking questions.
+  - Intended behavior: delegate only beneficial parallel work, activate one named worker skill, use `send` for task delegation and worker result/review reporting, and reserve `ask` for worker blockers/clarifications or a planner's quick-answer need from the worker (with `reply` for inbound asks).
   - Regression: `INTERCOM_DELEGATION_REGRESSION` in `tooling/validate/behavior.py`; Pi integration marker checks in `pi/scripts/validate.sh` and `tooling/validate/shared.py`.
 - Shell/RTK policy (Option B):
   - Observed failure: kernel guidance and permission policy diverged on RTK coverage, while approval guidance implied RTK bypassed asks.

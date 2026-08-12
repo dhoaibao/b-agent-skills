@@ -247,17 +247,20 @@ retry the stale target or continue, commit, or close: call `pending` first; if
 an inbound ask exists, use `reply` and do not call `send` or `list-cwd`; otherwise
 call a fresh `list-cwd`; retry exactly once only if the intended peer is still live,
 otherwise pause and surface the unavailable peer as the blocker. After
-assigning a task, the planner waits for the worker's result rather than
-polling. The worker reports changed paths, verification outcomes, and gaps, then
-pauses. If the worker encounters an unresolved issue or blocker, after `pending`
-reports no inbound ask it uses `list-cwd` to retrieve the assigning planner's
-exact session identifier and uses Intercom `ask` addressed to that identifier
-with one focused question and waits; if `pending` reports an inbound ask, it
-uses `reply` for it and does not call `send` or `list-cwd`. It must not ask the
-user directly, stop midway, or send a premature completion/review message while
-the planner waits. The planner resolves the blocker via `reply` when possible;
-otherwise it escalates to the user and keeps the task open. Every delegated task
-must pass the actual
+assigning a task, the planner waits for the worker's `send` result rather than
+polling. The worker reports changed paths, verification outcomes, and gaps with
+`send`, then pauses. Use `send` for task delegation and worker result/review
+reporting. Reserve `ask` for a worker's blocker or clarification question to
+the planner, or a planner's quick-answer need from the worker; never use it to
+wait for a delegated result. If the worker encounters an unresolved issue or
+blocker, after `pending` reports no inbound ask it uses `list-cwd` to retrieve the
+assigning planner's exact session identifier and uses Intercom `ask` addressed
+to that identifier with one focused question and waits; if `pending` reports an
+inbound ask, it uses `reply` for it and does not call `send` or `list-cwd`. It
+must not ask the user directly, stop midway, or send a premature
+completion/review message while the planner waits. The planner resolves the
+blocker via `reply` when possible; otherwise it escalates to the user and keeps
+the task open. Every delegated task must pass the actual
 `b-review` skill against
 the actual diff and verification before it is complete. Findings return to the
 same worker for a verified fix and another review.
