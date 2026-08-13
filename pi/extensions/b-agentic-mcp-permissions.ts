@@ -1,7 +1,7 @@
 /** Managed MCP, custom-tool, and Intercom approval policy. */
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import * as policy from "./b-agentic-support/mcp.ts";
-import { getRole, isAutoModeEnabled } from "./b-agentic-support/state.ts";
+import { isAutoModeEnabled } from "./b-agentic-support/state.ts";
 
 let currentContext: ExtensionContext | undefined;
 
@@ -9,15 +9,6 @@ export default function bAgenticMcpPermissions(pi: ExtensionAPI): void {
   pi.on("tool_call", async (event, ctx) => {
     currentContext = ctx;
     const input = event.input;
-    const isPlannerMcpCall = getRole() === "planner" && policy.isMcpAdapterToolName(event.toolName);
-    if (isPlannerMcpCall) {
-      if (!policy.isPlannerMcpToolName(event.toolName) || !policy.isPlannerReadOnlyMcpCall(event.toolName, input)) {
-        return { block: true, reason: "Planner mode permits only safe metadata or classified read-only MCP calls (local-mutation Serena calls are blocked)" };
-      }
-      // The planner classifier already established this is an allowed call;
-      // avoid repeating conditional filesystem classification below.
-      return undefined;
-    }
     if (policy.isAutoApprovedIntercomCall(event.toolName, input)) return undefined;
     if (policy.isMcpOrCustomTool(event.toolName, input)) {
       if (isAutoModeEnabled()) return undefined;
@@ -35,12 +26,6 @@ export default function bAgenticMcpPermissions(pi: ExtensionAPI): void {
   pi.events.on(policy.MCP_TOOL_APPROVAL_REQUEST_EVENT, (value) => {
     if (!policy.isMcpToolApprovalRequest(value)) return;
     const server = policy.normalizeServerId(value.serverName);
-    if (getRole() === "planner") {
-      value.claim(() => ["direct", "proxy"].includes(value.origin) && policy.isPlannerReadOnlyMcpBrokerCall(
-        server, value.originalToolName, value.prefixedToolName, value.args,
-      ) ? "allow_once" : "deny");
-      return;
-    }
     if (policy.isTrustedManagedTool(server, value.originalToolName, value.args)) {
       // Recheck conditional filesystem-sensitive trust when the broker invokes
       // the claim: protected descendants may change between those moments.

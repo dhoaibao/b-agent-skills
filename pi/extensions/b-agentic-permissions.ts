@@ -17,8 +17,7 @@ import {
 } from "./b-agentic-support/shell.ts";
 import * as shell from "./b-agentic-support/shell.ts";
 import * as mcp from "./b-agentic-support/mcp.ts";
-import * as role from "./b-agentic-support/role.ts";
-import { getRole, isAutoModeEnabled } from "./b-agentic-support/state.ts";
+import { isAutoModeEnabled } from "./b-agentic-support/state.ts";
 
 // Keep this standalone extension free of package-resolution dependencies.
 const COMMIT_CONFIRMATION_PARAMETERS = {
@@ -85,13 +84,9 @@ export default function bAgenticPermissions(pi: ExtensionAPI): void {
   pi.on("tool_call", async (event, ctx) => {
     if (event.toolName === "bash") {
       const command = String((event.input as { command?: string }).command || "");
-      const decision = commandDecision(command, undefined, { allowUnquotedGlob: getRole() === "planner" });
+      const decision = commandDecision(command);
       if (decision.decision === "deny") return { block: true, reason: decision.reason };
       if (decision.decision === "ask") {
-        // A safe sed regex address can resemble an absolute path to the shared
-        // operand scanner; plannerCommandDecision independently verifies this
-        // narrow false positive before planner mode may bypass approval.
-        if (getRole() === "planner" && role.plannerCommandDecision(command).allowed) return undefined;
         if (isAutoModeEnabled()) return undefined;
         if (!ctx.hasUI) return { block: true, reason: `${decision.reason} (no UI; fail-closed)` };
         const allowed = await ctx.ui.confirm(
@@ -167,5 +162,4 @@ export default function bAgenticPermissions(pi: ExtensionAPI): void {
 export const __test__ = {
   ...shell,
   ...mcp,
-  ...role,
 };

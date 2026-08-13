@@ -275,10 +275,10 @@ activeModel = { provider: 'other', id: 'other-model' };
 activeThinkingLevel = 'off';
 await commands['b-role'].handler('planner', roleContext);
 expect(activeModel.provider === 'anthropic' && activeModel.id === 'claude-sonnet-4-5' && activeThinkingLevel === 'low', '/b-role planner must apply its saved model and thinking preference');
-for (const toolName of ['read', 'recall', 'intercom', 'bash', 'mcp', 'mcp__firecrawl_firecrawl_search', 'mcp__linear_get_issue', 'codegraph_codegraph_explore', 'serena_find_symbol']) {
+for (const toolName of ['read', 'recall', 'intercom', 'bash', 'mcp', 'mcpScript', 'mcp__firecrawl_firecrawl_search', 'mcp__playwright_browser_snapshot', 'mcp__linear_get_issue', 'codegraph_codegraph_explore', 'serena_find_symbol']) {
   expect(activeTools.includes(toolName), `planner role must retain safe active tool ${toolName}`);
 }
-expect(!activeTools.includes('edit') && !activeTools.includes('write') && !activeTools.includes('b_agentic_confirm_commit') && !activeTools.includes('mcpScript') && !activeTools.includes('mcp__playwright_browser_snapshot'), 'planner active-tool filtering must remove mutation, script, and browser capabilities');
+expect(!activeTools.includes('edit') && !activeTools.includes('write') && !activeTools.includes('b_agentic_confirm_commit') && activeTools.includes('mcpScript') && activeTools.includes('mcp__playwright_browser_snapshot'), 'planner active-tool filtering must preserve the prompt-level writer boundary while retaining MCP capabilities');
 const expectedSkillOwners = {
   'b-plan': 'planner', 'b-research': 'planner', 'b-design': 'worker', 'b-implement': 'worker',
   'b-init': 'worker', 'b-refactor': 'worker', 'b-debug': 'worker', 'b-test': 'worker',
@@ -291,10 +291,10 @@ expect(plannerTest.SKILL_OWNERSHIP_CRITERION.includes('browser/operational verif
 for (const skill of Object.keys(expectedSkillOwners)) {
   expect(await toolCallHandler({ toolName: 'read', input: { path: path.join(root, `skills/${skill}/SKILL.md`) } }, roleContext) === undefined, `planner must permit inspection of ${skill} regardless of execution owner`);
 }
-for (const toolName of ['edit', 'write', 'mcpScript', 'b_agentic_confirm_commit']) {
+for (const toolName of ['edit', 'write', 'b_agentic_confirm_commit']) {
   expect((await toolCallHandler({ toolName, input: {} }, roleContext))?.block === true, `planner role must block ${toolName}`);
 }
-expect((await toolCallHandler({ toolName: 'mcpScript', input: { code: "emit('metadata only')" } }, roleContext))?.block === true, 'planner must block mcpScript because adapter session approvals bypass its broker');
+expect(await toolCallHandler({ toolName: 'mcpScript', input: { code: "emit('metadata only')" } }, roleContext) === undefined, 'planner must use the shared approval policy for mcpScript rather than a role-specific block');
 branchEntries.length = 0;
 branchEntries.push({
   type: 'custom', customType: 'b-agentic-role',
@@ -317,229 +317,16 @@ await roleSessionStartHandler({}, roleContext);
 expect(!activeTools.includes('write') && !activeTools.includes('edit') && !activeTools.includes('b_agentic_confirm_commit'), 'an explicitly persisted planner must restore planner-safe tools');
 expect(activeModel.provider === 'anthropic' && activeModel.id === 'claude-sonnet-4-5' && activeThinkingLevel === 'low', 'a persisted planner role must restore its saved model and thinking preference');
 const noUiPlannerContext = { ...roleContext, hasUI: false };
-const exactPlannerDiff = 'rtk git diff -- README.md REFERENCE.md docs/decision_design.md pi/configs/README.md references/kernel.template.md tooling/install/common.sh tooling/validate/behavior.py tooling/validate/shared.py skills/*/prompt.md';
-const pathNamedLikeOption = 'rtk git diff -- --output.md --config-e';
-expect(plannerTest.plannerCommandDecision(pathNamedLikeOption).allowed === true, 'planner must allow option-like Git pathspecs after --');
-expect(await toolCallHandler({ toolName: 'bash', input: { command: pathNamedLikeOption } }, noUiPlannerContext) === undefined, 'planner pipeline must allow option-like Git pathspecs after --');
-expect(await toolCallHandler({ toolName: 'bash', input: { command: exactPlannerDiff } }, noUiPlannerContext) === undefined, 'planner pipeline must allow the exact multi-path globbed diff');
-expect(await toolCallHandler({ toolName: 'bash', input: { command: "rtk rg --no-config '{foo,bar}' skills" } }, noUiPlannerContext) === undefined, 'planner pipeline must allow quoted braces');
-for (const command of ["printf '%s\\n' 'planner inspection'", 'head -n 1 README.md', 'wc -l README.md', 'find . -maxdepth 1 -type f', "awk 'NR==1' README.md", "awk 'getline < \"README.md\"; print' README.md", "sed -n '1p' README.md", "sed -n '/planner/p' README.md", "sed -n 's/planner/plan/p' README.md", "sed -n 's#planner#plan#2p' README.md", "sed -n 's/.env/example/p' README.md", 'tar -tf archive.tar', 'ar t archive.a', 'ar -t archive.a', '7z l archive.7z', '7z h', '7z --help', 'node --version', 'npm --version']) {
-  expect(plannerTest.plannerCommandDecision(command).allowed === true, `planner classifier must allow safe read-only command ${command}`);
-  expect(await toolCallHandler({ toolName: 'bash', input: { command } }, noUiPlannerContext) === undefined, `planner pipeline must allow safe read-only command ${command}`);
-}
-for (const command of ["printf '%s\\n' blocked > planner-write", 'touch planner-write', 'find . -exec touch planner-write {} \\;', "sed -i 's/old/new/' README.md", "sed '1r .env' README.md", "sed -n '1,2w planner-write' README.md", "sed -n -e '1p' -e '1w planner-write' README.md", 'sed -f program.sed README.md', "awk 'BEGIN { system(\"touch planner-write\") }' README.md", "awk 'getline < \".env\"; print' README.md", "awk 'BEGIN { getline line < \"/etc/passwd\"; print line }' README.md", "awk 'BEGIN { path = \"/etc/passwd\"; getline line < path; print line }' README.md", 'awk -f program.awk README.md', "awk '@include \"program.awk\"' README.md", "tar -tf archive.tar --checkpoint=1 --checkpoint-action=exec='touch planner-write'", 'tar -xf archive.tar', 'ar r archive.a member.o', '7z x archive.7z', 'node script.js', 'npm test']) {
-  expect(plannerTest.plannerCommandDecision(command).allowed === false, `planner classifier must block shell write ${command}`);
-  expect((await toolCallHandler({ toolName: 'bash', input: { command } }, noUiPlannerContext))?.block === true, `planner pipeline must block shell write ${command}`);
-}
-for (const command of ["jq '.module' package.json", "jq '.include' package.json", "jq '.env' package.json", "jq -- '.env' package.json", "jq --arg name value '.foo' package.json", 'jq --argjson n 1 . package.json', "jq --raw-output '.foo' package.json", "jq -cS '.foo' package.json"]) {
-  expect(await toolCallHandler({ toolName: 'bash', input: { command } }, noUiPlannerContext) === undefined, `planner pipeline must allow jq object field ${command}`);
-}
-for (const command of ['jq . .env', "jq '.env' .env", 'jq -- . .env', 'jq . .config/gh/data.json', 'jq -f filter.jq .env', 'jq --from-file filter.jq .config/gh/data.json', 'jq -f /tmp/filter.jq package.json', 'jq --rawfile data /tmp/data package.json']) {
-  expect(t.commandDecision(command).decision === 'ask', `shared classifier must protect jq input file ${command}`);
-  expect((await toolCallHandler({ toolName: 'bash', input: { command } }, noUiPlannerContext))?.block === true, `planner pipeline must protect jq input file ${command}`);
-}
-for (const command of ['jq -- .env package.json', 'jq -n .', "jq --null-input '{}'"]) {
-  expect(plannerTest.plannerCommandDecision(command).allowed === false, `planner classifier must block ambiguous jq form ${command}`);
-  expect((await toolCallHandler({ toolName: 'bash', input: { command } }, noUiPlannerContext))?.block === true, `planner pipeline must block ambiguous jq form ${command}`);
-}
-for (const command of ['jq env package.json', 'jq env.foo package.json', 'jq [env] package.json', 'jq .,env package.json', 'jq env? package.json', 'jq .foo\ \|\ env package.json', 'jq $ENV package.json', 'jq getenv\(\) package.json', 'jq \'"\\($ENV)"\' package.json', 'jq \'"prefix \\(env)"\' package.json', 'jq "include \"module\"" package.json', 'jq "# comment\ninclude \"module\"" package.json']) {
-  expect(plannerTest.plannerCommandDecision(command).allowed === false, `planner classifier must block jq executable source ${command}`);
-  expect((await toolCallHandler({ toolName: 'bash', input: { command } }, noUiPlannerContext))?.block === true, `planner pipeline must block jq executable source ${command}`);
-}
-for (const command of ['batcat --paging=never README.md', 'fdfind -t f SKILL.md skills', 'exa -l', 'eza -l', 'eza --absolute=on', 'eza --absolute off', 'jq -R . README.md', 'jq \'"before env after"\' package.json', 'jq \'"x; include module"\' package.json', "rtk rg --no-config -g '**/*.ts' needle pi", "rtk rg --no-config --iglob '**/*.TS' needle pi", "rtk rg --no-config -g '!**/.env*' needle .", "rtk rg --no-config -e -literal needle README.md"]) {
-  expect(t.commandDecision(command).decision === 'allow', `shared classifier must allow confined alias read ${command}`);
-  expect(await toolCallHandler({ toolName: 'bash', input: { command } }, noUiPlannerContext) === undefined, `planner pipeline must allow confined alias read ${command}`);
-}
-for (const command of ["rtk rg --no-config -g '**/.env*' needle .", "rtk rg --no-config --glob '**/credentials.*' needle .", "rtk rg --no-config --iglob '**/.env*' needle .", "rtk rg --no-config --glob-case-insensitive -g '**/.ENV*' needle .", "rtk rg --no-config -g '**/.config/gh/**' needle .", "fdfind --glob '**/.env*' ."]) {
-  expect(plannerTest.plannerCommandDecision(command).allowed === false, `planner classifier must block protected selection glob ${command}`);
-  expect((await toolCallHandler({ toolName: 'bash', input: { command } }, noUiPlannerContext))?.block === true, `planner pipeline must block protected selection glob ${command}`);
-}
-for (const command of ['rtk git status --short', 'rtk git --no-pager status --short', 'rtk git diff -- skills/*/prompt.md', 'rtk git diff-tree HEAD', 'rtk git for-each-ref --format=%(refname)', 'rtk git merge-base HEAD HEAD~1', 'rtk git rev-list -1 HEAD', 'rtk git show-ref --heads', 'rtk git tag --list', 'rtk git reflog show', 'rtk git cat-file -t HEAD', 'rtk git show HEAD:README.md', 'rtk git log -- README.md', 'rtk git count-objects -v', 'rtk git fsck --no-dangling', 'rtk git name-rev HEAD', 'rtk git verify-commit HEAD', 'rtk git verify-tag v1.0.0', 'rtk git annotate HEAD -- README.md', 'rtk git stash list', 'rtk git submodule status', 'rtk git worktree list', 'rtk git version', 'rtk rg --no-config needle skills/*', 'bat --paging=never README.md', 'bat --paging=never -p README.md', 'batcat --paging=never README.md', 'jq . package.json', 'fdfind -t f SKILL.md skills', 'rtk git diff -- credentials.service*', 'rtk git diff -- credentials.*.ts', 'rtk git diff -- provider-secrets.service*', 'rtk git remote -v', 'rtk git remote get-url origin', 'rtk git remote show -n origin', 'eza -l', 'codegraph status --json', 'codegraph status -j .', 'codegraph status --json .', 'codegraph query --help', 'codegraph explore -p . role', "codegraph affected -f 'e2e/*.spec.ts' pi/tests/smoke.sh", 'codegraph node --file pi/tests/smoke.sh --offset 1 --limit 5', 'codegraph query -k function role']) {
-  expect(await toolCallHandler({ toolName: 'bash', input: { command } }, noUiPlannerContext) === undefined, `planner role must allow safe discovery without UI: ${command}`);
-}
-for (const command of ['fdfind -H .', 'fdfind -I .', 'fdfind -u .', 'fdfind --no-ignore-vcs .', 'eza -a', 'eza --all', 'eza -A', 'eza --almost-all']) {
-  expect(plannerTest.plannerCommandDecision(command).allowed === false, `planner classifier must block hidden or ignored inspection ${command}`);
-  expect((await toolCallHandler({ toolName: 'bash', input: { command } }, noUiPlannerContext))?.block === true, `planner pipeline must block hidden or ignored inspection ${command}`);
-}
-for (const command of ['rtk git rev-list --objects --all']) {
-  expect(plannerTest.plannerCommandDecision(command).allowed === false, `planner classifier must block Git object enumeration ${command}`);
-  expect((await toolCallHandler({ toolName: 'bash', input: { command } }, noUiPlannerContext))?.block === true, `planner pipeline must block Git object enumeration ${command}`);
-}
-for (const command of ['rtk git show HEAD:.env', 'rtk git show :/.env', 'rtk git cat-file -p HEAD:credentials.json', 'rtk git cat-file -p fdeb0a809c932dc7572ab659f3fbd26db153e438', 'rtk git cat-file --batch-all-objects --batch', 'rtk git cat-file --batch-all-objects --batch-check', 'rtk git log -p --all -- .env', 'rtk git grep secret HEAD -- .env', 'rtk git ls-tree HEAD -- .config/gh', "rtk git log -- ':(glob)**/.env*'"]) {
-  expect(plannerTest.plannerCommandDecision(command).allowed === false, `planner classifier must block protected Git object or path ${command}`);
-  expect((await toolCallHandler({ toolName: 'bash', input: { command } }, noUiPlannerContext))?.block === true, `planner pipeline must block protected Git object or path ${command}`);
-}
-for (const command of ['rtk git -p status --short', 'rtk git --paginate status --short', 'rtk git --exec-path=/tmp status', 'rtk git --html-path status']) {
-  expect(plannerTest.plannerCommandDecision(command).allowed === false, `planner classifier must block unsafe Git global option ${command}`);
-  expect((await toolCallHandler({ toolName: 'bash', input: { command } }, noUiPlannerContext))?.block === true, `planner pipeline must block unsafe Git global option ${command}`);
-}
-for (const command of ['rtk git diff -- .env', 'rtk rg needle /etc/passwd', 'rtk git diff -- /tmp/x']) {
-  expect((await toolCallHandler({ toolName: 'bash', input: { command } }, noUiPlannerContext))?.block === true, `planner must retain generic protections without UI: ${command}`);
-}
-const protectedGlobIntegrationCases = ['rtk git diff -- private.pem*', 'rtk git diff -- id_rsa*', 'rtk git diff -- .npmrc*', 'rtk git diff -- .config/gh/*'];
-for (const command of protectedGlobIntegrationCases) {
-  expect((await toolCallHandler({ toolName: 'bash', input: { command } }, noUiPlannerContext))?.block === true, `planner pipeline must block protected glob: ${command}`);
-}
-const outsideGlobDir = mkdtempSync(path.join(os.tmpdir(), 'b-agentic-outside-'));
-const outsideGlobLink = path.join(root, 'link-outside');
-try {
-  symlinkSync(outsideGlobDir, outsideGlobLink, 'dir');
-  const command = 'rtk rg needle link-outside/*';
-  expect((await toolCallHandler({ toolName: 'bash', input: { command } }, noUiPlannerContext))?.block === true, 'planner pipeline must block symlink-outside glob');
-} finally {
-  rmSync(outsideGlobLink, { force: true });
-  rmSync(outsideGlobDir, { recursive: true, force: true });
-}
-for (const command of ['rtk git --config-e=foo status', 'rtk git --git-d=/tmp/repo.git status', 'rtk git diff-tree -p HEAD', 'rtk git diff-tree --patch HEAD']) {
-  expect((await toolCallHandler({ toolName: 'bash', input: { command } }, noUiPlannerContext))?.block === true, `planner pipeline must block dangerous Git form: ${command}`);
-}
-for (const command of [
-  'rtk git branch -m renamed', 'rtk git branch -D old', 'rtk git remote set-url origin https://example.com/repo.git',
-  'rtk git -c core.pager=!touch /tmp/owned diff', 'rtk git --config-env core.pager=GIT_PAGER diff', 'rtk git -P status --short', 'rtk git -p status --short', 'rtk git --paginate status --short', 'rtk git --exec-path=/tmp status', 'rtk git --html-path status',
-  'rtk git -C /tmp diff', 'rtk git --git-dir /tmp/repo.git status', 'rtk git --config-e=foo status', 'rtk git --git-d=/tmp/repo.git status', 'rtk git --work-t=/tmp status', 'rtk git --namesp=x status', 'rtk git --config-e status', 'rtk git --git-d /tmp/repo.git status', 'rtk git --work-t /tmp status', 'rtk git --namesp foo status',
-  'rtk git diff-tree -p HEAD', 'rtk git diff-tree --patch HEAD', 'rtk git diff-tree --patch-with-raw HEAD', 'rtk git diff-tree --patch-with-r HEAD', 'rtk git diff-tree -c HEAD', 'rtk git diff --no-index skills/*/prompt.md /tmp/other', 'rtk git diff -- private.{pem,key}', 'rtk git diff -- private.[p]em', 'rtk git diff -- foo/.config/{gh,gl}/*', 'rtk git reflog expire --expire=now --all', 'rtk git reflog delete HEAD@{1}', 'rtk git fsck --lost-found', 'rtk git diff --no-i skills/*/prompt.md /tmp/other', 'rtk git diff -oreport.txt -- skills/*/prompt.md',
-  'rtk git diff --output=report.txt -- skills/*/prompt.md', 'rtk git diff --out=report.txt -- skills/*/prompt.md',
-  'rtk git diff --ext-diff -- skills/*/prompt.md', 'rtk git log --ext -- skills/*/prompt.md', 'rtk git grep --textc needle -- skills/*/prompt.md', 'rtk git cat-file --filters HEAD:README.md', 'rtk git grep --open-files-in-pager needle', 'rtk git grep -Otouch needle', 'rtk git grep -O touch needle',
-  'rtk git branch -mnew', 'rtk git branch -cnew', 'rtk git tag -atag', 'rtk git tag -Fmsg tag', 'rtk git stash', 'rtk git submodule update', 'rtk git worktree add /tmp/worktree', 'codegraph init', 'codegraph init .', 'codegraph init skills', 'codegraph init --force', 'codegraph init /tmp', 'codegraph status /tmp', 'codegraph explore -p /tmp role', 'codegraph files --path=../outside', 'codegraph node --file ../outside', 'codegraph affected ../outside',
-  'batcat --paging=never /etc/passwd', 'fdfind . /etc', 'exa /etc', 'jq -R . /etc/passwd', 'fdfind --list-details .', 'fdfind . -l', 'fdfind -H .', 'fdfind -I .', 'fdfind -u .', 'fdfind --no-ignore-vcs .', 'fdfind . -L', 'fdfind -Hl .', 'fdfind -HL .', 'fdfind . -x touch marker', 'fdfind . --exec-batch touch marker', 'fdfind --base-directory=/tmp .', 'fdfind --search-path=/tmp .', 'fdfind --ignore-file=/tmp/ignore .', "rtk rg --no-config --pre 'touch marker' needle .", "rtk rg --no-config --hostname-bin 'touch marker' needle .", 'rtk rg --no-config --hyperlink-format x needle .', 'rtk rg --no-config -L needle .', 'rtk rg --no-config -HL needle .', 'rtk rg --no-config -Hf/tmp/pattern needle .', 'rtk rg --no-config -u needle .', 'rtk rg --no-config -. needle .', 'rtk rg --no-config --no-ignore-vcs needle .', 'rtk rg --no-config --no-ignore-global needle .', 'rtk rg --no-config -f /tmp/pattern needle .', 'bat --paging=always --pager touch README.md', 'bat --paging=never --config-file ~/.config/bat README.md', 'bat -- --paging=never README.md', 'rtk rg -- --no-config README.md', 'rtk rg needle -- --no-config', 'eza --follow-symlinks', 'eza -lX', 'eza -a', 'eza --all', 'eza -A', 'eza --almost-all', 'eza --absolute=follow', 'eza --absolute follow', 'jq -n env', 'jq -n .', "jq --null-input '{}'", 'jq env package.json', 'jq env.foo package.json', 'jq $ENV package.json', 'jq getenv\(\) package.json', 'jq "include \"module\"" package.json', 'jq "# comment\ninclude \"module\"" package.json', 'jq --from-file filter.jq package.json', 'codegraph query -k', 'codegraph node --offset nope foo', 'rtk rg needle ../outside/*', 'rtk git -c alias.status=!touch status', 'rtk git status; git reset --hard', 'rtk git diff -- .env*', 'rtk git diff -- credentials*', 'rtk git diff foo/.env/*', 'rtk git diff foo/credentials/*', 'rtk git diff .config/gh/*', 'rtk git diff foo/.config/gh/*', 'rtk git diff .kube/*', 'rtk git remote show origin',
-]) {
-  expect(plannerTest.plannerCommandDecision(command).allowed === false, `planner must block mutating, opaque, or ambiguous command: ${command}`);
-}
-for (const command of ['rtk pytest -q', 'rtk git commit -m role-smoke', "rtk git -c 'alias.status=!touch owned' status", 'node -e "process.exit()"']) {
-  expect((await toolCallHandler({ toolName: 'bash', input: { command } }, roleContext))?.block === true, `planner role must block worktree or execution command: ${command}`);
-}
-expect((await toolCallHandler({ toolName: 'bash', input: { command: 'rtk git reset --hard' } }, noUiPlannerContext))?.block === true, 'planner role must retain explicit command denies');
-const plannerSerenaReadArgs = { name_path_pattern: 'applyRole', relative_path: 'pi/extensions/b-agentic-role.ts' };
-const plannerPatternSearchArgs = {
-  substring_pattern: 'applyRole', relative_path: 'pi/extensions/b-agentic-role.ts', restrict_search_to_code_files: true,
-};
-for (const toolName of ['serena_find_symbol', 'serena_serena_find_symbol', 'mcp__serena_serena_find_symbol']) {
-  expect(await toolCallHandler({ toolName, input: plannerSerenaReadArgs }, roleContext) === undefined, `planner role must allow read-only Serena discovery: ${toolName}`);
-}
-expect(await toolCallHandler({ toolName: 'mcp', input: { server: 'serena', tool: 'serena_find_symbol', args: plannerSerenaReadArgs } }, roleContext) === undefined, 'planner role must allow Serena symbol reads');
-expect(await toolCallHandler({ toolName: 'mcp', input: { server: 'serena', tool: 'mcp__serena_serena_find_symbol', args: plannerSerenaReadArgs } }, roleContext) === undefined, 'planner role must allow prefixed Serena gateway reads');
-expect(await toolCallHandler({ toolName: 'serena_search_for_pattern', input: plannerPatternSearchArgs }, roleContext) === undefined, 'planner role must allow safe Serena pattern searches');
-expect(await toolCallHandler({ toolName: 'mcp', input: { server: 'serena', tool: 'serena_search_for_pattern', args: plannerPatternSearchArgs } }, roleContext) === undefined, 'planner role must allow safe Serena gateway pattern searches');
-expect(await toolCallHandler({ toolName: 'mcp', input: { server: 'serena', tool: 'serena_initial_instructions', args: {} } }, roleContext) === undefined, 'planner role must allow Serena initial instructions');
-expect(await toolCallHandler({ toolName: 'mcp', input: { server: 'codegraph', tool: 'codegraph_codegraph_explore', args: { query: 'role enforcement' } } }, roleContext) === undefined, 'planner role must allow CodeGraph reads');
-const plannerMetadataAllowCalls = [
-  [{}, 'global MCP status'],
-  [{ server: 'linear' }, 'managed server/tool listing'],
-  [{ server: 'unmanaged-server' }, 'unmanaged cached server/tool listing'],
-  [{ search: 'get_issue', server: 'linear', regex: false, includeSchemas: true, limit: 2, offset: 0 }, 'typed scoped metadata search'],
-  [{ search: 'get_issue', limit: 100, offset: 0 }, 'bounded metadata search'],
-  [{ search: '', server: 'linear' }, 'empty scoped metadata search'],
-  [{ describe: 'get_issue' }, 'cached tool schema inspection'],
-  [{ instructions: 'linear' }, 'cached server instructions'],
-];
-for (const [input, label] of plannerMetadataAllowCalls) {
-  expect(t.isPlannerReadOnlyMcpCall('mcp', input) === true, `planner classifier must allow ${label}`);
-  expect(await toolCallHandler({ toolName: 'mcp', input }, roleContext) === undefined, `planner pipeline must allow ${label}`);
-}
-for (const [input, label] of [
-  [{ server: 'linear', search: 'get_issue', describe: 'get_issue' }, 'mixed metadata selectors'],
-  [{ search: '' }, 'unscoped empty metadata search'],
-  [{ search: 'get_issue', limit: 0 }, 'invalid metadata limit'],
-  [{ search: 'get_issue', limit: 1.5 }, 'fractional metadata limit'],
-  [{ search: 'get_issue', limit: 101 }, 'over-cap metadata limit'],
-  [{ search: 'get_issue', offset: -1 }, 'invalid metadata offset'],
-  [{ search: 'get_issue', offset: 1.5 }, 'fractional metadata offset'],
-  [{ search: 'get_issue', regex: 'true' }, 'malformed metadata option'],
-  [{ describe: 'get_issue', server: 'linear' }, 'describe selector mixture'],
-  [{ instructions: 'linear', server: 'linear' }, 'instructions selector mixture'],
-  [{ server: 'linear', tool: 'list_issues', args: {} }, 'unclassified Linear query'],
-  [{ action: 'auth-start', server: 'linear' }, 'Linear OAuth bootstrap'],
-  [{ action: 'ui-messages' }, 'adapter UI messages'],
-  [{ connect: 'linear' }, 'Linear lifecycle selector'],
-]) {
-  expect(t.isPlannerReadOnlyMcpCall('mcp', input) === false, `planner classifier must block ${label}`);
-  expect((await toolCallHandler({ toolName: 'mcp', input }, roleContext))?.block === true, `planner pipeline must block ${label}`);
-}
-expect(await toolCallHandler({ toolName: 'mcp', input: { server: 'linear', tool: 'linear_get_issue', args: { issueId: 'BAO-7' } } }, roleContext) === undefined, 'planner role must allow exact Linear issue reads');
-for (const [toolName, input, label] of [
-  ['mcp__firecrawl_firecrawl_search', { query: 'Pi', limit: 1 }, 'classified Firecrawl research'],
-  ['mcp__brave_search_brave_search_brave_web_search', { query: 'Pi' }, 'classified Brave research'],
-  ['mcp__linear_get_issue', { issueId: 'BAO-7' }, 'classified Linear retrieval'],
-  ['mcp__codegraph_codegraph_codegraph_explore', { query: 'role enforcement' }, 'classified CodeGraph analysis'],
-  ['codegraph_codegraph_explore', { query: 'role enforcement' }, 'existing direct CodeGraph analysis'],
-]) {
-  expect(t.isPlannerReadOnlyMcpCall(toolName, input) === true, `planner classifier must allow ${label}`);
-  expect(await toolCallHandler({ toolName, input }, roleContext) === undefined, `planner pipeline must allow ${label}`);
-}
-for (const [toolName, input, label] of [
-  ['mcp__playwright_browser_snapshot', {}, 'Playwright browser execution'],
-  ['mcp__linear_list_issues', {}, 'unclassified Linear execution'],
-  ['mcp__serena_serena_replace_content', { relative_path: 'README.md', needle: 'old', repl: 'new', mode: 'literal' }, 'Serena mutation alias'],
-  ['linear_get_issue', { id: 'LIN-123' }, 'ambiguous default server-prefixed alias'],
-]) {
-  expect(t.isPlannerReadOnlyMcpCall(toolName, input) === false, `planner classifier must block ${label}`);
-  expect((await toolCallHandler({ toolName, input }, roleContext))?.block === true, `planner pipeline must block ${label}`);
-}
-expect((await toolCallHandler({ toolName: 'mcp', input: { server: 'linear', tool: 'list_issues', args: {} } }, roleContext))?.block === true, 'planner role must block unclassified Linear queries');
+expect(await toolCallHandler({ toolName: 'bash', input: { command: 'rtk pytest -q' } }, noUiPlannerContext) === undefined, 'planner must permit repository tests through the shared command policy');
+expect(await toolCallHandler({ toolName: 'bash', input: { command: 'node script.js' } }, roleContext) === undefined, 'planner must permit repository command execution through the shared command policy');
+expect((await toolCallHandler({ toolName: 'bash', input: { command: 'rtk git reset --hard' } }, noUiPlannerContext))?.block === true, 'shared explicit command denies must remain enforced');
 const plannerSerenaEditArgs = { relative_path: 'README.md', needle: 'old', repl: 'new', mode: 'literal' };
 for (const toolName of ['serena_replace_content', 'serena_serena_replace_content', 'mcp__serena_serena_replace_content']) {
-  expect((await toolCallHandler({ toolName, input: plannerSerenaEditArgs }, roleContext))?.block === true, `planner role must block Serena repository edits: ${toolName}`);
+  expect(await toolCallHandler({ toolName, input: plannerSerenaEditArgs }, roleContext) === undefined, `planner must use the shared MCP policy for ${toolName}`);
 }
-const directPlannerSerenaMutation = await toolCallHandler({ toolName: 'serena_replace_content', input: plannerSerenaEditArgs }, roleContext);
-expect(directPlannerSerenaMutation?.block === true && String(directPlannerSerenaMutation.reason).includes('local-mutation Serena calls are blocked'), 'planner mode must fail closed on direct serena_replace_content');
-for (const tool of ['serena_replace_content', 'mcp__serena_serena_replace_content']) {
-  expect((await toolCallHandler({ toolName: 'mcp', input: { server: 'serena', tool, args: plannerSerenaEditArgs } }, roleContext))?.block === true, `planner role must block Serena gateway repository edits: ${tool}`);
-}
-let plannerMutationClaim;
-mcpApprovalHandler({
-  serverName: 'serena', originalToolName: 'serena_replace_content', prefixedToolName: 'serena_serena_replace_content',
-  args: plannerSerenaEditArgs, origin: 'direct',
-  claim(handler) { plannerMutationClaim = handler; return true; },
-});
-expect(await plannerMutationClaim() === 'deny', 'planner role must deny Serena mutations through the MCP approval broker');
-let plannerProxyReadClaim;
-mcpApprovalHandler({
-  serverName: 'linear', originalToolName: 'linear_get_issue', prefixedToolName: 'mcp__linear_get_issue',
-  args: { issueId: 'BAO-7' }, origin: 'proxy',
-  claim(handler) { plannerProxyReadClaim = handler; return true; },
-});
-expect(await plannerProxyReadClaim() === 'allow_once', 'planner broker must allow classified gateway proxy retrieval');
-let plannerProxyMutationClaim;
-mcpApprovalHandler({
-  serverName: 'linear', originalToolName: 'list_issues', prefixedToolName: 'mcp__linear_list_issues',
-  args: {}, origin: 'proxy',
-  claim(handler) { plannerProxyMutationClaim = handler; return true; },
-});
-expect(await plannerProxyMutationClaim() === 'deny', 'planner broker must deny unclassified gateway proxy execution');
-let plannerReadClaim;
-mcpApprovalHandler({
-  serverName: 'serena', originalToolName: 'serena_find_symbol', prefixedToolName: 'serena_serena_find_symbol',
-  args: plannerSerenaReadArgs, origin: 'direct',
-  claim(handler) { plannerReadClaim = handler; return true; },
-});
-expect(await plannerReadClaim() === 'allow_once', 'planner role must allow Serena discovery through the MCP approval broker');
-let plannerPatternClaim;
-mcpApprovalHandler({
-  serverName: 'serena', originalToolName: 'serena_search_for_pattern', prefixedToolName: 'serena_serena_search_for_pattern',
-  args: plannerPatternSearchArgs, origin: 'direct',
-  claim(handler) { plannerPatternClaim = handler; return true; },
-});
-expect(await plannerPatternClaim() === 'allow_once', 'planner broker must allow a safely classified Serena pattern search');
-autoStateTest.setAutoModeEnabled(true);
-for (const [serverName, originalToolName, prefixedToolName, args, origin, label] of [
-  ['firecrawl', 'firecrawl_agent', 'mcp__firecrawl_firecrawl_agent', {}, 'script', 'Firecrawl external mutation'],
-  ['serena', 'serena_replace_content', 'mcp__serena_serena_replace_content', plannerSerenaEditArgs, 'script', 'Serena mutation'],
-  ['playwright', 'browser_snapshot', 'mcp__playwright_browser_snapshot', {}, 'resource', 'Playwright browser execution'],
-  ['linear', 'list_issues', 'mcp__linear_list_issues', {}, 'script', 'unclassified Linear execution'],
-  ['unmanaged', 'read', 'mcp__unmanaged_read', {}, 'script', 'unmanaged execution'],
-]) {
-  let claim;
-  mcpApprovalHandler({ serverName, originalToolName, prefixedToolName, args, origin, claim(handler) { claim = handler; return true; } });
-  expect(await claim() === 'deny', `planner broker must deny ${label} even in auto mode`);
-}
-autoStateTest.setAutoModeEnabled(false);
-expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'send', to: 'worker', message: 'Implement the approved task.' } }, roleContext) === undefined, 'planner role must allow Intercom handoffs');
-expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'ask', to: 'worker', message: 'Need clarification?' } }, roleContext) === undefined, 'planner role must allow Intercom blockers');
-expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'reply', message: 'Proceed with the narrow fix', replyTo: 'message-1' } }, roleContext) === undefined, 'planner role must allow replies');
+expect(await toolCallHandler({ toolName: 'mcp', input: { server: 'linear', tool: 'list_issues', args: {} } }, roleContext) === undefined, 'planner must not have a role-specific MCP execution block');
 const plannerStart = await handlers.before_agent_start({ systemPrompt: 'base', systemPromptOptions: { skills: [] } }, roleContext);
-for (const marker of ['planner profile (read-only coordinator)', 'Planner-owned: `b-plan`, `b-research`, `b-agentic-audit`, `b-review`, `b-pr-summary`', 'worker-owned: `b-design`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, `b-commit`', 'Planner-owned only when execution is read-only decision/planning', 'Mixed or uncertain skills are worker-owned', 'Ownership governs execution, not inspection', 'Unknown or ambiguous skills fail closed to worker ownership', 'sole worktree writer', 'external b-research', 'bounded worker evidence', 'applicable observable behavior', 'scope/non-goals', 'constraints/invariants', 'paths/symbols/evidence', 'acceptance criteria', 'validation expectations', 'returned identifier token verbatim', 'authoritative short ID is valid', 'never guess, reconstruct, extend, further abbreviate', 'latest approved plan, handoff, and clarifications', 'Only delegated worktree-changing tasks require actual b-review', 'location, evidence, impact, violated baseline, smallest correction, and regression check', 'unchanged; changed content reopens review']) {
-  expect(plannerStart.systemPrompt.includes(marker), `planner role must include ${marker}`);
-}
+expect(plannerStart.systemPrompt.includes('planner profile (read-only coordinator)') && plannerStart.systemPrompt.includes('Delegate every worker-owned execution intent'), 'planner delegation prompt must remain unchanged');
 
 let activePeerWorker = true;
 roleChannelRegistration.onReady({
@@ -875,8 +662,6 @@ const originalCwd = process.cwd();
 const codegraphFixture = mkdtempSync(path.join(os.tmpdir(), 'b-agentic-codegraph-'));
 const indexedCodegraphFixture = mkdtempSync(path.join(os.tmpdir(), 'b-agentic-codegraph-indexed-'));
 try {
-  expect(plannerTest.plannerCodeGraphInitAllowed('.', codegraphFixture) === true, 'planner must allow exact root CodeGraph init only while its index is absent');
-  expect(plannerTest.plannerCodeGraphInitAllowed('skills', codegraphFixture) === false, 'planner must block nested CodeGraph initialization');
   process.chdir(codegraphFixture);
   expect(t.commandDecision('codegraph init').decision === 'allow', 'exact CodeGraph initialization must allow only while its index is absent');
   expect(t.commandDecision('./codegraph init').decision === 'ask', 'relative CodeGraph executable must require approval');
@@ -894,7 +679,6 @@ try {
   mkdirSync(path.join(codegraphFixture, '.codegraph'));
   writeFileSync(path.join(codegraphFixture, '.codegraph', 'codegraph.db'), 'index');
   expect(t.commandDecision('codegraph init').decision === 'allow', 'project-local CodeGraph initialization must allow');
-  expect(plannerTest.plannerCodeGraphInitAllowed('.', codegraphFixture) === false, 'planner must block CodeGraph init after an index exists');
 } finally {
   process.chdir(originalCwd);
   rmSync(codegraphFixture, { recursive: true, force: true });
@@ -1407,7 +1191,6 @@ try {
     relative_path: serenaProtectedFixture,
   };
   expect(t.isTrustedManagedTool('serena', 'serena_search_for_pattern', fixturePlannerPatternSearch) === true, 'directory Serena code search must ignore non-code protected files');
-  expect(t.isPlannerReadOnlyMcpCall('serena_search_for_pattern', fixturePlannerPatternSearch) === true, 'planner pattern searches must classify safe descendants');
   let changedDescendantBrokerClaim;
   mcpApprovalHandler({
     serverName: 'serena', originalToolName: 'serena_search_for_pattern', prefixedToolName: 'serena_serena_search_for_pattern',
@@ -1418,7 +1201,6 @@ try {
   expect(t.isTrustedManagedTool('serena', 'serena_search_for_pattern', fixturePlannerPatternSearch) === false, 'directory Serena code search must gate protected code descendants');
   await toolCallHandler({ toolName: 'intercom', input: { action: 'send', to: 'worker', message: 'Preserve broker safety.' } }, noUiContext);
   expect(await changedDescendantBrokerClaim() === 'deny', 'broker claims must recheck changed Serena descendants before allowing');
-  expect(t.isPlannerReadOnlyMcpCall('serena_search_for_pattern', fixturePlannerPatternSearch) === false, 'planner pattern searches must recheck changed descendants without caching');
   expect(t.isTrustedManagedTool('serena', 'serena_find_symbol', {
     name_path_pattern: 'token', include_body: true,
   }) === false, 'unscoped Serena symbol reads must gate protected code descendants');

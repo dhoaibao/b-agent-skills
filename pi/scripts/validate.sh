@@ -89,9 +89,18 @@ if extension.exists():
         'actual b-review', 'latest approved plan, handoff, and clarifications',
         'unchanged reviewed snapshot', 'isDirectClassifiedManagedTool',
         'isSafeSerenaSymbolRead', 'mcpScript', 'serena_onboarding',
+        'Planner task delegation remains prompt-governed', 'isMcpAdapterToolName',
     ]:
         if marker not in text:
             errors.append(f'{extension}: missing policy marker {marker!r}')
+    planner_extension = root / 'pi/extensions/b-agentic-planner.ts'
+    planner_text = planner_extension.read_text() if planner_extension.exists() else ''
+    planner_body = planner_text.split('export const __test__', 1)[0]
+    if 'plannerCommandDecision(' in planner_body or 'isPlannerReadOnlyMcpCall(' in planner_body:
+        errors.append(f'{planner_extension}: planner commands and MCP calls must use shared policy, not role-specific blocks')
+    mcp_permissions = root / 'pi/extensions/b-agentic-mcp-permissions.ts'
+    if 'getRole() === "planner"' in mcp_permissions.read_text():
+        errors.append(f'{mcp_permissions}: planner MCP broker restrictions must not override shared policy')
     if 'return { block: true' not in text and 'block: true' not in text:
         errors.append(f'{extension}: must be able to block tool calls')
     if 'custom/MCP tool' not in text and 'MCP' not in text:
