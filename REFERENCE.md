@@ -31,11 +31,12 @@ Useful flags:
 - `--uninstall` removes managed files.
 - `--ref=<tag-or-commit>` checks out that b-agentic ref before installing managed files.
 - `--sync` pulls the installed checkout and syncs managed Pi skills, kernel, and first-party extensions only.
-- `--update` installs or updates RTK, Serena, CodeGraph, Bun, bundled MCP packages, Pi, and Pi extensions without pulling b-agentic.
+- `--update` installs or updates RTK, Serena, CodeGraph, Bun, Pi, and Pi extensions without pulling b-agentic.
 
-Requirements: `bash`, `git`, and Python 3.11+. Bun, Pi, RTK, Serena,
-CodeGraph, and bundled MCP packages are installed or updated automatically
-without dependency opt-in variables or prompts. Modern shell tools are not
+Requirements: `bash`, `git`, and Python 3.11+. Bun, Pi, RTK, Serena, and
+CodeGraph are installed or updated automatically without dependency opt-in
+variables or prompts. Bun-backed MCP servers use `bunx`, which resolves and
+caches their packages on first use. Modern shell tools are not
 installed or updated automatically because they generally require sudo; the
 readiness report provides a platform-specific install hint.
 
@@ -142,7 +143,8 @@ never tracked templates.
 | Playwright | Live browser, visual, console/network, and e2e evidence | Bun (`bunx`) |
 
 The installer does not eagerly start MCP servers or initialize repositories;
-Bun and bundled Bun MCP packages are installed or refreshed automatically. b-agentic initializes CodeGraph only when native inspection leaves a concrete
+Bun is installed or refreshed automatically, while Bun-backed MCP packages are
+resolved and cached by `bunx` on first use. b-agentic initializes CodeGraph only when native inspection leaves a concrete
 repository-wide architecture or impact question and its local index is absent;
 it does not initialize merely because work spans files. Serena onboarding runs
 only when repository onboarding is useful. Missing CLIs are not installed
@@ -292,8 +294,9 @@ same worker for a verified fix and another review.
 `/b-sync` confirms, pulls the installed b-agentic checkout, and syncs only
 managed Pi skills, kernel, and first-party extensions before reloading Pi. It
 does not install packages or change MCP configuration. `/b-update` runs without
-an additional confirmation and updates RTK, Serena, CodeGraph, Bun, Pi,
-bundled packages, and Pi extensions without pulling b-agentic, then reloads Pi.
+an additional confirmation and updates RTK, Serena, CodeGraph, Bun, and Pi
+extensions without pulling b-agentic; Bun-backed MCP packages are resolved by
+`bunx` on first use. It then reloads Pi.
 Both commands require an interactive session and take no arguments.
 
 ## Safety and approvals

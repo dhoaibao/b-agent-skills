@@ -52,7 +52,7 @@ After reconciling required Pi packages, the installer runs
 
 `/b-sync` confirms, pulls the installed b-agentic checkout, and syncs only
 managed Pi skills, kernel, and first-party extensions before reloading Pi. It
-does not install packages or change MCP configuration. `/b-update` runs without an additional confirmation and updates RTK, Serena, CodeGraph, Bun, Pi, bundled packages, and Pi extensions without pulling b-agentic, then reloads Pi.
+does not install packages or change MCP configuration. `/b-update` runs without an additional confirmation and updates RTK, Serena, CodeGraph, Bun, Pi, and Pi extensions without pulling b-agentic; Bun-backed MCP packages are resolved by `bunx` on first use, then Pi reloads.
 Both commands require an interactive session and take no arguments.
 
 `pi-observational-memory` V3 does not read V2 settings or memory entries. After

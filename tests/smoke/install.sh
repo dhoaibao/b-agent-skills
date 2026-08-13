@@ -850,6 +850,19 @@ PY
 	assert_no_path "$upgrade_log"
 }
 
+run_bun_mcp_package_lifecycle_case() {
+	local snapshot_repo="$1"
+	local sandbox="$WORK_DIR/bun-mcp-lifecycle"
+	local bun_log="$sandbox/smoke-bin/bun.log"
+
+	mkdir -p "$sandbox/home"
+	expect_install_status 0 "$sandbox" "$snapshot_repo"
+	expect_install_status 0 "$sandbox" "$snapshot_repo" --update
+
+	[ "$(grep -Fc 'bun upgrade' "$bun_log")" -eq 2 ] || fail "expected Bun reconciliation during install and update"
+	assert_not_contains "$bun_log" 'bun install --global'
+}
+
 run_uninstall_skips_dependency_reconciliation_case() {
 	local snapshot_repo="$1"
 	local sandbox="$WORK_DIR/uninstall-skips-dependency-reconciliation"
@@ -1177,6 +1190,7 @@ run_base_smoke_cases() {
 		run_runtime_cli_update_failure_case
 		run_existing_tool_upgrade_case
 		run_existing_tool_default_skip_case
+		run_bun_mcp_package_lifecycle_case
 		run_uninstall_skips_dependency_reconciliation_case
 		run_skill_doctor_case
 	)

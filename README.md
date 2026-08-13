@@ -92,7 +92,7 @@ The installer writes all seven recommended entries to Pi's MCP configuration wit
 | `pi-observational-memory` | Long-session compaction continuity | Optional | Installed automatically |
 | `@narumitw/pi-usage` | Pi usage reporting | Optional | Installed automatically |
 
-Pi CLI, RTK, Serena, CodeGraph, Bun, bundled Bun MCP packages, and Pi packages install or refresh automatically without prompts. Modern shell tools are reported with an install hint because they generally require sudo.
+Pi CLI, RTK, Serena, CodeGraph, Bun, and Pi packages install or refresh automatically without prompts. Bun-backed MCP servers use `bunx`, which resolves and caches their packages on first use. Modern shell tools are reported with an install hint because they generally require sudo.
 
 ## First-party extensions
 

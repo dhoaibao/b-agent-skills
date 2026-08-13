@@ -687,21 +687,6 @@ install_bun() {
 	command -v bunx >/dev/null 2>&1 || { warn "Bun installed but bunx is not on PATH"; return 1; }
 }
 
-install_bun_packages() {
-	if dry_run_enabled && ! command -v bun >/dev/null 2>&1; then
-		for package in '@brave/brave-search-mcp-server' firecrawl-mcp '@playwright/mcp'; do
-			printf '[dry-run] bun install --global %s\n' "$package" >&2
-		done
-		return 0
-	fi
-	command -v bun >/dev/null 2>&1 || return 1
-	local package
-	for package in '@brave/brave-search-mcp-server' firecrawl-mcp '@playwright/mcp'; do
-		if dry_run_enabled; then printf '[dry-run] bun install --global %s\n' "$package" >&2
-		elif ! bun install --global "$package"; then return 1; fi
-	done
-}
-
 run_parallel_chains() {
 	local log_dir="$(mktemp -d "${TMPDIR:-/tmp}/b-agentic-chains.XXXXXX")"
 	local -a pids=() chains=() logs=()
@@ -737,7 +722,6 @@ dependency_install_chain() {
 
 bun_install_chain() {
 	install_bun
-	install_bun_packages
 }
 
 update_tooling() {

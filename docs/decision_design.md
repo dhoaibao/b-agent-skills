@@ -55,9 +55,10 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
 - Shared helpers under `pi/extensions/b-agentic-support/` are not discovered as
   standalone Pi extensions. This keeps Pi's discovered extension set coherent
   while allowing focused policy modules and test exports.
-- `/b-sync` refreshes managed assets; `/b-update` installs or updates the
-  complete bundled runtime dependency set and extensions without pulling
-  b-agentic. Independent dependency chains run in bounded stages and failures
+- `/b-sync` refreshes managed assets; `/b-update` installs or updates RTK,
+  Serena, CodeGraph, Bun, Pi, and extensions without pulling b-agentic. Bun-backed
+  MCP packages are resolved and cached by `bunx` on first use. Independent
+  dependency chains run in bounded stages and failures
   propagate. Evidence:
   `pi/scripts/install.sh`, `pi/extensions/b-agentic-sync.ts`,
   `pi/configs/README.md`.
@@ -302,13 +303,14 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
 
 - `install.sh` clones or updates a local source checkout, supports reviewed
   `--ref` pins, then sources the shared Pi installer. `--sync` updates only
-  managed assets; `--update` reconciles RTK, uv/Serena, CodeGraph, Bun, bundled
-  MCP packages, Pi, and Pi extensions, installing missing components without
+  managed assets; `--update` reconciles RTK, uv/Serena, CodeGraph, Bun, Pi,
+  and Pi extensions, installing missing components without
   pulling b-agentic. Evidence: `install.sh`, `pi/scripts/install.sh`,
   `REFERENCE.md`.
-- RTK is required; Pi CLI, Serena, CodeGraph, Bun, bundled MCP packages, and Pi
-  packages reconcile automatically without prompts or opt-outs. Modern shell
-  tools remain user-installed because they generally require sudo; readiness
+- RTK is required; Pi CLI, Serena, CodeGraph, Bun, and Pi packages reconcile
+  automatically without prompts or opt-outs. Bun-backed MCP packages are
+  resolved and cached by `bunx` on first use. Modern shell tools remain
+  user-installed because they generally require sudo; readiness
   reports provide install hints. Installer progress is dependency-free ASCII on
   interactive non-dumb TTYs and newline-based in redirected/CI output. Evidence:
   `install.sh`, `pi/scripts/install.sh`, `tooling/install/common.sh`,

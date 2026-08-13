@@ -159,6 +159,8 @@ EOF
 	done
 	cat >"$bin_dir/bun" <<'EOF'
 #!/usr/bin/env bash
+log_dir="$(cd "$(dirname "$0")" && pwd)"
+printf 'bun %s\n' "$*" >> "$log_dir/bun.log"
 exit 0
 EOF
 	ln -sfn bun "$bin_dir/bunx"
