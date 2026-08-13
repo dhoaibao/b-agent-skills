@@ -689,28 +689,64 @@ install_bun() {
 
 run_parallel_chains() {
 	local log_dir="$(mktemp -d "${TMPDIR:-/tmp}/b-agentic-chains.XXXXXX")"
-	local -a pids=() chains=() logs=()
-	local chain pid index status rc=0
+	local -a pids=() pid_indexes=() chains=() logs=() statuses=()
+	local chain pid index position chain_index status rc=0
 	for chain in "$@"; do
 		index=${#chains[@]}; chains+=("$chain"); logs+=("$log_dir/$index.log")
 		(
 			UI_HIDE_STAGES=1
 			UI_SUPPRESS_LOGS=1
 			"$chain"
-		) >"${logs[$index]}" 2>&1 & pids+=("$!")
+		) >"${logs[$index]}" 2>&1 &
+		pids+=("$!")
+		pid_indexes+=("$index")
 		if [ "${#pids[@]}" -ge 3 ]; then
-			for pid in "${pids[@]}"; do wait "$pid" || { status=$?; if [ "$rc" -eq 0 ] || [ "$status" -eq 2 ]; then rc="$status"; fi; }; done
+			for position in "${!pids[@]}"; do
+				pid="${pids[$position]}"
+				chain_index="${pid_indexes[$position]}"
+				if wait "$pid"; then
+					statuses[$chain_index]=0
+				else
+					status=$?
+					statuses[$chain_index]="$status"
+					if [ "$rc" -eq 0 ] || [ "$status" -eq 2 ]; then rc="$status"; fi
+				fi
+			done
 			pids=()
+			pid_indexes=()
 		fi
 	done
-	for pid in "${pids[@]}"; do wait "$pid" || { status=$?; if [ "$rc" -eq 0 ] || [ "$status" -eq 2 ]; then rc="$status"; fi; }; done
+	for position in "${!pids[@]}"; do
+		pid="${pids[$position]}"
+		chain_index="${pid_indexes[$position]}"
+		if wait "$pid"; then
+			statuses[$chain_index]=0
+		else
+			status=$?
+			statuses[$chain_index]="$status"
+			if [ "$rc" -eq 0 ] || [ "$status" -eq 2 ]; then rc="$status"; fi
+		fi
+	done
 	if ui_tty_enabled && [ "$UI_STAGE_ACTIVE" -eq 1 ]; then
 		ui_stage_finish "$rc"
 	fi
-	for index in "${!chains[@]}"; do
-		cat "${logs[$index]}"
-		[ -s "${logs[$index]}" ] && log "Completed chain: ${chains[$index]}"
-	done
+	if dry_run_enabled; then
+		for index in "${!chains[@]}"; do
+			cat "${logs[$index]}"
+		done
+	else
+		for index in "${!chains[@]}"; do
+			awk '/^(warning:|b-agentic .* complete for Pi|Installed:|Planned:|Manifest:|Readiness:|Attention:|  [[:alnum:]_-]+:|Next:)/ { print }' "${logs[$index]}"
+		done
+	fi
+	if [ "$rc" -ne 0 ]; then
+		for index in "${!chains[@]}"; do
+			if [ "${statuses[$index]:-0}" -ne 0 ]; then
+				printf 'Dependency chain failed: %s\n' "${chains[$index]}" >&2
+				if [ -s "${logs[$index]}" ]; then cat "${logs[$index]}" >&2; fi
+			fi
+		done
+	fi
 	rm -rf "$log_dir"
 	return "$rc"
 }

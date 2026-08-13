@@ -99,6 +99,10 @@ EOF
 #!/usr/bin/env bash
 set -euo pipefail
 log_dir="$(cd "$(dirname "$0")" && pwd)"
+if [ "${B_AGENTIC_VERBOSE_MOCK:-0}" -eq 1 ]; then
+  printf 'pi routine output %s\n' "$*"
+  printf 'warning: mocked actionable warning\n' >&2
+fi
 if [ "${1:-}" = "list" ]; then
   found=0
   if [ -f "$log_dir/pi-adapter-installed" ]; then
@@ -153,6 +157,14 @@ EOF
 	for name in uv serena codegraph; do
 		cat >"$bin_dir/$name" <<'EOF'
 #!/usr/bin/env bash
+log_dir="$(cd "$(dirname "$0")" && pwd)"
+if [ "${B_AGENTIC_VERBOSE_MOCK:-0}" -eq 1 ]; then
+  printf 'dependency routine output %s\n' "$*"
+fi
+if [ "$(basename "$0")" = "codegraph" ] && [ -f "$log_dir/fail-codegraph" ]; then
+	printf 'forced codegraph diagnostic\n' >&2
+	exit 23
+fi
 exit 0
 EOF
 		chmod +x "$bin_dir/$name"
@@ -160,6 +172,9 @@ EOF
 	cat >"$bin_dir/bun" <<'EOF'
 #!/usr/bin/env bash
 log_dir="$(cd "$(dirname "$0")" && pwd)"
+if [ "${B_AGENTIC_VERBOSE_MOCK:-0}" -eq 1 ]; then
+  printf 'bun routine output %s\n' "$*"
+fi
 printf 'bun %s\n' "$*" >> "$log_dir/bun.log"
 exit 0
 EOF

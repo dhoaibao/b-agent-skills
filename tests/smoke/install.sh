@@ -863,6 +863,39 @@ run_bun_mcp_package_lifecycle_case() {
 	assert_not_contains "$bun_log" 'bun install --global'
 }
 
+run_parallel_chain_output_case() {
+	local snapshot_repo="$1"
+	local sandbox="$WORK_DIR/parallel-chain-output"
+	local install_log="$sandbox/install.log"
+	local bin_dir="$sandbox/smoke-bin"
+	local rc=0
+
+	mkdir -p "$sandbox/home"
+	set +e
+	HOME="$sandbox/home" PATH="$(smoke_runtime_cli_path "$sandbox")" \
+		B_AGENTIC_REPO="$snapshot_repo" B_AGENTIC_DIR="$sandbox/source" \
+		B_AGENTIC_PROMPT_API_KEYS=N B_AGENTIC_VERBOSE_MOCK=1 bash "$ROOT_DIR/install.sh" >"$install_log" 2>&1
+	rc=$?
+	set -e
+	[ "$rc" -eq 0 ] || fail "expected verbose mocked install exit 0, got $rc"
+	assert_not_contains "$install_log" 'dependency routine output'
+	assert_not_contains "$install_log" 'bun routine output'
+	assert_not_contains "$install_log" 'pi routine output'
+	assert_contains "$install_log" 'b-agentic install complete for Pi'
+	assert_contains "$install_log" 'warning: mocked actionable warning'
+
+	: >"$bin_dir/fail-codegraph"
+	set +e
+	HOME="$sandbox/home" PATH="$(smoke_runtime_cli_path "$sandbox")" \
+		B_AGENTIC_REPO="$snapshot_repo" B_AGENTIC_DIR="$sandbox/source" \
+		B_AGENTIC_PROMPT_API_KEYS=N B_AGENTIC_VERBOSE_MOCK=1 bash "$ROOT_DIR/install.sh" --update >"$sandbox/failure.log" 2>&1
+	rc=$?
+	set -e
+	[ "$rc" -ne 0 ] || fail "expected forced dependency chain failure"
+	assert_contains "$sandbox/failure.log" 'Dependency chain failed: update_tooling'
+	assert_contains "$sandbox/failure.log" 'forced codegraph diagnostic'
+}
+
 run_uninstall_skips_dependency_reconciliation_case() {
 	local snapshot_repo="$1"
 	local sandbox="$WORK_DIR/uninstall-skips-dependency-reconciliation"
@@ -1191,6 +1224,7 @@ run_base_smoke_cases() {
 		run_existing_tool_upgrade_case
 		run_existing_tool_default_skip_case
 		run_bun_mcp_package_lifecycle_case
+		run_parallel_chain_output_case
 		run_uninstall_skips_dependency_reconciliation_case
 		run_skill_doctor_case
 	)
