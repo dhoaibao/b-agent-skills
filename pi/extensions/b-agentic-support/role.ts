@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { isPlannerMcpToolName } from "./mcp.ts";
-import { hasGitMutationRisk, hasInlineGitAliasInvocation, hasLocalFilesystemRisk, hasShellControlSyntax, hasUnbalancedQuotes, hasUnquotedGlob, hasUnsafeShellSyntax, isNegatedGlob, isProtectedPath, isProjectConfinedLocalPath, jqOperands, normalizeTokens, PROTECTED_PATH_MARKERS, splitShellSegments, tokenize, unwrapTokens } from "./shell.ts";
+import { commandDecision, hasGitMutationRisk, hasInlineGitAliasInvocation, hasLocalFilesystemRisk, hasShellControlSyntax, hasUnbalancedQuotes, hasUnquotedGlob, hasUnsafeShellSyntax, isNegatedGlob, isProtectedPath, isProjectConfinedLocalPath, jqOperands, normalizeTokens, PROTECTED_PATH_MARKERS, splitShellSegments, tokenize, unwrapTokens } from "./shell.ts";
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
@@ -47,6 +47,14 @@ export const PLANNER_ALLOWED_TOOLS = new Set(["read", "recall", "intercom", "bas
 const PLANNER_READ_COMMANDS = new Set(["bat", "batcat", "eza", "exa", "fd", "fdfind", "jq", "pwd", "rg"]);
 const PLANNER_GIT_READ_COMMANDS = new Set(["annotate", "blame", "branch", "cat-file", "count-objects", "describe", "diff", "diff-tree", "for-each-ref", "fsck", "grep", "log", "ls-files", "ls-tree", "merge-base", "name-rev", "reflog", "remote", "rev-list", "rev-parse", "shortlog", "show", "show-ref", "stash", "status", "submodule", "tag", "verify-commit", "verify-tag", "version", "worktree"]);
 const PLANNER_CODEGRAPH_COMMANDS = new Set(["affected", "callees", "callers", "explore", "files", "help", "impact", "init", "node", "query", "status", "version"]);
+// These utilities have no non-mutating repository use. Commands with safe
+// read-only modes are instead checked by hasPlannerExecutionOrMutationRisk.
+const PLANNER_WRITE_ONLY_COMMANDS = new Set([
+  "cp", "install", "mkdir", "mkfifo", "mknod", "mv", "rm", "rmdir", "shred", "touch", "truncate", "unlink",
+]);
+const PLANNER_BUILD_OR_INTERPRETER_COMMANDS = new Set([
+  "bash", "cargo", "cmake", "deno", "dotnet", "fish", "go", "gradle", "gradlew", "java", "jest", "lint", "lua", "make", "mvn", "next", "node", "npm", "npx", "perl", "php", "pip", "playwright", "pnpm", "poetry", "prettier", "pytest", "python", "python3", "rake", "ruby", "rspec", "rubocop", "ruff", "sh", "tsc", "uv", "vitest", "yarn", "zsh",
+]);
 
 /** Planner tool surface includes base tools plus concretely namespaced, policy-checked MCP tools. */
 export function isPlannerAllowedToolName(toolName: string): boolean {
@@ -355,6 +363,151 @@ function hasAmbiguousJqProtectedProgram(segment: string, tokens: string[]): bool
   return !afterDelimiter.startsWith("'") && !afterDelimiter.startsWith('"');
 }
 
+function hasPlannerWriteRedirection(tokens: string[]): boolean {
+  return tokens.some((token) => /^(?:\d+)?(?:>>|>|&>>|&>)$/.test(token) || /^(?:\d+)?(?:>>|>|&>>|&>)/.test(token));
+}
+
+/** Program strings bypass normal operand scanning, so inspect embedded path-like values. */
+function hasPlannerProtectedProgramPath(program: string): boolean {
+  return (program.match(/[~./A-Za-z0-9_-]+(?:\/[~./A-Za-z0-9_-]+)*/g) ?? []).some(isProtectedPath);
+}
+
+function hasPlannerUnsafeAwkInputPath(program: string): boolean {
+  const inputForms = [...program.matchAll(/\bgetline\b[^;\n]*</g)];
+  const quotedInputs = [...program.matchAll(/\bgetline\b[^;\n]*<\s*["']([^"']+)["']/g)].map((match) => match[1]);
+  // Computed variables and expressions cannot be safely resolved by the shell
+  // classifier, so only directly quoted, confined input paths are readable.
+  return inputForms.length !== quotedInputs.length || quotedInputs.some((path) => isProtectedPath(path) || !isProjectConfinedLocalPath(path));
+}
+
+function isPlannerReadOnlyTarList(args: string[]): boolean {
+  const allowedOptions = new Set(["-t", "--list", "-v", "--verbose", "--full-time", "--numeric-owner", "--occurrence", "--null", "--quoting-style"]);
+  let listRequested = false;
+  for (const token of args) {
+    if (token === "-tf" || /^-[A-Za-z]*t[A-Za-z]*$/.test(token) || token === "--list") { listRequested = true; continue; }
+    if (allowedOptions.has(token) || token.startsWith("--quoting-style=") || token.startsWith("--occurrence=")) continue;
+    if (!token.startsWith("-")) continue; // archive/member operands are safe after a list option.
+    return false;
+  }
+  return listRequested;
+}
+
+function plannerSedPrograms(args: string[]): string[] | undefined {
+  const programs: string[] = [];
+  let positionalProgram = false;
+  for (let index = 0; index < args.length; index += 1) {
+    const token = args[index];
+    if (token === "-f" || token === "--file" || token.startsWith("-f") || token.startsWith("--file=")) return undefined;
+    if (token === "-e" || token === "--expression") {
+      const program = args[++index];
+      if (!program) return undefined;
+      programs.push(program);
+      continue;
+    }
+    if (token.startsWith("--expression=")) { programs.push(token.slice("--expression=".length)); continue; }
+    if (token.startsWith("-e") && token.length > 2) { programs.push(token.slice(2)); continue; }
+    if (token.startsWith("-")) continue;
+    if (!positionalProgram && programs.length === 0) { programs.push(token); positionalProgram = true; }
+  }
+  return programs.length ? programs : undefined;
+}
+
+function isPlannerReadOnlySedProgram(program: string): boolean {
+  // Permit common read-only inspection programs: address/range printing and
+  // substitutions with only non-executing, non-writing flags.
+  const address = "(?:(?:\\$|\\d+|/(?:\\\\.|[^/])+/)(?:\\s*,\\s*(?:\\$|\\d+|/(?:\\\\.|[^/])+/))?\\s*)?";
+  const printOrDelete = new RegExp(`^\\s*${address}[pdq]\\s*$`);
+  const source = program.trim();
+  if (printOrDelete.test(source) || source[0] !== "s" || !source[1] || /[\\w\s\\]/.test(source[1])) return printOrDelete.test(source);
+  const delimiter = source[1];
+  let index = 2;
+  for (let field = 0; field < 2; field += 1) {
+    while (index < source.length && source[index] !== delimiter) index += source[index] === "\\" ? 2 : 1;
+    if (index >= source.length) return false;
+    index += 1;
+  }
+  // A numeric occurrence plus g/I/p/n affect only matching or stdout; e/w
+  // would execute or write and are intentionally excluded.
+  return /^(?:\d+)?[gIpn]*$/.test(source.slice(index));
+}
+
+/**
+ * Shared path scanning cannot distinguish a sed regex address from an absolute
+ * operand (for example, `/planner/p`). Permit that narrow false-positive only
+ * when every program and file operand is independently proven read-only.
+ */
+function isPlannerSafeSedSharedPolicyException(command: string): boolean {
+  const tokens = normalizeTokens(tokenize(command));
+  if (tokens[0] !== "sed") return false;
+  let hasExpression = false;
+  let positionalProgram = false;
+  for (let index = 1; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    if (token === "-n" || token === "--quiet" || token === "--silent") continue;
+    if (token === "-e" || token === "--expression") {
+      const program = tokens[++index];
+      if (!program || !isPlannerReadOnlySedProgram(program)) return false;
+      hasExpression = true;
+      continue;
+    }
+    if (token.startsWith("--expression=")) {
+      const program = token.slice("--expression=".length);
+      if (!isPlannerReadOnlySedProgram(program)) return false;
+      hasExpression = true;
+      continue;
+    }
+    if (token.startsWith("-e") && token.length > 2) {
+      const program = token.slice(2);
+      if (!isPlannerReadOnlySedProgram(program)) return false;
+      hasExpression = true;
+      continue;
+    }
+    if (token.startsWith("-")) return false;
+    if (!hasExpression && !positionalProgram) {
+      if (!isPlannerReadOnlySedProgram(token)) return false;
+      positionalProgram = true;
+      continue;
+    }
+    if (isProtectedPath(token) || !isProjectConfinedLocalPath(token)) return false;
+  }
+  return hasExpression || positionalProgram;
+}
+
+/** Detect write or execution forms while retaining documented read-only modes. */
+function hasPlannerExecutionOrMutationRisk(commandName: string | undefined, tokens: string[]): boolean {
+  const args = tokens.slice(1);
+  if (!commandName) return false;
+  if (PLANNER_WRITE_ONLY_COMMANDS.has(commandName)) {
+    return args.length > 0 && !args.every((token) => ["-h", "--help", "-V", "--version"].includes(token));
+  }
+  if (commandName === "find") return args.some((token) => ["-delete", "-exec", "-execdir", "-ok", "-okdir", "-fprint", "-fprint0", "-fprintf", "-fls"].includes(token));
+  if (commandName === "sed") {
+    if (args.some((token) => token === "-i" || token.startsWith("-i") || token === "--in-place" || token.startsWith("--in-place="))) return true;
+    const programs = plannerSedPrograms(args);
+    return !programs || programs.some((program) => !isPlannerReadOnlySedProgram(program));
+  }
+  if (commandName === "awk") {
+    if (args.some((token) => hasPlannerProtectedProgramPath(token) || hasPlannerUnsafeAwkInputPath(token))) return true;
+    if (args.some((token) => token === "-f" || token === "--file" || token.startsWith("-f") || token.startsWith("--file=") || token === "-i" || token.startsWith("-i") || token === "--include" || token.startsWith("--include="))) return true;
+    return args.some((token) => /@[ \t]*(?:include|load)\b|\bsystem\s*\(|\bprint(?:f)?\b[^;\n]*\s>>?|\bprint(?:f)?\b[^;\n]*\||\|\s*getline\b/.test(token));
+  }
+  if (commandName === "tar") return !isPlannerReadOnlyTarList(args);
+  if (commandName === "ar") {
+    if (args.some((token) => /^-[A-Za-z]*t[A-Za-z]*$/.test(token))) return false;
+    const mode = args.find((token) => !token.startsWith("-"));
+    return !["-v", "--version", "t", "p"].includes(mode ?? args[0] ?? "");
+  }
+  if (commandName === "7z") {
+    const mode = args.find((token) => !token.startsWith("-"));
+    return !["-v", "--version", "l", "t", "h", "-h", "--help"].includes(mode ?? args[0] ?? "");
+  }
+  if (commandName === "tee") return args.some((token) => !token.startsWith("-"));
+  if (PLANNER_BUILD_OR_INTERPRETER_COMMANDS.has(commandName)) {
+    return !["-v", "--version", "version", "-h", "--help", "help"].includes(args[0] ?? "");
+  }
+  return false;
+}
+
 function isPlannerReadCommand(commandName: string | undefined, tokens: string[]): boolean {
   if (!commandName || !PLANNER_READ_COMMANDS.has(commandName) || hasLocalFilesystemRisk(tokens, { allowUnquotedGlob: true })) return false;
   if (["fd", "fdfind"].includes(commandName)) return !hasOption(tokens, ["-l", "-L", "-x", "-X", "-H", "-I", "-u", "--exec", "--exec-batch", "--follow", "--list-details", "--hidden", "--no-ignore", "--unrestricted"]) && !hasUnsafeShortOptionCluster(tokens, "lLxXHIu") && !optionTokens(tokens).some((token) => token.startsWith("--no-ignore")) && !hasUnsafeReadPathOption(tokens, ["--base-directory", "--search-path", "--ignore-file"]);
@@ -365,8 +518,15 @@ function isPlannerReadCommand(commandName: string | undefined, tokens: string[])
   return true;
 }
 
-/** Fail closed unless every shell segment is a direct local inspection command. */
+/**
+ * Permit commands that the shared policy already recognizes as safe, then
+ * reject repository-writing forms. This keeps planners read-only without
+ * requiring every harmless inspection utility (for example, `printf`) to be
+ * added to a separate allowlist.
+ */
 export function plannerCommandDecision(command: string): { allowed: boolean; reason: string } {
+  const sharedDecision = commandDecision(command, undefined, { allowUnquotedGlob: true });
+  if (sharedDecision.decision !== "allow" && !isPlannerSafeSedSharedPolicyException(command)) return { allowed: false, reason: sharedDecision.reason };
   if (hasUnbalancedQuotes(command) || hasUnsafeShellSyntax(command) || hasShellControlSyntax(command)) {
     return { allowed: false, reason: "Planner mode permits only unambiguous read-only shell commands" };
   }
@@ -381,7 +541,7 @@ export function plannerCommandDecision(command: string): { allowed: boolean; rea
     }
     const tokens = normalizeTokens(rawTokens);
     const commandName = tokens[0];
-    const allowed = commandName === "git"
+    const specializedReadCommand = commandName === "git"
       ? PLANNER_GIT_READ_COMMANDS.has(tokens[1] ?? "") && !hasInlineGitAliasInvocation(unwrapped.tokens) && isPlannerGitReadOnly(tokens, unwrapped.tokens)
       : commandName === "codegraph"
         ? PLANNER_CODEGRAPH_COMMANDS.has(tokens[1] ?? "") && isPlannerCodeGraphReadOnly(tokens)
@@ -389,10 +549,15 @@ export function plannerCommandDecision(command: string): { allowed: boolean; rea
     if (hasPlannerProtectedGlob(rawTokens) || (["rg", "fd", "fdfind", "eza", "exa"].includes(commandName ?? "") && hasProtectedSelectionGlob(rawTokens)) || (commandName === "jq" && hasAmbiguousJqProtectedProgram(segment, tokens))) {
       return { allowed: false, reason: "Planner mode blocks protected-path globs" };
     }
-    if (hasUnquotedGlob(segment) && !allowed) {
+    if (hasUnquotedGlob(segment) && !specializedReadCommand) {
       return { allowed: false, reason: "Planner mode permits unquoted globs only for direct read-only commands" };
     }
-    if (!allowed) return { allowed: false, reason: `Planner mode blocks non-read-only command: ${commandName || "unknown"}` };
+    if (!specializedReadCommand && (hasPlannerExecutionOrMutationRisk(commandName, tokens) || hasPlannerWriteRedirection(rawTokens))) {
+      return { allowed: false, reason: `Planner mode blocks write or execution command: ${commandName || "unknown"}` };
+    }
+    if (["git", "codegraph", "rg", "fd", "fdfind", "bat", "batcat", "jq", "eza", "exa"].includes(commandName ?? "") && !specializedReadCommand) {
+      return { allowed: false, reason: `Planner mode blocks non-read-only command: ${commandName || "unknown"}` };
+    }
   }
   return { allowed: true, reason: "" };
 }

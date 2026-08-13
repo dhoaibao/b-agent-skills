@@ -323,6 +323,14 @@ expect(plannerTest.plannerCommandDecision(pathNamedLikeOption).allowed === true,
 expect(await toolCallHandler({ toolName: 'bash', input: { command: pathNamedLikeOption } }, noUiPlannerContext) === undefined, 'planner pipeline must allow option-like Git pathspecs after --');
 expect(await toolCallHandler({ toolName: 'bash', input: { command: exactPlannerDiff } }, noUiPlannerContext) === undefined, 'planner pipeline must allow the exact multi-path globbed diff');
 expect(await toolCallHandler({ toolName: 'bash', input: { command: "rtk rg --no-config '{foo,bar}' skills" } }, noUiPlannerContext) === undefined, 'planner pipeline must allow quoted braces');
+for (const command of ["printf '%s\\n' 'planner inspection'", 'head -n 1 README.md', 'wc -l README.md', 'find . -maxdepth 1 -type f', "awk 'NR==1' README.md", "awk 'getline < \"README.md\"; print' README.md", "sed -n '1p' README.md", "sed -n '/planner/p' README.md", "sed -n 's/planner/plan/p' README.md", "sed -n 's#planner#plan#2p' README.md", "sed -n 's/.env/example/p' README.md", 'tar -tf archive.tar', 'ar t archive.a', 'ar -t archive.a', '7z l archive.7z', '7z h', '7z --help', 'node --version', 'npm --version']) {
+  expect(plannerTest.plannerCommandDecision(command).allowed === true, `planner classifier must allow safe read-only command ${command}`);
+  expect(await toolCallHandler({ toolName: 'bash', input: { command } }, noUiPlannerContext) === undefined, `planner pipeline must allow safe read-only command ${command}`);
+}
+for (const command of ["printf '%s\\n' blocked > planner-write", 'touch planner-write', 'find . -exec touch planner-write {} \\;', "sed -i 's/old/new/' README.md", "sed '1r .env' README.md", "sed -n '1,2w planner-write' README.md", "sed -n -e '1p' -e '1w planner-write' README.md", 'sed -f program.sed README.md', "awk 'BEGIN { system(\"touch planner-write\") }' README.md", "awk 'getline < \".env\"; print' README.md", "awk 'BEGIN { getline line < \"/etc/passwd\"; print line }' README.md", "awk 'BEGIN { path = \"/etc/passwd\"; getline line < path; print line }' README.md", 'awk -f program.awk README.md', "awk '@include \"program.awk\"' README.md", "tar -tf archive.tar --checkpoint=1 --checkpoint-action=exec='touch planner-write'", 'tar -xf archive.tar', 'ar r archive.a member.o', '7z x archive.7z', 'node script.js', 'npm test']) {
+  expect(plannerTest.plannerCommandDecision(command).allowed === false, `planner classifier must block shell write ${command}`);
+  expect((await toolCallHandler({ toolName: 'bash', input: { command } }, noUiPlannerContext))?.block === true, `planner pipeline must block shell write ${command}`);
+}
 for (const command of ["jq '.module' package.json", "jq '.include' package.json", "jq '.env' package.json", "jq -- '.env' package.json", "jq --arg name value '.foo' package.json", 'jq --argjson n 1 . package.json', "jq --raw-output '.foo' package.json", "jq -cS '.foo' package.json"]) {
   expect(await toolCallHandler({ toolName: 'bash', input: { command } }, noUiPlannerContext) === undefined, `planner pipeline must allow jq object field ${command}`);
 }
@@ -400,6 +408,7 @@ for (const command of [
 for (const command of ['rtk pytest -q', 'rtk git commit -m role-smoke', "rtk git -c 'alias.status=!touch owned' status", 'node -e "process.exit()"']) {
   expect((await toolCallHandler({ toolName: 'bash', input: { command } }, roleContext))?.block === true, `planner role must block worktree or execution command: ${command}`);
 }
+expect((await toolCallHandler({ toolName: 'bash', input: { command: 'rtk git reset --hard' } }, noUiPlannerContext))?.block === true, 'planner role must retain explicit command denies');
 const plannerSerenaReadArgs = { name_path_pattern: 'applyRole', relative_path: 'pi/extensions/b-agentic-role.ts' };
 const plannerPatternSearchArgs = {
   substring_pattern: 'applyRole', relative_path: 'pi/extensions/b-agentic-role.ts', restrict_search_to_code_files: true,

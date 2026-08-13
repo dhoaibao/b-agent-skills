@@ -6,6 +6,10 @@ All notable shipped revisions of b-agentic are recorded here. Released version h
 
 ### Changed
 
+- Planner read-only command policy:
+  - Observed failure: the planner's command allowlist blocked harmless inspection utilities such as `printf`, creating approval friction during discovery.
+  - Intended behavior: inherit shared-policy-safe read-only commands while retaining operation-specific Git, CodeGraph, and discovery checks; block write/redirection and execution forms, explicit denies, protected paths, dangerous commands, and outside-project access.
+  - Regression: planner role assertions in `pi/tests/smoke.sh` cover `printf`, ordinary repository reads, shell writes, explicit denies, and existing MCP task-retrieval/review policy coverage.
 - Separate repository/design-conformance audits from changed-code review:
   - Observed failure: `b-review` mixed changed-code review with b-agentic suite audits, leaving documented-decision drift without a distinct source-comparison owner.
   - Intended behavior: `b-agentic-audit` runs structural and decision-design traceability checks, compares the decision record with canonical sources, and reports drift; `b-review` remains changed-code-only and the mandatory delegated-diff gate is unchanged.

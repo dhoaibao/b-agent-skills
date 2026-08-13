@@ -121,14 +121,17 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   `pi --b-role`. Evidence: `README.md`, `pi/configs/README.md`,
   `pi/extensions/b-agentic-role.ts`.
 - Planner mode is enforced as read-only analysis and coordination. It may
-  inspect, recall, use safe discovery, inspect cached MCP status/list/search/
-  describe/instructions metadata, and make classified read-only or validated
-  conditional-read managed MCP calls (excluding Playwright). It blocks
+  inspect, recall, use shared-policy-safe read-only shell commands and repository
+  inspection, inspect cached MCP status/list/search/describe/instructions metadata,
+  and make classified read-only or validated conditional-read managed MCP calls
+  (including scoped Linear task retrieval and excluding Playwright). Git,
+  CodeGraph, and discovery commands retain operation-specific read-only checks;
+  other safe inspection utilities do not need a planner allowlist. It blocks
   `mcpScript`: adapter session approvals are checked before its broker, so a prior
-  role's approval could bypass nested-call enforcement. It cannot edit, write,
-  build, test, run repository scripts, commit, invoke browser/operational
-  work, or make auth/lifecycle/UI, unclassified, unmanaged, local-mutating, or
-  external-mutating MCP calls.
+  role's approval could bypass nested-call enforcement. It cannot edit, write
+  (including shell redirection), execute repository code or mutate state,
+  commit, invoke browser/operational work, or make auth/lifecycle/UI,
+  unclassified, unmanaged, local-mutating, or external-mutating MCP calls.
   The registry explicitly assigns all skills: planner execution owns `b-plan`,
   external `b-research`, `b-agentic-audit`, `b-review`, and `b-pr-summary`; the
   worker executes `b-design`, `b-implement`, `b-init`, `b-refactor`, `b-debug`,
@@ -139,9 +142,9 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   coordination; implementation or mutation, runtime diagnosis, builds/tests,
   browser/operational verification, commits, mixed, and uncertain work belong
   to the worker. Unknown ownership defaults to worker while generation rejects
-  missing or invalid owners. Direct allowlisted read-only
-  Git/discovery commands may use unquoted glob arguments; other ambiguous shell
-  syntax remains blocked. Worker mode is the sole worktree writer and retains
+  missing or invalid owners. Git/discovery commands may use unquoted glob
+  arguments only after operation-specific read-only validation; other ambiguous
+  shell syntax remains blocked. Worker mode is the sole worktree writer and retains
   normal repository-local automation. Evidence: `skills/registry.yaml`,
   `tooling/generate/registry_sync.py`, `pi/extensions/b-agentic-planner.ts`,
   `pi/extensions/b-agentic-mcp-permissions.ts`,

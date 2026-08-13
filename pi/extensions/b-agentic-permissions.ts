@@ -88,6 +88,10 @@ export default function bAgenticPermissions(pi: ExtensionAPI): void {
       const decision = commandDecision(command, undefined, { allowUnquotedGlob: getRole() === "planner" });
       if (decision.decision === "deny") return { block: true, reason: decision.reason };
       if (decision.decision === "ask") {
+        // A safe sed regex address can resemble an absolute path to the shared
+        // operand scanner; plannerCommandDecision independently verifies this
+        // narrow false positive before planner mode may bypass approval.
+        if (getRole() === "planner" && role.plannerCommandDecision(command).allowed) return undefined;
         if (isAutoModeEnabled()) return undefined;
         if (!ctx.hasUI) return { block: true, reason: `${decision.reason} (no UI; fail-closed)` };
         const allowed = await ctx.ui.confirm(
