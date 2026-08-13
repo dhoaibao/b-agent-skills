@@ -121,8 +121,14 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   `pi --b-role`. Evidence: `README.md`, `pi/configs/README.md`,
   `pi/extensions/b-agentic-role.ts`.
 - Planner mode is enforced as read-only analysis and coordination. It may
-  inspect, recall, use safe discovery, and make classified read-only MCP calls,
-  but cannot edit, write, build, test, commit, or make mutating MCP calls.
+  inspect, recall, use safe discovery, inspect cached MCP status/list/search/
+  describe/instructions metadata, and make classified read-only or validated
+  conditional-read managed MCP calls (excluding Playwright). It blocks
+  `mcpScript`: adapter session approvals are checked before its broker, so a prior
+  role's approval could bypass nested-call enforcement. It cannot edit, write,
+  build, test, run repository scripts, commit, invoke browser/operational
+  work, or make auth/lifecycle/UI, unclassified, unmanaged, local-mutating, or
+  external-mutating MCP calls.
   The registry explicitly assigns all skills: planner execution owns `b-plan`,
   external `b-research`, `b-agentic-audit`, `b-review`, and `b-pr-summary`; the
   worker executes `b-design`, `b-implement`, `b-init`, `b-refactor`, `b-debug`,
@@ -237,8 +243,8 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
 - The managed set is Serena, CodeGraph, Context7, Linear, Brave Search, Firecrawl, and
   Playwright. Configured servers use lazy lifecycle, proxy execution by
   default, and a 30-second request timeout. Linear uses the hosted read-only endpoint,
-  OAuth `read` scope, and an exact `get_issue` allowlist. Public tool evidence is Linear issues
-  [#1028](https://github.com/linear/linear/issues/1028), [#1060](https://github.com/linear/linear/issues/1060), and [#747](https://github.com/linear/linear/issues/747); no authenticated live inventory was available for this change. The observed routing failure was that a bare Linear-style ID could be treated as generic implementation or research rather than planning; the intended behavior routes it to `b-plan`. Regression evidence is the human-scored `linear-issue-plan-routing` scenario in `tests/behavior/routing.json`, structurally validated with `python3 pi/tests/prompt_effectiveness.py --routing --validate-inputs --scenario=linear-issue-plan-routing`. Evidence:
+  OAuth `read` scope, and an exact `get_issue` allowlist. The observed planner-policy failures were that cached gateway metadata was unnecessarily Linear-specific, explicit namespaced direct tools were filtered out, and planner shell parsing both blocked routine inspection commands and missed attached Git mutation flags or unsafe read-command options. The intended capability matrix permits cached non-executing status/server-list/search/describe/instructions metadata for any server and policy-classified managed retrieval/research with existing direct Serena/CodeGraph or explicit `mcp__` aliases and concrete safe arguments. `mcpScript` is deliberately blocked: adapter session approvals precede its broker and can survive a role change. It blocks Playwright, Serena mutations/lifecycle, auth/connect/UI actions, selector mixtures, unclassified or unmanaged execution, and all local/external mutation regardless of UI or auto mode. Narrow deterministic regression evidence is table-driven classifier, registered planner-pipeline, broker, active-tool, shell, Git, and CodeGraph allow/deny coverage in `pi/tests/smoke.sh`. Public tool evidence is Linear issues
+  [#1028](https://github.com/linear/linear/issues/1028), [#1060](https://github.com/linear/linear/issues/1060), and [#747](https://github.com/linear/linear/issues/747); no authenticated live inventory was available for this change. Separately, the observed routing failure was that a bare Linear-style ID could be treated as generic implementation or research rather than planning; the intended behavior routes it to `b-plan`. Regression evidence is the human-scored `linear-issue-plan-routing` scenario in `tests/behavior/routing.json`, structurally validated with `python3 pi/tests/prompt_effectiveness.py --routing --validate-inputs --scenario=linear-issue-plan-routing`. Evidence:
   `references/mcp_operations.yaml`, `pi/configs/mcp.user.template.json`,
   `pi/scripts/validate.sh`.
 - Auto-approval is exact and least-privilege: read-only/trusted operations are
@@ -268,11 +274,11 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   bounded primary public research (including `research_*` and developer
   search), and Brave provides independent corroboration or specialized search
   modalities. Private repository material is never sent to public search.
-- Distinct independent CodeGraph reads for an already-established concrete
-  architecture or impact question may be fanned out in one bounded read-only
-  `mcpScript`; Serena requests remain serialized and are not included in parallel
-  or batched calls. Metadata discovery is trusted there, while every nested tool
-  call retains normal policy. Evidence: `REFERENCE.md`,
+- Planner research uses direct policy-classified calls and cached metadata;
+  `mcpScript` remains available outside planner mode but is blocked for planners
+  until adapter session-approval caching can be safely role-scoped. Serena requests
+  remain serialized and are not included in parallel or batched calls. Evidence:
+  `REFERENCE.md`,
   `references/kernel.template.md`, `skills/b-research/prompt.md`,
   `skills/b-plan/prompt.md`, `skills/b-test/prompt.md`.
 

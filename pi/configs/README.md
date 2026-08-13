@@ -38,7 +38,7 @@ b-agentic defaults to Off for a single-session workflow; the first same-CWD sess
 
 `/b-auto-mode` enables an explicit opt-in automatic approval mode. Enabling it always shows a warning and requires an interactive Y/N confirmation; disabling it does not. While enabled, every `ask` decision is auto-allowed, but explicit `deny` decisions remain blocked. User changes persist across Pi restarts and `/new` sessions in `~/.pi/agent/b-agentic/auto-mode.json`; legacy session entries remain compatible. `pi --b-auto-mode` requests one-session startup enablement and still requires confirmation. The setting appears as red `b-auto-mode` in Pi's footer. If no interactive UI is available, enabling fails closed.
 
-Planner mode is enforced as analysis-only: it permits `read`, `recall`, Intercom, safe local discovery commands, and classified read-only MCP gateway calls (including Serena and CodeGraph). Direct allowlisted read-only Git/discovery commands may use unquoted glob arguments; other ambiguous shell syntax remains blocked. It blocks edits, writes, builds/tests, commits, arbitrary shell commands, arbitrary MCP scripts, and mutating MCP calls. The planner discovers a ready worker through the injected role-aware roster and never falls back to implementation. The normal permission extension continues to protect sensitive paths, dangerous commands, and outside-project or external/shared actions. Worker mode retains normal repository-local automation.
+Planner mode is enforced as analysis-only: it permits `read`, `recall`, Intercom, safe local discovery commands, cached non-executing MCP status, server listing, search, describe, and instructions metadata, plus policy-classified managed read-only or validated conditional-read MCP calls (including direct namespaced Serena/CodeGraph aliases, but never Playwright). It blocks `mcpScript`: adapter session approvals are checked before its broker, so nested safety cannot be guaranteed after a role change. Direct allowlisted read-only Git/discovery commands may use unquoted glob arguments; other ambiguous shell syntax remains blocked. It blocks edits, writes, builds/tests, repository scripts, commits, browser/operational work, auth/lifecycle/UI MCP actions, unclassified or unmanaged MCP execution, and local or external mutations. The planner discovers a ready worker through the injected role-aware roster and never falls back to implementation. The normal permission extension continues to protect sensitive paths, dangerous commands, and outside-project or external/shared actions. Worker mode retains normal repository-local automation.
 
 In the two-role workflow, the generated ownership mapping gives the planner read-only execution of `b-plan`, external `b-research`, `b-agentic-audit`, `b-review`, and `b-pr-summary`; it delegates `b-design`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, and `b-commit` to the worker. The planner may still read any skill for planning, delegation, audit, or review: ownership governs execution, not inspection. Planner ownership is limited to read-only decision/planning, external research, audit/review, or release-summary coordination; implementation or mutation, runtime diagnosis, builds/tests, browser/operational verification, commits, mixed, and uncertain work belong to the worker. Direct user wording or no ready worker never permits planner implementation; unknown ownership fails closed to worker ownership and registry validation rejects missing or invalid owners. The planner finishes discovery and settles one bounded handoff before the worker edits; it then waits for the worker result and reviews with `b-review`. The worker is the sole worktree writer; in solo/Off work no coordination applies. Planner-owned audit/review gets blocked verification through bounded worker evidence, never planner scripts/tests.
 
@@ -99,8 +99,11 @@ that listens for `tool_call` events and:
   managed-server gateway calls. Also auto-allows classified read-only and
   validated conditional-read operations. Explicitly targeted `mcp` proxy tool
   executions use b-agentic's adapter broker: safe managed calls auto-allow, while
-  unsafe or unmanaged calls prompt there. Metadata and lifecycle selectors remain
-  behind the generic approval gate. Other direct adapter names remain gated
+  unsafe or unmanaged calls prompt there. Outside planner mode, metadata and
+  lifecycle selectors remain behind the generic approval gate; planner mode permits
+  only cached global status, server listing, search, describe, and instructions
+  metadata, while its broker hard-denies non-classified nested/direct/script/resource
+  execution regardless of UI or auto mode. Other direct adapter names remain gated
   because they share Pi's custom-tool namespace
 - prefers native `read`/`edit`/`write` for routine repository work; after native
   search/read, uses Serena only for a concrete exact-symbol, reference,
@@ -113,8 +116,9 @@ that listens for `tool_call` events and:
   concrete repository-wide architecture, dependency/call-flow, impact, or
   affected-test question; does not initialize it merely because work spans files;
   avoids querying both tools for the same question; read-only
-  `tools.search`/`tools.describe` metadata discovery is trusted in the bounded
-  auto-run `mcpScript`, while each nested `tools.call` retains normal policy;
+  cached MCP status/list/search/describe/instructions metadata is planner-safe;
+  planner mode blocks `mcpScript`, because adapter session approvals can bypass
+  its nested-call broker after a role change;
   asks for Firecrawl external-mutation or
   local-upload tools (agent/crawl/interact/monitor/feedback/parse), Linear OAuth bootstrap and every Linear operation other than `get_issue`, Playwright
   page-mutating tools (click/type/upload/evaluate/…), screenshots (the server

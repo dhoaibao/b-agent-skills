@@ -689,7 +689,7 @@ export const B_AGENTIC_SKILL_NAMES = new Set([
 ]);
 
 export const LOCAL_PATH_COMMANDS = new Set([
-  "7z", "ar", "awk", "bat", "cat", "cmp", "cp", "cpio", "curl", "diff", "eza", "fd", "file", "find", "git", "grep", "head",
+  "7z", "ar", "awk", "bat", "batcat", "cat", "cmp", "cp", "cpio", "curl", "diff", "eza", "exa", "fd", "fdfind", "file", "find", "git", "grep", "head",
   "install", "less", "ln", "ls", "make", "mkdir", "mkfifo", "mknod", "more", "mv", "pax", "readlink", "realpath", "rg", "rm", "rmdir", "rsync", "sed", "shred", "stat",
   "tail", "tar", "tee", "test", "touch", "truncate", "unzip", "unlink", "wc", "wget", "zip",
 ]);
@@ -776,6 +776,45 @@ export function hasWorkingDirectoryChangeRisk(rawTokens: string[], tokens: strin
   return false;
 }
 
+export type JqOperands = { valid: boolean; externalProgram: boolean; nullInput: boolean; program?: string; programIndex?: number; filePaths: string[]; inputPaths: string[] };
+
+/** Parse jq's safe standard flag/value forms, separating filters from filesystem operands. */
+export function jqOperands(tokens: string[]): JqOperands {
+  const result: JqOperands = { valid: tokens[0] === "jq", externalProgram: false, nullInput: false, filePaths: [], inputPaths: [] };
+  const flags = new Set(["c", "r", "j", "0", "a", "S", "C", "M", "e", "s", "R", "n"]);
+  const longFlags = new Set(["--compact-output", "--raw-output", "--join-output", "--raw-output0", "--ascii-output", "--sort-keys", "--color-output", "--monochrome-output", "--exit-status", "--slurp", "--raw-input", "--null-input"]);
+  const valueCounts = new Map([["--arg", 2], ["--argjson", 2], ["--rawfile", 2], ["--slurpfile", 2], ["--argfile", 2], ["-L", 1], ["--library-path", 1], ["-f", 1], ["--from-file", 1]]);
+  const fileValueOffsets = new Map([["--rawfile", 2], ["--slurpfile", 2], ["--argfile", 2], ["-L", 1], ["--library-path", 1], ["-f", 1], ["--from-file", 1]]);
+  let afterOptions = false;
+  for (let index = 1; index < tokens.length; index += 1) {
+    const token = tokens[index]!;
+    if (!afterOptions && token === "--") { afterOptions = true; continue; }
+    if (!afterOptions) {
+      const count = valueCounts.get(token);
+      if (count !== undefined) {
+        if (index + count >= tokens.length) return { ...result, valid: false };
+        const fileOffset = fileValueOffsets.get(token);
+        if (fileOffset !== undefined) result.filePaths.push(tokens[index + fileOffset]!);
+        if (token === "-f" || token === "--from-file") result.externalProgram = true;
+        index += count;
+        continue;
+      }
+      if (token === "--null-input") { result.nullInput = true; continue; }
+      if (longFlags.has(token)) continue;
+      if (/^-[^-]+$/.test(token) && token.slice(1).split("").every((flag) => flags.has(flag))) { if (token.includes("n")) result.nullInput = true; continue; }
+      if (token.startsWith("-")) return { ...result, valid: false };
+    }
+    if (result.externalProgram || result.program !== undefined) result.inputPaths.push(token);
+    else { result.program = token; result.programIndex = index; }
+  }
+  return result.externalProgram || result.program !== undefined ? result : { ...result, valid: false };
+}
+
+function jqInputPathRisk(tokens: string[]): boolean {
+  const parsed = jqOperands(tokens);
+  return !parsed.valid || [...parsed.filePaths, ...parsed.inputPaths].some((path) => !isProjectConfinedLocalPath(path));
+}
+
 export function hasLocalFilesystemRisk(tokens: string[], options: { allowUnquotedGlob?: boolean } = {}): boolean {
   if (tokens.length === 0) return false;
 
@@ -802,6 +841,7 @@ export function hasLocalFilesystemRisk(tokens: string[], options: { allowUnquote
   }
 
   if (command === "rm") return true;
+  if (command === "jq") return jqInputPathRisk(tokens);
   if (command === "rsync" && tokens.slice(1).some(isRemoteTarget)) return true;
   if (!LOCAL_PATH_COMMANDS.has(command)) return false;
   return tokens.slice(1).some((token) => {
@@ -1016,10 +1056,15 @@ export function hasGitMutationRisk(tokens: string[]): boolean {
       "-c", "-C", "-d", "-D", "-f", "-m", "-M", "-s", "-u",
       "--annotate", "--copy", "--create-reflog", "--delete", "--edit-description",
       "--force", "--move", "--set-upstream-to", "--sign", "--unset-upstream",
+      "--file", "--message",
     ]);
+    const attachedShortMutationFlags = operation === "branch"
+      ? ["-c", "-C", "-d", "-D", "-f", "-m", "-M", "-s", "-u"]
+      : ["-a", "-F", "-f", "-m", "-s", "-u"];
     if (rest.some((token) => mutationFlags.has(token) ||
+      attachedShortMutationFlags.some((flag) => token.startsWith(flag)) ||
       [...mutationFlags].some((flag) => token.startsWith(`${flag}=`)) ||
-      (token.startsWith("--") && ["--delete", "--unset-upstream", "--set-upstream", "--move", "--copy", "--force"].some((flag) => flag.startsWith(token) || token.startsWith(flag))))) return true;
+      (token.startsWith("--") && ["--annotate", "--copy", "--create-reflog", "--delete", "--edit-description", "--file", "--force", "--message", "--move", "--set-upstream-to", "--sign", "--unset-upstream"].some((flag) => flag.startsWith(token) || token.startsWith(flag))))) return true;
     const listMode = rest.some((token) => token === "-l" || token === "--list");
     const valueOptions = new Set([
       "--contains", "--format", "--merged", "--no-contains", "--no-merged", "--points-at", "--sort",
@@ -1034,7 +1079,9 @@ export function hasGitMutationRisk(tokens: string[]): boolean {
     return false;
   }
   if (operation === "reflog") return !new Set(["", "show", "list"]).has(tokens[2] || "");
-  if (operation === "stash") return !new Set(["list", "show"]).has(tokens[2] || "list");
+  if (operation === "stash") return !new Set(["list", "show"]).has(tokens[2] ?? "");
+  if (operation === "submodule") return tokens[2] !== "status" || tokens.length !== 3;
+  if (operation === "worktree") return tokens[2] !== "list" || tokens.length !== 3;
   if (operation === "remote") return !new Set(["-v", "get-url", "show"]).has(tokens[2] || "show");
   return true;
 }
@@ -1109,6 +1156,13 @@ export function isLiteralGitContentPath(pathspec: string): boolean {
   }
 }
 
+function isSafeGitObjectPath(object: string): boolean {
+  const colon = object.lastIndexOf(":");
+  if (colon < 1) return false;
+  const path = object.slice(colon + 1);
+  return Boolean(path) && !path.startsWith("/") && !path.startsWith("(") && !/[*?[\]{}]/.test(path) && !isProtectedPath(path);
+}
+
 export function isUnscopedGitContentRead(tokens: string[]): boolean {
   const operation = tokens[1];
   if (tokens[0] !== "git" || !["diff", "show", "diff-tree"].includes(operation)) return false;
@@ -1169,7 +1223,9 @@ export function segmentDecision(
   // Shell access to a literal protected path is always approval-gated, even
   // through rtk/wrapper commands or in a compound segment. This deliberately
   // covers both reads and writes: the shell parser cannot reliably infer intent.
-  if (tokens.some((token) => !isNegatedGlob(token) &&
+  const jqProgramIndex = jqOperands(tokens).programIndex;
+  if (tokens.some((token, index) => !isNegatedGlob(token) &&
+    index !== jqProgramIndex &&
     !(options.allowUnquotedGlob && /[*?\[\]{}]/.test(token)) &&
     (isProtectedPath(token) || isProtectedLocalPath(token)))) {
     return {
@@ -1193,7 +1249,8 @@ export function segmentDecision(
   }
 
   if (isUnscopedGitContentRead(tokens) && !(options.allowUnquotedGlob &&
-    (tokens[1] === "diff-tree" || tokens.some((token) => /[*?\[\]{}]/.test(token)) || tokens.includes("--")))) {
+    (tokens[1] === "diff-tree" || tokens.some((token) => /[*?\[\]{}]/.test(token)) || tokens.includes("--") ||
+      (tokens[1] === "show" && tokens.slice(2).some(isSafeGitObjectPath))))) {
     return {
       decision: "ask",
       reason: "Requires approval: Git content read must name existing non-protected file paths after --",

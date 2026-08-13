@@ -1,6 +1,6 @@
 /** Role selection, persistence, coordination, and role model preferences. */
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { ROLE_ENTRY_TYPE, PLANNER_ALLOWED_TOOLS, parseRole, latestRoleState } from "./b-agentic-support/role.ts";
+import { ROLE_ENTRY_TYPE, isPlannerAllowedToolName, parseRole, latestRoleState } from "./b-agentic-support/role.ts";
 import { loadRoleModelPreferences, saveRoleModelPreference, type RoleModelPreference } from "./b-agentic-support/role-models.ts";
 import { getRole, setRole, getToolsBeforePlanner, setToolsBeforePlanner } from "./b-agentic-support/state.ts";
 
@@ -90,7 +90,7 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
     if (next === "planner") {
       const tools = getToolsBeforePlanner() ?? pi.getActiveTools();
       setToolsBeforePlanner(tools);
-      pi.setActiveTools(tools.filter((name) => PLANNER_ALLOWED_TOOLS.has(name)));
+      pi.setActiveTools(tools.filter(isPlannerAllowedToolName));
     } else {
       const tools = pi.getActiveTools();
       if (!tools.includes("b_agentic_confirm_commit")) {

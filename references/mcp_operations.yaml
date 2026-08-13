@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "format": "json-subset-of-yaml",
-  "description": "Canonical managed MCP operation classification. All Serena operations plus classified read-only and safe conditional-read operations are auto-approved through adapter-owned calls and unambiguous top-level mcp gateway calls; trusted mcpScript allows read-only metadata discovery while delegating each nested tool call to this policy.",
+  "description": "Canonical managed MCP operation classification. All Serena operations plus classified read-only and safe conditional-read operations are auto-approved through adapter-owned calls and unambiguous top-level mcp gateway calls. Planner mode permits only cached non-executing MCP status, server listing, search, describe, and instructions metadata, plus policy-classified managed read-only or validated conditional-read execution (excluding Playwright and Serena mutations); mcpScript is blocked because adapter session approvals could bypass the planner broker.",
   "classes": {
     "read-only": {
       "policy": "Auto-approved for managed servers",
@@ -246,6 +246,6 @@
     }
   },
   "runtime_enforcement": {
-    "pi": "The adapter approval broker and Pi tool_call trust all classified Serena operations plus other classified safe operations. The top-level mcp gateway requires an explicit managed server and matching tool name; conditional tools also require validated arguments. The trusted mcpScript container auto-runs and permits read-only tools.search/tools.describe metadata discovery; every nested tools.call retains this policy. Other top-level selectors remain approval-gated. Validation requires runtime safe sets to match this policy."
+    "pi": "The adapter approval broker and Pi tool_call trust all classified Serena operations plus other classified safe operations. The top-level mcp gateway requires an explicit managed server and matching tool name; conditional tools also require validated arguments. In planner mode, only cached status, server listing, search, describe, and instructions selectors are permitted; managed execution is restricted to policy-classified read-only or validated conditional-read tools, with the stricter Serena read boundary and no Playwright. Outside planner mode, mcpScript permits tools.search/tools.describe metadata and nested tools.call retains normal policy. It is blocked in planner mode: adapter session approvals are checked before the broker, so nested-call policy cannot be guaranteed across role changes. Auth, lifecycle, UI actions, selector mixtures, unclassified tools, unmanaged servers, and local/external mutations remain blocked. Validation requires runtime safe sets to match this policy."
   }
 }

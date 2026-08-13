@@ -9,11 +9,10 @@ export default function bAgenticMcpPermissions(pi: ExtensionAPI): void {
   pi.on("tool_call", async (event, ctx) => {
     currentContext = ctx;
     const input = event.input;
-    const isPlannerMcpCall = getRole() === "planner" &&
-      (event.toolName === "mcp" || event.toolName.startsWith("serena_") || event.toolName.startsWith("mcp__"));
+    const isPlannerMcpCall = getRole() === "planner" && policy.isMcpAdapterToolName(event.toolName);
     if (isPlannerMcpCall) {
-      if (!policy.isPlannerReadOnlyMcpCall(event.toolName, input)) {
-        return { block: true, reason: "Planner mode permits only classified read-only MCP calls (local-mutation Serena calls are blocked)" };
+      if (!policy.isPlannerMcpToolName(event.toolName) || !policy.isPlannerReadOnlyMcpCall(event.toolName, input)) {
+        return { block: true, reason: "Planner mode permits only safe metadata or classified read-only MCP calls (local-mutation Serena calls are blocked)" };
       }
       // The planner classifier already established this is an allowed call;
       // avoid repeating conditional filesystem classification below.
@@ -36,9 +35,10 @@ export default function bAgenticMcpPermissions(pi: ExtensionAPI): void {
   pi.events.on(policy.MCP_TOOL_APPROVAL_REQUEST_EVENT, (value) => {
     if (!policy.isMcpToolApprovalRequest(value)) return;
     const server = policy.normalizeServerId(value.serverName);
-    if (server === "serena" && getRole() === "planner" &&
-      !policy.isPlannerReadOnlySerenaBrokerCall(value.originalToolName, value.prefixedToolName, value.args)) {
-      value.claim(() => "deny");
+    if (getRole() === "planner") {
+      value.claim(() => ["direct", "proxy"].includes(value.origin) && policy.isPlannerReadOnlyMcpBrokerCall(
+        server, value.originalToolName, value.prefixedToolName, value.args,
+      ) ? "allow_once" : "deny");
       return;
     }
     if (policy.isTrustedManagedTool(server, value.originalToolName, value.args)) {

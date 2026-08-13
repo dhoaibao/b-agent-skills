@@ -223,10 +223,15 @@ session entries remain compatible. It displays red `b-auto-mode` in Pi's footer.
 fails closed without an interactive UI.
 
 Planner mode is analysis-only: it permits `read`, `recall`, Intercom, safe local
-discovery commands, and classified read-only MCP calls. It blocks edits,
-writes, builds/tests, commits, arbitrary shell commands, arbitrary MCP scripts,
-and mutating MCP calls. Worker mode retains normal repository-local automation
-and is the sole worktree writer.
+discovery commands, cached non-executing MCP status/list/search/describe/instructions
+metadata and policy-classified managed read-only or validated conditional-read MCP
+calls. It blocks `mcpScript`, since adapter session approvals are checked before its
+broker and could bypass nested-call enforcement after a role change. Browser/Playwright,
+auth/lifecycle/UI actions, unclassified or unmanaged calls, and local or external
+mutations remain blocked. It blocks edits, writes, builds/tests/repository scripts,
+commits, and arbitrary shell
+commands. Worker mode retains normal repository-local automation and is the sole
+worktree writer.
 
 The planner finishes discovery and settles one bounded handoff. If agreement is
 needed, roles resolve it before edits; once the worker starts, the planner stops

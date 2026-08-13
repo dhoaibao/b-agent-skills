@@ -373,6 +373,8 @@ const MCP_CONDITIONAL_ARGUMENT_KEY_SETS: Record<string, ReadonlySet<string>> = O
   Object.entries(MCP_CONDITIONAL_ARGUMENTS).map(([tool, keys]) => [tool, new Set(keys)]),
 );
 const MCP_PROXY_EXECUTION_FIELDS = new Set(["server", "tool", "args"]);
+const PLANNER_METADATA_SEARCH_FIELDS = new Set(["search", "server", "regex", "includeSchemas", "limit", "offset"]);
+const PLANNER_METADATA_SEARCH_MAX_LIMIT = 100;
 const FIRECRAWL_SCRAPE_OPTION_KEYS = new Set([
   "formats", "jsonOptions", "queryOptions", "screenshotOptions", "parsers", "pdfOptions",
   "onlyMainContent", "redactPII", "includeTags", "excludeTags", "waitFor", "mobile",
@@ -393,6 +395,21 @@ export function isManagedServer(server: string): boolean {
   return MANAGED_MCP_SERVERS.has(normalizeServerId(server));
 }
 
+type ManagedDirectMcpTool = { server: string; tool: string };
+
+/** Parse Pi adapter names: mcp__<normalized_server>_<server_tool>. */
+function managedDirectMcpTool(toolName: string): ManagedDirectMcpTool | undefined {
+  if (!toolName.startsWith("mcp__")) return undefined;
+  for (const server of [...MANAGED_MCP_SERVERS].sort((left, right) => right.length - left.length)) {
+    const normalized = server.replace(/-/g, "_");
+    for (const separator of ["__", "_"]) { // retain prior generated names for compatibility
+      const prefix = `mcp__${normalized}${separator}`;
+      if (toolName.startsWith(prefix) && toolName.slice(prefix.length)) return { server, tool: toolName.slice(prefix.length) };
+    }
+  }
+  return undefined;
+}
+
 /**
  * Strip adapter/namespace prefixes to get the server-local tool base name.
  * Examples:
@@ -403,10 +420,8 @@ export function isManagedServer(server: string): boolean {
  */
 export function managedToolBaseName(toolName: string, server: string): string {
   let name = toolName;
-  if (name.startsWith("mcp__")) {
-    const parts = name.split("__");
-    name = parts.length >= 3 ? parts.slice(2).join("__") : name;
-  }
+  const direct = managedDirectMcpTool(name);
+  if (direct) name = direct.tool;
 
   const serverUnderscore = server.replace(/-/g, "_");
   const repeated = `${serverUnderscore}_${serverUnderscore}_`;
@@ -834,11 +849,8 @@ export function gatewayArgs(value: unknown): Record<string, unknown> | undefined
 }
 
 export function gatewayToolMatchesServer(server: string, toolName: string): boolean {
-  if (toolName.startsWith("mcp__")) {
-    const parts = toolName.split("__");
-    return parts.length >= 3 && normalizeServerId(parts[1]) === server;
-  }
-  return true;
+  const direct = managedDirectMcpTool(toolName);
+  return !toolName.startsWith("mcp__") || direct?.server === server;
 }
 
 /** Return true only for an explicitly targeted adapter proxy execution. */
@@ -871,10 +883,10 @@ const PLANNER_SERENA_READ_TOOLS = new Set([
 
 function plannerSerenaToolBase(toolName: string): string | undefined {
   let name = toolName;
+  const direct = managedDirectMcpTool(name);
   if (name.startsWith("mcp__")) {
-    const parts = name.split("__");
-    if (parts.length < 3 || normalizeServerId(parts[1]!) !== "serena") return undefined;
-    name = parts.slice(2).join("__");
+    if (direct?.server !== "serena") return undefined;
+    name = direct.tool;
   }
   if (!name.startsWith("serena_")) return undefined;
   if (name.startsWith("serena_serena_")) name = name.slice("serena_".length);
@@ -901,27 +913,88 @@ export function isPlannerReadOnlySerenaBrokerCall(
     isPlainObject(input) && isPlannerReadOnlySerenaCall(originalBase, input);
 }
 
-/** Allow only safe Serena discovery and classified read-only managed gateway calls in planner mode. */
+/** Allow only adapter metadata selectors that read its cached, lazy server metadata. */
+function isPlannerMetadataCall(input: unknown): boolean {
+  if (!isPlainObject(input)) return false;
+  const keys = Object.keys(input);
+  if (keys.length === 0) return true; // global adapter status
+  if (keys.length === 1 && typeof input.server === "string" && input.server.trim()) return true; // server/tool listing
+  if (keys.length === 1 && typeof input.describe === "string" && input.describe.trim()) return true;
+  if (keys.length === 1 && typeof input.instructions === "string" && input.instructions.trim()) return true;
+  if (!keys.includes("search") || !keys.every((key) => PLANNER_METADATA_SEARCH_FIELDS.has(key)) || typeof input.search !== "string") return false;
+  const hasServer = typeof input.server === "string" && Boolean(input.server.trim());
+  return (input.server === undefined || hasServer) &&
+    (Boolean(input.search.trim()) || hasServer) &&
+    (input.regex === undefined || typeof input.regex === "boolean") &&
+    (input.includeSchemas === undefined || typeof input.includeSchemas === "boolean") &&
+    (input.limit === undefined || typeof input.limit === "number" && Number.isSafeInteger(input.limit) && input.limit >= 1 && input.limit <= PLANNER_METADATA_SEARCH_MAX_LIMIT) &&
+    (input.offset === undefined || typeof input.offset === "number" && Number.isSafeInteger(input.offset) && input.offset >= 0);
+}
+
+function isPlannerReadOnlyManagedToolName(server: string, toolName: string): boolean {
+  if (!isManagedServer(server) || server === "playwright") return false;
+  const base = managedToolBaseName(toolName, server);
+  if (server === "serena") return PLANNER_SERENA_READ_TOOLS.has(base) || base === "serena_search_for_pattern";
+  return MCP_CONDITIONAL_TOOLS.has(`${server}:${base}`) || isTrustedManagedTool(server, base, {});
+}
+
+function isPlannerReadOnlyManagedTool(server: string, toolName: string, input: unknown): boolean {
+  if (!isPlannerReadOnlyManagedToolName(server, toolName)) return false;
+  const base = managedToolBaseName(toolName, server);
+  if (server === "serena") return isPlainObject(input) && isPlannerReadOnlySerenaCall(base, input);
+  return isTrustedManagedTool(server, base, input);
+}
+
+/** Return true for an adapter gateway, script, or direct tool namespace. */
+export function isMcpAdapterToolName(toolName: string): boolean {
+  return toolName === "mcp" || toolName === "mcpScript" || toolName.startsWith("mcp__") ||
+    plannerSerenaToolBase(toolName) !== undefined || toolName.startsWith("codegraph_");
+}
+
+/** Return true for managed direct-tool names that may remain active in planner mode. */
+export function isPlannerMcpToolName(toolName: string): boolean {
+  if (toolName === "mcp") return true;
+  const direct = managedDirectMcpTool(toolName);
+  if (direct) return isPlannerReadOnlyManagedToolName(direct.server, direct.tool);
+  const serenaBase = plannerSerenaToolBase(toolName);
+  if (serenaBase) return isPlannerReadOnlyManagedToolName("serena", serenaBase);
+  return toolName.startsWith("codegraph_") && isPlannerReadOnlyManagedToolName("codegraph", toolName);
+}
+
+/** Classify planner-safe managed calls, including direct adapter aliases, by their concrete arguments. */
 export function isPlannerReadOnlyMcpCall(toolName: string, input: unknown): boolean {
   if (toolName === "mcp") {
+    if (isPlannerMetadataCall(input)) return true;
     if (!isMcpProxyToolExecution(input)) return false;
     const server = normalizeServerId(input.server);
-    if (server !== "serena") return isTrustedManagedGatewayCall(input);
     const args = gatewayArgs(input.args);
-    const base = plannerSerenaToolBase(input.tool);
-    return args !== undefined && base !== undefined && gatewayToolMatchesServer(server, input.tool) &&
-      isPlannerReadOnlySerenaCall(base, args);
+    return args !== undefined && gatewayToolMatchesServer(server, input.tool) &&
+      isPlannerReadOnlyManagedTool(server, input.tool, args);
   }
-  const args = isPlainObject(input) ? input : undefined;
-  const base = plannerSerenaToolBase(toolName);
-  return args !== undefined && base !== undefined && isPlannerReadOnlySerenaCall(base, args);
+  const direct = managedDirectMcpTool(toolName);
+  if (direct) return isPlannerReadOnlyManagedTool(direct.server, direct.tool, input);
+  const serenaBase = plannerSerenaToolBase(toolName);
+  if (serenaBase) return isPlainObject(input) && isPlannerReadOnlySerenaCall(serenaBase, input);
+  return toolName.startsWith("codegraph_") && isPlannerReadOnlyManagedTool("codegraph", toolName, input);
+}
+
+/** Hard planner boundary for every adapter-brokered direct, resource, and script execution. */
+export function isPlannerReadOnlyMcpBrokerCall(
+  serverName: string,
+  originalToolName: string,
+  prefixedToolName: string,
+  input: unknown,
+): boolean {
+  const server = normalizeServerId(serverName);
+  if (!gatewayToolMatchesServer(server, originalToolName) || !gatewayToolMatchesServer(server, prefixedToolName)) return false;
+  if (server === "serena") return isPlannerReadOnlySerenaBrokerCall(originalToolName, prefixedToolName, input);
+  return isPlannerReadOnlyManagedTool(server, originalToolName, input);
 }
 
 /** Return true only for a classified direct Serena/CodeGraph tool in its own namespace. */
 function isDirectClassifiedManagedTool(toolName: string, input: unknown, server: "serena" | "codegraph"): boolean {
   if (toolName.startsWith("mcp__")) {
-    const parts = toolName.split("__");
-    if (parts.length < 3 || normalizeServerId(parts[1]!) !== server) return false;
+    if (managedDirectMcpTool(toolName)?.server !== server) return false;
   } else {
     const namespace = `${server.replace(/-/g, "_")}_`;
     if (!toolName.startsWith(namespace)) return false;

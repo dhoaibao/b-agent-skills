@@ -1,7 +1,7 @@
 /** Planner collaboration prompt. */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { isPlannerReadOnlyMcpCall } from "./b-agentic-support/mcp.ts";
-import { PLANNER_ALLOWED_TOOLS, PLANNER_PROMPT, SKILL_OWNERS, SKILL_OWNERSHIP_CRITERION, plannerCommandDecision, skillOwner } from "./b-agentic-support/role.ts";
+import { isMcpAdapterToolName, isPlannerMcpToolName, isPlannerReadOnlyMcpCall } from "./b-agentic-support/mcp.ts";
+import { PLANNER_ALLOWED_TOOLS, PLANNER_PROMPT, SKILL_OWNERS, SKILL_OWNERSHIP_CRITERION, isPlannerAllowedToolName, plannerCodeGraphInitAllowed, plannerCommandDecision, skillOwner } from "./b-agentic-support/role.ts";
 import { getRole } from "./b-agentic-support/state.ts";
 
 export default function bAgenticPlanner(pi: ExtensionAPI): void {
@@ -15,14 +15,14 @@ export default function bAgenticPlanner(pi: ExtensionAPI): void {
       const decision = plannerCommandDecision(String((event.input as { command?: unknown })?.command ?? ""));
       return decision.allowed ? undefined : { block: true, reason: decision.reason };
     }
-    if (event.toolName === "mcp" || event.toolName.startsWith("serena_") || event.toolName.startsWith("mcp__")) {
-      return isPlannerReadOnlyMcpCall(event.toolName, event.input)
+    if (isMcpAdapterToolName(event.toolName)) {
+      return isPlannerMcpToolName(event.toolName) && isPlannerReadOnlyMcpCall(event.toolName, event.input)
         ? undefined
-        : { block: true, reason: "Planner mode permits only classified read-only MCP calls" };
+        : { block: true, reason: "Planner mode permits only safe metadata or classified read-only MCP calls" };
     }
-    if (PLANNER_ALLOWED_TOOLS.has(event.toolName)) return undefined;
+    if (isPlannerAllowedToolName(event.toolName)) return undefined;
     return { block: true, reason: `Planner mode is read-only: ${event.toolName} is disabled` };
   });
 }
 
-export const __test__ = { isPlannerReadOnlyMcpCall, PLANNER_ALLOWED_TOOLS, PLANNER_PROMPT, SKILL_OWNERS, SKILL_OWNERSHIP_CRITERION, plannerCommandDecision, skillOwner };
+export const __test__ = { isMcpAdapterToolName, isPlannerAllowedToolName, isPlannerMcpToolName, isPlannerReadOnlyMcpCall, PLANNER_ALLOWED_TOOLS, PLANNER_PROMPT, SKILL_OWNERS, SKILL_OWNERSHIP_CRITERION, plannerCodeGraphInitAllowed, plannerCommandDecision, skillOwner };
