@@ -89,13 +89,15 @@ if extension.exists():
         'actual b-review', 'latest approved plan, handoff, and clarifications',
         'unchanged reviewed snapshot', 'isDirectClassifiedManagedTool',
         'isSafeSerenaSymbolRead', 'mcpScript', 'serena_onboarding',
-        'Planner task delegation remains prompt-governed', 'isMcpAdapterToolName',
+        'Planner task delegation remains prompt-governed', 'Roles guide skill execution through their prompts',
     ]:
         if marker not in text:
             errors.append(f'{extension}: missing policy marker {marker!r}')
     planner_extension = root / 'pi/extensions/b-agentic-planner.ts'
     planner_text = planner_extension.read_text() if planner_extension.exists() else ''
     planner_body = planner_text.split('export const __test__', 1)[0]
+    if 'pi.on("tool_call"' in planner_body:
+        errors.append(f'{planner_extension}: planner roles must not add role-specific tool-call blocks')
     if 'plannerCommandDecision(' in planner_body or 'isPlannerReadOnlyMcpCall(' in planner_body:
         errors.append(f'{planner_extension}: planner commands and MCP calls must use shared policy, not role-specific blocks')
     mcp_permissions = root / 'pi/extensions/b-agentic-mcp-permissions.ts'
@@ -148,7 +150,7 @@ if readme.exists():
         'pi-mcp-adapter', 'pi-observational-memory', '@narumitw/pi-usage',
         'extensions/b-agentic-permissions.ts', 'mcp.json', '/b-role planner',
         'pi --b-role planner|worker', '/b-auto-mode', '/b-sync', '/b-update',
-        'Planner mode is enforced as analysis-only', 'generated ownership mapping gives the planner',
+        'Planner mode is prompt-governed rather than tool-gated', 'generated ownership mapping gives the planner',
         '`b-design`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, and `b-commit`',
         'ownership governs execution, not inspection', 'Planner ownership is limited to read-only decision/planning',
         'mixed, and uncertain work belong to the worker', 'sole worktree writer',

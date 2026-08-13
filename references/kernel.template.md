@@ -58,7 +58,7 @@ Unclear work -> `b-plan`. `b-commit` and `b-pr-summary` need explicit request. R
 - Preserve unrelated changes; never run `git push`, `git pull`, `git reset --hard`, `git clean -f`, or `git branch -D` autonomously.
 - Never read/expose/commit likely-secret files (`.env`, `*.pem`, `credentials.*`, `secrets.*`) without explicit permission; protected paths and ambiguous shell input stay gated.
 - Prefer sources; regenerate only when required. Never invent behavior or compatibility.
-- MCP: CodeGraph, Serena, Context7, Linear, Firecrawl, Brave, and Playwright; nested tools keep policy. Planner allows cached metadata and classified execution, but blocks `mcpScript` because adapter approvals bypass its broker after a role change. Direct managed Serena/CodeGraph names bypass generic approval only in matching namespace; protected/outside-project Serena and unknown/mismatched tools stay gated.
+- MCP: CodeGraph, Serena, Context7, Linear, Firecrawl, Brave, and Playwright; nested tools keep policy. Role selection does not alter MCP availability or approval policy; prompt-level skill ownership directs planner and worker execution. Direct managed Serena/CodeGraph names bypass generic approval only in matching namespace; protected/outside-project Serena and unknown/mismatched tools stay gated.
 - Use CodeGraph only when native inspection leaves a concrete repository-wide architecture or impact question; run the exact `codegraph init` only then and only when its index is absent. Use Serena only for a concrete exact-symbol or diagnostic/refactor need; onboarding, memories, and dashboard are exceptions. Do not install missing tools; fall back to local evidence and state the resulting gap.
 
 ### Managed MCP operations

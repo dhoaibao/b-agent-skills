@@ -121,35 +121,26 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   planner. Explicit `planner` and `worker` roles are selected by `/b-role` or
   `pi --b-role`. Evidence: `README.md`, `pi/configs/README.md`,
   `pi/extensions/b-agentic-role.ts`.
-- Planner mode is enforced as read-only analysis and coordination. It may
-  inspect, recall, use shared-policy-safe read-only shell commands and repository
-  inspection, inspect cached MCP status/list/search/describe/instructions metadata,
-  and make classified read-only or validated conditional-read managed MCP calls
-  (including scoped Linear task retrieval and excluding Playwright). Git,
-  CodeGraph, and discovery commands retain operation-specific read-only checks;
-  other safe inspection utilities do not need a planner allowlist. It blocks
-  `mcpScript`: adapter session approvals are checked before its broker, so a prior
-  role's approval could bypass nested-call enforcement. It cannot edit, write
-  (including shell redirection), execute repository code or mutate state,
-  commit, invoke browser/operational work, or make auth/lifecycle/UI,
-  unclassified, unmanaged, local-mutating, or external-mutating MCP calls.
-  The registry explicitly assigns all skills: planner execution owns `b-plan`,
-  external `b-research`, `b-agentic-audit`, `b-review`, and `b-pr-summary`; the
-  worker executes `b-design`, `b-implement`, `b-init`, `b-refactor`, `b-debug`,
-  `b-test`, `b-browser`, and `b-commit`. Ownership is execution-only, so the
-  planner may read any skill; direct user wording or no ready worker never
-  permits implementation. Planner ownership is limited to read-only
+- Planner and worker roles are prompt-governed collaboration profiles, not
+  role-specific tool gates: role selection preserves normal active tools and the
+  shared shell, filesystem, MCP, and approval policies. The registry explicitly
+  assigns all skills: the planner prompt enumerates in-scope `b-plan`, external
+  `b-research`, `b-agentic-audit`, `b-review`, and `b-pr-summary` skills and its
+  worker delegation list; the worker prompt likewise enumerates `b-design`,
+  `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, and
+  `b-commit` and its planner delegation list. Ownership is execution-only, so
+  either role may inspect skills; direct user wording or no ready worker never
+  permits planner implementation. Planner ownership is limited to read-only
   decision/planning, external research, audit/review, or release-summary
   coordination; implementation or mutation, runtime diagnosis, builds/tests,
   browser/operational verification, commits, mixed, and uncertain work belong
   to the worker. Unknown ownership defaults to worker while generation rejects
-  missing or invalid owners. Git/discovery commands may use unquoted glob
-  arguments only after operation-specific read-only validation; other ambiguous
-  shell syntax remains blocked. Worker mode is the sole worktree writer and retains
-  normal repository-local automation. Evidence: `skills/registry.yaml`,
+  missing or invalid owners. Worker mode is the sole worktree writer and retains
+  normal repository-local automation. Independent shared policies still block
+  dangerous commands, protected paths, unclassified or unmanaged MCP execution,
+  and local or external mutations. Evidence: `skills/registry.yaml`,
   `tooling/generate/registry_sync.py`, `pi/extensions/b-agentic-planner.ts`,
-  `pi/extensions/b-agentic-mcp-permissions.ts`,
-  `pi/extensions/b-agentic-support/role.ts`,
+  `pi/extensions/b-agentic-role.ts`, `pi/extensions/b-agentic-support/role.ts`,
   `pi/extensions/b-agentic-support/mcp.ts`.
 - The planner settles a context-complete, bounded natural-language handoff before
   the worker edits. Both roles use `pending` before `send`/`reply`; an inbound
@@ -247,7 +238,17 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
 - The managed set is Serena, CodeGraph, Context7, Linear, Brave Search, Firecrawl, and
   Playwright. Configured servers use lazy lifecycle, proxy execution by
   default, and a 30-second request timeout. Linear uses the hosted read-only endpoint,
-  OAuth `read` scope, and an exact `get_issue` allowlist. The observed planner-policy failures were that cached gateway metadata was unnecessarily Linear-specific, explicit namespaced direct tools were filtered out, and planner shell parsing both blocked routine inspection commands and missed attached Git mutation flags or unsafe read-command options. The intended capability matrix permits cached non-executing status/server-list/search/describe/instructions metadata for any server and policy-classified managed retrieval/research with existing direct Serena/CodeGraph or explicit `mcp__` aliases and concrete safe arguments. `mcpScript` is deliberately blocked: adapter session approvals precede its broker and can survive a role change. It blocks Playwright, Serena mutations/lifecycle, auth/connect/UI actions, selector mixtures, unclassified or unmanaged execution, and all local/external mutation regardless of UI or auto mode. Narrow deterministic regression evidence is table-driven classifier, registered planner-pipeline, broker, active-tool, shell, Git, and CodeGraph allow/deny coverage in `pi/tests/smoke.sh`. Public tool evidence is Linear issues
+  OAuth `read` scope, and an exact `get_issue` allowlist. Shared managed-MCP
+  classifications—not the selected role—govern gateway, direct-tool, and
+  `mcpScript` use. The capability matrix permits cached non-executing
+  status/server-list/search/describe/instructions metadata for any server and
+  policy-classified managed retrieval/research with existing direct
+  Serena/CodeGraph or explicit `mcp__` aliases and concrete safe arguments.
+  It blocks Playwright, Serena mutations/lifecycle, auth/connect/UI actions,
+  selector mixtures, unclassified or unmanaged execution, and all local/external
+  mutation regardless of UI, auto mode, or role. Narrow deterministic regression
+  evidence is table-driven classifier, broker, active-tool, shell, Git, and
+  CodeGraph allow/deny coverage in `pi/tests/smoke.sh`. Public tool evidence is Linear issues
   [#1028](https://github.com/linear/linear/issues/1028), [#1060](https://github.com/linear/linear/issues/1060), and [#747](https://github.com/linear/linear/issues/747); no authenticated live inventory was available for this change. Separately, the observed routing failure was that a bare Linear-style ID could be treated as generic implementation or research rather than planning; the intended behavior routes it to `b-plan`. Regression evidence is the human-scored `linear-issue-plan-routing` scenario in `tests/behavior/routing.json`, structurally validated with `python3 pi/tests/prompt_effectiveness.py --routing --validate-inputs --scenario=linear-issue-plan-routing`. Evidence:
   `references/mcp_operations.yaml`, `pi/configs/mcp.user.template.json`,
   `pi/scripts/validate.sh`.
@@ -278,10 +279,9 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   bounded primary public research (including `research_*` and developer
   search), and Brave provides independent corroboration or specialized search
   modalities. Private repository material is never sent to public search.
-- Planner research uses direct policy-classified calls and cached metadata;
-  `mcpScript` remains available outside planner mode but is blocked for planners
-  until adapter session-approval caching can be safely role-scoped. Serena requests
-  remain serialized and are not included in parallel or batched calls. Evidence:
+- Research uses direct policy-classified calls and cached metadata; `mcpScript`
+  follows the same shared approval policy in every role. Serena requests remain
+  serialized and are not included in parallel or batched calls. Evidence:
   `REFERENCE.md`,
   `references/kernel.template.md`, `skills/b-research/prompt.md`,
   `skills/b-plan/prompt.md`, `skills/b-test/prompt.md`.

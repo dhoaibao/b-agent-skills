@@ -228,19 +228,13 @@ session entries remain compatible. It displays red `b-auto-mode` in Pi's footer.
 `pi --b-auto-mode` requests one-session startup enablement, but enabling still
 fails closed without an interactive UI.
 
-Planner mode is analysis-only: it permits `read`, `recall`, Intercom, shared-policy-safe
-read-only shell commands and repository inspection, cached non-executing MCP
-status/list/search/describe/instructions metadata, and policy-classified managed
-read-only or validated conditional-read MCP calls (including scoped Linear task
-retrieval). It blocks `mcpScript`, since adapter session approvals are checked before
-its broker and could bypass nested-call enforcement after a role change. Git,
-CodeGraph, and discovery commands keep operation-specific read-only checks, while
-other safe inspection utilities do not need a planner allowlist. Browser/Playwright,
-auth/lifecycle/UI actions, unclassified or unmanaged calls, and local or external
-mutations remain blocked. It blocks edits, writes (including shell redirection),
-commands that execute repository code or mutate state, and commits; harmless
-read-only/version/list forms remain available. Worker mode retains normal
-repository-local automation and is the sole worktree writer.
+Planner mode is prompt-governed: it preserves the normal active tools and shared
+shell, filesystem, MCP, and approval policies. Its injected profile assigns only
+planning, research, audit/review, and release-summary skills to the planner and
+directs implementation or operational work to the worker. The normal permission
+extensions still protect sensitive paths, dangerous commands, unclassified MCP
+calls, and local or external mutations regardless of role. Worker mode retains
+normal repository-local automation and is the sole worktree writer.
 
 The planner finishes discovery and settles one bounded handoff. If agreement is
 needed, roles resolve it before edits; once the worker starts, the planner stops

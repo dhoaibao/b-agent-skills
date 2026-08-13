@@ -6,7 +6,6 @@ export type BAgenticRole = "off" | "planner" | "worker";
 export type RoleState = {
   role: BAgenticRole;
   automatic?: boolean;
-  toolsBeforePlanner?: string[];
 };
 
 export const ROLE_ENTRY_TYPE = "b-agentic-role";
@@ -37,21 +36,9 @@ const PLANNER_OWNED_SKILLS = Object.entries(SKILL_OWNERS).filter(([, owner]) => 
 const WORKER_OWNED_SKILLS = Object.entries(SKILL_OWNERS).filter(([, owner]) => owner === "worker").map(([skill]) => "`" + skill + "`");
 // generated:skill-ownership:end
 
-/** Tools retained in the planner profile; MCP calls use the shared approval policy. */
-export const PLANNER_ALLOWED_TOOLS = new Set(["read", "recall", "intercom", "bash", "mcp"]);
-
-export function isMcpAdapterToolName(toolName: string): boolean {
-  return toolName === "mcp" || toolName === "mcpScript" || toolName.startsWith("mcp__") ||
-    toolName.startsWith("serena_") || toolName.startsWith("codegraph_");
-}
-
-export function isPlannerAllowedToolName(toolName: string): boolean {
-  return PLANNER_ALLOWED_TOOLS.has(toolName) || isMcpAdapterToolName(toolName);
-}
-
 export const PLANNER_PROMPT = `## b-agentic planner profile (read-only coordinator)
-You coordinate, review, and release; planner mode permits analysis only.
-- Skill execution ownership is generated from the registry. Planner-owned: ${PLANNER_OWNED_SKILLS.join(", ")}; worker-owned: ${WORKER_OWNED_SKILLS.join(", ")}. This includes external b-research. ${SKILL_OWNERSHIP_CRITERION} Execute planner-owned skills only inside the read-only coordinator boundary. Delegate every worker-owned execution intent to a ready same-CWD worker. Ownership governs execution, not inspection: you may read any skill for planning, delegation, audit, or review. Direct user wording or no ready worker never permits planner implementation. Unknown or ambiguous skills fail closed to worker ownership.
+You coordinate, review, and release; planner mode is prompt-governed analysis and coordination.
+- Skill execution ownership is generated from the registry. Your in-scope planner skills are: ${PLANNER_OWNED_SKILLS.join(", ")}. Delegate these worker-owned skills to a ready same-CWD worker: ${WORKER_OWNED_SKILLS.join(", ")}. This includes external b-research. ${SKILL_OWNERSHIP_CRITERION} Execute planner-owned skills only inside the read-only coordinator boundary. Delegate every worker-owned execution intent to a ready same-CWD worker. Ownership governs execution, not inspection: you may read any skill for planning, delegation, audit, or review. Direct user wording or no ready worker never permits planner implementation. Unknown or ambiguous skills fail closed to worker ownership.
 - Finish discovery before one bounded handoff. Do not edit, emit patches, run builds/tests/repository scripts, commit, or fall back to implementation—even for a direct user request. The ready worker is the sole worktree writer. For audit/review verification you cannot run, request bounded worker evidence.
 - Before a non-trivial handoff, concisely state applicable observable behavior, scope/non-goals, constraints/invariants, paths/symbols/evidence, acceptance criteria, validation expectations, and assumptions, pre-existing changes, or gaps. Natural language only; no message schema.
 - Before every Intercom send/reply call pending. Reply to an inbound ask without send/list-cwd; otherwise refresh list-cwd and use only the returned identifier token verbatim. Its authoritative short ID is valid; never guess, reconstruct, extend, further abbreviate, or reuse stale output, display names, or aliases. Delivery makes the message real. On failure: pending, reply if required, else fresh list-cwd and one retry only if the peer is live; otherwise pause—never continue, commit, or close. The refresh is not polling; after handoff end the turn and wait for the worker send, with no sleep/status polling or ask to wait.
@@ -60,7 +47,7 @@ You coordinate, review, and release; planner mode permits analysis only.
 
 export function workerPrompt(): string {
   return `## b-agentic worker profile (implementation)
-You are the sole worktree writer. Use the matching worker-owned skill; the planner owns external research and planner-owned scope decisions. ${SKILL_OWNERSHIP_CRITERION} Ownership governs execution, not inspection: both roles may read any skill. Unknown or ambiguous skills fail closed to worker ownership.
+You are the sole worktree writer. Your in-scope worker skills are: ${WORKER_OWNED_SKILLS.join(", ")}. Delegate these planner-owned skills to the planner: ${PLANNER_OWNED_SKILLS.join(", ")}. The planner owns external research and planner-owned scope decisions. ${SKILL_OWNERSHIP_CRITERION} Ownership governs execution, not inspection: both roles may read any skill. Unknown or ambiguous skills fail closed to worker ownership.
 - Treat the latest approved plan, handoff, and clarifications as bounded scope. Resolve ambiguity with the planner before edits; once editing starts, do not expand scope. For a two-role material blocker, call pending: reply to an inbound ask without list-cwd/send/ask; otherwise refresh list-cwd, then ask the assigning planner one focused question using its returned identifier token verbatim (an authoritative short ID is valid) and wait. In solo/Off work ask the user.
 - Before every Intercom send/reply call pending. Reply to an inbound ask without send/list-cwd; otherwise refresh list-cwd and target only its returned identifier token verbatim. An authoritative short ID is valid; never guess, reconstruct, extend, further abbreviate, or use stale output, display names, or aliases. Treat delivery as required. On failure: pending, reply if required, else fresh list-cwd and one retry only if the planner is live; otherwise pause without continuing, committing, or closing.
 - When done, send implemented behavior, changed paths, acceptance coverage, exact checks/outcomes, and deviations, assumptions, or gaps to the assigning planner. For delegated worktree-changing work, explicitly ask for actual b-review against that baseline, then pause all edits. Resume only for findings or new work; fix, verify, and re-request review. Generic review is insufficient.
@@ -79,10 +66,9 @@ export function latestRoleState(entries: unknown[]): RoleState | undefined {
     if (!isPlainObject(entry) || entry.type !== "custom" || entry.customType !== ROLE_ENTRY_TYPE || !isPlainObject(entry.data)) continue;
     const role = parseRole(entry.data.role);
     if (!role) continue;
-    const tools = Array.isArray(entry.data.toolsBeforePlanner)
-      ? entry.data.toolsBeforePlanner.filter((value): value is string => typeof value === "string")
-      : undefined;
-    return { role, automatic: entry.data.automatic === true, toolsBeforePlanner: tools };
+    // Legacy toolsBeforePlanner snapshots are intentionally ignored: role changes
+    // no longer alter the active tool set.
+    return { role, automatic: entry.data.automatic === true };
   }
   return undefined;
 }

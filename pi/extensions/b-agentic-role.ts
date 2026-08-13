@@ -1,8 +1,8 @@
 /** Role selection, persistence, coordination, and role model preferences. */
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { ROLE_ENTRY_TYPE, isPlannerAllowedToolName, parseRole, latestRoleState } from "./b-agentic-support/role.ts";
+import { ROLE_ENTRY_TYPE, parseRole, latestRoleState } from "./b-agentic-support/role.ts";
 import { loadRoleModelPreferences, saveRoleModelPreference, type RoleModelPreference } from "./b-agentic-support/role-models.ts";
-import { getRole, setRole, getToolsBeforePlanner, setToolsBeforePlanner } from "./b-agentic-support/state.ts";
+import { getRole, setRole } from "./b-agentic-support/state.ts";
 
 type CoordinatedRole = "off" | "planner" | "worker";
 type RoleSession = { id: string; cwd: string; name?: string; pid: number; startedAt: number };
@@ -55,7 +55,7 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
     try { channel?.publish({ type: "b-agentic-role-request" }, { audience: "capable" }); } catch { /* Connection events retry discovery. */ }
   };
   const persist = (): void => {
-    pi.appendEntry(ROLE_ENTRY_TYPE, { role: getRole(), automatic: false, toolsBeforePlanner: getToolsBeforePlanner() });
+    pi.appendEntry(ROLE_ENTRY_TYPE, { role: getRole(), automatic: false });
   };
   const saveModel = (role: "planner" | "worker", model: { provider: string; id: string }): void => {
     const preference: RoleModelPreference = { provider: model.provider, model: model.id, thinkingLevel: pi.getThinkingLevel() };
@@ -82,16 +82,8 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
     }
   };
   const applyRole = (next: "off" | "planner" | "worker", ctx: ExtensionContext, shouldPersist = true): void => {
-    const previous = getRole();
-    if (previous === "planner" && next !== "planner" && getToolsBeforePlanner()) {
-      pi.setActiveTools(getToolsBeforePlanner()!);
-      setToolsBeforePlanner(undefined);
-    }
-    if (next === "planner") {
-      const tools = getToolsBeforePlanner() ?? pi.getActiveTools();
-      setToolsBeforePlanner(tools);
-      pi.setActiveTools(tools.filter(isPlannerAllowedToolName));
-    } else {
+    // Roles guide skill execution through their prompts; they never filter active tools.
+    if (next !== "planner") {
       const tools = pi.getActiveTools();
       if (!tools.includes("b_agentic_confirm_commit")) {
         pi.setActiveTools([...tools, "b_agentic_confirm_commit"]);
@@ -202,9 +194,7 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
     const persisted = latestRoleState(ctx.sessionManager.getBranch());
     const flagRole = parseRole(pi.getFlag("b-role"));
     const legacyAutomatic = persisted?.automatic === true;
-    const legacyTools = legacyAutomatic ? undefined : persisted?.toolsBeforePlanner;
     const persistedRole = legacyAutomatic ? undefined : persisted?.role;
-    setToolsBeforePlanner(legacyTools);
     pendingWorkerClaim = flagRole === "worker";
     pendingWorkerModel = false;
     const selectedRole = pendingWorkerClaim ? "planner" : flagRole ?? persistedRole ?? "off";
@@ -213,7 +203,7 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
       ? flagRole
       : !pendingWorkerClaim && selectedRole !== "off" ? selectedRole : undefined;
     if (startupModelRole) await applySavedModel(startupModelRole, ctx);
-    if (legacyTools || (flagRole && !pendingWorkerClaim)) persist();
+    if (flagRole && !pendingWorkerClaim) persist();
     pi.events.emit("intercom:extension-register", {
       namespace: "b-agentic/roles/v1",
       ownerEligible: false,

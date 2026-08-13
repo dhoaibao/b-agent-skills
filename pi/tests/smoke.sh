@@ -214,13 +214,12 @@ const plannerAndWorkerClaim = [
 ];
 expect(roleTest.canClaimWorker(plannerAndWorkerClaim, root) === true, 'a two-role session may claim its explicit worker');
 expect(roleTest.canClaimWorker([...plannerAndWorkerClaim, { id: 'other', cwd: root, pid: 303, startedAt: 3 }], root) === false, 'a third same-CWD session must not claim another worker');
-expect(activeTools.length === 2 && activeTools.includes('read') && activeTools.includes('bash') && !activeTools.includes('b_agentic_confirm_commit'), 'persisted planner role must restore its safe analysis tool set');
-expect(persistedEntries.at(-1)?.data.toolsBeforePlanner?.includes('write'), 'persisted planner tools must remain available for restoration after leaving the role');
+expect(activeTools.length === 2 && activeTools.includes('read') && activeTools.includes('bash'), 'persisted planner role must preserve the current active tools');
 activeTools = ['read', 'bash'];
 await handlers.session_start({}, roleContext);
-expect(activeTools.length === 2 && activeTools.includes('read') && activeTools.includes('bash'), 'planner role must retain safe analysis tools on later resumes');
+expect(activeTools.length === 2 && activeTools.includes('read') && activeTools.includes('bash'), 'planner role must preserve active tools on later resumes');
 await commands['b-role'].handler('off', roleContext);
-expect(activeTools.includes('b_agentic_confirm_commit'), 'leaving planner mode must restore the active commit confirmation tool');
+expect(activeTools.includes('b_agentic_confirm_commit'), 'leaving planner mode must retain the normal active commit confirmation tool');
 branchEntries.length = 0;
 activeTools = ['read', 'bash', 'edit', 'write', 'recall', 'intercom', 'mcp', 'mcpScript', 'b_agentic_confirm_commit'];
 await roleSessionStartHandler({}, roleContext);
@@ -271,14 +270,16 @@ const updatedPlannerPreferences = JSON.parse(readFileSync(path.join(process.env.
 expect(updatedPlannerPreferences.planner.provider === 'anthropic' && updatedPlannerPreferences.planner.model === 'claude-sonnet-4-5' && updatedPlannerPreferences.planner.thinkingLevel === 'low', 'thinking-level changes must update the planner preference without changing its saved model when the current model is unavailable');
 await commands['b-role'].handler('off', roleContext);
 activeTools = ['read', 'bash', 'edit', 'write', 'recall', 'intercom', 'mcp', 'mcpScript', 'b_agentic_confirm_commit', 'mcp__firecrawl_firecrawl_search', 'mcp__playwright_browser_snapshot', 'mcp__linear_get_issue', 'codegraph_codegraph_explore', 'serena_find_symbol'];
+const normalPlannerActiveTools = [...activeTools];
 activeModel = { provider: 'other', id: 'other-model' };
 activeThinkingLevel = 'off';
 await commands['b-role'].handler('planner', roleContext);
+expect(JSON.stringify(activeTools) === JSON.stringify(normalPlannerActiveTools), 'planner role must preserve the normal active-tool set');
 expect(activeModel.provider === 'anthropic' && activeModel.id === 'claude-sonnet-4-5' && activeThinkingLevel === 'low', '/b-role planner must apply its saved model and thinking preference');
-for (const toolName of ['read', 'recall', 'intercom', 'bash', 'mcp', 'mcpScript', 'mcp__firecrawl_firecrawl_search', 'mcp__playwright_browser_snapshot', 'mcp__linear_get_issue', 'codegraph_codegraph_explore', 'serena_find_symbol']) {
-  expect(activeTools.includes(toolName), `planner role must retain safe active tool ${toolName}`);
+for (const toolName of ['read', 'recall', 'intercom', 'bash', 'edit', 'write', 'mcp', 'mcpScript', 'b_agentic_confirm_commit', 'mcp__firecrawl_firecrawl_search', 'mcp__playwright_browser_snapshot', 'mcp__linear_get_issue', 'codegraph_codegraph_explore', 'serena_find_symbol']) {
+  expect(activeTools.includes(toolName), `planner role must preserve normal active tool ${toolName}`);
 }
-expect(!activeTools.includes('edit') && !activeTools.includes('write') && !activeTools.includes('b_agentic_confirm_commit') && activeTools.includes('mcpScript') && activeTools.includes('mcp__playwright_browser_snapshot'), 'planner active-tool filtering must preserve the prompt-level writer boundary while retaining MCP capabilities');
+expect(activeTools.includes('edit') && activeTools.includes('write') && activeTools.includes('b_agentic_confirm_commit') && activeTools.includes('mcpScript') && activeTools.includes('mcp__playwright_browser_snapshot'), 'planner roles must not filter normal active tools; prompt ownership preserves the writer boundary');
 const expectedSkillOwners = {
   'b-plan': 'planner', 'b-research': 'planner', 'b-design': 'worker', 'b-implement': 'worker',
   'b-init': 'worker', 'b-refactor': 'worker', 'b-debug': 'worker', 'b-test': 'worker',
@@ -292,7 +293,7 @@ for (const skill of Object.keys(expectedSkillOwners)) {
   expect(await toolCallHandler({ toolName: 'read', input: { path: path.join(root, `skills/${skill}/SKILL.md`) } }, roleContext) === undefined, `planner must permit inspection of ${skill} regardless of execution owner`);
 }
 for (const toolName of ['edit', 'write', 'b_agentic_confirm_commit']) {
-  expect((await toolCallHandler({ toolName, input: {} }, roleContext))?.block === true, `planner role must block ${toolName}`);
+  expect(await toolCallHandler({ toolName, input: toolName === 'edit' ? { path: 'pi/extensions/b-agentic-support/role.ts', edits: [] } : {} }, roleContext) === undefined, `planner role must not add a role-specific block for ${toolName}`);
 }
 expect(await toolCallHandler({ toolName: 'mcpScript', input: { code: "emit('metadata only')" } }, roleContext) === undefined, 'planner must use the shared approval policy for mcpScript rather than a role-specific block');
 branchEntries.length = 0;
@@ -314,7 +315,7 @@ activeTools = ['read', 'bash', 'edit', 'write', 'recall', 'intercom', 'mcp', 'mc
 activeModel = { provider: 'other', id: 'other-model' };
 activeThinkingLevel = 'off';
 await roleSessionStartHandler({}, roleContext);
-expect(!activeTools.includes('write') && !activeTools.includes('edit') && !activeTools.includes('b_agentic_confirm_commit'), 'an explicitly persisted planner must restore planner-safe tools');
+expect(activeTools.includes('write') && activeTools.includes('edit') && activeTools.includes('b_agentic_confirm_commit'), 'an explicitly persisted planner must preserve normal active tools');
 expect(activeModel.provider === 'anthropic' && activeModel.id === 'claude-sonnet-4-5' && activeThinkingLevel === 'low', 'a persisted planner role must restore its saved model and thinking preference');
 const noUiPlannerContext = { ...roleContext, hasUI: false };
 expect(await toolCallHandler({ toolName: 'bash', input: { command: 'rtk pytest -q' } }, noUiPlannerContext) === undefined, 'planner must permit repository tests through the shared command policy');
@@ -326,7 +327,7 @@ for (const toolName of ['serena_replace_content', 'serena_serena_replace_content
 }
 expect(await toolCallHandler({ toolName: 'mcp', input: { server: 'linear', tool: 'list_issues', args: {} } }, roleContext) === undefined, 'planner must not have a role-specific MCP execution block');
 const plannerStart = await handlers.before_agent_start({ systemPrompt: 'base', systemPromptOptions: { skills: [] } }, roleContext);
-expect(plannerStart.systemPrompt.includes('planner profile (read-only coordinator)') && plannerStart.systemPrompt.includes('Delegate every worker-owned execution intent'), 'planner delegation prompt must remain unchanged');
+expect(plannerStart.systemPrompt.includes('planner profile (read-only coordinator)') && plannerStart.systemPrompt.includes('Your in-scope planner skills are: `b-plan`, `b-research`, `b-agentic-audit`, `b-review`, `b-pr-summary`') && plannerStart.systemPrompt.includes('Delegate these worker-owned skills to a ready same-CWD worker: `b-design`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, `b-commit`'), 'planner prompt must enumerate its skills and its delegation list');
 
 let activePeerWorker = true;
 roleChannelRegistration.onReady({
@@ -341,7 +342,7 @@ await roleChannelRegistration.onEvent({ type: 'message', fromSessionId: 'active-
 await roleChannelRegistration.onEvent({ type: 'message', fromSessionId: 'self', payload: { type: 'b-agentic-role', role: 'worker' } });
 roleNotifications.length = 0;
 await commands['b-role'].handler('worker', roleContext);
-expect(!activeTools.includes('edit') && !activeTools.includes('write'), 'an explicit worker request must not create a second writer');
+expect(roleStatuses.at(-1)?.value === '<success>b-agentic: planner</success>', 'an explicit worker request must remain planner when a second writer is active without filtering tools');
 expect(roleNotifications.some(({ level }) => level === 'warning'), 'a real same-CWD peer worker must still block the worker claim');
 activePeerWorker = false;
 await roleChannelRegistration.onEvent({ type: 'session_left', sessionId: 'active-worker' });
@@ -368,7 +369,7 @@ for (const command of ['rtk git status --short', 'fdfind -t f SKILL.md skills', 
   expect(await toolCallHandler({ toolName: 'bash', input: { command } }, roleContext) === undefined, `worker role must preserve local discovery: ${command}`);
 }
 const workerStart = await handlers.before_agent_start({ systemPrompt: 'base', systemPromptOptions: { skills: [] } }, roleContext);
-for (const marker of ['worker profile (implementation)', 'sole worktree writer', 'planner owns external research', 'Planner-owned only when execution is read-only decision/planning', 'Mixed or uncertain skills are worker-owned', 'Ownership governs execution, not inspection', 'Unknown or ambiguous skills fail closed to worker ownership', 'For a two-role material blocker', 'reply to an inbound ask without list-cwd/send/ask', 'ask the assigning planner one focused question using its returned identifier token verbatim', 'authoritative short ID is valid', 'never guess, reconstruct, extend, further abbreviate', 'implemented behavior, changed paths, acceptance coverage, exact checks/outcomes', 'deviations, assumptions, or gaps', 'actual b-review against that baseline', 'pause all edits', 'explicitly requests b-commit', 'unchanged reviewed snapshot; any content change reopens review']) {
+for (const marker of ['worker profile (implementation)', 'sole worktree writer', 'Your in-scope worker skills are: `b-design`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, `b-commit`', 'Delegate these planner-owned skills to the planner: `b-plan`, `b-research`, `b-agentic-audit`, `b-review`, `b-pr-summary`', 'planner owns external research', 'Planner-owned only when execution is read-only decision/planning', 'Mixed or uncertain skills are worker-owned', 'Ownership governs execution, not inspection', 'Unknown or ambiguous skills fail closed to worker ownership', 'For a two-role material blocker', 'reply to an inbound ask without list-cwd/send/ask', 'ask the assigning planner one focused question using its returned identifier token verbatim', 'authoritative short ID is valid', 'never guess, reconstruct, extend, further abbreviate', 'implemented behavior, changed paths, acceptance coverage, exact checks/outcomes', 'deviations, assumptions, or gaps', 'actual b-review against that baseline', 'pause all edits', 'explicitly requests b-commit', 'unchanged reviewed snapshot; any content change reopens review']) {
   expect(workerStart.systemPrompt.includes(marker), `worker role must include ${marker}`);
 }
 expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'send', to: 'planner', message: 'Changed README.md; smoke passed; no known gaps.' } }, roleContext) === undefined, 'worker role must allow plain-language results');
