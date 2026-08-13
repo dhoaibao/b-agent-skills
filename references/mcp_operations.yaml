@@ -81,7 +81,7 @@
     },
     "linear": {
       "tools": {
-        "get_issue": "read-only"
+        "linear_get_issue": "read-only"
       }
     },
     "brave-search": {

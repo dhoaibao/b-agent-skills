@@ -446,11 +446,11 @@ for (const [input, label] of [
   expect(t.isPlannerReadOnlyMcpCall('mcp', input) === false, `planner classifier must block ${label}`);
   expect((await toolCallHandler({ toolName: 'mcp', input }, roleContext))?.block === true, `planner pipeline must block ${label}`);
 }
-expect(await toolCallHandler({ toolName: 'mcp', input: { server: 'linear', tool: 'get_issue', args: { id: 'LIN-123' } } }, roleContext) === undefined, 'planner role must allow exact Linear issue reads');
+expect(await toolCallHandler({ toolName: 'mcp', input: { server: 'linear', tool: 'linear_get_issue', args: { issueId: 'BAO-7' } } }, roleContext) === undefined, 'planner role must allow exact Linear issue reads');
 for (const [toolName, input, label] of [
   ['mcp__firecrawl_firecrawl_search', { query: 'Pi', limit: 1 }, 'classified Firecrawl research'],
   ['mcp__brave_search_brave_search_brave_web_search', { query: 'Pi' }, 'classified Brave research'],
-  ['mcp__linear_get_issue', { id: 'LIN-123' }, 'classified Linear retrieval'],
+  ['mcp__linear_get_issue', { issueId: 'BAO-7' }, 'classified Linear retrieval'],
   ['mcp__codegraph_codegraph_codegraph_explore', { query: 'role enforcement' }, 'classified CodeGraph analysis'],
   ['codegraph_codegraph_explore', { query: 'role enforcement' }, 'existing direct CodeGraph analysis'],
 ]) {
@@ -485,8 +485,8 @@ mcpApprovalHandler({
 expect(await plannerMutationClaim() === 'deny', 'planner role must deny Serena mutations through the MCP approval broker');
 let plannerProxyReadClaim;
 mcpApprovalHandler({
-  serverName: 'linear', originalToolName: 'get_issue', prefixedToolName: 'mcp__linear_get_issue',
-  args: { id: 'LIN-123' }, origin: 'proxy',
+  serverName: 'linear', originalToolName: 'linear_get_issue', prefixedToolName: 'mcp__linear_get_issue',
+  args: { issueId: 'BAO-7' }, origin: 'proxy',
   claim(handler) { plannerProxyReadClaim = handler; return true; },
 });
 expect(await plannerProxyReadClaim() === 'allow_once', 'planner broker must allow classified gateway proxy retrieval');
@@ -1502,7 +1502,7 @@ expect(t.isMcpOrCustomTool('serena_search_for_pattern', serenaRootSearch) === fa
 expect(t.isMcpOrCustomTool('serena_replace_content', { relative_path: '/etc/hosts' }) === true, 'unsafe direct Serena edits retain the path gate');
 expect(t.isTrustedManagedGatewayCall({ tool: 'serena_read_memory' }) === false, 'gateway execution without explicit server ownership must remain untrusted');
 expect(t.isTrustedManagedGatewayCall({ server: 'firecrawl', tool: 'firecrawl_search', args: '{"query":"Pi","limit":1}' }) === true, 'validated conditional gateway execution must be classified safe');
-expect(t.isTrustedManagedGatewayCall({ server: 'linear', tool: 'get_issue', args: '{"id":"LIN-123"}' }) === true, 'exact Linear issue gateway execution must be classified safe');
+expect(t.isTrustedManagedGatewayCall({ server: 'linear', tool: 'linear_get_issue', args: '{"issueId":"BAO-7"}' }) === true, 'exact Linear issue gateway execution must be classified safe');
 expect(t.isTrustedManagedGatewayCall({ server: 'linear', tool: 'list_issues', args: '{}' }) === false, 'unclassified Linear workspace queries must remain untrusted');
 for (const input of [
   { server: 'serena', tool: 'firecrawl_agent' },
@@ -1542,7 +1542,8 @@ expect(t.isTrustedManagedTool('firecrawl', 'firecrawl_map', { url: 'http://127.0
 expect(t.isTrustedManagedTool('firecrawl', 'firecrawl_map', { url: 'https://user:token@example.org', limit: 10 }) === false, 'credential-bearing Firecrawl map must require approval');
 expect(t.isTrustedManagedTool('firecrawl', 'firecrawl_extract', { urls: ['https://example.org'], enableWebSearch: false }) === true, 'bounded public Firecrawl extract is trusted');
 expect(t.isTrustedManagedTool('firecrawl', 'firecrawl_extract', { urls: ['https://example.org'], allowExternalLinks: true }) === false, 'unbounded Firecrawl extract must require approval');
-expect(t.isTrustedManagedTool('linear', 'get_issue') === true, 'exact Linear issue tool is trusted');
+expect(t.isTrustedManagedTool('linear', 'linear_get_issue') === true, 'exact Linear issue tool is trusted');
+expect(t.isTrustedManagedTool('linear', 'get_issue') === false, 'legacy Linear tool alias is not trusted');
 expect(t.isTrustedManagedTool('linear', 'list_issues') === false, 'unlisted Linear tools require approval');
 expect(t.isTrustedManagedTool('user-server', 'user_tool') === false, 'unmanaged server is not trusted');
 expect(t.approvalLabel('\u001b[31mtool\u0007\u009b') === ' [31mtool  ', 'broker approval labels must strip terminal control characters');

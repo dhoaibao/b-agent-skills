@@ -330,7 +330,7 @@ export const CONTEXT7_TRUSTED_TOOLS = new Set([
 ]);
 
 export const LINEAR_TRUSTED_TOOLS = new Set([
-  "get_issue"
+  "linear_get_issue"
 ]);
 
 export const BRAVE_SEARCH_TRUSTED_TOOLS = new Set([
@@ -404,7 +404,11 @@ function managedDirectMcpTool(toolName: string): ManagedDirectMcpTool | undefine
     const normalized = server.replace(/-/g, "_");
     for (const separator of ["__", "_"]) { // retain prior generated names for compatibility
       const prefix = `mcp__${normalized}${separator}`;
-      if (toolName.startsWith(prefix) && toolName.slice(prefix.length)) return { server, tool: toolName.slice(prefix.length) };
+      if (toolName.startsWith(prefix) && toolName.slice(prefix.length)) {
+        const tool = toolName.slice(prefix.length);
+        // Linear's adapter alias omits the server prefix from the public tool id.
+        return { server, tool: server === "linear" && !tool.startsWith(`${normalized}_`) ? `${normalized}_${tool}` : tool };
+      }
     }
   }
   return undefined;
