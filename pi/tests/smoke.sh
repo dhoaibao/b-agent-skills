@@ -186,7 +186,7 @@ branchEntries.push({
 });
 activeTools = ['read', 'bash'];
 await handlers.session_start({}, roleContext);
-expect(roleStatuses.at(-1)?.value === '<success>b-agentic: planner (read-only)</success>', 'planner status must use the success color');
+expect(roleStatuses.at(-1)?.value === '<success>b-agentic: planner</success>', 'planner status must use the success color');
 expect(roleChannelRegistration?.namespace === 'b-agentic/roles/v1', 'roles must register an Intercom coordination channel');
 const publishedRoles = [];
 roleChannelRegistration.onReady({
