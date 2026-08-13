@@ -32,20 +32,159 @@ REFERENCES_SRC="$SOURCE_DIR/references"
 TEMPLATES_SRC="$SOURCE_DIR/pi/configs"
 KERNEL_SRC="$SOURCE_DIR/references/kernel.template.md"
 DRY_RUN_SOURCE_DIR=""
-UI_ENABLED=1
+UI_ENABLED=0
+UI_SUPPRESS_LOGS=0
+UI_STAGE_CURRENT=0
+UI_STAGE_TOTAL=0
+UI_STAGE_ACTIVE=0
+UI_STAGE_LABEL=""
+readonly UI_STAGE_BAR_WIDTH=20
+readonly UI_STAGE_LABEL_WIDTH=52
+readonly UI_STAGE_LINE_WIDTH=82
 INSTALL_PI_CLI_DECISION=""
 
+ui_init() {
+	if [ -t 1 ] && [ "${TERM:-}" != "dumb" ]; then
+		UI_ENABLED=1
+	else
+		UI_ENABLED=0
+	fi
+}
+
+ui_tty_enabled() {
+	[ "${UI_ENABLED:-0}" -eq 1 ] && [ -t 1 ] && [ "${TERM:-}" != "dumb" ]
+}
+
+ui_clear_stage() {
+	ui_tty_enabled || return 0
+	printf '\r%*s\r' "$UI_STAGE_LINE_WIDTH" ''
+}
+
+ui_render_stage() {
+	ui_tty_enabled || return 0
+	local current="$1" total="$2" label="$3" state="${4:-running}"
+	local filled=0 bar="" i
+	if [ "$total" -gt 0 ]; then
+		filled=$(((current - 1) * UI_STAGE_BAR_WIDTH / total))
+	fi
+	[ "$filled" -lt 0 ] && filled=0
+	[ "$filled" -gt "$UI_STAGE_BAR_WIDTH" ] && filled="$UI_STAGE_BAR_WIDTH"
+	if [ "$state" = "done" ]; then
+		filled="$UI_STAGE_BAR_WIDTH"
+	fi
+	for ((i = 0; i < filled; i++)); do bar+='='; done
+	for ((i = filled; i < UI_STAGE_BAR_WIDTH; i++)); do bar+='-'; done
+	case "$state" in
+	failed) bar="!!!!!!!!!!!!!!!!!!!!" ;;
+	done) bar="====================" ;;
+	esac
+	if [ "${#label}" -gt "$UI_STAGE_LABEL_WIDTH" ]; then
+		label="${label:0:UI_STAGE_LABEL_WIDTH-3}..."
+	fi
+	printf -v label '%-*s' "$UI_STAGE_LABEL_WIDTH" "$label"
+	if [ "$total" -gt 0 ]; then
+		printf '\r[%s/%s] [%s] %s' "$current" "$total" "$bar" "$label"
+	else
+		printf '\r[%s] [%s] %s' "$current" "$bar" "$label"
+	fi
+}
+
+ui_set_stage_total() {
+	UI_STAGE_CURRENT=0
+	UI_STAGE_TOTAL="${1:-0}"
+	if ui_tty_enabled && [ "$UI_STAGE_ACTIVE" -eq 1 ]; then
+		ui_clear_stage
+		UI_STAGE_ACTIVE=0
+	fi
+}
+
+ui_stage_start() {
+	local label="$1"
+	UI_STAGE_CURRENT=$((UI_STAGE_CURRENT + 1))
+	UI_STAGE_LABEL="$label"
+	UI_STAGE_ACTIVE=1
+	if ui_tty_enabled; then
+		ui_render_stage "$UI_STAGE_CURRENT" "$UI_STAGE_TOTAL" "$label"
+	elif [ "$UI_STAGE_TOTAL" -gt 0 ]; then
+		printf '[%s/%s] %s\n' "$UI_STAGE_CURRENT" "$UI_STAGE_TOTAL" "$label"
+	else
+		printf '[%s] %s\n' "$UI_STAGE_CURRENT" "$label"
+	fi
+}
+
+ui_stage_finish() {
+	local rc="${1:-0}"
+	if [ "$UI_STAGE_ACTIVE" -eq 1 ] && ui_tty_enabled; then
+		ui_clear_stage
+		if [ "$UI_STAGE_TOTAL" -gt 0 ]; then
+			if [ "$rc" -eq 0 ]; then
+				printf '[%s/%s] %s\n' "$UI_STAGE_CURRENT" "$UI_STAGE_TOTAL" "$UI_STAGE_LABEL"
+			else
+				printf '[%s/%s] failed: %s\n' "$UI_STAGE_CURRENT" "$UI_STAGE_TOTAL" "$UI_STAGE_LABEL"
+			fi
+		else
+			if [ "$rc" -eq 0 ]; then
+				printf '[%s] %s\n' "$UI_STAGE_CURRENT" "$UI_STAGE_LABEL"
+			else
+				printf '[%s] failed: %s\n' "$UI_STAGE_CURRENT" "$UI_STAGE_LABEL"
+			fi
+		fi
+	fi
+	UI_STAGE_ACTIVE=0
+	UI_STAGE_LABEL=""
+	return "$rc"
+}
+
+ui_pause_stage() {
+	ui_tty_enabled || return 0
+	[ "$UI_STAGE_ACTIVE" -eq 1 ] || return 0
+	ui_clear_stage
+}
+
+ui_resume_stage() {
+	ui_tty_enabled || return 0
+	[ "$UI_STAGE_ACTIVE" -eq 1 ] || return 0
+	ui_render_stage "$UI_STAGE_CURRENT" "$UI_STAGE_TOTAL" "$UI_STAGE_LABEL"
+}
+
 log() {
+	[ "${UI_SUPPRESS_LOGS:-0}" -eq 1 ] && return 0
 	printf '%s\n' "$*"
 }
 
+summary_log() {
+	ui_pause_stage
+	printf '%s\n' "$*"
+	ui_resume_stage
+}
+
 warn() {
+	ui_pause_stage
 	printf 'warning: %s\n' "$*" >&2
+	ui_resume_stage
 }
 
 die() {
+	ui_pause_stage
 	printf 'error: %s\n' "$*" >&2
 	exit 1
+}
+
+run_ui_stage() {
+	local label="$1"
+	shift
+	local rc=0 previous_suppress="${UI_SUPPRESS_LOGS:-0}"
+
+	ui_stage_start "$label"
+	UI_SUPPRESS_LOGS=1
+	if "$@"; then
+		rc=0
+	else
+		rc=$?
+	fi
+	UI_SUPPRESS_LOGS="$previous_suppress"
+	ui_stage_finish "$rc"
+	return "$rc"
 }
 
 cleanup() {
@@ -569,13 +708,20 @@ run_parallel_chains() {
 	local chain pid index status rc=0
 	for chain in "$@"; do
 		index=${#chains[@]}; chains+=("$chain"); logs+=("$log_dir/$index.log")
-		"$chain" >"${logs[$index]}" 2>&1 & pids+=("$!")
+		(
+			UI_HIDE_STAGES=1
+			UI_SUPPRESS_LOGS=1
+			"$chain"
+		) >"${logs[$index]}" 2>&1 & pids+=("$!")
 		if [ "${#pids[@]}" -ge 3 ]; then
 			for pid in "${pids[@]}"; do wait "$pid" || { status=$?; if [ "$rc" -eq 0 ] || [ "$status" -eq 2 ]; then rc="$status"; fi; }; done
 			pids=()
 		fi
 	done
 	for pid in "${pids[@]}"; do wait "$pid" || { status=$?; if [ "$rc" -eq 0 ] || [ "$status" -eq 2 ]; then rc="$status"; fi; }; done
+	if ui_tty_enabled && [ "$UI_STAGE_ACTIVE" -eq 1 ]; then
+		ui_stage_finish "$rc"
+	fi
 	for index in "${!chains[@]}"; do
 		cat "${logs[$index]}"
 		[ -s "${logs[$index]}" ] && log "Completed chain: ${chains[$index]}"
@@ -643,9 +789,16 @@ load_pi_installer() {
 	source "$pi_script"
 }
 
+load_installer_sources() {
+	source_installer_core
+	validate_pi_source_layout
+	load_pi_installer
+}
+
 main() {
 	local rc=0
 
+	ui_init
 	parse_args "$@"
 	validate_operation
 	validate_ref
@@ -654,13 +807,11 @@ main() {
 		return 0
 	fi
 
-	check_dependencies
-	install_app
-
-	source_installer_core
-
-	validate_pi_source_layout
-	load_pi_installer
+	ui_set_stage_total 5
+	run_ui_stage "Checking prerequisites" check_dependencies || return 1
+	run_ui_stage "Preparing source" install_app || return 1
+	run_ui_stage "Loading Pi installer" load_installer_sources || return 1
+	run_ui_stage "Checking optional shell tooling" install_shell_tools || return 1
 
 	if uninstall_enabled; then
 		set +e
@@ -673,12 +824,10 @@ main() {
 		return "$rc"
 	fi
 
-	install_shell_tools
-
 	if [ "$OPERATION" = "install" ]; then
-		run_parallel_chains dependency_install_chain install_codegraph bun_install_chain pi_install || return 1
+		run_ui_stage "Installing dependencies and Pi" run_parallel_chains dependency_install_chain install_codegraph bun_install_chain pi_install || return 1
 	elif [ "$OPERATION" = "update" ]; then
-		run_parallel_chains update_tooling pi_update || return 1
+		run_ui_stage "Updating dependencies and Pi" run_parallel_chains update_tooling pi_update || return 1
 	fi
 
 	if [ "$OPERATION" = "sync" ]; then
@@ -686,7 +835,11 @@ main() {
 		pi_sync
 		rc=$?
 		set -e
+		[ "$rc" -eq 0 ] && summary_log "b-agentic sync complete for Pi"
 		return "$rc"
+	fi
+	if [ "$OPERATION" = "update" ]; then
+		summary_log "b-agentic update complete for Pi"
 	fi
 	return 0
 }

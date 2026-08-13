@@ -477,39 +477,69 @@ PY
 }
 
 runtime_print_install_report() {
-	print_install_report_header "Pi"
-	report_section "Summary"
-	report_item "activation" "$INSTALL_ACTIVATION_STATE"
-	report_item "skills" "${#INSTALL_SKILL_NAMES[@]} synced -> $SKILLS_DST"
-	report_item "kernel" "$INSTALL_MEMORY_ACTION -> $KERNEL_DST"
-	report_item "permissions" "$INSTALL_EXTENSION_ACTION -> $EXTENSION_DST"
-	report_item "mcp" "$INSTALL_MCP_ACTION -> $MCP_CONFIG_DST"
-	report_item "mcp-adapter" "$INSTALL_PI_MCP_ADAPTER_ACTION ($INSTALL_PI_MCP_ADAPTER_STATE)"
-	report_item "pi-observational-memory" "$INSTALL_PI_OBSERVATIONAL_MEMORY_ACTION ($INSTALL_PI_OBSERVATIONAL_MEMORY_STATE)"
-	report_item "pi-usage" "$INSTALL_PI_USAGE_ACTION ($INSTALL_PI_USAGE_STATE)"
-	report_item "pi-intercom" "$INSTALL_PI_INTERCOM_ACTION ($INSTALL_PI_INTERCOM_STATE)"
-	report_item "references" "sync -> $REFERENCES_DST"
-	report_item "templates" "sync -> $TEMPLATES_DST"
-	report_item "manifest" "write -> $MANIFEST_DST"
-	report_section "Backups"
-	report_item "kernel" "$INSTALL_MEMORY_BACKUP"
-	report_item "permissions" "$INSTALL_EXTENSION_BACKUP"
-	report_item "mcp" "$INSTALL_MCP_BACKUP"
-	print_install_report_readiness
-	print_shell_tool_recommendations
-	if [ "$INSTALL_PI_MCP_ADAPTER_STATE" != "ready" ]; then
-		report_section "MCP adapter"
-		report_item "status" "required: install $PI_MCP_ADAPTER_PACKAGE with 'pi install $PI_MCP_ADAPTER_SPEC'"
+	local -a attention=()
+	local status shell_status summary_label="Installed"
+
+	installer_summary_log "b-agentic install complete for Pi"
+	if dry_run_enabled; then
+		summary_label="Planned"
 	fi
-	if [ "$INSTALL_PI_OBSERVATIONAL_MEMORY_STATE" != "ready" ]; then
-		report_section "Pi Observational Memory"
-		report_item "status" "required: install $PI_OBSERVATIONAL_MEMORY_PACKAGE with 'pi install $PI_OBSERVATIONAL_MEMORY_SPEC'"
+	installer_summary_log "$summary_label: ${#INSTALL_SKILL_NAMES[@]} skills; kernel $INSTALL_MEMORY_ACTION; MCP $INSTALL_MCP_ACTION"
+	if dry_run_enabled; then
+		installer_summary_log "Manifest: not written (dry-run)"
+	else
+		installer_summary_log "Manifest: $MANIFEST_DST"
 	fi
-	if [ "$INSTALL_PI_USAGE_STATE" != "ready" ]; then
-		report_section "Pi Usage"
-		report_item "status" "required: install $PI_USAGE_PACKAGE with 'pi install $PI_USAGE_SPEC'"
+
+	if [ "$INSTALL_ACTIVATION_STATE" = "pending" ]; then
+		attention+=("activation: review $KERNEL_SNAPSHOT_DST, then rerun with --replace-memory if desired")
 	fi
-	print_install_report_next_steps "Pi"
+
+	status="$(serena_readiness_status)"
+	case "$status" in ready:*) ;; *) attention+=("serena: $status") ;; esac
+	status="$(codegraph_readiness_status)"
+	case "$status" in ready:*) ;; *) attention+=("codegraph: $status") ;; esac
+	status="$(context7_readiness_status)"
+	case "$status" in ready:*) ;; *) attention+=("context7: $status") ;; esac
+	status="$(linear_readiness_status)"
+	case "$status" in configured:*) attention+=("linear: $status") ;; ready:*) ;; *) attention+=("linear: $status") ;; esac
+	status="$(brave_search_readiness_status)"
+	case "$status" in ready:*) ;; *) attention+=("brave-search: $status") ;; esac
+	status="$(firecrawl_readiness_status)"
+	case "$status" in ready:*) ;; *) attention+=("firecrawl: $status") ;; esac
+	status="$(playwright_readiness_status)"
+	case "$status" in ready:*) ;; *) attention+=("playwright: $status") ;; esac
+	status="$(rtk_readiness_status)"
+	case "$status" in ready:*) ;; *) attention+=("rtk: $status") ;; esac
+
+	[ "$INSTALL_PI_MCP_ADAPTER_STATE" = "ready" ] || attention+=("mcp-adapter: install $PI_MCP_ADAPTER_PACKAGE with 'pi install $PI_MCP_ADAPTER_SPEC'")
+	[ "$INSTALL_PI_OBSERVATIONAL_MEMORY_STATE" = "ready" ] || attention+=("observational-memory: install $PI_OBSERVATIONAL_MEMORY_PACKAGE with 'pi install $PI_OBSERVATIONAL_MEMORY_SPEC'")
+	[ "$INSTALL_PI_USAGE_STATE" = "ready" ] || attention+=("pi-usage: install $PI_USAGE_PACKAGE with 'pi install $PI_USAGE_SPEC'")
+	[ "$INSTALL_PI_INTERCOM_STATE" = "ready" ] || attention+=("pi-intercom: install $PI_INTERCOM_PACKAGE with 'pi install $PI_INTERCOM_SPEC'")
+
+	shell_status="$(shell_tool_readiness_status)"
+	case "$shell_status" in
+	ready:*) ;;
+	*) attention+=("shell tooling: $shell_status; hint: $(shell_tool_install_hint "$(detect_shell_tool_package_manager)")") ;;
+	esac
+
+	if [ "${#attention[@]}" -gt 0 ]; then
+		installer_summary_log "Readiness:"
+		installer_summary_log "Attention:"
+		for status in "${attention[@]}"; do
+			installer_summary_log "  $status"
+		done
+	else
+		installer_summary_log "Readiness: ready"
+	fi
+
+	if dry_run_enabled; then
+		installer_summary_log "Next: rerun without --dry-run to apply the plan; no manifest was written."
+	elif [ "$INSTALL_ACTIVATION_STATE" = "pending" ]; then
+		installer_summary_log "Next: review the activation snapshot; see $MANIFEST_DST for backups and installed paths."
+	else
+		installer_summary_log "Next: start a new Pi session; see $MANIFEST_DST for backups and installed paths."
+	fi
 }
 
 runtime_uninstall_configs() {

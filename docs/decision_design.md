@@ -309,8 +309,10 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
 - RTK is required; Pi CLI, Serena, CodeGraph, Bun, bundled MCP packages, and Pi
   packages reconcile automatically without prompts or opt-outs. Modern shell
   tools remain user-installed because they generally require sudo; readiness
-  reports provide install hints. Evidence: `install.sh`, `pi/scripts/install.sh`,
-  `tooling/install/common.sh`.
+  reports provide install hints. Installer progress is dependency-free ASCII on
+  interactive non-dumb TTYs and newline-based in redirected/CI output. Evidence:
+  `install.sh`, `pi/scripts/install.sh`, `tooling/install/common.sh`,
+  `tests/smoke/install.sh`.
 - The template installs managed assets under `~/.pi/agent`, stores snapshots,
   backups, references, templates, and an install manifest under
   `~/.pi/agent/b-agentic`, and keeps user-owned kernel/config/extension/skill

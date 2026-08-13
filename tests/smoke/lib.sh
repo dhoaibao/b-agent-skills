@@ -285,8 +285,9 @@ if input_data:
 status = None
 while True:
     try:
-        result, status = os.waitpid(pid, os.WNOHANG)
+        result, child_status = os.waitpid(pid, os.WNOHANG)
         if result:
+            status = child_status
             break
         ready, _, _ = select.select([fd], [], [], 0.1)
         if ready and not os.read(fd, 4096):
@@ -338,8 +339,9 @@ status = None
 with open(log_path, "wb") as log:
     while True:
         try:
-            result, status = os.waitpid(pid, os.WNOHANG)
+            result, child_status = os.waitpid(pid, os.WNOHANG)
             if result:
+                status = child_status
                 break
             ready, _, _ = select.select([fd], [], [], 0.1)
             if ready:

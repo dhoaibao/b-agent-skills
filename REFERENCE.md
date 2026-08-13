@@ -39,6 +39,10 @@ without dependency opt-in variables or prompts. Modern shell tools are not
 installed or updated automatically because they generally require sudo; the
 readiness report provides a platform-specific install hint.
 
+Installer output stays newline-based for redirected and CI runs. On an interactive
+TTY it uses a dependency-free ASCII stage indicator (disabled for `TERM=dumb`),
+then prints a concise success and attention summary.
+
 ## RTK (Rust Token Killer)
 
 The installer downloads and runs the RTK install script from its `master`

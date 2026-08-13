@@ -16,6 +16,9 @@ INSTALL_STAGE_LABEL=""
 set_install_stage_total() {
   INSTALL_STAGE_CURRENT=0
   INSTALL_STAGE_TOTAL="${1:-0}"
+  if declare -F ui_set_stage_total >/dev/null 2>&1; then
+    ui_set_stage_total "$INSTALL_STAGE_TOTAL"
+  fi
 }
 
 set_next_install_stage_label() {
@@ -32,7 +35,12 @@ set_next_install_stage_label() {
 
 announce_install_stage() {
   local stage_label="$1"
-  log "==> $stage_label"
+  [ "${UI_HIDE_STAGES:-0}" -eq 1 ] && return 0
+  if declare -F ui_stage_start >/dev/null 2>&1; then
+    ui_stage_start "$stage_label"
+  else
+    log "==> $stage_label"
+  fi
 }
 
 run_stage() {
@@ -44,15 +52,19 @@ run_stage() {
   stage_label="$INSTALL_STAGE_LABEL"
   announce_install_stage "$stage_label"
 
+  local previous_suppress="${UI_SUPPRESS_LOGS:-0}"
+  UI_SUPPRESS_LOGS=1
   if dry_run_enabled; then
     "$@"
-    return $?
-  fi
-
-  if "$@"; then
+    rc=$?
+  elif "$@"; then
     rc=0
   else
     rc=$?
+  fi
+  UI_SUPPRESS_LOGS="$previous_suppress"
+  if declare -F ui_stage_finish >/dev/null 2>&1; then
+    ui_stage_finish "$rc"
   fi
   return "$rc"
 }
@@ -66,16 +78,19 @@ capture_output_stage() {
   stage_label="$INSTALL_STAGE_LABEL"
   announce_install_stage "$stage_label"
 
+  local previous_suppress="${UI_SUPPRESS_LOGS:-0}"
+  UI_SUPPRESS_LOGS=1
   if dry_run_enabled; then
     output="$("$@")"
-    printf -v "$output_var" '%s' "$output"
-    return $?
-  fi
-
-  if output=$("$@"); then
+    rc=$?
+  elif output=$("$@"); then
     rc=0
   else
     rc=$?
+  fi
+  UI_SUPPRESS_LOGS="$previous_suppress"
+  if declare -F ui_stage_finish >/dev/null 2>&1; then
+    ui_stage_finish "$rc"
   fi
   [ "$rc" -eq 0 ] || return "$rc"
 
@@ -1014,14 +1029,22 @@ install_shell_tools() {
   return 0
 }
 
+installer_summary_log() {
+  if declare -F summary_log >/dev/null 2>&1; then
+    summary_log "$@"
+  else
+    log "$@"
+  fi
+}
+
 report_section() {
-  log ""
-  log "$1:"
+  installer_summary_log ""
+  installer_summary_log "$1:"
 }
 
 report_item() {
   local label="$1" value="$2"
-  log "  $label: $value"
+  installer_summary_log "  $label: $value"
 }
 
 runtime_mcp_key_configured() {
@@ -1154,7 +1177,7 @@ print_install_report_header() {
     action_label="dry-run"
   fi
 
-  log "b-agentic $action_label complete for $runtime_label"
+  installer_summary_log "b-agentic $action_label complete for $runtime_label"
 }
 
 print_install_report_readiness() {
@@ -1447,10 +1470,10 @@ install_uninstall_helper() {
 runtime_uninstall_common() {
   require_bin python3
   set_install_stage_total 3
-  log "Uninstalling b-agentic from $RUNTIME_UNINSTALL_LABEL"
+  installer_summary_log "Uninstalling b-agentic from $RUNTIME_UNINSTALL_LABEL"
   run_stage "Removing managed skills" uninstall_installed_skills
   run_stage "Removing managed kernel" remove_managed_kernel
   run_stage "Cleaning Pi config" runtime_uninstall_configs
   run_cmd rm -rf "$METADATA_DIR"
-  log "Uninstall complete. User-owned $RUNTIME_PRESERVE_LABEL files were preserved."
+  installer_summary_log "Uninstall complete. User-owned $RUNTIME_PRESERVE_LABEL files were preserved."
 }

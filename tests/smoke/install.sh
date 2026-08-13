@@ -317,16 +317,75 @@ run_readiness_report_case() {
 	rc=$?
 	set -e
 	[ "$rc" -eq 0 ] || fail "expected Pi readiness install exit 0, got $rc"
+	assert_contains "$sandbox/install.log" 'b-agentic install complete for Pi'
 	assert_contains "$sandbox/install.log" 'Readiness:'
-	assert_contains "$sandbox/install.log" 'serena:'
-	assert_contains "$sandbox/install.log" 'codegraph:'
-	assert_contains "$sandbox/install.log" 'context7:'
-	assert_contains "$sandbox/install.log" 'brave-search:'
-	assert_contains "$sandbox/install.log" 'firecrawl:'
-	assert_contains "$sandbox/install.log" 'playwright:'
-	assert_contains "$sandbox/install.log" 'linear: configured: authentication unverified'
-	assert_contains "$sandbox/install.log" 'mcp-startup:'
-	assert_contains "$sandbox/install.log" 'rtk:'
+	assert_contains "$sandbox/install.log" 'Attention:'
+	assert_contains "$sandbox/install.log" 'linear:'
+	assert_contains "$sandbox/install.log" 'Next:'
+	assert_not_contains "$sandbox/install.log" 'Backups:'
+	assert_not_contains "$sandbox/install.log" 'mcp-startup:'
+}
+
+run_output_contract_case() {
+	local snapshot_repo="$1"
+	local sandbox="$WORK_DIR/output-contract"
+	local tty_sandbox="$WORK_DIR/output-contract-tty"
+	local dumb_sandbox="$WORK_DIR/output-contract-dumb"
+	local failure_sandbox="$WORK_DIR/output-contract-failure"
+	local smoke_path rc=0
+
+	mkdir -p "$sandbox/home" "$tty_sandbox/home" "$dumb_sandbox/home" "$failure_sandbox/home"
+	smoke_path="$(smoke_runtime_cli_path "$sandbox")"
+	set +e
+	HOME="$sandbox/home" PATH="$smoke_path" B_AGENTIC_REPO="$snapshot_repo" B_AGENTIC_DIR="$sandbox/source" \
+		B_AGENTIC_PROMPT_API_KEYS=N bash "$ROOT_DIR/install.sh" --dry-run >"$sandbox/non-tty.log" 2>&1
+	rc=$?
+	set -e
+	[ "$rc" -eq 0 ] || fail "expected redirected output contract install exit 0, got $rc"
+	python3 - "$sandbox/non-tty.log" <<'PY' || fail "redirected installer output contains terminal control data"
+from pathlib import Path
+import sys
+output = Path(sys.argv[1]).read_bytes()
+assert b'\r' not in output
+assert b'\x1b' not in output
+assert b'[1/5] Checking prerequisites\n' in output
+assert b'b-agentic install complete for Pi\n' in output
+assert output.endswith(b'\n')
+PY
+
+	set +e
+	run_install_with_tty_log "$tty_sandbox" "$snapshot_repo" "$tty_sandbox/install.log" --dry-run
+	rc=$?
+	set -e
+	[ "$rc" -eq 0 ] || fail "expected TTY output contract install exit 0, got $rc"
+	python3 - "$tty_sandbox/install.log" <<'PY' || fail "TTY installer output did not render a clean progress line"
+from pathlib import Path
+import sys
+output = Path(sys.argv[1]).read_bytes()
+assert b'\r' in output
+assert b'[1/5] [' in output
+assert b'\x1b' not in output
+assert b'b-agentic install complete for Pi\r\n' in output
+assert output.endswith(b'\n')
+PY
+
+	set +e
+	TERM=dumb run_install_with_tty_log "$dumb_sandbox" "$snapshot_repo" "$dumb_sandbox/install.log" --dry-run
+	rc=$?
+	set -e
+	[ "$rc" -eq 0 ] || fail "expected TERM=dumb install exit 0, got $rc"
+	assert_not_contains "$dumb_sandbox/install.log" '[1/5] ['
+
+	git clone --quiet "$snapshot_repo" "$failure_sandbox/source-repo"
+	rm "$failure_sandbox/source-repo/skills/b-plan/SKILL.md"
+	git -C "$failure_sandbox/source-repo" add -A
+	git -C "$failure_sandbox/source-repo" -c user.name='b-agentic smoke' -c user.email='smoke@example.test' commit -qm 'remove generated Pi skill payload'
+	set +e
+	run_install_with_tty_log "$failure_sandbox" "$failure_sandbox/source-repo" "$failure_sandbox/install.log" --dry-run
+	rc=$?
+	set -e
+	[ "$rc" -ne 0 ] || fail "expected TTY failure output contract to fail"
+	assert_contains "$failure_sandbox/install.log" 'error:'
 }
 
 run_optional_shell_tool_case() {
@@ -625,9 +684,11 @@ PY
 	assert_contains "$upgrade_log" 'uv:self update'
 	assert_contains "$upgrade_log" 'uv:tool upgrade serena-agent'
 	assert_contains "$upgrade_log" 'codegraph:upgrade'
-	assert_contains "$install_log" 'RTK already installed; upgrading'
-	assert_contains "$install_log" 'Serena already installed; upgrading'
-	assert_contains "$install_log" 'CodeGraph already installed; upgrading'
+	assert_contains "$install_log" '[5/5]'
+	assert_contains "$install_log" 'b-agentic install complete for Pi'
+	assert_not_contains "$install_log" 'RTK already installed; upgrading'
+	assert_not_contains "$install_log" 'Serena already installed; upgrading'
+	assert_not_contains "$install_log" 'CodeGraph already installed; upgrading'
 	assert_not_contains "$install_log" 'Install RTK (Rust Token Killer)'
 	assert_not_contains "$install_log" 'Install Serena MCP agent'
 	assert_not_contains "$install_log" 'Install CodeGraph MCP agent'
@@ -964,7 +1025,9 @@ PY
 	assert_not_contains "$install_log" 'Upgrade the installed Pi CLI now? [y/N]:'
 	assert_not_contains "$install_log" 'pi_cli_installed: command not found'
 	assert_not_contains "$install_log" 'Install the Pi CLI now? [y/N]:'
-	assert_contains "$install_log" 'Pi CLI already installed; upgrading with pi update'
+	assert_contains "$install_log" '[5/5]'
+	assert_contains "$install_log" 'b-agentic install complete for Pi'
+	assert_not_contains "$install_log" 'Pi CLI already installed; upgrading with pi update'
 	assert_contains "$upgrade_log" 'pi:update'
 }
 
@@ -1102,6 +1165,7 @@ run_base_smoke_cases() {
 		run_invalid_skill_payload_case
 		run_skill_collision_smoke_case
 		run_readiness_report_case
+		run_output_contract_case
 		run_optional_shell_tool_case
 		run_prompted_mcp_key_pipe_case
 		run_mcp_doctor_case
