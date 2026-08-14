@@ -99,11 +99,10 @@ that listens for `tool_call` events and:
   managed-server gateway calls. Also auto-allows classified read-only and
   validated conditional-read operations. Explicitly targeted `mcp` proxy tool
   executions use b-agentic's adapter broker: safe managed calls auto-allow, while
-  unsafe or unmanaged calls prompt there. Outside planner mode, metadata and
-  lifecycle selectors remain behind the generic approval gate; planner mode permits
-  only cached global status, server listing, search, describe, and instructions
-  metadata, while its broker hard-denies non-classified nested/direct/script/resource
-  execution regardless of UI or auto mode. Other direct adapter names remain gated
+  unsafe or unmanaged calls prompt there. Under the shared policy in every role,
+  metadata and lifecycle selectors plus unsafe or unmanaged MCP calls remain
+  approval-gated; planner mode does not add a role-specific MCP execution
+  boundary. Other direct adapter names remain gated
   because they share Pi's custom-tool namespace
 - prefers native `read`/`edit`/`write` for routine repository work; after native
   search/read, uses Serena only for a concrete exact-symbol, reference,
