@@ -369,6 +369,7 @@ for (const toolName of ['serena_replace_content', 'serena_serena_replace_content
 expect(await toolCallHandler({ toolName: 'mcp', input: { server: 'linear', tool: 'list_issues', args: {} } }, roleContext) === undefined, 'planner must not have a role-specific MCP execution block');
 const plannerStart = await handlers.before_agent_start({ systemPrompt: 'base', systemPromptOptions: { skills: [] } }, roleContext);
 expect(plannerStart.systemPrompt.includes('planner profile (read-only coordinator)') && plannerStart.systemPrompt.includes('Your in-scope planner skills are: `b-plan`, `b-research`, `b-agentic-audit`, `b-review`, `b-pr-summary`') && plannerStart.systemPrompt.includes('Delegate these worker-owned skills to a ready same-CWD worker: `b-design`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, `b-commit`'), 'planner prompt must enumerate its skills and its delegation list');
+expect(plannerStart.systemPrompt.includes('The planner keeps external b-research planner-owned and never delegates it.') && plannerStart.systemPrompt.includes("When needed, agree with the worker on the approach before edits begin. Use send for task delegation and worker result/review reporting; use ask only for blockers, clarifications, or a planner's quick-answer need—not to wait for a delegated result."), 'planner prompt must keep research ownership and allocate send versus ask');
 
 let activePeerWorker = true;
 roleChannelRegistration.onReady({

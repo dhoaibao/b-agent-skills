@@ -85,6 +85,27 @@
       ]
     },
     {
+      "id": "planner-ownership-and-message-allocation",
+      "role": "planner",
+      "skill": "b-plan",
+      "observed_failure": "The planner profile said external b-research was delegated with worker-owned skills and left pre-edit approach agreement and send-versus-ask responsibilities implicit, allowing research delegation or ask-based waiting.",
+      "intended_behavior": "External b-research remains planner-owned. When needed, the planner agrees with the worker on the approach before edits begin; send is for task delegation and worker result/review reporting, while ask is only for blockers, clarifications, or a planner's quick-answer need—not for waiting on a delegated result.",
+      "prompt": "You are coordinating a task that needs external research and then worker edits. Explain who performs the research, when you agree on the approach, and whether you use send or ask for delegation, results/review, blockers, clarifications, a quick answer, and waiting.",
+      "must": [
+        "Keep external b-research planner-owned rather than delegating it",
+        "Agree with the worker on the approach before edits begin when needed",
+        "Use send for task delegation and worker result/review reporting",
+        "Use ask only for blockers, clarifications, or a planner's quick-answer need",
+        "Do not use ask to wait for a delegated result"
+      ],
+      "avoid": [
+        "Delegate external b-research as worker-owned",
+        "Start worker edits before needed approach agreement",
+        "Use ask for task delegation or result/review reporting",
+        "Use ask to wait for the delegated result"
+      ]
+    },
+    {
       "id": "worker-targets-planner-and-pauses",
       "role": "worker",
       "skill": "b-implement",
