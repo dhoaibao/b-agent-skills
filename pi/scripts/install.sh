@@ -4,21 +4,28 @@ if [ "${BASH_SOURCE[0]}" = "$0" ]; then
 	exit 1
 fi
 
-readonly RUNTIME_UNINSTALL_LABEL="Pi personal config"
-readonly RUNTIME_PRESERVE_LABEL="Pi"
-readonly PI_AGENT_DIR="${B_AGENTIC_PI_AGENT_DIR:-$HOME/.pi/agent}"
-readonly METADATA_DIR="$PI_AGENT_DIR/b-agentic"
-readonly BACKUPS_DIR="$METADATA_DIR/backups"
-readonly SKILLS_DST="$PI_AGENT_DIR/skills"
-readonly SKILLS_SNAPSHOT_DST="$METADATA_DIR/skills"
-readonly KERNEL_DST="$PI_AGENT_DIR/AGENTS.md"
-readonly KERNEL_SNAPSHOT_DST="$METADATA_DIR/AGENTS.md"
-readonly REFERENCES_DST="$METADATA_DIR/references"
-readonly TEMPLATES_DST="$METADATA_DIR/templates"
-readonly MANIFEST_DST="$METADATA_DIR/install.json"
-readonly MCP_CONFIG_DST="${B_AGENTIC_PI_MCP_JSON:-$PI_AGENT_DIR/mcp.json}"
-readonly EXTENSIONS_DST="$PI_AGENT_DIR/extensions"
-readonly EXTENSION_NAMES=(
+# Bash 3.2 keeps readonly declarations sourced inside a function local.
+# Assign globally first, then mark the existing variables readonly through a
+# helper so the installer remains compatible with macOS's default Bash.
+set_pi_readonly() {
+	readonly "$@"
+}
+
+RUNTIME_UNINSTALL_LABEL="Pi personal config"
+RUNTIME_PRESERVE_LABEL="Pi"
+PI_AGENT_DIR="${B_AGENTIC_PI_AGENT_DIR:-$HOME/.pi/agent}"
+METADATA_DIR="$PI_AGENT_DIR/b-agentic"
+BACKUPS_DIR="$METADATA_DIR/backups"
+SKILLS_DST="$PI_AGENT_DIR/skills"
+SKILLS_SNAPSHOT_DST="$METADATA_DIR/skills"
+KERNEL_DST="$PI_AGENT_DIR/AGENTS.md"
+KERNEL_SNAPSHOT_DST="$METADATA_DIR/AGENTS.md"
+REFERENCES_DST="$METADATA_DIR/references"
+TEMPLATES_DST="$METADATA_DIR/templates"
+MANIFEST_DST="$METADATA_DIR/install.json"
+MCP_CONFIG_DST="${B_AGENTIC_PI_MCP_JSON:-$PI_AGENT_DIR/mcp.json}"
+EXTENSIONS_DST="$PI_AGENT_DIR/extensions"
+EXTENSION_NAMES=(
 	b-agentic-permissions.ts
 	b-agentic-mcp-permissions.ts
 	b-agentic-auto-mode.ts
@@ -34,24 +41,35 @@ readonly EXTENSION_NAMES=(
 	b-agentic-support/state.ts
 	b-agentic-support/auto.ts
 )
-readonly EXTENSION_DST="$EXTENSIONS_DST/b-agentic-permissions.ts"
-readonly EXTENSION_SNAPSHOT_DST="$METADATA_DIR/extensions/b-agentic-permissions.ts"
-readonly EXTENSION_SRC="$SOURCE_DIR/pi/extensions/b-agentic-permissions.ts"
-readonly PI_MCP_ADAPTER_SPEC="npm:pi-mcp-adapter"
-readonly PI_MCP_ADAPTER_PACKAGE="pi-mcp-adapter"
-readonly PI_OBSERVATIONAL_MEMORY_SPEC="npm:pi-observational-memory"
-readonly PI_OBSERVATIONAL_MEMORY_PACKAGE="pi-observational-memory"
-readonly PI_USAGE_SPEC="npm:@narumitw/pi-usage"
-readonly PI_USAGE_PACKAGE="@narumitw/pi-usage"
-readonly PI_INTERCOM_SPEC="npm:pi-intercom"
-readonly PI_INTERCOM_PACKAGE="pi-intercom"
-readonly MCP_ROOT_KEY="mcpServers"
-readonly MCP_PLACEHOLDER_STYLE="env-brace"
-readonly MCP_CONTEXT7_SECTION="headers"
-readonly MCP_BRAVE_SECTION="env"
-readonly MCP_FIRECRAWL_SECTION="env"
-readonly MCP_BACKUP_KEY="mcpConfig"
-readonly EXTENSION_BACKUP_KEY="permissionsExtension"
+EXTENSION_DST="$EXTENSIONS_DST/b-agentic-permissions.ts"
+EXTENSION_SNAPSHOT_DST="$METADATA_DIR/extensions/b-agentic-permissions.ts"
+EXTENSION_SRC="$SOURCE_DIR/pi/extensions/b-agentic-permissions.ts"
+PI_MCP_ADAPTER_SPEC="npm:pi-mcp-adapter"
+PI_MCP_ADAPTER_PACKAGE="pi-mcp-adapter"
+PI_OBSERVATIONAL_MEMORY_SPEC="npm:pi-observational-memory"
+PI_OBSERVATIONAL_MEMORY_PACKAGE="pi-observational-memory"
+PI_USAGE_SPEC="npm:@narumitw/pi-usage"
+PI_USAGE_PACKAGE="@narumitw/pi-usage"
+PI_INTERCOM_SPEC="npm:pi-intercom"
+PI_INTERCOM_PACKAGE="pi-intercom"
+MCP_ROOT_KEY="mcpServers"
+MCP_PLACEHOLDER_STYLE="env-brace"
+MCP_CONTEXT7_SECTION="headers"
+MCP_BRAVE_SECTION="env"
+MCP_FIRECRAWL_SECTION="env"
+MCP_BACKUP_KEY="mcpConfig"
+EXTENSION_BACKUP_KEY="permissionsExtension"
+
+set_pi_readonly \
+	RUNTIME_UNINSTALL_LABEL RUNTIME_PRESERVE_LABEL PI_AGENT_DIR METADATA_DIR \
+	BACKUPS_DIR SKILLS_DST SKILLS_SNAPSHOT_DST KERNEL_DST KERNEL_SNAPSHOT_DST \
+	REFERENCES_DST TEMPLATES_DST MANIFEST_DST MCP_CONFIG_DST EXTENSIONS_DST \
+	EXTENSION_NAMES EXTENSION_DST EXTENSION_SNAPSHOT_DST EXTENSION_SRC \
+	PI_MCP_ADAPTER_SPEC PI_MCP_ADAPTER_PACKAGE PI_OBSERVATIONAL_MEMORY_SPEC \
+	PI_OBSERVATIONAL_MEMORY_PACKAGE PI_USAGE_SPEC PI_USAGE_PACKAGE \
+	PI_INTERCOM_SPEC PI_INTERCOM_PACKAGE MCP_ROOT_KEY MCP_PLACEHOLDER_STYLE \
+	MCP_CONTEXT7_SECTION MCP_BRAVE_SECTION MCP_FIRECRAWL_SECTION MCP_BACKUP_KEY \
+	EXTENSION_BACKUP_KEY
 
 CONTEXT7_API_KEY_INPUT=""
 BRAVE_API_KEY_INPUT=""
