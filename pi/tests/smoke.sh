@@ -1347,6 +1347,10 @@ NODE
 }
 
 run_pi_smoke_cases() {
+	# This function runs in a background subshell from tests/smoke/install.sh.
+	# Do not let the parent's EXIT trap remove the shared WORK_DIR while the
+	# installer smoke workers are still running.
+	trap - EXIT
 	local snapshot_repo="$1"
 	local sandbox="$WORK_DIR/pi"
 	local sandbox_adapter="$WORK_DIR/pi-adapter"

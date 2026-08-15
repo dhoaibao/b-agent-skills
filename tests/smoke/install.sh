@@ -1195,6 +1195,10 @@ run_base_smoke_worker() {
 }
 
 run_base_smoke_cases() {
+	# This function runs in a background subshell from main. Keep the parent
+	# cleanup trap out of it so a completed installer worker cannot delete the
+	# shared WORK_DIR while the Pi worker is still running.
+	trap - EXIT
 	local snapshot_repo="$1"
 	local worker_count=2
 	local pool_dir="$WORK_DIR/base-smoke-pool"
