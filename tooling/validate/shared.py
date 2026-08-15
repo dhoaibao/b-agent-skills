@@ -355,7 +355,7 @@ for required in ["authorized", "Diagnosis-only requests stop"]:
         )
 
 MCP_SERVERS = {"serena", "codegraph", "context7", "linear", "brave-search", "firecrawl", "playwright"}
-LOCAL_TOOLS = {"bash", "read", "edit", "write", "recall", "b_agentic_confirm_commit"}
+LOCAL_TOOLS = {"bash", "read", "edit", "write", "recall"}
 KNOWN_TOOLS = MCP_SERVERS | LOCAL_TOOLS
 
 

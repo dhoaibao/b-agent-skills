@@ -12,7 +12,6 @@ b-agentic is a slim workflow kernel built around Pi: it ships the always-loaded 
 - Keep shared workflow guidance in `references/`; Pi integration, extensions, configuration, and Pi smoke tests in `pi/`; installer smoke coverage in `tests/smoke/`.
 - Preserve user-owned Pi configuration and unrelated working-tree changes in installers and maintenance work.
 - Keep `skills/registry.yaml` and `references/mcp_operations.yaml` in the JSON-compatible YAML subset required by the Python standard library.
-- Keep `b_agentic_confirm_commit` selection-only and fail closed when interactive UI is unavailable; never add a text-confirmation fallback.
 - Record an observed failure, intended behavior change, and narrow regression check for behavior-shaping prompt changes.
 
 ## Sources and Generated Assets

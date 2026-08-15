@@ -83,12 +83,6 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
   };
   const applyRole = (next: "off" | "planner" | "worker", ctx: ExtensionContext, shouldPersist = true): void => {
     // Roles guide skill execution through their prompts; they never filter active tools.
-    if (next !== "planner") {
-      const tools = pi.getActiveTools();
-      if (!tools.includes("b_agentic_confirm_commit")) {
-        pi.setActiveTools([...tools, "b_agentic_confirm_commit"]);
-      }
-    }
     setRole(next);
     publishRole();
     updateStatus(ctx);

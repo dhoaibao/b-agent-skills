@@ -218,19 +218,15 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   isolation boundary. Use Pi sandboxing or an isolated environment for
   genuinely untrusted code. Evidence: `REFERENCE.md`,
   `references/kernel.template.md`.
-- Commit creation is a separate exact-proposal selection UI and is blocked
-  without interactive UI. Pushes are not performed by b-agentic. An active
-  confirmation tool was omitted from Pi's textual Available tools without a
-  `promptSnippet`, contributing to non-invocation; its prior activation also
-  depended on stale process-global planner state during session restore. Role
-  application preserves normal active tools for planners, including
-  `b_agentic_confirm_commit`; planner write/commit limits are governed by
-  prompt-level skill ownership and shared policy, not role-specific tool
-  exclusion, while the tool supplies a concise `promptSnippet`. Regression
-  evidence: the named prompt-snippet, planner-active-tools, and
-  stale-planner-to-worker assertions in `pi/tests/smoke.sh`. Evidence:
-  `pi/extensions/b-agentic-permissions.ts`, `pi/extensions/b-agentic-role.ts`,
-  `skills/b-commit/prompt.md`, `pi/tests/smoke.sh`.
+- Commit creation requires presenting an exact proposal and receiving explicit
+  user approval in chat before staging or committing, as specified by
+  `skills/b-commit/prompt.md`. Pushes are not performed by b-agentic. Role
+  application preserves normal active tools; planner write/commit limits are
+  governed by prompt-level skill ownership and shared policy, not role-specific
+  tool exclusion. Regression evidence for role preservation is limited to the
+  planner-active-tools and stale-planner-to-worker assertions in
+  `pi/tests/smoke.sh`. Evidence: `skills/b-commit/prompt.md`,
+  `pi/extensions/b-agentic-role.ts`, `pi/tests/smoke.sh`.
 
 ## MCP and external-evidence design
 

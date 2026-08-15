@@ -81,7 +81,6 @@ The installer writes all seven recommended entries to Pi's MCP configuration wit
 | `recall` | Optional observational-memory continuity | Optional | Available when the memory layer supplies it |
 | `mcp` / `mcpScript` | Managed MCP gateway and bounded metadata/read orchestration | Optional; MCP adapter required to use configured servers | Configured through Pi MCP entries and policy |
 | `intercom` | Explicit planner/worker coordination | Optional workflow; package default | Enabled by `pi-intercom` unless disabled |
-| `b_agentic_confirm_commit` | Exact-proposal selection for commits | Required only for `b-commit`; first-party default | Installed with b-agentic's Pi extensions |
 
 ## Pi packages
 

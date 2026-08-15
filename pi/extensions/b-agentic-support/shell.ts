@@ -78,7 +78,6 @@ export const SPECIALIZED_TOOLS = new Set([
   "read",
   "recall",
   "mcpScript",
-  "b_agentic_confirm_commit",
   "grep",
   "find",
   "ls",
