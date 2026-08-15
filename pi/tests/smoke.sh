@@ -269,7 +269,10 @@ await handlers.agent_end({ messages: [
 ] });
 await handlers.agent_settled({});
 expect(executedCommands.length === notificationCommandStart + 1, 'planner must notify after a passing b-review');
-expect(executedCommands.at(-1)?.command === 'notify-send' && JSON.stringify(executedCommands.at(-1)?.args) === JSON.stringify(['b-agentic planner finished']) && executedCommands.at(-1)?.options?.timeout === plannerNotifyTest.NOTIFICATION_TIMEOUT_MS, 'planner notification must be generic, bounded, and exclude settled task/session content');
+const expectedPlannerNotification = process.platform === 'darwin'
+  ? { command: 'osascript', args: ['-e', plannerNotifyTest.MACOS_SCRIPT] }
+  : { command: 'notify-send', args: ['b-agentic planner finished'] };
+expect(executedCommands.at(-1)?.command === expectedPlannerNotification.command && JSON.stringify(executedCommands.at(-1)?.args) === JSON.stringify(expectedPlannerNotification.args) && executedCommands.at(-1)?.options?.timeout === plannerNotifyTest.NOTIFICATION_TIMEOUT_MS, 'planner notification must be generic, bounded, and exclude settled task/session content');
 await handlers.agent_start({});
 await handlers.agent_end({ messages: [
   { role: 'assistant', content: [{ type: 'text', text: 'Verdict: READY WITH FOLLOW-UPS' }], timestamp: 3 },
