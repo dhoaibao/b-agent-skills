@@ -18,7 +18,7 @@ process.env.B_AGENTIC_DIR = path.join(root, '.b-agentic-test');
 const installedRoot = path.join(process.env.PI_TEST_HOME || '', '.pi/agent/extensions');
 const extensionModules = await Promise.all([
   'b-agentic-permissions.ts', 'b-agentic-mcp-permissions.ts', 'b-agentic-auto-mode.ts', 'b-agentic-role.ts',
-  'b-agentic-planner.ts', 'b-agentic-worker.ts', 'b-agentic-sync.ts',
+  'b-agentic-planner.ts', 'b-agentic-worker.ts', 'b-agentic-sync.ts', 'b-agentic-planner-notify.ts',
 ].map((name) => import(pathToFileURL(path.join(installedRoot, name)).href)));
 for (const name of ['shell.ts', 'mcp.ts', 'role.ts', 'role-models.ts', 'worker.ts', 'state.ts', 'auto.ts']) {
   await import(pathToFileURL(path.join(installedRoot, 'b-agentic-support', name)).href);
@@ -28,7 +28,8 @@ const mod = extensionModules[0];
 const t = mod.__test__;
 const roleTest = extensionModules[3].__test__;
 const plannerTest = extensionModules[4].__test__;
-if (!t || !plannerTest) {
+const plannerNotifyTest = extensionModules[7].__test__;
+if (!t || !plannerTest || !plannerNotifyTest) {
   console.error('permission extension missing __test__ exports');
   process.exit(1);
 }
@@ -160,6 +161,14 @@ const roleContext = {
 expect(typeof roleSessionStartHandler === 'function', 'role extension must register session startup handling');
 await roleSessionStartHandler({}, roleContext);
 expect(activeTools.length === 8 && activeTools.includes('edit') && activeTools.includes('write'), 'Off role application must preserve normal active tools');
+const notifierCalls = [];
+await plannerNotifyTest.notifyDesktop(async (command, args, options) => { notifierCalls.push({ command, args, options }); }, 'linux');
+await plannerNotifyTest.notifyDesktop(async (command, args, options) => { notifierCalls.push({ command, args, options }); }, 'darwin');
+await plannerNotifyTest.notifyDesktop(async (command, args, options) => { notifierCalls.push({ command, args, options }); }, 'freebsd');
+await plannerNotifyTest.notifyDesktop(async () => { throw new Error('notifier unavailable'); }, 'linux');
+expect(notifierCalls.length === 2 && notifierCalls[0].command === 'notify-send' && JSON.stringify(notifierCalls[0].args) === JSON.stringify(['b-agentic planner finished']) && notifierCalls[0].options?.timeout === plannerNotifyTest.NOTIFICATION_TIMEOUT_MS, 'Linux planner notifications must use the fixed generic notify-send invocation with a bounded timeout');
+expect(notifierCalls[1].command === 'osascript' && notifierCalls[1].args[0] === '-e' && notifierCalls[1].args[1] === plannerNotifyTest.MACOS_SCRIPT && notifierCalls[1].options?.timeout === plannerNotifyTest.NOTIFICATION_TIMEOUT_MS, 'macOS planner notifications must use the fixed generic osascript invocation with a bounded timeout');
+expect(typeof handlers.agent_settled === 'function', 'planner notification extension must register agent_settled');
 branchEntries.push({
   type: 'custom', customType: 'b-agentic-role',
   data: { role: 'planner', toolsBeforePlanner: ['read', 'bash', 'edit', 'write'] },
@@ -237,6 +246,20 @@ expect(executedCommands.at(-1)?.command === 'bash' && executedCommands.at(-1)?.a
 expect(reloads === 2, 'successful refresh commands must reload Pi');
 await commands['b-sync'].handler('unexpected', refreshContext);
 expect(executedCommands.length === 2 && reloads === 2, '/b-sync arguments must be rejected without a refresh');
+const notificationCommandStart = executedCommands.length;
+await handlers.agent_settled({ messages: [{ content: 'sensitive task/session content' }] });
+expect(executedCommands.length === notificationCommandStart, 'off role must not notify after a settled agent run');
+await commands['b-role'].handler('planner', roleContext);
+await handlers.agent_settled({ messages: [{ content: 'sensitive task/session content' }] });
+expect(executedCommands.length === notificationCommandStart + 1, 'planner must notify once when an agent run settles');
+expect(executedCommands.at(-1)?.command === 'notify-send' && JSON.stringify(executedCommands.at(-1)?.args) === JSON.stringify(['b-agentic planner finished']) && executedCommands.at(-1)?.options?.timeout === plannerNotifyTest.NOTIFICATION_TIMEOUT_MS, 'planner notification must be generic, bounded, and exclude settled task/session content');
+roleChannelRegistration.onReady({ publish() {}, listSessions: async () => [{ id: 'self', cwd: root, pid: process.pid, startedAt: 1 }] });
+await commands['b-role'].handler('worker', roleContext);
+await handlers.agent_settled({ messages: [{ content: 'sensitive task/session content' }] });
+expect(executedCommands.length === notificationCommandStart + 1, 'worker must not notify after a settled agent run');
+await commands['b-role'].handler('off', roleContext);
+await handlers.agent_settled({ messages: [{ content: 'sensitive task/session content' }] });
+expect(executedCommands.length === notificationCommandStart + 1, 'off role must remain silent after a settled agent run');
 await commands['b-role'].handler('', roleContext);
 expect(rolePickerCalls === 1, '/b-role without an argument must open a role picker');
 expect(modelPickerCalls === 0, '/b-role must not open a model picker');
@@ -1366,7 +1389,7 @@ run_pi_smoke_cases() {
 	assert_file "$sandbox/home/.pi/agent/b-agentic/references/mcp_operations.yaml"
 	assert_no_path "$sandbox/home/.pi/agent/b-agentic/references/contract"
 	assert_file "$sandbox/home/.pi/agent/mcp.json"
-	for extension in b-agentic-permissions.ts b-agentic-mcp-permissions.ts b-agentic-auto-mode.ts b-agentic-role.ts b-agentic-planner.ts b-agentic-worker.ts b-agentic-sync.ts; do
+	for extension in b-agentic-permissions.ts b-agentic-mcp-permissions.ts b-agentic-auto-mode.ts b-agentic-role.ts b-agentic-planner.ts b-agentic-planner-notify.ts b-agentic-worker.ts b-agentic-sync.ts; do
 		assert_file "$sandbox/home/.pi/agent/extensions/$extension"
 		assert_file "$sandbox/home/.pi/agent/b-agentic/extensions/$extension"
 	done
@@ -1415,6 +1438,7 @@ run_pi_smoke_cases() {
 	assert_equal_files "$sandbox/home/.pi/agent/skills/b-plan/SKILL.md" "$sandbox/source/skills/b-plan/SKILL.md"
 	assert_equal_files "$sandbox/home/.pi/agent/AGENTS.md" "$sandbox/source/references/kernel.template.md"
 	assert_equal_files "$sandbox/home/.pi/agent/extensions/b-agentic-sync.ts" "$sandbox/source/pi/extensions/b-agentic-sync.ts"
+	assert_equal_files "$sandbox/home/.pi/agent/extensions/b-agentic-planner-notify.ts" "$sandbox/source/pi/extensions/b-agentic-planner-notify.ts"
 	# Mark an existing package only for the update-mode proof below.
 	: >"$sandbox/smoke-bin/pi-adapter-installed"
 	cat >"$sandbox/smoke-bin/curl" <<'EOF'

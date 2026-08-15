@@ -31,6 +31,7 @@ EXTENSION_NAMES=(
 	b-agentic-auto-mode.ts
 	b-agentic-role.ts
 	b-agentic-planner.ts
+	b-agentic-planner-notify.ts
 	b-agentic-worker.ts
 	b-agentic-sync.ts
 	b-agentic-support/shell.ts

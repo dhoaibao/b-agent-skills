@@ -21,6 +21,7 @@ extension_files = [
     root / 'pi/extensions/b-agentic-auto-mode.ts',
     root / 'pi/extensions/b-agentic-role.ts',
     root / 'pi/extensions/b-agentic-planner.ts',
+    root / 'pi/extensions/b-agentic-planner-notify.ts',
     root / 'pi/extensions/b-agentic-worker.ts',
     root / 'pi/extensions/b-agentic-sync.ts',
     root / 'pi/extensions/b-agentic-support/shell.ts',
