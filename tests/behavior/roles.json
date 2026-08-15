@@ -8,19 +8,19 @@
       "role": "planner",
       "skill": "b-plan",
       "observed_failure": "Planner and worker coordination sent messages without checking pending asks first and used ambiguous session-ID prefixes instead of retrieving exact IDs.",
-      "intended_behavior": "Both roles call pending first before every send or reply; when pending reports an inbound ask, reply to that ask and do not call send or list-cwd; only when pending reports no inbound ask may the role call list-cwd again, retrieve the exact session ID returned there, and send to that exact ID.",
+      "intended_behavior": "Both roles call pending first before every send or reply; when pending reports an inbound ask, reply to that ask and do not call send or list-cwd; only when pending reports no inbound ask may the role call list-cwd again, then send to the identifier token returned verbatim by that immediately preceding authoritative list-cwd result (including an authoritative short ID); guessed, reconstructed, extended, further-abbreviated, stale, display-name, alias, and otherwise altered targets are forbidden.",
       "prompt": "You need to coordinate with the other role. Describe the Intercom check and message action you take when pending reports an inbound ask versus when it reports none, including how you retrieve the exact target.",
       "must": [
         "Call Intercom pending first before every send or reply",
         "Use reply when pending reports an inbound ask",
         "Do not call send or list-cwd when pending reports an inbound ask",
         "Call list-cwd again only when there is nothing to reply to",
-        "Send to the exact session ID returned by list-cwd"
+        "Send to the identifier token returned verbatim by the immediately preceding authoritative list-cwd result, including an authoritative short ID"
       ],
       "avoid": [
         "Use reply without checking pending",
         "Send without calling list-cwd again after no pending ask",
-        "Use a session-ID prefix instead of the exact returned ID"
+        "Use a guessed, reconstructed, extended, further-abbreviated, stale, display-name, alias, or otherwise altered target"
       ]
     },
     {
@@ -200,10 +200,10 @@
       "role": "planner",
       "skill": "b-review",
       "observed_failure": "Planners marked delegated tasks done, complete, approved, or closed before the actual b-review skill passed, or substituted a regular/generic review or bypassed the gate while inventing a decision from incomplete evidence.",
-      "intended_behavior": "Every delegated task stays open until the actual b-review skill passes against the actual diff and verification; a regular/generic review cannot substitute for it, and the planner resolves a worker's blocker via reply when possible or asks the user when scope and repository evidence cannot resolve it.",
+      "intended_behavior": "Every delegated worktree-changing task stays open until the actual b-review skill passes against the actual diff and verification; a regular/generic review cannot substitute for it, and the planner resolves a worker's blocker via reply when possible or asks the user when scope and repository evidence cannot resolve it.",
       "prompt": "The worker has sent an implementation with verification, but the actual b-review skill has not passed and a material decision cannot be resolved from the scope or repository evidence. Describe whether you mark the task done, complete, approved, or closed and what you send next.",
       "must": [
-        "Keep every delegated task open until the actual b-review skill has passed against the actual diff and verification",
+        "Keep every delegated worktree-changing task open until the actual b-review skill has passed against the actual diff and verification",
         "Treat a regular or generic review as insufficient",
         "Never bypass the actual b-review gate",
         "Resolve a worker's blocker via reply when scope or repository evidence can resolve it",
@@ -224,12 +224,12 @@
       "role": "planner",
       "skill": "b-plan",
       "observed_failure": "Planners repeatedly polled list-cwd or status after assigning work instead of waiting for the worker's result, adding coordination noise without improving readiness.",
-      "intended_behavior": "The planner checks pending first before messaging; if it reports an inbound ask, the planner uses reply for that ask without calling send or list-cwd; otherwise it calls list-cwd once to retrieve the exact worker session ID and sends to it, then waits for the worker's send result without further polling. Send is used for delegation and result/review reporting; ask is reserved for blockers, clarifications, or a planner's quick-answer need.",
+      "intended_behavior": "The planner checks pending first before messaging; if it reports an inbound ask, the planner uses reply for that ask without calling send or list-cwd; otherwise it calls list-cwd once and sends to the identifier token returned verbatim by that immediately preceding authoritative list-cwd result (including an authoritative short ID), then waits for the worker's send result without further polling. Send is used for delegation and result/review reporting; ask is reserved for blockers, clarifications, or a planner's quick-answer need.",
       "prompt": "You are about to assign a bounded task to a ready same-directory worker. Describe the pending check, how you retrieve the exact target before sending, and what you do after the handoff while the worker edits, including whether you repeatedly call list-cwd or status and when ask is appropriate.",
       "must": [
         "Use reply for an inbound ask without calling send or list-cwd",
-        "Call list-cwd again to retrieve the exact session ID before a send when no inbound ask is pending",
-        "Send to the exact session ID returned by list-cwd",
+        "Call list-cwd again to retrieve the identifier token before a send when no inbound ask is pending",
+        "Send to the identifier token returned verbatim by the immediately preceding authoritative list-cwd result, including an authoritative short ID",
         "Wait for the worker's send result after the natural-language send handoff",
         "Reserve ask for worker blockers or clarifications, or a planner's quick-answer need from the worker—not for waiting on a delegated result",
         "Reserve further list-cwd and status calls for selecting a worker or handling genuine connection needs"

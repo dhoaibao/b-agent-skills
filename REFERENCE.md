@@ -259,11 +259,11 @@ external-research decisions.
 Before every planner/worker Intercom `send` or `reply`, call `pending` first;
 if `pending` reports an inbound ask, the response must use `reply` for that ask
 and must not call `send` or `list-cwd`; only when `pending` reports no inbound
-ask may `list-cwd` retrieve the exact target ID before `send`. The `to` value must be the exact session identifier returned verbatim by the
-immediately preceding authoritative Intercom action, such as
-`list-cwd`; copy the send target exactly without reconstructing, extending,
-guessing, fabricating, or substituting a longer ID. Never use a display name,
-alias, or abbreviated prefix. Treat a handoff, result, finding, or approval as sent only
+ask may `list-cwd` retrieve the exact target ID before `send`. The `to` value must be
+the identifier token returned verbatim by the immediately preceding
+authoritative `list-cwd` output. An authoritative short ID is valid; never guess,
+reconstruct, extend, further abbreviate, or use a stale token, display name, or
+alias. Treat a handoff, result, finding, or approval as sent only
 after Intercom reports successful delivery. If `send` delivery fails, do not
 retry the stale target or continue, commit, or close: call `pending` first; if
 an inbound ask exists, use `reply` and do not call `send` or `list-cwd`; otherwise
@@ -278,15 +278,15 @@ blocker or clarification question to the planner, or a planner's quick-answer
 need from the worker; never use it to
 wait for a delegated result. If the worker encounters an unresolved issue or
 blocker, after `pending` reports no inbound ask it uses `list-cwd` to retrieve the
-assigning planner's exact session identifier and uses Intercom `ask` addressed
-to that identifier with one focused question and waits; if `pending` reports an
+assigning planner's identifier token returned verbatim by the immediately
+preceding authoritative `list-cwd` output and uses Intercom `ask` addressed to
+that token with one focused question and waits; if `pending` reports an
 inbound ask, it uses `reply` for it and does not call `send` or `list-cwd`. It
 must not ask the user directly, stop midway, or send a premature
 completion/review message while the planner waits. The planner resolves the
 blocker via `reply` when possible; otherwise it escalates to the user and keeps
-the task open. Every delegated task must pass the actual
-`b-review` skill against
-the actual diff and verification before it is complete. Findings return to the
+the task open. Every delegated worktree-changing task must pass the actual
+`b-review` skill against the actual diff and verification before it is complete. Findings return to the
 same worker for a verified fix and another review.
 
 ## In-session refresh
