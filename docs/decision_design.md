@@ -135,8 +135,9 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   coordination; implementation or mutation, runtime diagnosis, builds/tests,
   browser/operational verification, commits, mixed, and uncertain work belong
   to the worker. Unknown ownership defaults to worker while generation rejects
-  missing or invalid owners. Worker mode is the sole worktree writer and retains
-  normal repository-local automation. Independent shared policies still block
+  missing or invalid owners. Worker mode is the sole worktree writer and the
+  assigned worker executes its worker-owned task itself; it never re-delegates
+  or hands that task to another worker. Independent shared policies still block
   dangerous commands, protected paths, unclassified or unmanaged MCP execution,
   and local or external mutations. Evidence: `skills/registry.yaml`,
   `tooling/generate/registry_sync.py`, `pi/extensions/b-agentic-planner.ts`,
@@ -151,7 +152,9 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   polling, and the planner waits for worker `send`. In delegated work, a
   blocker checks `pending`, replies if inbound, otherwise refreshes `list-cwd`
   and asks the assigning planner using its verbatim returned token; solo/Off
-  blockers go to the user. External research stays with the planner.
+  blockers go to the user. External research stays with the planner. Every
+  terminal worker result goes to the same assigning planner before pausing,
+  including no-change and reported-gap outcomes.
 - The latest approved plan, handoff, and clarifications form the delegated review
   baseline. Only delegated worktree-changing tasks require actual `b-review` of
   diff and verification; findings name location, evidence, impact, violated

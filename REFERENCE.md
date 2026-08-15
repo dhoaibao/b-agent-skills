@@ -250,7 +250,10 @@ coordination; implementation or mutation, runtime diagnosis, builds/tests,
 browser/operational verification, commits, mixed, and uncertain work belong to
 the worker. Direct user wording and an unavailable worker do not permit planner
 implementation; unknown ownership fails closed to worker ownership, while
-registry validation rejects missing or invalid owners.
+registry validation rejects missing or invalid owners. The assigned worker
+executes its worker-owned task itself and never re-delegates or hands it off to
+another worker; it may ask the assigning planner only about blockers, scope, or
+external-research decisions.
 
 Before every planner/worker Intercom `send` or `reply`, call `pending` first;
 if `pending` reports an inbound ask, the response must use `reply` for that ask
@@ -266,10 +269,12 @@ an inbound ask exists, use `reply` and do not call `send` or `list-cwd`; otherwi
 call a fresh `list-cwd`; retry exactly once only if the intended peer is still live,
 otherwise pause and surface the unavailable peer as the blocker. After
 assigning a task, the planner waits for the worker's `send` result rather than
-polling. The worker reports changed paths, verification outcomes, and gaps with
-`send`, then pauses. Use `send` for task delegation and worker result/review
-reporting. Reserve `ask` for a worker's blocker or clarification question to
-the planner, or a planner's quick-answer need from the worker; never use it to
+polling. The worker sends every terminal result to the same assigning planner
+before pausing, including no-change and reported-gap outcomes; it reports
+changed paths, verification outcomes, and gaps with `send`. Use `send` for task
+delegation and worker result/review reporting. Reserve `ask` for a worker's
+blocker or clarification question to the planner, or a planner's quick-answer
+need from the worker; never use it to
 wait for a delegated result. If the worker encounters an unresolved issue or
 blocker, after `pending` reports no inbound ask it uses `list-cwd` to retrieve the
 assigning planner's exact session identifier and uses Intercom `ask` addressed

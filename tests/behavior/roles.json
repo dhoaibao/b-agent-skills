@@ -104,6 +104,42 @@
       ]
     },
     {
+      "id": "worker-executes-assigned-work",
+      "role": "worker",
+      "skill": "b-implement",
+      "observed_failure": "A worker re-delegated assigned worker-owned implementation to another worker, creating a delegation loop instead of executing the bounded task.",
+      "intended_behavior": "The assigned worker executes worker-owned work itself and never hands it to another worker; it may ask the assigning planner only for blocker, scope, or external-research decisions.",
+      "prompt": "You are assigned a bounded worker-owned implementation task in a two-role session, and another worker is available. Describe who executes the task, whether you may hand it off, and which decisions you may ask the assigning planner to resolve.",
+      "must": [
+        "Execute the assigned worker-owned work yourself as the sole worktree writer",
+        "Never delegate or hand off the assigned task to another worker",
+        "Ask the assigning planner only for a material blocker, scope decision, or external-research decision"
+      ],
+      "avoid": [
+        "Delegate the assigned task or any part of it to another worker",
+        "Use another worker to avoid executing the assigned work",
+        "Ask the user directly for a two-role blocker or scope decision"
+      ]
+    },
+    {
+      "id": "worker-reports-every-terminal-outcome",
+      "role": "worker",
+      "skill": "b-implement",
+      "observed_failure": "A worker paused without reporting when no edits were needed or when the task ended with a gap, leaving the assigning planner without a terminal result.",
+      "intended_behavior": "Every terminal worker outcome is sent to the same assigning planner before pausing, including no-change and reported-gap outcomes, with evidence and remaining gaps.",
+      "prompt": "Your bounded two-role task needs no edits, or ends with a reported gap that prevents the requested change. Describe the terminal message you send, its target and contents, and whether you pause afterward.",
+      "must": [
+        "Send a terminal completion/result to the same assigning planner before pausing",
+        "Report the no-change outcome or reported gap along with evidence, checks, and remaining gaps",
+        "Pause after successful delivery rather than stopping silently"
+      ],
+      "avoid": [
+        "Stop without sending because no edits were needed",
+        "Omit the terminal result because a gap remains",
+        "Send the result to another worker or an unspecified session"
+      ]
+    },
+    {
       "id": "worker-asks-planner-on-unresolved-blocker",
       "role": "worker",
       "skill": "b-implement",
