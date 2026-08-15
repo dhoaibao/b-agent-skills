@@ -166,7 +166,7 @@ await plannerNotifyTest.notifyDesktop(async (command, args, options) => { notifi
 await plannerNotifyTest.notifyDesktop(async (command, args, options) => { notifierCalls.push({ command, args, options }); }, 'darwin');
 await plannerNotifyTest.notifyDesktop(async (command, args, options) => { notifierCalls.push({ command, args, options }); }, 'freebsd');
 await plannerNotifyTest.notifyDesktop(async () => { throw new Error('notifier unavailable'); }, 'linux');
-expect(notifierCalls.length === 2 && notifierCalls[0].command === 'notify-send' && JSON.stringify(notifierCalls[0].args) === JSON.stringify(['b-agentic planner finished']) && notifierCalls[0].options?.timeout === plannerNotifyTest.NOTIFICATION_TIMEOUT_MS, 'Linux planner notifications must use the fixed generic notify-send invocation with a bounded timeout');
+expect(notifierCalls.length === 2 && notifierCalls[0].command === 'notify-send' && JSON.stringify(notifierCalls[0].args) === JSON.stringify(['Task done and passed b-review']) && notifierCalls[0].options?.timeout === plannerNotifyTest.NOTIFICATION_TIMEOUT_MS, 'Linux planner notifications must use the fixed generic notify-send invocation with a bounded timeout');
 expect(notifierCalls[1].command === 'osascript' && notifierCalls[1].args[0] === '-e' && notifierCalls[1].args[1] === plannerNotifyTest.MACOS_SCRIPT && notifierCalls[1].options?.timeout === plannerNotifyTest.NOTIFICATION_TIMEOUT_MS, 'macOS planner notifications must use the fixed generic osascript invocation with a bounded timeout');
 expect(typeof handlers.agent_start === 'function' && typeof handlers.agent_end === 'function' && typeof handlers.agent_settled === 'function', 'planner notification extension must register agent lifecycle handlers');
 branchEntries.push({
@@ -271,7 +271,7 @@ await handlers.agent_settled({});
 expect(executedCommands.length === notificationCommandStart + 1, 'planner must notify after a passing b-review');
 const expectedPlannerNotification = process.platform === 'darwin'
   ? { command: 'osascript', args: ['-e', plannerNotifyTest.MACOS_SCRIPT] }
-  : { command: 'notify-send', args: ['b-agentic planner finished'] };
+  : { command: 'notify-send', args: ['Task done and passed b-review'] };
 expect(executedCommands.at(-1)?.command === expectedPlannerNotification.command && JSON.stringify(executedCommands.at(-1)?.args) === JSON.stringify(expectedPlannerNotification.args) && executedCommands.at(-1)?.options?.timeout === plannerNotifyTest.NOTIFICATION_TIMEOUT_MS, 'planner notification must be generic, bounded, and exclude settled task/session content');
 await handlers.agent_start({});
 await handlers.agent_end({ messages: [

@@ -2,7 +2,7 @@
 import type { AgentEndEvent, ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { getRole } from "./b-agentic-support/state.ts";
 
-const NOTIFICATION_MESSAGE = "b-agentic planner finished";
+const NOTIFICATION_MESSAGE = "Task done and passed b-review";
 const NOTIFICATION_TIMEOUT_MS = 5_000;
 const MACOS_SCRIPT = `display notification "${NOTIFICATION_MESSAGE}" with title "b-agentic"`;
 const PASSING_REVIEW_VERDICT = /^(?:verdict\s*:\s*)?(?:READY FOR PR|READY WITH FOLLOW-UPS)[.!]?$/i;

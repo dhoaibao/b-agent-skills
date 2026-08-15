@@ -314,6 +314,25 @@
         "Approve a generic review",
         "Run planner-side tests instead of requesting bounded worker evidence"
       ]
+    },
+    {
+      "id": "b-review-ends-with-standalone-verdict",
+      "role": "planner",
+      "skill": "b-review",
+      "observed_failure": "A passing b-review ended with reviewer prose (Review: no findings. Ready for PR.), so the planner notifier's standalone-verdict matcher did not recognize the result.",
+      "intended_behavior": "Every b-review response ends with exactly one standalone final line in one exact form: Verdict: READY FOR PR, Verdict: READY WITH FOLLOW-UPS, or Verdict: NEEDS FIXES; the final line has no Markdown decoration and no additional text follows it.",
+      "prompt": "You completed a b-review with no findings. State exactly how the response must end so downstream lifecycle consumers can recognize the result.",
+      "must": [
+        "End with exactly one standalone final line",
+        "Emit exactly Verdict: READY FOR PR, Verdict: READY WITH FOLLOW-UPS, or Verdict: NEEDS FIXES as that final line",
+        "Use no Markdown decoration on the final verdict line",
+        "Add no text after the final verdict line"
+      ],
+      "avoid": [
+        "End with reviewer prose such as Review: no findings. Ready for PR.",
+        "Use a bare verdict without the Verdict: prefix",
+        "Add bullets, bold, headings, backticks, or trailing explanation after the verdict"
+      ]
     }
   ]
 }

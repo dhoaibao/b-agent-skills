@@ -66,7 +66,12 @@ Use architecture vocabulary only when design friction is material: interface, se
 
 ## Output format
 
-Findings, checked-and-clean areas, coverage/verification, and verdict: `READY FOR PR`, `READY WITH FOLLOW-UPS`, or `NEEDS FIXES`. Each blocking finding must give location, evidence, impact, violated baseline, smallest correction, and regression check so the worker can act without a follow-up.
+Findings, checked-and-clean areas, and coverage/verification come first. Each blocking finding must give location, evidence, impact, violated baseline, smallest correction, and regression check so the worker can act without a follow-up.
+
+The response must end with exactly one standalone final line. Emit one of these exact lines as that final line, without backticks, bullets, bold, headings, or other Markdown decoration, and with no additional text after it:
+- `Verdict: READY FOR PR`
+- `Verdict: READY WITH FOLLOW-UPS`
+- `Verdict: NEEDS FIXES`
 
 ## Rules
 
