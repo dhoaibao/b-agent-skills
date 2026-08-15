@@ -73,6 +73,8 @@ The response must end with exactly one standalone final line. Emit one of these 
 - `Verdict: READY WITH FOLLOW-UPS`
 - `Verdict: NEEDS FIXES`
 
+For passing completion outcomes (`READY FOR PR` or `READY WITH FOLLOW-UPS`), emit `B_AGENTIC_TASK_COMPLETE` on its own standalone line immediately before the final verdict line. Do not emit that signal for `NEEDS FIXES`; the signal is planner attention metadata and must not contain task or review details.
+
 ## Rules
 
 - Findings come first.

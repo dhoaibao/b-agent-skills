@@ -1,11 +1,22 @@
-/** Notify desktop users when a planner task passes b-review. */
+/** Notify desktop users for explicit planner attention signals. */
 import type { AgentEndEvent, ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { getRole } from "./b-agentic-support/state.ts";
 
-const NOTIFICATION_MESSAGE = "Task done and passed b-review";
+export const PLANNER_ATTENTION_SIGNALS = {
+  TASK_COMPLETE: "B_AGENTIC_TASK_COMPLETE",
+  USER_INPUT_NEEDED: "B_AGENTIC_USER_INPUT_NEEDED",
+} as const;
+export type PlannerAttentionSignal = (typeof PLANNER_ATTENTION_SIGNALS)[keyof typeof PLANNER_ATTENTION_SIGNALS];
+
+const NOTIFICATION_MESSAGES: Record<PlannerAttentionSignal, string> = {
+  [PLANNER_ATTENTION_SIGNALS.TASK_COMPLETE]: "Task complete",
+  [PLANNER_ATTENTION_SIGNALS.USER_INPUT_NEEDED]: "User input needed",
+};
 const NOTIFICATION_TIMEOUT_MS = 5_000;
-const MACOS_SCRIPT = `display notification "${NOTIFICATION_MESSAGE}" with title "b-agentic"`;
-const PASSING_REVIEW_VERDICT = /^(?:verdict\s*:\s*)?(?:READY FOR PR|READY WITH FOLLOW-UPS)[.!]?$/i;
+const MACOS_TITLE = "b-agentic";
+const MACOS_SCRIPTS: Record<PlannerAttentionSignal, string> = Object.fromEntries(
+  Object.entries(NOTIFICATION_MESSAGES).map(([signal, message]) => [signal, `display notification "${message}" with title "${MACOS_TITLE}"`]),
+) as Record<PlannerAttentionSignal, string>;
 type Exec = (command: string, args: string[], options?: { timeout?: number }) => Promise<unknown>;
 
 function finalAssistantText(messages: AgentEndEvent["messages"]): string | undefined {
@@ -17,19 +28,27 @@ function finalAssistantText(messages: AgentEndEvent["messages"]): string | undef
     .join("\n");
 }
 
-export function hasPassingReviewVerdict(messages: AgentEndEvent["messages"]): boolean {
+export function plannerAttentionSignals(messages: AgentEndEvent["messages"]): PlannerAttentionSignal[] {
   const text = finalAssistantText(messages);
-  if (!text) return false;
-  return text.split(/\r?\n/).some((line) => {
-    const normalized = line.replace(/[`*_]/g, "").replace(/^\s*(?:[-*>]\s*|#{1,6}\s*)/, "").trim();
-    return PASSING_REVIEW_VERDICT.test(normalized);
-  });
+  if (!text) return [];
+  const signals = new Set<PlannerAttentionSignal>();
+  for (const line of text.split(/\r?\n/).map((line) => line.trim())) {
+    if (line === PLANNER_ATTENTION_SIGNALS.TASK_COMPLETE) signals.add(PLANNER_ATTENTION_SIGNALS.TASK_COMPLETE);
+    if (line === PLANNER_ATTENTION_SIGNALS.USER_INPUT_NEEDED) signals.add(PLANNER_ATTENTION_SIGNALS.USER_INPUT_NEEDED);
+  }
+  return signals.size === 1 ? [...signals] : [];
 }
 
-export async function notifyDesktop(exec: Exec, platform: string = process.platform): Promise<void> {
+export async function notifyDesktop(
+  exec: Exec,
+  signal: PlannerAttentionSignal,
+  platform: string = process.platform,
+): Promise<void> {
+  const message = NOTIFICATION_MESSAGES[signal];
+  if (!message) return;
   if (platform === "linux") {
     try {
-      await exec("notify-send", [NOTIFICATION_MESSAGE], { timeout: NOTIFICATION_TIMEOUT_MS });
+      await exec("notify-send", [message], { timeout: NOTIFICATION_TIMEOUT_MS });
     } catch {
       // Missing or failing desktop notifiers must not disrupt Pi.
     }
@@ -37,7 +56,7 @@ export async function notifyDesktop(exec: Exec, platform: string = process.platf
   }
   if (platform === "darwin") {
     try {
-      await exec("osascript", ["-e", MACOS_SCRIPT], { timeout: NOTIFICATION_TIMEOUT_MS });
+      await exec("osascript", ["-e", MACOS_SCRIPTS[signal]], { timeout: NOTIFICATION_TIMEOUT_MS });
     } catch {
       // Missing or failing desktop notifiers must not disrupt Pi.
     }
@@ -45,20 +64,28 @@ export async function notifyDesktop(exec: Exec, platform: string = process.platf
 }
 
 export default function bAgenticPlannerNotify(pi: ExtensionAPI): void {
-  let lastAgentEndPassedReview = false;
+  let lastAgentEndSignals: PlannerAttentionSignal[] = [];
 
   pi.on("agent_start", () => {
-    lastAgentEndPassedReview = false;
+    lastAgentEndSignals = [];
   });
   pi.on("agent_end", ({ messages }) => {
-    lastAgentEndPassedReview = hasPassingReviewVerdict(messages);
+    lastAgentEndSignals = plannerAttentionSignals(messages);
   });
   pi.on("agent_settled", async () => {
-    const shouldNotify = getRole() === "planner" && lastAgentEndPassedReview;
-    lastAgentEndPassedReview = false;
-    if (!shouldNotify) return;
-    await notifyDesktop((command, args, options) => pi.exec(command, args, options));
+    const signals = getRole() === "planner" ? lastAgentEndSignals : [];
+    lastAgentEndSignals = [];
+    for (const signal of signals) {
+      await notifyDesktop((command, args, options) => pi.exec(command, args, options), signal);
+    }
   });
 }
 
-export const __test__ = { MACOS_SCRIPT, NOTIFICATION_MESSAGE, NOTIFICATION_TIMEOUT_MS, notifyDesktop, hasPassingReviewVerdict };
+export const __test__ = {
+  MACOS_SCRIPTS,
+  NOTIFICATION_MESSAGES,
+  NOTIFICATION_TIMEOUT_MS,
+  PLANNER_ATTENTION_SIGNALS,
+  notifyDesktop,
+  plannerAttentionSignals,
+};

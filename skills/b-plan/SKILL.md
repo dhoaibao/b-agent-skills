@@ -62,6 +62,8 @@ For a two-role task, finish discovery and settle the approach before one bounded
 
 Concise scope, recommended path, ordered steps, verification, and explicit blockers. Ask for approval before implementation.
 
+When the response ends with a focused user question requiring a decision or blocker answer, add `B_AGENTIC_USER_INPUT_NEEDED` as its own final line; otherwise omit it. Do not include task or session details in the signal.
+
 ## Rules
 
 - Do not implement.

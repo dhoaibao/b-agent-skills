@@ -189,7 +189,7 @@ purpose-specific `tool_call` extensions under `~/.pi/agent/extensions/`:
 - `b-agentic-auto-mode.ts` for confirmed automatic approval with explicit-deny protection.
 - `b-agentic-role.ts` for role selection and persistence.
 - `b-agentic-planner.ts` and `b-agentic-worker.ts` for collaboration profiles.
-- `b-agentic-planner-notify.ts` for generic desktop notifications after a planner task passes b-review.
+- `b-agentic-planner-notify.ts` for privacy-safe desktop notifications from explicit planner task-complete or user-input attention signals.
 - `b-agentic-sync.ts` for in-session refresh commands.
 
 Helpers under `pi/extensions/b-agentic-support/` are not discovered as

@@ -162,12 +162,14 @@ expect(typeof roleSessionStartHandler === 'function', 'role extension must regis
 await roleSessionStartHandler({}, roleContext);
 expect(activeTools.length === 8 && activeTools.includes('edit') && activeTools.includes('write'), 'Off role application must preserve normal active tools');
 const notifierCalls = [];
-await plannerNotifyTest.notifyDesktop(async (command, args, options) => { notifierCalls.push({ command, args, options }); }, 'linux');
-await plannerNotifyTest.notifyDesktop(async (command, args, options) => { notifierCalls.push({ command, args, options }); }, 'darwin');
-await plannerNotifyTest.notifyDesktop(async (command, args, options) => { notifierCalls.push({ command, args, options }); }, 'freebsd');
-await plannerNotifyTest.notifyDesktop(async () => { throw new Error('notifier unavailable'); }, 'linux');
-expect(notifierCalls.length === 2 && notifierCalls[0].command === 'notify-send' && JSON.stringify(notifierCalls[0].args) === JSON.stringify(['Task done and passed b-review']) && notifierCalls[0].options?.timeout === plannerNotifyTest.NOTIFICATION_TIMEOUT_MS, 'Linux planner notifications must use the fixed generic notify-send invocation with a bounded timeout');
-expect(notifierCalls[1].command === 'osascript' && notifierCalls[1].args[0] === '-e' && notifierCalls[1].args[1] === plannerNotifyTest.MACOS_SCRIPT && notifierCalls[1].options?.timeout === plannerNotifyTest.NOTIFICATION_TIMEOUT_MS, 'macOS planner notifications must use the fixed generic osascript invocation with a bounded timeout');
+const taskCompleteSignal = plannerNotifyTest.PLANNER_ATTENTION_SIGNALS.TASK_COMPLETE;
+const userInputSignal = plannerNotifyTest.PLANNER_ATTENTION_SIGNALS.USER_INPUT_NEEDED;
+await plannerNotifyTest.notifyDesktop(async (command, args, options) => { notifierCalls.push({ command, args, options }); }, taskCompleteSignal, 'linux');
+await plannerNotifyTest.notifyDesktop(async (command, args, options) => { notifierCalls.push({ command, args, options }); }, userInputSignal, 'darwin');
+await plannerNotifyTest.notifyDesktop(async (command, args, options) => { notifierCalls.push({ command, args, options }); }, taskCompleteSignal, 'freebsd');
+await plannerNotifyTest.notifyDesktop(async () => { throw new Error('notifier unavailable'); }, taskCompleteSignal, 'linux');
+expect(notifierCalls.length === 2 && notifierCalls[0].command === 'notify-send' && JSON.stringify(notifierCalls[0].args) === JSON.stringify(['Task complete']) && notifierCalls[0].options?.timeout === plannerNotifyTest.NOTIFICATION_TIMEOUT_MS, 'Linux planner notifications must use fixed task-complete text with a bounded timeout');
+expect(notifierCalls[1].command === 'osascript' && notifierCalls[1].args[0] === '-e' && notifierCalls[1].args[1] === 'display notification "User input needed" with title "b-agentic"' && notifierCalls[1].options?.timeout === plannerNotifyTest.NOTIFICATION_TIMEOUT_MS, 'macOS planner notifications must use fixed user-input text with a bounded timeout');
 expect(typeof handlers.agent_start === 'function' && typeof handlers.agent_end === 'function' && typeof handlers.agent_settled === 'function', 'planner notification extension must register agent lifecycle handlers');
 branchEntries.push({
   type: 'custom', customType: 'b-agentic-role',
@@ -246,10 +248,11 @@ expect(executedCommands.at(-1)?.command === 'bash' && executedCommands.at(-1)?.a
 expect(reloads === 2, 'successful refresh commands must reload Pi');
 await commands['b-sync'].handler('unexpected', refreshContext);
 expect(executedCommands.length === 2 && reloads === 2, '/b-sync arguments must be rejected without a refresh');
+await commands['b-role'].handler('off', roleContext);
 const notificationCommandStart = executedCommands.length;
 await handlers.agent_start({});
 await handlers.agent_end({ messages: [
-  { role: 'user', content: 'sensitive task/session content mentioning READY FOR PR', timestamp: 1 },
+  { role: 'user', content: 'sensitive task/session content mentioning B_AGENTIC_TASK_COMPLETE', timestamp: 1 },
   { role: 'assistant', content: [{ type: 'text', text: 'Planning handoff to worker.' }], timestamp: 2 },
 ] });
 await handlers.agent_settled({ messages: [{ content: 'sensitive task/session content' }] });
@@ -257,47 +260,76 @@ expect(executedCommands.length === notificationCommandStart, 'off role must rema
 await commands['b-role'].handler('planner', roleContext);
 await handlers.agent_start({});
 await handlers.agent_end({ messages: [
-  { role: 'user', content: 'sensitive task/session content mentioning READY FOR PR', timestamp: 1 },
+  { role: 'user', content: 'sensitive task/session content mentioning B_AGENTIC_TASK_COMPLETE', timestamp: 1 },
   { role: 'assistant', content: [{ type: 'text', text: 'Planning handoff to worker.' }], timestamp: 2 },
 ] });
 await handlers.agent_settled({});
 expect(executedCommands.length === notificationCommandStart, 'planner handoffs and normal planning must remain silent');
 await handlers.agent_start({});
 await handlers.agent_end({ messages: [
-  { role: 'user', content: 'sensitive task/session content', timestamp: 1 },
-  { role: 'assistant', content: [{ type: 'text', text: 'Findings checked.\nVerdict: READY FOR PR' }], timestamp: 2 },
+  { role: 'assistant', content: [{ type: 'text', text: 'Verdict: READY FOR PR' }], timestamp: 3 },
 ] });
 await handlers.agent_settled({});
-expect(executedCommands.length === notificationCommandStart + 1, 'planner must notify after a passing b-review');
-const expectedPlannerNotification = process.platform === 'darwin'
-  ? { command: 'osascript', args: ['-e', plannerNotifyTest.MACOS_SCRIPT] }
-  : { command: 'notify-send', args: ['Task done and passed b-review'] };
-expect(executedCommands.at(-1)?.command === expectedPlannerNotification.command && JSON.stringify(executedCommands.at(-1)?.args) === JSON.stringify(expectedPlannerNotification.args) && executedCommands.at(-1)?.options?.timeout === plannerNotifyTest.NOTIFICATION_TIMEOUT_MS, 'planner notification must be generic, bounded, and exclude settled task/session content');
+expect(executedCommands.length === notificationCommandStart, 'verdict-only b-review content must remain silent');
 await handlers.agent_start({});
 await handlers.agent_end({ messages: [
-  { role: 'assistant', content: [{ type: 'text', text: 'Verdict: READY WITH FOLLOW-UPS' }], timestamp: 3 },
+  { role: 'user', content: 'sensitive task/session content', timestamp: 4 },
+  { role: 'assistant', content: [{ type: 'text', text: `${taskCompleteSignal}\nVerdict: READY FOR PR` }], timestamp: 5 },
 ] });
 await handlers.agent_settled({});
-expect(executedCommands.length === notificationCommandStart + 2, 'nonblocking b-review follow-ups must notify');
+expect(executedCommands.length === notificationCommandStart + 1, 'planner must notify after an explicit passing-completion signal');
+const expectedTaskNotification = process.platform === 'darwin'
+  ? { command: 'osascript', args: ['-e', 'display notification "Task complete" with title "b-agentic"'] }
+  : { command: 'notify-send', args: ['Task complete'] };
+expect(executedCommands.at(-1)?.command === expectedTaskNotification.command && JSON.stringify(executedCommands.at(-1)?.args) === JSON.stringify(expectedTaskNotification.args) && executedCommands.at(-1)?.options?.timeout === plannerNotifyTest.NOTIFICATION_TIMEOUT_MS, 'task-complete notification must be fixed, bounded, and exclude settled task/session content');
 await handlers.agent_start({});
 await handlers.agent_end({ messages: [
-  { role: 'assistant', content: [{ type: 'text', text: 'Verdict: NEEDS FIXES' }], timestamp: 4 },
+  { role: 'assistant', content: [{ type: 'text', text: 'Verdict: READY WITH FOLLOW-UPS' }], timestamp: 6 },
 ] });
 await handlers.agent_settled({});
-expect(executedCommands.length === notificationCommandStart + 2, 'b-review failures must remain silent');
-await handlers.agent_settled({ messages: [{ content: 'sensitive task/session content with READY FOR PR' }] });
-expect(executedCommands.length === notificationCommandStart + 2, 'generic settled events must remain silent without a final agent_end review verdict');
+expect(executedCommands.length === notificationCommandStart + 1, 'verdict-only follow-ups must remain silent');
+await handlers.agent_start({});
+await handlers.agent_end({ messages: [
+  { role: 'assistant', content: [{ type: 'text', text: 'I need one focused decision.\n' + userInputSignal }], timestamp: 7 },
+] });
+await handlers.agent_settled({});
+expect(executedCommands.length === notificationCommandStart + 2, 'planner must notify when explicit user input is needed');
+const expectedInputNotification = process.platform === 'darwin'
+  ? { command: 'osascript', args: ['-e', 'display notification "User input needed" with title "b-agentic"'] }
+  : { command: 'notify-send', args: ['User input needed'] };
+expect(executedCommands.at(-1)?.command === expectedInputNotification.command && JSON.stringify(executedCommands.at(-1)?.args) === JSON.stringify(expectedInputNotification.args), 'user-input notification must use fixed text and exclude the user question');
+await handlers.agent_start({});
+await handlers.agent_end({ messages: [
+  { role: 'assistant', content: [{ type: 'text', text: `${taskCompleteSignal}\n${userInputSignal}` }], timestamp: 8 },
+] });
+await handlers.agent_settled({});
+expect(executedCommands.length === notificationCommandStart + 2, 'ambiguous multiple attention signals must remain silent');
+await handlers.agent_start({});
+await handlers.agent_end({ messages: [
+  { role: 'assistant', content: [{ type: 'text', text: `${taskCompleteSignal} in arbitrary prose` }], timestamp: 9 },
+  { role: 'assistant', content: [{ type: 'text', text: 'Intermediate update with sensitive task/session content.' }], timestamp: 10 },
+] });
+await handlers.agent_settled({});
+expect(executedCommands.length === notificationCommandStart + 2, 'only exact signals in the final assistant response may notify');
+await handlers.agent_start({});
+await handlers.agent_end({ messages: [
+  { role: 'assistant', content: [{ type: 'text', text: 'Verdict: NEEDS FIXES' }], timestamp: 11 },
+] });
+await handlers.agent_settled({});
+expect(executedCommands.length === notificationCommandStart + 2, 'b-review fixes-needed outcomes must remain silent');
+await handlers.agent_settled({ messages: [{ content: 'sensitive task/session content with B_AGENTIC_TASK_COMPLETE' }] });
+expect(executedCommands.length === notificationCommandStart + 2, 'generic settled events must remain silent without a final agent_end signal');
 roleChannelRegistration.onReady({ publish() {}, listSessions: async () => [{ id: 'self', cwd: root, pid: process.pid, startedAt: 1 }] });
 await commands['b-role'].handler('worker', roleContext);
 await handlers.agent_start({});
-await handlers.agent_end({ messages: [{ role: 'assistant', content: [{ type: 'text', text: 'Verdict: READY FOR PR' }], timestamp: 5 }] });
+await handlers.agent_end({ messages: [{ role: 'assistant', content: [{ type: 'text', text: taskCompleteSignal }], timestamp: 12 }] });
 await handlers.agent_settled({});
-expect(executedCommands.length === notificationCommandStart + 2, 'worker must not notify after a passing review');
+expect(executedCommands.length === notificationCommandStart + 2, 'worker must remain silent after an explicit signal');
 await commands['b-role'].handler('off', roleContext);
 await handlers.agent_start({});
-await handlers.agent_end({ messages: [{ role: 'assistant', content: [{ type: 'text', text: 'Verdict: READY FOR PR' }], timestamp: 6 }] });
+await handlers.agent_end({ messages: [{ role: 'assistant', content: [{ type: 'text', text: userInputSignal }], timestamp: 13 }] });
 await handlers.agent_settled({});
-expect(executedCommands.length === notificationCommandStart + 2, 'off role must remain silent after a passing review');
+expect(executedCommands.length === notificationCommandStart + 2, 'off role must remain silent after an explicit signal');
 await commands['b-role'].handler('', roleContext);
 expect(rolePickerCalls === 1, '/b-role without an argument must open a role picker');
 expect(modelPickerCalls === 0, '/b-role must not open a model picker');
@@ -369,7 +401,7 @@ for (const toolName of ['serena_replace_content', 'serena_serena_replace_content
 expect(await toolCallHandler({ toolName: 'mcp', input: { server: 'linear', tool: 'list_issues', args: {} } }, roleContext) === undefined, 'planner must not have a role-specific MCP execution block');
 const plannerStart = await handlers.before_agent_start({ systemPrompt: 'base', systemPromptOptions: { skills: [] } }, roleContext);
 expect(plannerStart.systemPrompt.includes('planner profile (read-only coordinator)') && plannerStart.systemPrompt.includes('Your in-scope planner skills are: `b-plan`, `b-research`, `b-agentic-audit`, `b-review`, `b-pr-summary`') && plannerStart.systemPrompt.includes('Delegate these worker-owned skills to a ready same-CWD worker: `b-design`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, `b-commit`'), 'planner prompt must enumerate its skills and its delegation list');
-expect(plannerStart.systemPrompt.includes('The planner keeps external b-research planner-owned and never delegates it.') && plannerStart.systemPrompt.includes("When needed, agree with the worker on the approach before edits begin. Use send for task delegation and worker result/review reporting; use ask only for blockers, clarifications, or a planner's quick-answer need—not to wait for a delegated result."), 'planner prompt must keep research ownership and allocate send versus ask');
+expect(plannerStart.systemPrompt.includes('The planner keeps external b-research planner-owned and never delegates it.') && plannerStart.systemPrompt.includes("When needed, agree with the worker on the approach before edits begin. Use send for task delegation and worker result/review reporting; use ask only for blockers, clarifications, or a planner's quick-answer need—not to wait for a delegated result.") && plannerStart.systemPrompt.includes('B_AGENTIC_TASK_COMPLETE') && plannerStart.systemPrompt.includes('B_AGENTIC_USER_INPUT_NEEDED'), 'planner prompt must keep research ownership, allocate send versus ask, and use explicit attention signals');
 
 let activePeerWorker = true;
 roleChannelRegistration.onReady({
