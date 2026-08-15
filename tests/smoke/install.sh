@@ -354,7 +354,7 @@ assert output.endswith(b'\n')
 PY
 
 	set +e
-	run_install_with_tty_log "$tty_sandbox" "$snapshot_repo" "$tty_sandbox/install.log" --dry-run
+	TERM=xterm run_install_with_tty_log "$tty_sandbox" "$snapshot_repo" "$tty_sandbox/install.log" --dry-run
 	rc=$?
 	set -e
 	[ "$rc" -eq 0 ] || fail "expected TTY output contract install exit 0, got $rc"
