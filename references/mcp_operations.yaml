@@ -5,39 +5,39 @@
   "classes": {
     "read-only": {
       "policy": "Auto-approved for managed servers",
-      "notes": "Managed observations; gateway calls require an explicit server and matching classified tool."
+      "notes": "Gateway observations; server/classified tool required."
     },
     "conditional-read": {
       "policy": "Auto-approved for safe arguments",
-      "notes": "Gate mutation, local access, and arbitrary output."
+      "notes": "Gate mutation/local access/arbitrary output."
     },
     "trusted-serena": {
       "policy": "Auto-approved for Serena",
-      "notes": "Serena lifecycle tools; intended-purpose use only."
+      "notes": "Serena lifecycle; intended use"
     },
     "conditional-local": {
       "policy": "Auto-approved inside current project",
-      "notes": "Repo-confined Serena code edits; unsafe paths stay gated."
+      "notes": "Repo-confined edits; unsafe paths gated."
     },
     "local-upload": {
       "policy": "Approval required",
-      "notes": "Reads local files for remote processing."
+      "notes": "Reads local files for remote use"
     },
     "external-mutation": {
       "policy": "Approval required",
-      "notes": "Creates or changes remote state (sessions, pages, feedback)."
+      "notes": "Remote state changes."
     },
     "monitor-lifecycle": {
       "policy": "Approval required",
-      "notes": "Firecrawl monitor create/update/delete/run/list/get/check."
+      "notes": "Firecrawl monitor ops."
     },
     "local-mutation": {
       "policy": "Approval required",
-      "notes": "Mutates local repository or agent state."
+      "notes": "Mutates local repo/agent state"
     },
     "auth": {
       "policy": "Approval required",
-      "notes": "MCP OAuth/auth bootstrap."
+      "notes": "MCP auth"
     }
   },
   "servers": {

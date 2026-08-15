@@ -68,15 +68,15 @@ Canonical policy: `~/.pi/agent/b-agentic/references/mcp_operations.yaml`. Auto-a
 <!-- generated:mcp-operations:start -->
 | Class | Policy | Scope |
 |---|---|---|
-| `read-only` | Auto-approved for managed servers | Managed observations; gateway calls require an explicit server and matching classified tool. |
-| `conditional-read` | Auto-approved for safe arguments | Gate mutation, local access, and arbitrary output. |
-| `trusted-serena` | Auto-approved for Serena | Serena lifecycle tools; intended-purpose use only. |
-| `conditional-local` | Auto-approved inside current project | Repo-confined Serena code edits; unsafe paths stay gated. |
-| `local-upload` | Approval required | Reads local files for remote processing. |
-| `external-mutation` | Approval required | Creates or changes remote state (sessions, pages, feedback). |
-| `monitor-lifecycle` | Approval required | Firecrawl monitor create/update/delete/run/list/get/check. |
-| `local-mutation` | Approval required | Mutates local repository or agent state. |
-| `auth` | Approval required | MCP OAuth/auth bootstrap. |
+| `read-only` | Auto-approved for managed servers | Gateway observations; server/classified tool required. |
+| `conditional-read` | Auto-approved for safe arguments | Gate mutation/local access/arbitrary output. |
+| `trusted-serena` | Auto-approved for Serena | Serena lifecycle; intended use |
+| `conditional-local` | Auto-approved inside current project | Repo-confined edits; unsafe paths gated. |
+| `local-upload` | Approval required | Reads local files for remote use |
+| `external-mutation` | Approval required | Remote state changes. |
+| `monitor-lifecycle` | Approval required | Firecrawl monitor ops. |
+| `local-mutation` | Approval required | Mutates local repo/agent state |
+| `auth` | Approval required | MCP auth |
 <!-- generated:mcp-operations:end -->
 
 Pi enforces this policy, failing closed without UI for non-managed tools.
