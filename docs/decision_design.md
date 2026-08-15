@@ -223,10 +223,12 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   confirmation tool was omitted from Pi's textual Available tools without a
   `promptSnippet`, contributing to non-invocation; its prior activation also
   depended on stale process-global planner state during session restore. Role
-  application now solely excludes it for planners and ensures it for off/worker
-  roles, while the tool supplies a concise `promptSnippet`. Regression evidence:
-  the named prompt-snippet, planner-exclusion, and stale-planner-to-worker
-  assertions in `pi/tests/smoke.sh`. Evidence:
+  application preserves normal active tools for planners, including
+  `b_agentic_confirm_commit`; planner write/commit limits are governed by
+  prompt-level skill ownership and shared policy, not role-specific tool
+  exclusion, while the tool supplies a concise `promptSnippet`. Regression
+  evidence: the named prompt-snippet, planner-active-tools, and
+  stale-planner-to-worker assertions in `pi/tests/smoke.sh`. Evidence:
   `pi/extensions/b-agentic-permissions.ts`, `pi/extensions/b-agentic-role.ts`,
   `skills/b-commit/prompt.md`, `pi/tests/smoke.sh`.
 
@@ -247,9 +249,15 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   status/server-list/search/describe/instructions metadata for any server and
   policy-classified managed retrieval/research with existing direct
   Serena/CodeGraph or explicit `mcp__` aliases and concrete safe arguments.
-  It blocks Playwright, Serena mutations/lifecycle, auth/connect/UI actions,
-  selector mixtures, unclassified or unmanaged execution, and all local/external
-  mutation regardless of UI, auto mode, or role. Narrow deterministic regression
+  It blocks or gates unsafe Playwright actions (such as navigation and
+  interaction) while permitting policy-classified safe Playwright retrieval;
+  it blocks or gates Serena mutations/lifecycle, auth/connect/UI actions,
+  selector mixtures, unclassified or unmanaged execution, and local/external
+  mutation under normal policy; the explicit persisted `b-auto-mode` opt-in is
+  the exception, auto-allowing approval requests while explicit deny decisions
+  remain blocked. With auto mode off, approval-required actions retain normal
+  UI/fail-closed behavior, and roles do not alter this policy. Narrow
+  deterministic regression
   evidence is table-driven classifier, broker, active-tool, shell, Git, and
   CodeGraph allow/deny coverage in `pi/tests/smoke.sh`. Public tool evidence is Linear issues
   [#1028](https://github.com/linear/linear/issues/1028), [#1060](https://github.com/linear/linear/issues/1060), and [#747](https://github.com/linear/linear/issues/747); no authenticated live inventory was available for this change. Separately, the observed routing failure was that a bare Linear-style ID could be treated as generic implementation or research rather than planning; the intended behavior routes it to `b-plan`. Regression evidence is the human-scored `linear-issue-plan-routing` scenario in `tests/behavior/routing.json`, structurally validated with `python3 pi/tests/prompt_effectiveness.py --routing --validate-inputs --scenario=linear-issue-plan-routing`. Evidence:
@@ -258,7 +266,9 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
 - Auto-approval is exact and least-privilege: read-only/trusted operations are
   allowed; conditional operations require known keys and safe argument values;
   external mutation, uploads, lifecycle, auth, screenshots, navigation, and
-  other unsafe operations require approval. Unmanaged servers and ambiguous
+  other unsafe operations require approval under normal policy. The explicit
+  persisted `b-auto-mode` opt-in auto-allows those approval requests while
+  explicit denies remain blocked. Unmanaged servers and ambiguous
   gateway selectors are not trusted. Evidence:
   `references/mcp_operations.yaml`,
   `pi/extensions/b-agentic-support/mcp.ts`,
