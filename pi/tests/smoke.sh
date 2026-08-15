@@ -168,7 +168,7 @@ await plannerNotifyTest.notifyDesktop(async (command, args, options) => { notifi
 await plannerNotifyTest.notifyDesktop(async () => { throw new Error('notifier unavailable'); }, 'linux');
 expect(notifierCalls.length === 2 && notifierCalls[0].command === 'notify-send' && JSON.stringify(notifierCalls[0].args) === JSON.stringify(['b-agentic planner finished']) && notifierCalls[0].options?.timeout === plannerNotifyTest.NOTIFICATION_TIMEOUT_MS, 'Linux planner notifications must use the fixed generic notify-send invocation with a bounded timeout');
 expect(notifierCalls[1].command === 'osascript' && notifierCalls[1].args[0] === '-e' && notifierCalls[1].args[1] === plannerNotifyTest.MACOS_SCRIPT && notifierCalls[1].options?.timeout === plannerNotifyTest.NOTIFICATION_TIMEOUT_MS, 'macOS planner notifications must use the fixed generic osascript invocation with a bounded timeout');
-expect(typeof handlers.agent_settled === 'function', 'planner notification extension must register agent_settled');
+expect(typeof handlers.agent_start === 'function' && typeof handlers.agent_end === 'function' && typeof handlers.agent_settled === 'function', 'planner notification extension must register agent lifecycle handlers');
 branchEntries.push({
   type: 'custom', customType: 'b-agentic-role',
   data: { role: 'planner', toolsBeforePlanner: ['read', 'bash', 'edit', 'write'] },
@@ -247,19 +247,54 @@ expect(reloads === 2, 'successful refresh commands must reload Pi');
 await commands['b-sync'].handler('unexpected', refreshContext);
 expect(executedCommands.length === 2 && reloads === 2, '/b-sync arguments must be rejected without a refresh');
 const notificationCommandStart = executedCommands.length;
+await handlers.agent_start({});
+await handlers.agent_end({ messages: [
+  { role: 'user', content: 'sensitive task/session content mentioning READY FOR PR', timestamp: 1 },
+  { role: 'assistant', content: [{ type: 'text', text: 'Planning handoff to worker.' }], timestamp: 2 },
+] });
 await handlers.agent_settled({ messages: [{ content: 'sensitive task/session content' }] });
-expect(executedCommands.length === notificationCommandStart, 'off role must not notify after a settled agent run');
+expect(executedCommands.length === notificationCommandStart, 'off role must remain silent for planning and settled events');
 await commands['b-role'].handler('planner', roleContext);
-await handlers.agent_settled({ messages: [{ content: 'sensitive task/session content' }] });
-expect(executedCommands.length === notificationCommandStart + 1, 'planner must notify once when an agent run settles');
+await handlers.agent_start({});
+await handlers.agent_end({ messages: [
+  { role: 'user', content: 'sensitive task/session content mentioning READY FOR PR', timestamp: 1 },
+  { role: 'assistant', content: [{ type: 'text', text: 'Planning handoff to worker.' }], timestamp: 2 },
+] });
+await handlers.agent_settled({});
+expect(executedCommands.length === notificationCommandStart, 'planner handoffs and normal planning must remain silent');
+await handlers.agent_start({});
+await handlers.agent_end({ messages: [
+  { role: 'user', content: 'sensitive task/session content', timestamp: 1 },
+  { role: 'assistant', content: [{ type: 'text', text: 'Findings checked.\nVerdict: READY FOR PR' }], timestamp: 2 },
+] });
+await handlers.agent_settled({});
+expect(executedCommands.length === notificationCommandStart + 1, 'planner must notify after a passing b-review');
 expect(executedCommands.at(-1)?.command === 'notify-send' && JSON.stringify(executedCommands.at(-1)?.args) === JSON.stringify(['b-agentic planner finished']) && executedCommands.at(-1)?.options?.timeout === plannerNotifyTest.NOTIFICATION_TIMEOUT_MS, 'planner notification must be generic, bounded, and exclude settled task/session content');
+await handlers.agent_start({});
+await handlers.agent_end({ messages: [
+  { role: 'assistant', content: [{ type: 'text', text: 'Verdict: READY WITH FOLLOW-UPS' }], timestamp: 3 },
+] });
+await handlers.agent_settled({});
+expect(executedCommands.length === notificationCommandStart + 2, 'nonblocking b-review follow-ups must notify');
+await handlers.agent_start({});
+await handlers.agent_end({ messages: [
+  { role: 'assistant', content: [{ type: 'text', text: 'Verdict: NEEDS FIXES' }], timestamp: 4 },
+] });
+await handlers.agent_settled({});
+expect(executedCommands.length === notificationCommandStart + 2, 'b-review failures must remain silent');
+await handlers.agent_settled({ messages: [{ content: 'sensitive task/session content with READY FOR PR' }] });
+expect(executedCommands.length === notificationCommandStart + 2, 'generic settled events must remain silent without a final agent_end review verdict');
 roleChannelRegistration.onReady({ publish() {}, listSessions: async () => [{ id: 'self', cwd: root, pid: process.pid, startedAt: 1 }] });
 await commands['b-role'].handler('worker', roleContext);
-await handlers.agent_settled({ messages: [{ content: 'sensitive task/session content' }] });
-expect(executedCommands.length === notificationCommandStart + 1, 'worker must not notify after a settled agent run');
+await handlers.agent_start({});
+await handlers.agent_end({ messages: [{ role: 'assistant', content: [{ type: 'text', text: 'Verdict: READY FOR PR' }], timestamp: 5 }] });
+await handlers.agent_settled({});
+expect(executedCommands.length === notificationCommandStart + 2, 'worker must not notify after a passing review');
 await commands['b-role'].handler('off', roleContext);
-await handlers.agent_settled({ messages: [{ content: 'sensitive task/session content' }] });
-expect(executedCommands.length === notificationCommandStart + 1, 'off role must remain silent after a settled agent run');
+await handlers.agent_start({});
+await handlers.agent_end({ messages: [{ role: 'assistant', content: [{ type: 'text', text: 'Verdict: READY FOR PR' }], timestamp: 6 }] });
+await handlers.agent_settled({});
+expect(executedCommands.length === notificationCommandStart + 2, 'off role must remain silent after a passing review');
 await commands['b-role'].handler('', roleContext);
 expect(rolePickerCalls === 1, '/b-role without an argument must open a role picker');
 expect(modelPickerCalls === 0, '/b-role must not open a model picker');
