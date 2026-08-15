@@ -335,7 +335,7 @@ run_install_with_tty_log() {
 	local rc=0
 	set +e
 	python3 - "$sandbox" "$repo_snapshot" "$log_path" "$smoke_path" "$ROOT_DIR/install.sh" "$@" <<'PY'
-import os, pty, select, sys
+import errno, os, pty, select, sys
 
 sandbox, repo_snapshot, log_path, smoke_path, install_script = sys.argv[1:6]
 args = sys.argv[6:]
@@ -355,21 +355,27 @@ if pid == 0:
 status = None
 with open(log_path, "wb") as log:
     while True:
-        try:
+        if status is None:
             result, child_status = os.waitpid(pid, os.WNOHANG)
             if result:
                 status = child_status
-                break
+
+        try:
             ready, _, _ = select.select([fd], [], [], 0.1)
             if ready:
                 chunk = os.read(fd, 4096)
                 if not chunk:
-                    _, status = os.waitpid(pid, 0)
                     break
                 log.write(chunk)
                 log.flush()
-        except (OSError, select.error):
-            break
+            elif status is not None:
+                # The child has exited and the PTY has no more buffered data.
+                break
+        except OSError as error:
+            # macOS reports PTY end-of-file as EIO instead of returning b"".
+            if error.errno == errno.EIO:
+                break
+            raise
 
 os.close(fd)
 if status is None:
