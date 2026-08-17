@@ -17,12 +17,12 @@ Own code-level and simulated-DOM tests: add coverage, fix test-only failures, an
 
 ## Tool guidance
 
-- `bash` - run tests via `rtk` when supported (`rtk pytest`, `rtk vitest`, `rtk jest`, …) and inspect failure output.
-- `serena` - after native search/read, use only when a specific test/source
+- `Bash` - run tests via `rtk` when supported (`rtk pytest`, `rtk vitest`, `rtk jest`, …) and inspect failure output.
+- `serena` - after native search/Read, use only when a specific test/source
   symbol, reference, or diagnostic materially improves safety or precision; use
-  native `read`/`edit`/`write` for routine inspection and edits, and serialize
+  native `Read`/`Edit`/`Write` for routine inspection and edits, and serialize
   requests rather than parallelizing or batching them.
-- `read`/`edit` - use Pi native tools for routine and unsupported file work.
+- `Read`/`Edit` - use Claude Code native tools for routine and unsupported file work.
 - `codegraph` - only for a concrete repository-wide source-to-test impact or affected-test question that native discovery cannot settle; do not initialize an absent local index merely because the change spans files.
 - `context7` - versioned test-framework/API semantics only when local tests and contracts do not settle them.
 

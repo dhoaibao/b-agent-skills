@@ -18,7 +18,7 @@ Create approved, cohesive commits from the current working tree, or draft one me
 
 ## Tool guidance
 
-- `bash` - `rtk git status --short`, metadata-only Git path lists, targeted safe-path diffs, exact staging, and approved commit creation.
+- `Bash` - `rtk git status --short`, metadata-only Git path lists, targeted safe-path diffs, exact staging, and approved commit creation.
 
 ## Steps
 

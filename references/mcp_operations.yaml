@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "format": "json-subset-of-yaml",
-  "description": "Canonical managed MCP operation classification. All Serena operations plus classified read-only and safe conditional-read operations are auto-approved through adapter-owned calls and unambiguous top-level mcp gateway calls. Roles do not alter active tools or MCP approval policy; prompt-level skill ownership directs planner and worker execution.",
+  "description": "Canonical managed MCP operation classification for Claude Code hooks. Direct MCP calls are allowed only for managed servers and classified safe operations; conditional operations require known argument shapes. Unknown tools, servers, auth, lifecycle, UI actions, and mutations fail closed.",
   "classes": {
     "read-only": {
       "policy": "Auto-approved for managed servers",
@@ -158,94 +158,274 @@
   },
   "conditional_arguments": {
     "serena:serena_read_memory": {
-      "known": ["memory_name"]
+      "known": [
+        "memory_name"
+      ]
     },
     "serena:serena_list_memories": {
-      "known": ["topic"]
+      "known": [
+        "topic"
+      ]
     },
     "serena:serena_write_memory": {
-      "known": ["memory_name", "content", "max_chars"]
+      "known": [
+        "memory_name",
+        "content",
+        "max_chars"
+      ]
     },
     "serena:serena_delete_memory": {
-      "known": ["memory_name"]
+      "known": [
+        "memory_name"
+      ]
     },
     "serena:serena_rename_memory": {
-      "known": ["old_name", "new_name"]
+      "known": [
+        "old_name",
+        "new_name"
+      ]
     },
     "serena:serena_edit_memory": {
-      "known": ["memory_name", "needle", "repl", "mode", "allow_multiple_occurrences"]
+      "known": [
+        "memory_name",
+        "needle",
+        "repl",
+        "mode",
+        "allow_multiple_occurrences"
+      ]
     },
     "serena:serena_replace_content": {
-      "known": ["relative_path", "needle", "repl", "mode", "allow_multiple_occurrences"]
+      "known": [
+        "relative_path",
+        "needle",
+        "repl",
+        "mode",
+        "allow_multiple_occurrences"
+      ]
     },
     "serena:serena_replace_in_files": {
-      "known": ["needle", "repl", "mode", "relative_path", "paths_include_glob", "paths_exclude_glob", "dry_run", "occurrence_ids", "expected_count", "max_answer_chars"]
+      "known": [
+        "needle",
+        "repl",
+        "mode",
+        "relative_path",
+        "paths_include_glob",
+        "paths_exclude_glob",
+        "dry_run",
+        "occurrence_ids",
+        "expected_count",
+        "max_answer_chars"
+      ]
     },
     "serena:serena_replace_symbol_body": {
-      "known": ["name_path", "relative_path", "body"]
+      "known": [
+        "name_path",
+        "relative_path",
+        "body"
+      ]
     },
     "serena:serena_insert_after_symbol": {
-      "known": ["name_path", "relative_path", "body"]
+      "known": [
+        "name_path",
+        "relative_path",
+        "body"
+      ]
     },
     "serena:serena_insert_before_symbol": {
-      "known": ["name_path", "relative_path", "body"]
+      "known": [
+        "name_path",
+        "relative_path",
+        "body"
+      ]
     },
     "serena:serena_rename_symbol": {
-      "known": ["name_path", "relative_path", "new_name"]
+      "known": [
+        "name_path",
+        "relative_path",
+        "new_name"
+      ]
     },
     "serena:serena_safe_delete_symbol": {
-      "known": ["name_path_pattern", "relative_path"]
+      "known": [
+        "name_path_pattern",
+        "relative_path"
+      ]
     },
     "serena:serena_search_for_pattern": {
-      "known": ["substring_pattern", "context_lines_before", "context_lines_after", "paths_include_glob", "paths_exclude_glob", "relative_path", "restrict_search_to_code_files", "multiline", "max_answer_chars"]
+      "known": [
+        "substring_pattern",
+        "context_lines_before",
+        "context_lines_after",
+        "paths_include_glob",
+        "paths_exclude_glob",
+        "relative_path",
+        "restrict_search_to_code_files",
+        "multiline",
+        "max_answer_chars"
+      ]
     },
     "serena:serena_get_symbols_overview": {
-      "known": ["relative_path", "depth", "max_answer_chars"]
+      "known": [
+        "relative_path",
+        "depth",
+        "max_answer_chars"
+      ]
     },
     "serena:serena_find_symbol": {
-      "known": ["name_path_pattern", "depth", "relative_path", "include_body", "include_info", "include_kinds", "exclude_kinds", "substring_matching", "max_matches", "max_answer_chars"]
+      "known": [
+        "name_path_pattern",
+        "depth",
+        "relative_path",
+        "include_body",
+        "include_info",
+        "include_kinds",
+        "exclude_kinds",
+        "substring_matching",
+        "max_matches",
+        "max_answer_chars"
+      ]
     },
     "serena:serena_find_referencing_symbols": {
-      "known": ["name_path", "relative_path", "include_kinds", "exclude_kinds", "max_answer_chars"]
+      "known": [
+        "name_path",
+        "relative_path",
+        "include_kinds",
+        "exclude_kinds",
+        "max_answer_chars"
+      ]
     },
     "serena:serena_find_implementations": {
-      "known": ["name_path", "relative_path", "include_info", "include_kinds", "exclude_kinds", "max_answer_chars"]
+      "known": [
+        "name_path",
+        "relative_path",
+        "include_info",
+        "include_kinds",
+        "exclude_kinds",
+        "max_answer_chars"
+      ]
     },
     "serena:serena_find_declaration": {
-      "known": ["relative_path", "regex", "containing_symbol_name_path", "include_body", "include_info"]
+      "known": [
+        "relative_path",
+        "regex",
+        "containing_symbol_name_path",
+        "include_body",
+        "include_info"
+      ]
     },
     "serena:serena_get_diagnostics_for_file": {
-      "known": ["relative_path", "start_line", "end_line", "min_severity", "max_answer_chars"]
+      "known": [
+        "relative_path",
+        "start_line",
+        "end_line",
+        "min_severity",
+        "max_answer_chars"
+      ]
     },
     "firecrawl:firecrawl_search": {
-      "known": ["query", "limit", "tbs", "filter", "location", "includeDomains", "excludeDomains", "sources", "categories", "scrapeOptions", "enterprise", "highlights"]
+      "known": [
+        "query",
+        "limit",
+        "tbs",
+        "filter",
+        "location",
+        "includeDomains",
+        "excludeDomains",
+        "sources",
+        "categories",
+        "scrapeOptions",
+        "enterprise",
+        "highlights"
+      ]
     },
     "firecrawl:firecrawl_scrape": {
-      "known": ["url", "formats", "jsonOptions", "queryOptions", "screenshotOptions", "parsers", "pdfOptions", "onlyMainContent", "redactPII", "includeTags", "excludeTags", "waitFor", "actions", "mobile", "skipTlsVerification", "removeBase64Images", "location", "storeInCache", "zeroDataRetention", "maxAge", "lockdown", "proxy", "profile"]
+      "known": [
+        "url",
+        "formats",
+        "jsonOptions",
+        "queryOptions",
+        "screenshotOptions",
+        "parsers",
+        "pdfOptions",
+        "onlyMainContent",
+        "redactPII",
+        "includeTags",
+        "excludeTags",
+        "waitFor",
+        "actions",
+        "mobile",
+        "skipTlsVerification",
+        "removeBase64Images",
+        "location",
+        "storeInCache",
+        "zeroDataRetention",
+        "maxAge",
+        "lockdown",
+        "proxy",
+        "profile"
+      ]
     },
     "firecrawl:firecrawl_map": {
-      "known": ["url", "search", "sitemap", "includeSubdomains", "limit", "ignoreQueryParameters"]
+      "known": [
+        "url",
+        "search",
+        "sitemap",
+        "includeSubdomains",
+        "limit",
+        "ignoreQueryParameters"
+      ]
     },
     "firecrawl:firecrawl_extract": {
-      "known": ["urls", "prompt", "schema", "allowExternalLinks", "enableWebSearch", "includeSubdomains"]
+      "known": [
+        "urls",
+        "prompt",
+        "schema",
+        "allowExternalLinks",
+        "enableWebSearch",
+        "includeSubdomains"
+      ]
     },
     "playwright:browser_snapshot": {
-      "known": ["target", "filename", "depth", "boxes"]
+      "known": [
+        "target",
+        "filename",
+        "depth",
+        "boxes"
+      ]
     },
     "playwright:browser_console_messages": {
-      "known": ["level", "all", "filename"]
+      "known": [
+        "level",
+        "all",
+        "filename"
+      ]
     },
     "playwright:browser_network_requests": {
-      "known": ["static", "filter", "filename"]
+      "known": [
+        "static",
+        "filter",
+        "filename"
+      ]
     },
     "playwright:browser_network_request": {
-      "known": ["index", "part", "filename"]
+      "known": [
+        "index",
+        "part",
+        "filename"
+      ]
     },
     "playwright:browser_tabs": {
-      "known": ["action", "index", "url"]
+      "known": [
+        "action",
+        "index",
+        "url"
+      ]
     }
   },
+  "path_arguments": {
+    "serena": ["relative_path", "path", "file_path", "paths_include_glob", "paths_exclude_glob"]
+  },
   "runtime_enforcement": {
-    "pi": "The adapter approval broker and Pi tool_call trust all classified Serena operations plus other classified safe operations. The top-level mcp gateway requires an explicit managed server and matching tool name; conditional tools also require validated arguments. mcpScript permits tools.search/tools.describe metadata and nested tools.call retains normal policy. Roles do not add MCP restrictions. Auth, lifecycle, UI actions, selector mixtures, unclassified tools, unmanaged servers, and local/external mutations remain blocked. Validation requires runtime safe sets to match this policy."
+    "claude": "The Claude Code PreToolUse hook reads this policy and emits allow, ask, or deny decisions. Managed servers and direct MCP tools are checked against these classifications; conditional tools require validated known arguments and Serena path/glob arguments must stay inside the current project or require approval. Unknown servers, unclassified tools, auth, lifecycle, UI actions, local uploads, external mutations, and unclassified arguments remain blocked."
   }
 }

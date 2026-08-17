@@ -1,139 +1,32 @@
 #!/usr/bin/env python3
-"""Check the active session has RTK support required by b-agentic."""
-
+"""Validate Claude workflow kernel and named-agent readiness."""
 from __future__ import annotations
-
-import argparse
-import re
-import shutil
-import subprocess
+import json
 import sys
-from collections.abc import Callable
 from pathlib import Path
 
-REQUIRED_TOOLS: tuple[tuple[str, tuple[str, ...]], ...] = (
-    ("rtk", ("rtk",)),
-)
-REMEDIATION = "Install the missing prerequisites, then restart the runtime session; see the kernel's Shell commands section."
-ROOT = Path(__file__).resolve().parents[2]
-RTK_POLICY = ROOT / "pi" / "extensions" / "b-agentic-support" / "shell.ts"
-# RTK commands that operate on RTK itself or generic command streams rather
-# than proxying a same-named native command family. New commands must be
-# reviewed and added to RTK_REQUIRED_COMMANDS. RTK-supported families are mandatory.
-RTK_NON_NATIVE_COMMANDS = {
-    "read", "smart", "err", "test", "json", "deps", "env", "summary", "log",
-    "gain", "cc-economics", "config", "init", "discover", "session", "telemetry",
-    "learn", "run", "proxy", "pipe", "trust", "untrust", "verify", "hook-audit",
-    "rewrite", "hook", "help",
-}
-
-
-def _parse_rtk_command_set(text: str, const_name: str) -> set[str]:
-    match = re.search(rf"const {const_name} = new Set\(\[(.*?)\]\);", text, re.DOTALL)
-    if not match:
-        raise ValueError(f"{const_name} is missing or unparsable")
-    return set(re.findall(r'"([^"]+)"', match.group(1)))
-
-
-def configured_rtk_families(path: Path = RTK_POLICY) -> set[str]:
-    text = path.read_text()
-    required = _parse_rtk_command_set(text, "RTK_REQUIRED_COMMANDS")
-    optional = _parse_rtk_command_set(text, "RTK_OPTIONAL_COMMANDS")
-    return required | optional
-
-
-def required_rtk_families(path: Path = RTK_POLICY) -> set[str]:
-    return _parse_rtk_command_set(path.read_text(), "RTK_REQUIRED_COMMANDS")
-
-
-def available_rtk_families(help_text: str) -> set[str]:
-    return set(re.findall(r"^  ([a-z][a-z0-9-]*)\s{2,}", help_text, re.MULTILINE))
-
-
-def check_rtk_policy() -> tuple[bool, str]:
-    try:
-        completed = subprocess.run(["rtk", "--help"], capture_output=True, text=True)
-        if completed.returncode:
-            return False, "blocked: rtk --help failed; cannot verify command-policy compatibility"
-        configured = configured_rtk_families()
-        required = required_rtk_families()
-    except (OSError, ValueError) as exc:
-        return False, f"blocked: cannot verify RTK command policy: {exc}"
-    available = available_rtk_families(completed.stdout)
-    missing = sorted(required - available)
-    uncovered = sorted(available - configured - RTK_NON_NATIVE_COMMANDS)
-    if missing:
-        return False, f"blocked: RTK command-policy drift; required families unavailable: {', '.join(missing)}"
-    if uncovered:
-        return False, f"blocked: RTK command-policy drift; unclassified families: {', '.join(uncovered)}"
-    return True, "RTK command policy compatible"
-
-
-def missing_tools(which: Callable[[str], str | None] = shutil.which) -> list[str]:
-    return [label for label, commands in REQUIRED_TOOLS if not any(which(command) for command in commands)]
-
-
-def check_session_tools(
-    which: Callable[[str], str | None] = shutil.which,
-    *,
-    verify_rtk_policy: bool = True,
-) -> tuple[bool, str]:
-    missing = missing_tools(which)
-    if missing:
-        return False, f"blocked: missing {', '.join(missing)}. {REMEDIATION}"
-    if verify_rtk_policy:
-        compatible, detail = check_rtk_policy()
-        if not compatible:
-            return False, detail
-        return True, f"ready: rtk available; {detail}"
-    return True, "ready: rtk available"
-
-
-def self_test() -> int:
-    available = {command for _, commands in REQUIRED_TOOLS for command in commands}
-    ok, _ = check_session_tools(
-        lambda command: command if command in available else None,
-        verify_rtk_policy=False,
-    )
-    if not ok:
-        print("complete-tool fixture unexpectedly failed", file=sys.stderr)
-        return 1
-    ok, detail = check_session_tools(
-        lambda command: command if command in available - {"rtk"} else None,
-        verify_rtk_policy=False,
-    )
-    if ok or "rtk" not in detail or REMEDIATION not in detail:
-        print("missing-tool fixture unexpectedly passed", file=sys.stderr)
-        return 1
-    parsed = available_rtk_families("Commands:\n  git            Git commands\n  pytest         Pytest commands\n")
-    if parsed != {"git", "pytest"}:
-        print("RTK help fixture unexpectedly failed", file=sys.stderr)
-        return 1
-    configured = configured_rtk_families()
-    required = required_rtk_families()
-    if ({"git", "pytest"} - required):
-        print("required RTK family fixture unexpectedly failed", file=sys.stderr)
-        return 1
-    if not ({"ls", "rg"} <= required):
-        print("RTK discovery family fixture unexpectedly failed", file=sys.stderr)
-        return 1
-    if not ({"new-native-family"} - configured - RTK_NON_NATIVE_COMMANDS):
-        print("unclassified RTK family fixture unexpectedly passed", file=sys.stderr)
-        return 1
-    print("Session tool readiness self-test passed.")
-    return 0
-
+ROOT=Path(__file__).resolve().parents[2]
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Check shell-tool readiness for the active b-agentic session.")
-    parser.add_argument("--self-test", action="store_true", help="Run complete-tool and missing-tool fixtures.")
-    args = parser.parse_args()
-    if args.self_test:
-        return self_test()
-    ready, detail = check_session_tools()
-    print(f"session-tools: {detail}")
-    return 0 if ready else 1
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+    errors=[]
+    kernel=(ROOT/"references/kernel.template.md").read_text()
+    if "Solo Claude Code is the default" not in kernel: errors.append("kernel missing solo default")
+    for marker in ("ListAgents", "SendMessage", "b-planner", "b-worker", "sole worktree writer"):
+        if marker not in kernel: errors.append(f"kernel missing {marker}")
+    for path, required in ((ROOT/"plugin/agents/b-planner.md", ("tools:", "Read", "read-only")), (ROOT/"plugin/agents/b-worker.md", ("tools:", "Write", "sole worktree writer"))):
+        text=path.read_text() if path.exists() else ""
+        tools_line = next((line for line in text.splitlines() if line.startswith("tools:")), "")
+        if "Task" in tools_line: errors.append(f"{path.relative_to(ROOT)} must not expose Task")
+        for marker in required:
+            if marker not in text: errors.append(f"{path.relative_to(ROOT)} missing {marker}")
+    try:
+        hooks=json.loads((ROOT/"plugin/hooks/hooks.json").read_text())
+        if "PreToolUse" not in hooks.get("hooks", {}): errors.append("hooks missing PreToolUse")
+        elif not any(item.get("matcher") == ".*" for item in hooks["hooks"]["PreToolUse"]): errors.append("PreToolUse must use an all-tools matcher")
+    except Exception as exc: errors.append(f"hooks invalid: {exc}")
+    if "--self-test" in sys.argv:
+        if errors: print("\n".join(errors), file=sys.stderr); return 1
+        print("Claude session readiness self-test passed."); return 0
+    if errors: print("\n".join(errors), file=sys.stderr); return 1
+    print("Claude named-session workflow readiness passed."); return 0
+if __name__ == "__main__": raise SystemExit(main())

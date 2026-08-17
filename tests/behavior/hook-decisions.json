@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "description": "Claude PreToolUse policy decision fixtures.",
+  "cases": [
+    {"name":"repository status is autonomous","event":{"tool_name":"Bash","cwd":".","tool_input":{"command":"git status --short"}},"decision":"allow"},
+    {"name":"hard reset is denied","event":{"tool_name":"Bash","cwd":".","tool_input":{"command":"git reset --hard HEAD"}},"decision":"deny"},
+    {"name":"compound hard reset cannot bypass denial","event":{"tool_name":"Bash","cwd":".","tool_input":{"command":"git status --short && git reset --hard HEAD"}},"decision":"deny"},
+    {"name":"compound removal cannot bypass approval","event":{"tool_name":"Bash","cwd":".","tool_input":{"command":"git status --short; rm -rf ./build"}},"decision":"ask"},
+    {"name":"protected read asks","event":{"tool_name":"Read","cwd":".","tool_input":{"file_path":".env"}},"decision":"ask"},
+    {"name":"protected write denies","event":{"tool_name":"Write","cwd":".","tool_input":{"file_path":".env"}},"decision":"deny"},
+    {"name":"safe Serena conditional operation allows","event":{"tool_name":"mcp__serena__serena_list_memories","cwd":".","tool_input":{"topic":"workflow"}},"decision":"allow"},
+    {"name":"Serena local write outside project asks","event":{"tool_name":"mcp__serena__serena_replace_content","cwd":".","tool_input":{"relative_path":"../outside.txt","needle":"old","repl":"new"}},"decision":"ask"},
+    {"name":"Serena local write protected target denies","event":{"tool_name":"mcp__serena__serena_replace_content","cwd":".","tool_input":{"relative_path":"../../.ssh/config","needle":"old","repl":"new"}},"decision":"deny"},
+    {"name":"Serena conditional read protected target asks","event":{"tool_name":"mcp__serena__serena_search_for_pattern","cwd":".","tool_input":{"relative_path":".env","substring_pattern":"TOKEN"}},"decision":"ask"},
+    {"name":"Serena conditional read outside target asks","event":{"tool_name":"mcp__serena__serena_get_diagnostics_for_file","cwd":".","tool_input":{"relative_path":"../outside.py"}},"decision":"ask"},
+    {"name":"Serena local glob protected target denies","event":{"tool_name":"mcp__serena__serena_replace_in_files","cwd":".","tool_input":{"paths_include_glob":"../../.ssh/*","needle":"old","repl":"new"}},"decision":"deny"},
+    {"name":"unknown MCP operation denies","event":{"tool_name":"mcp__unknown__secret","tool_input":{}},"decision":"deny"},
+    {"name":"unclassified builtin denies","event":{"tool_name":"NotebookEdit","cwd":".","tool_input":{"notebook_path":"notes.ipynb"}},"decision":"deny"},
+    {"name":"unapproved task delegation denies","event":{"tool_name":"Task","cwd":".","tool_input":{"description":"edit files"}},"decision":"deny"},
+    {"name":"malformed event denies","event":{},"decision":"deny"}
+  ]
+}

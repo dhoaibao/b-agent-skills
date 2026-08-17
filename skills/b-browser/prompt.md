@@ -16,14 +16,14 @@ Own real-browser, visual, screenshot, live UI, browser-session, and e2e evidence
 
 ## Tool guidance
 
-- `bash` - existing approved browser/e2e commands (`rtk playwright` when using the CLI runner).
+- `Bash` - existing approved browser/e2e commands (`rtk playwright` when using the CLI runner).
 - `playwright` - approval-gated `browser_navigate` / interactions; then `browser_snapshot`, `browser_find`, `browser_console_messages`, `browser_network_requests` / `browser_network_request`; `browser_take_screenshot` only when requested (approval-gated local artifact).
 - `codegraph` - only for a concrete repository-wide flow or impact question after
   a confirmed product failure; do not initialize an absent local index merely
   because the failure spans files.
-- `serena` - after native search/read, use only when a specific exact source
+- `serena` - after native search/Read, use only when a specific exact source
   symbol or reference materially improves precision; use native
-  `read`/`edit`/`write` for routine file work and serialize requests rather than
+  `Read`/`Edit`/`Write` for routine file work and serialize requests rather than
   parallelizing or batching them.
 
 ## Steps

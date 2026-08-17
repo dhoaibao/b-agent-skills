@@ -23,15 +23,15 @@ This audit supplements the automated checks; it does not mechanically prove all 
 
 ## Tool guidance
 
-- `bash` - run `rtk git status --short`, the existing
+- `Bash` - run `rtk git status --short`, the existing
   `scripts/b-agentic-audit.sh` entrypoint, and narrow repository checks.
 - `read` - inspect `docs/decision_design.md` and the canonical source files it
   cites; prefer sources over generated assets when comparing behavior.
 - `codegraph` - use only for repository-wide architecture, impact, or affected
   test questions that the decision record makes relevant.
-- `serena` - after native search/read, use only when a concrete exact-symbol,
+- `serena` - after native search/Read, use only when a concrete exact-symbol,
   reference, implementation, diagnostic, or boundary question materially
-  improves safety or precision; use native `read`/`edit`/`write` for routine file
+  improves safety or precision; use native `Read`/`Edit`/`Write` for routine file
   work and serialize requests rather than parallelizing or batching them.
 
 ## Steps

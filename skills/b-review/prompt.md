@@ -20,24 +20,24 @@ Flags: `--skip-tests`, `--baseline=<path|url>`, `--range=<ref>..<ref>`.
 
 ## Tool guidance
 
-- `bash` - `rtk git status`, metadata-only Git path lists, targeted safe-path diffs, logs, and narrow verification; modern discovery routed through `rtk` whenever supported.
+- `Bash` - `rtk git status`, metadata-only Git path lists, targeted safe-path diffs, logs, and narrow verification; modern discovery routed through `rtk` whenever supported.
 - `read` - open changed files directly.
 - `codegraph` - only for a concrete repository-wide changed-flow, impact, or
   affected-test question that native inspection cannot settle; do not initialize
   an absent local index merely because the diff spans files.
-- `serena` - after native search/read, inspect a specific changed symbol,
+- `serena` - after native search/Read, inspect a specific changed symbol,
   reference, or diagnostic only when it materially improves review precision;
-  use native `read`/`edit`/`write` for routine file work and serialize requests
+  use native `Read`/`Edit`/`Write` for routine file work and serialize requests
   rather than parallelizing or batching them.
 - `brave-search` - one narrow independent public lookup; use specialized Brave tools only when news/local/image/video/place evidence matters.
-- `recall` - recover compacted audit or prior-review memory ids when present.
+- Claude Code compaction and session context - recover prior review context when present.
 
 ## Steps
 
 1. Scope the changed-code review: working tree, range, baseline, or checkpoint using Bash with `rtk git status` and metadata-only changed-path lists.
 2. Classify protected paths before reading content, then inspect only explicitly named non-protected paths with targeted diffs. Use inspection tools only. If the user wants findings fixed, report them and hand off to **b-implement** after the review.
 3. Choose baseline. For delegated work, the latest approved plan, handoff, and clarifications are the baseline; otherwise, without a baseline, do a risk review and do not claim requirements coverage.
-4. Read repo context only when it materially affects the changed-code review; use recall for compacted prior review ids when present.
+4. Read repo context only when it materially affects the changed-code review; use Claude Code compaction/session context for prior review details when present.
 5. When native inspection leaves a concrete repository-wide flow, impact, or affected-test question, initialize an absent CodeGraph index and use it for that question; do not initialize one merely because the diff spans files. Use native inspection first and Serena separately only for a specific exact reference or diagnostic when it materially improves precision. Use Brave only when public semantics materially affect a finding, and do not parallelize or batch Serena calls.
 6. Inspect highest-risk changed symbols and boundaries first.
 7. Check tests, edge cases, security, operability, evidence quality, hidden assumptions, unnecessary diff, and over-abstraction.
@@ -46,7 +46,7 @@ Flags: `--skip-tests`, `--baseline=<path|url>`, `--range=<ref>..<ref>`.
 
 Do not run the b-agentic repository/design-conformance audit here. Use
 **b-agentic-audit** for kernel slimness, source/generated sync, decision-design
-traceability, Pi integration safety, installer safety, MCP leverage, validation
+traceability, Claude Code integration safety, installer safety, MCP leverage, validation
 evidence, prompt-change evidence, domain-specific behavior, ceremony creep,
 and cleanup candidates. `scripts/b-agentic-audit.sh` is an audit entrypoint,
 not a substitute for this changed-code review.

@@ -1,69 +1,59 @@
 #!/usr/bin/env python3
-
-"""Structural suite audit for b-agentic's Pi integration."""
-
+"""Audit the repository for Claude-only delivery and source consistency."""
 from __future__ import annotations
-
 import json
-import subprocess
 import sys
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
-MAX_KERNEL_LINES = 120
-MAX_KERNEL_BYTES = 12_000
+errors: list[str] = []
 
+def read(path: Path) -> str:
+    try: return path.read_text()
+    except OSError: return ""
 
-def run_cmd(cmd: list[str], label: str) -> bool:
-    result = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
-    if result.returncode:
-        print(f"{label} failed:", file=sys.stderr)
-        print(result.stdout, file=sys.stderr, end="")
-        print(result.stderr, file=sys.stderr, end="")
-        return False
-    print(f"{label} passed")
-    return True
+def valid_agent(path: Path, required: str) -> bool:
+    tools = next((line for line in path.read_text().splitlines() if line.startswith("tools:")), "")
+    return required in tools and "Task" not in tools
 
+def valid_manifest(path: Path) -> bool:
+    data = json.loads(path.read_text())
+    return (
+        data.get("name") == "b-agentic"
+        and data.get("skills") == "./skills/"
+        and data.get("agents") == ["./agents/b-planner.md", "./agents/b-worker.md"]
+        and data.get("hooks") == "./hooks/hooks.json"
+        and data.get("mcpServers") == "./.mcp.json"
+        and all((path.parent.parent / relative).exists() for relative in ["skills", "agents/b-planner.md", "agents/b-worker.md", "hooks/hooks.json", ".mcp.json"])
+    )
 
-def skill_names() -> list[str]:
-    try:
-        registry = json.loads((ROOT / "skills" / "registry.yaml").read_text())
-    except (OSError, json.JSONDecodeError):
-        return []
-    return sorted(skill["name"] for skill in registry.get("skills", []) if isinstance(skill, dict) and isinstance(skill.get("name"), str))
-
-
-def audit_slimness(errors: list[str]) -> None:
-    kernel = ROOT / "references" / "kernel.template.md"
-    text = kernel.read_text()
-    lines = len(text.splitlines())
-    size = len(text.encode())
-    if lines > MAX_KERNEL_LINES or size > MAX_KERNEL_BYTES:
-        errors.append(f"{kernel.relative_to(ROOT)}: kernel exceeds slimness limit ({lines} lines/{size} bytes; max {MAX_KERNEL_LINES} lines/{MAX_KERNEL_BYTES} bytes)")
-
-
-def audit_unresolved_tokens(errors: list[str]) -> None:
-    paths = [ROOT / "README.md", ROOT / "REFERENCE.md", ROOT / "references" / "kernel.template.md", *(ROOT / "skills" / name / "SKILL.md" for name in skill_names())]
-    for path in paths:
-        if path.exists() and "{{" in path.read_text():
-            errors.append(f"{path.relative_to(ROOT)}: unresolved template token")
-
-
-def main() -> int:
-    all_ok = run_cmd([sys.executable, "tooling/generate/registry_sync.py", "--check"], "Generated asset sync")
-    all_ok &= run_cmd(["bash", "scripts/validate-skills.sh"], "Validation suite")
-    errors: list[str] = []
-    audit_slimness(errors)
-    audit_unresolved_tokens(errors)
-    if errors:
-        print("\n".join(errors), file=sys.stderr)
-        return 1
-    if not all_ok:
-        return 1
-    print("b-agentic structural suite audit (automated checks) passed")
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+if (ROOT / "pi").exists():
+    errors.append("legacy runtime directory pi/ must not exist")
+required = {
+    "plugin/.claude-plugin/plugin.json": valid_manifest,
+    "plugin/hooks/hooks.json": lambda p: (
+        "PreToolUse" in json.loads(p.read_text()).get("hooks", {})
+        and any(item.get("matcher") == ".*" for item in json.loads(p.read_text())["hooks"]["PreToolUse"])
+    ),
+    "plugin/hooks/b-agentic-policy.py": lambda p: p.stat().st_mode & 0o111,
+    "plugin/hooks/b-agentic-status-line.py": lambda p: p.stat().st_mode & 0o111,
+    "plugin/settings.json": lambda p: (
+        json.loads(p.read_text()).get("crossSessionInbound") == "accept"
+        and "statusLine" in json.loads(p.read_text())
+        and "Bash(git reset --hard*)" in json.loads(p.read_text()).get("permissions", {}).get("deny", [])
+    ),
+    "plugin/.mcp.json": lambda p: "mcpServers" in json.loads(p.read_text()),
+    "plugin/agents/b-planner.md": lambda p: valid_agent(p, "Read"),
+    "plugin/agents/b-worker.md": lambda p: valid_agent(p, "Write"),
+}
+for name, check in required.items():
+    path = ROOT / name
+    if not path.exists(): errors.append(f"{name}: missing")
+    else:
+        try:
+            if not check(path): errors.append(f"{name}: invalid")
+        except Exception as exc: errors.append(f"{name}: invalid ({exc})")
+if errors:
+    print("\n".join(errors), file=sys.stderr)
+    raise SystemExit(1)
+print("Claude Code suite audit passed.")

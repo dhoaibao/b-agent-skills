@@ -1,25 +1,25 @@
 <!-- b-init-managed:start -->
 # b-agentic Maintainer Guide
 
-## Repository Purpose
+## Repository purpose
 
-b-agentic is a slim workflow kernel built around Pi: it ships the always-loaded kernel, native skills, first-party Pi extensions, recommended MCP configuration, and install/validation tooling. Keep the product slim, evidence-backed, and focused on safe, verifiable Pi workflows.
+b-agentic is a slim Claude Code workflow kernel. It ships the always-loaded kernel, Claude-native skills, custom planner/worker agents, fail-closed hooks, direct MCP configuration, and install/validation tooling. Keep the product slim, evidence-backed, and focused on safe, verifiable Claude Code workflows.
 
-## Working Rules
+## Working rules
 
-- `README.md` is the public overview; `REFERENCE.md` is the operational guide; `docs/decision_design.md` records the evidence-backed design decisions.
-- Edit canonical sources, not generated delivery assets. Keep prompts task-specific and avoid speculative workflow ceremony or new root documentation surfaces.
-- Keep shared workflow guidance in `references/`; Pi integration, extensions, configuration, and Pi smoke tests in `pi/`; installer smoke coverage in `tests/smoke/`.
-- Preserve user-owned Pi configuration and unrelated working-tree changes in installers and maintenance work.
+- `README.md` is the public overview; `REFERENCE.md` is the operational guide; `docs/decision_design.md` records evidence-backed design decisions.
+- Edit canonical sources, not generated delivery assets. Keep shared workflow guidance in `references/`; Claude plugin components, hooks, configuration, and plugin smoke tests under `plugin/`; installer smoke coverage under `tests/smoke/`.
+- Preserve user-owned Claude configuration and unrelated working-tree changes in installers and maintenance work.
 - Keep `skills/registry.yaml` and `references/mcp_operations.yaml` in the JSON-compatible YAML subset required by the Python standard library.
-- Record an observed failure, intended behavior change, and narrow regression check for behavior-shaping prompt changes.
+- `tooling/generate/registry_sync.py` renders generated skill payloads, README tables, kernel blocks, and the plugin MCP policy snapshot. Run it without `--check` only after changing a canonical source; use `--check` to verify synchronization.
+- Record an observed failure, intended behavior change, and narrow regression fixture for behavior-shaping prompt or hook changes.
 
-## Sources and Generated Assets
+## Sources and generated assets
 
-- `skills/registry.yaml` owns skill metadata, routing, and generated frontmatter; each `skills/*/prompt.md` owns its skill body.
-- `references/kernel.template.md` owns the generated Pi kernel; `references/mcp_operations.yaml` owns managed MCP classifications.
-- `tooling/generate/registry_sync.py` renders `skills/*/SKILL.md`, README tables, kernel blocks, and generated MCP runtime sets. Run it without `--check` only after changing a canonical source; use `--check` to verify synchronization.
-- Keep `references/` limited to `kernel.template.md` and `mcp_operations.yaml` unless repository evidence justifies otherwise.
+- `skills/registry.yaml` owns skill metadata, routing, ownership, and generated frontmatter; each `skills/*/prompt.md` owns its skill body.
+- `references/kernel.template.md` owns the generated always-loaded Claude kernel; `references/mcp_operations.yaml` owns managed MCP classifications.
+- `plugin/` is the Claude-native delivery package. Only `.claude-plugin/plugin.json` belongs in that directory; skills, agents, hooks, settings, and `.mcp.json` stay at plugin root.
+- Do not reintroduce another runtime's packages, extensions, themes, installer paths, or compatibility terminology.
 
 ## Verification
 
@@ -31,22 +31,22 @@ scripts/validate-skills.sh
 scripts/b-agentic-audit.sh
 ```
 
-For install, Pi integration, or release-readiness changes, also run `scripts/validate-skills.sh --release` and the relevant `scripts/smoke-install.sh`, `scripts/skill-doctor.sh`, or `scripts/mcp-doctor.sh` checks. Prompt-effectiveness model calls are opt-in; `pi/tests/prompt_effectiveness.py --validate-inputs` is the non-networked alternative for that lane. Live MCP schema probing and browser evidence are separate opt-in checks.
+For install or release-readiness changes, also run `scripts/validate-skills.sh --release` and `scripts/smoke-install.sh`. Live MCP schema probing, named-session messaging, and browser evidence are separate opt-in checks.
 
-## Codebase Map
+## Codebase map
 
-- `skills/` — canonical skill prompts, registry metadata, and generated delivery assets
+- `skills/` — canonical prompts, registry metadata, and generated payloads
 - `references/` — kernel template and managed MCP policy
-- `pi/` — Pi configuration, extensions, scripts, and smoke tests
+- `plugin/` — Claude Code plugin manifest, skills, agents, hooks, settings, and MCP config
 - `tooling/generate/` — source synchronization and renderers
-- `tooling/install/` — shared installer implementation
+- `tooling/install/` — Claude configuration lifecycle helpers
 - `tooling/validate/` — validation harness and policy checks
 - `scripts/` — validation, doctor, smoke, and audit entrypoints
-- `tests/smoke/` — isolated installer smoke coverage
+- `tests/` — hook, workflow, and isolated installer smoke coverage
 - `README.md` / `REFERENCE.md` — public and operational documentation
-- `docs/decision_design.md` — evidence-backed product and architecture decisions
+- `docs/decision_design.md` — evidence-backed product and architecture
 
-## Handoff Review
+## Handoff review
 
-Before handing off a change, confirm it uses the correct source layer, generated assets are synchronized, Pi-specific details remain under `pi/`, and validation evidence matches the scope.
+Before handing off a change, confirm it uses the correct source layer, generated assets are synchronized, Claude-specific details remain under `plugin/`, and validation evidence matches the scope.
 <!-- b-init-managed:end -->

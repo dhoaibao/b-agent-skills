@@ -1,145 +1,213 @@
 {
   "version": 1,
   "source": "b-agentic skill-boundary audit scenarios",
-  "description": "Human-scored Pi native skill-selection scenarios.",
+  "description": "Human-scored Claude Code skill-selection scenarios.",
   "scenarios": [
     {
       "id": "plan-vs-implement",
       "prompt": "The desired billing behavior is ambiguous. Decide which b-agentic skill should handle clarifying scope before any code changes.",
       "expected_skill": "b-plan",
-      "forbidden_skills": ["b-implement"]
+      "forbidden_skills": [
+        "b-implement"
+      ]
     },
     {
       "id": "approved-implementation",
       "prompt": "The implementation plan is approved. Make the next small scoped code change and verify it.",
       "expected_skill": "b-implement",
-      "forbidden_skills": ["b-plan"]
+      "forbidden_skills": [
+        "b-plan"
+      ]
     },
     {
       "id": "initialize-agent-docs",
       "prompt": "Initialize this repository's agent instruction docs with a canonical AGENTS.md and a minimal CLAUDE.md shim.",
       "expected_skill": "b-init",
-      "forbidden_skills": ["b-implement", "b-plan"]
+      "forbidden_skills": [
+        "b-implement",
+        "b-plan"
+      ]
     },
     {
       "id": "product-bug-vs-test",
       "prompt": "A failing test exposes a checkout regression in production behavior. Diagnose the runtime root cause.",
       "expected_skill": "b-debug",
-      "forbidden_skills": ["b-test"]
+      "forbidden_skills": [
+        "b-test"
+      ]
     },
     {
       "id": "test-mechanics",
       "prompt": "Fix a component-test mock and assertion; no product behavior is broken.",
       "expected_skill": "b-test",
-      "forbidden_skills": ["b-debug", "b-browser"]
+      "forbidden_skills": [
+        "b-debug",
+        "b-browser"
+      ]
     },
     {
       "id": "browser-evidence",
       "prompt": "Use a real browser to verify the requested UI state and capture a screenshot.",
       "expected_skill": "b-browser",
-      "forbidden_skills": ["b-test", "b-design"]
+      "forbidden_skills": [
+        "b-test",
+        "b-design"
+      ]
     },
     {
       "id": "design-standard",
       "prompt": "Analyze the supplied mockup and create docs/DESIGN.md as reusable frontend design guidance.",
       "expected_skill": "b-design",
-      "forbidden_skills": ["b-browser", "b-implement"]
+      "forbidden_skills": [
+        "b-browser",
+        "b-implement"
+      ]
     },
     {
       "id": "external-api-fact",
       "prompt": "Look up current versioned framework API documentation and compare two configuration options.",
       "expected_skill": "b-research",
-      "forbidden_skills": ["b-plan", "b-debug"]
+      "forbidden_skills": [
+        "b-plan",
+        "b-debug"
+      ]
     },
     {
       "id": "changed-code-review",
       "prompt": "Review the working-tree diff before a PR and report reviewer findings.",
       "expected_skill": "b-review",
-      "forbidden_skills": ["b-commit", "b-pr-summary", "b-plan", "b-agentic-audit"]
+      "forbidden_skills": [
+        "b-commit",
+        "b-pr-summary",
+        "b-plan",
+        "b-agentic-audit"
+      ]
     },
     {
       "id": "commit-working-tree",
       "prompt": "Split tracked and untracked working-tree changes into cohesive commits.",
       "expected_skill": "b-commit",
-      "forbidden_skills": ["b-pr-summary", "b-review"]
+      "forbidden_skills": [
+        "b-pr-summary",
+        "b-review"
+      ]
     },
     {
       "id": "staged-commit-message",
       "prompt": "Write a commit message for my staged changes.",
       "expected_skill": "b-commit",
-      "forbidden_skills": ["b-pr-summary", "b-review"]
+      "forbidden_skills": [
+        "b-pr-summary",
+        "b-review"
+      ]
     },
     {
       "id": "staged-pr-copy",
       "prompt": "Write PR copy for my staged changes.",
       "expected_skill": "b-commit",
-      "forbidden_skills": ["b-pr-summary", "b-review"]
+      "forbidden_skills": [
+        "b-pr-summary",
+        "b-review"
+      ]
     },
     {
       "id": "review-staged-changes",
       "prompt": "Review my staged changes before committing.",
       "expected_skill": "b-review",
-      "forbidden_skills": ["b-commit", "b-agentic-audit"]
+      "forbidden_skills": [
+        "b-commit",
+        "b-agentic-audit"
+      ]
     },
     {
       "id": "b-agentic-repository-audit",
       "prompt": "Run a b-agentic repository audit and report decision-design drift.",
       "expected_skill": "b-agentic-audit",
-      "forbidden_skills": ["b-review", "b-implement"]
+      "forbidden_skills": [
+        "b-review",
+        "b-implement"
+      ]
     },
     {
       "id": "pr-summary",
       "prompt": "Use b-pr-summary 3 to draft PR copy for my latest three commits.",
       "expected_skill": "b-pr-summary",
-      "forbidden_skills": ["b-commit", "b-review"]
+      "forbidden_skills": [
+        "b-commit",
+        "b-review"
+      ]
     },
     {
       "id": "unpushed-pr-summary",
       "prompt": "Use b-pr-summary to draft PR copy for all current-branch commits not pushed to origin.",
       "expected_skill": "b-pr-summary",
-      "forbidden_skills": ["b-commit", "b-review"]
+      "forbidden_skills": [
+        "b-commit",
+        "b-review"
+      ]
     },
     {
       "id": "natural-unpushed-pr-summary",
       "prompt": "Write PR copy for all my unpushed commits.",
       "expected_skill": "b-pr-summary",
-      "forbidden_skills": ["b-commit", "b-review"]
+      "forbidden_skills": [
+        "b-commit",
+        "b-review"
+      ]
     },
     {
       "id": "natural-counted-pr-summary",
       "prompt": "Write PR copy for my latest 3 commits.",
       "expected_skill": "b-pr-summary",
-      "forbidden_skills": ["b-commit", "b-review"]
+      "forbidden_skills": [
+        "b-commit",
+        "b-review"
+      ]
     },
     {
       "id": "mechanical-refactor",
       "prompt": "Rename one symbol and all references without changing behavior.",
       "expected_skill": "b-refactor",
-      "forbidden_skills": ["b-implement", "b-plan"]
+      "forbidden_skills": [
+        "b-implement",
+        "b-plan"
+      ]
     },
     {
       "id": "repository-approach-comparison",
       "prompt": "Compare the viable implementation approaches for adding a local cache in this repository, inspect the current code constraints, choose the smallest safe path, and give me an execution-ready plan. Do not change code or look up external APIs.",
       "expected_skill": "b-plan",
-      "forbidden_skills": ["b-research", "b-implement"]
+      "forbidden_skills": [
+        "b-research",
+        "b-implement"
+      ]
     },
     {
       "id": "external-option-comparison",
       "prompt": "Compare the current documented behavior and compatibility of two framework cache APIs. Use versioned external documentation; do not choose an implementation for this repository yet.",
       "expected_skill": "b-research",
-      "forbidden_skills": ["b-plan", "b-implement"]
+      "forbidden_skills": [
+        "b-plan",
+        "b-implement"
+      ]
     },
     {
       "id": "coverage-request-vs-implementation",
       "prompt": "Add focused unit tests for the existing cache fallback behavior and evaluate the remaining coverage gap. Product behavior is already correct.",
       "expected_skill": "b-test",
-      "forbidden_skills": ["b-implement", "b-debug"]
+      "forbidden_skills": [
+        "b-implement",
+        "b-debug"
+      ]
     },
     {
       "id": "linear-issue-plan-routing",
       "prompt": "LIN-123: use this issue to prepare an implementation plan; do not change code yet.",
       "expected_skill": "b-plan",
-      "forbidden_skills": ["b-implement", "b-research"]
+      "forbidden_skills": [
+        "b-implement",
+        "b-research"
+      ]
     }
   ]
 }

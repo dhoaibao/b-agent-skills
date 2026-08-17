@@ -1,0 +1,17 @@
+{
+  "crossSessionInbound": "accept",
+  "permissions": {
+    "deny": [
+      "Bash(git reset --hard*)",
+      "Bash(git clean -f*)",
+      "Bash(git push --force*)",
+      "Bash(git branch -D*)",
+      "Bash(docker system prune*)",
+      "Bash(docker volume rm*)"
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/b-agentic-status-line.py\""
+  }
+}

@@ -1,867 +1,148 @@
 #!/usr/bin/env bash
-# install.sh - Bootstrap or update b-agentic
-# Bootstraps source sync, then installs or refreshes Pi-managed assets through
-# the shared installer core.
-#
-# Usage:
-#   curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agentic/main/install.sh | bash
-#   curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agentic/main/install.sh | bash -s -- --dry-run
-#   curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agentic/main/install.sh | bash -s -- --uninstall
-#   curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agentic/main/install.sh | bash -s -- --ref=<tag-or-sha>
-#   ~/.b-agentic/install.sh --sync
-#   ~/.b-agentic/install.sh --update
-
+# Install, synchronize, or uninstall the Claude Code b-agentic plugin.
 set -euo pipefail
 
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly REPO_URL="${B_AGENTIC_REPO:-https://github.com/dhoaibao/b-agentic.git}"
 readonly LOCAL_REPO="${B_AGENTIC_DIR:-$HOME/.b-agentic}"
+readonly CLAUDE_CONFIG="${B_AGENTIC_CLAUDE_CONFIG_DIR:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}"
+OPERATION=install
+DRY_RUN=0
+REPLACE_KERNEL=0
 REF="${B_AGENTIC_REF:-}"
-readonly TIMESTAMP="$(date +%Y%m%d%H%M%S)"
+SOURCE_DIR=""
 
-DRY_RUN_VALUE="${B_AGENTIC_DRY_RUN:-N}"
-REPLACE_MEMORY_VALUE="${B_AGENTIC_REPLACE_MEMORY:-}"
-UNINSTALL_VALUE="${B_AGENTIC_UNINSTALL:-N}"
-PROMPT_API_KEYS_VALUE="${B_AGENTIC_PROMPT_API_KEYS:-auto}"
-readonly PI_NAME="Pi"
-# Bundled dependencies are mandatory and are installed without prompts.
-OPERATION="install"
+log() { printf '%s\n' "$*"; }
+die() { printf 'error: %s\n' "$*" >&2; exit 1; }
+usage() {
+	cat >&2 <<'EOF'
+usage: install.sh [--dry-run] [--sync|--update|--uninstall] [--replace-kernel] [--ref=<tag-or-sha>]
 
-SOURCE_DIR="$LOCAL_REPO"
-SKILLS_SRC="$SOURCE_DIR/skills"
-REFERENCES_SRC="$SOURCE_DIR/references"
-TEMPLATES_SRC="$SOURCE_DIR/pi/configs"
-KERNEL_SRC="$SOURCE_DIR/references/kernel.template.md"
-DRY_RUN_SOURCE_DIR=""
-UI_ENABLED=0
-UI_SUPPRESS_LOGS=0
-UI_STAGE_CURRENT=0
-UI_STAGE_TOTAL=0
-UI_STAGE_ACTIVE=0
-UI_STAGE_LABEL=""
-readonly UI_STAGE_BAR_WIDTH=20
-readonly UI_STAGE_LABEL_WIDTH=52
-readonly UI_STAGE_LINE_WIDTH=82
-INSTALL_PI_CLI_DECISION=""
-
-ui_init() {
-	if [ -t 1 ] && [ "${TERM:-}" != "dumb" ]; then
-		UI_ENABLED=1
-	else
-		UI_ENABLED=0
-	fi
-}
-
-ui_tty_enabled() {
-	[ "${UI_ENABLED:-0}" -eq 1 ] && [ -t 1 ] && [ "${TERM:-}" != "dumb" ]
-}
-
-ui_clear_stage() {
-	ui_tty_enabled || return 0
-	printf '\r%*s\r' "$UI_STAGE_LINE_WIDTH" ''
-}
-
-ui_render_stage() {
-	ui_tty_enabled || return 0
-	local current="$1" total="$2" label="$3" state="${4:-running}"
-	local filled=0 bar="" i
-	if [ "$total" -gt 0 ]; then
-		filled=$(((current - 1) * UI_STAGE_BAR_WIDTH / total))
-	fi
-	[ "$filled" -lt 0 ] && filled=0
-	[ "$filled" -gt "$UI_STAGE_BAR_WIDTH" ] && filled="$UI_STAGE_BAR_WIDTH"
-	if [ "$state" = "done" ]; then
-		filled="$UI_STAGE_BAR_WIDTH"
-	fi
-	for ((i = 0; i < filled; i++)); do bar+='='; done
-	for ((i = filled; i < UI_STAGE_BAR_WIDTH; i++)); do bar+='-'; done
-	case "$state" in
-	failed) bar="!!!!!!!!!!!!!!!!!!!!" ;;
-	done) bar="====================" ;;
-	esac
-	if [ "${#label}" -gt "$UI_STAGE_LABEL_WIDTH" ]; then
-		label="${label:0:UI_STAGE_LABEL_WIDTH-3}..."
-	fi
-	printf -v label '%-*s' "$UI_STAGE_LABEL_WIDTH" "$label"
-	if [ "$total" -gt 0 ]; then
-		printf '\r[%s/%s] [%s] %s' "$current" "$total" "$bar" "$label"
-	else
-		printf '\r[%s] [%s] %s' "$current" "$bar" "$label"
-	fi
-}
-
-ui_set_stage_total() {
-	UI_STAGE_CURRENT=0
-	UI_STAGE_TOTAL="${1:-0}"
-	if ui_tty_enabled && [ "$UI_STAGE_ACTIVE" -eq 1 ]; then
-		ui_clear_stage
-		UI_STAGE_ACTIVE=0
-	fi
-}
-
-ui_stage_start() {
-	local label="$1"
-	UI_STAGE_CURRENT=$((UI_STAGE_CURRENT + 1))
-	UI_STAGE_LABEL="$label"
-	UI_STAGE_ACTIVE=1
-	if ui_tty_enabled; then
-		ui_render_stage "$UI_STAGE_CURRENT" "$UI_STAGE_TOTAL" "$label"
-	elif [ "$UI_STAGE_TOTAL" -gt 0 ]; then
-		printf '[%s/%s] %s\n' "$UI_STAGE_CURRENT" "$UI_STAGE_TOTAL" "$label"
-	else
-		printf '[%s] %s\n' "$UI_STAGE_CURRENT" "$label"
-	fi
-}
-
-ui_stage_finish() {
-	local rc="${1:-0}"
-	if [ "$UI_STAGE_ACTIVE" -eq 1 ] && ui_tty_enabled; then
-		ui_clear_stage
-		if [ "$UI_STAGE_TOTAL" -gt 0 ]; then
-			if [ "$rc" -eq 0 ]; then
-				printf '[%s/%s] %s\n' "$UI_STAGE_CURRENT" "$UI_STAGE_TOTAL" "$UI_STAGE_LABEL"
-			else
-				printf '[%s/%s] failed: %s\n' "$UI_STAGE_CURRENT" "$UI_STAGE_TOTAL" "$UI_STAGE_LABEL"
-			fi
-		else
-			if [ "$rc" -eq 0 ]; then
-				printf '[%s] %s\n' "$UI_STAGE_CURRENT" "$UI_STAGE_LABEL"
-			else
-				printf '[%s] failed: %s\n' "$UI_STAGE_CURRENT" "$UI_STAGE_LABEL"
-			fi
-		fi
-	fi
-	UI_STAGE_ACTIVE=0
-	UI_STAGE_LABEL=""
-	return "$rc"
-}
-
-ui_pause_stage() {
-	ui_tty_enabled || return 0
-	[ "$UI_STAGE_ACTIVE" -eq 1 ] || return 0
-	ui_clear_stage
-}
-
-ui_resume_stage() {
-	ui_tty_enabled || return 0
-	[ "$UI_STAGE_ACTIVE" -eq 1 ] || return 0
-	ui_render_stage "$UI_STAGE_CURRENT" "$UI_STAGE_TOTAL" "$UI_STAGE_LABEL"
-}
-
-log() {
-	[ "${UI_SUPPRESS_LOGS:-0}" -eq 1 ] && return 0
-	printf '%s\n' "$*"
-}
-
-summary_log() {
-	ui_pause_stage
-	printf '%s\n' "$*"
-	ui_resume_stage
-}
-
-warn() {
-	ui_pause_stage
-	printf 'warning: %s\n' "$*" >&2
-	ui_resume_stage
-}
-
-die() {
-	ui_pause_stage
-	printf 'error: %s\n' "$*" >&2
-	exit 1
-}
-
-run_ui_stage() {
-	local label="$1"
-	shift
-	local rc=0 previous_suppress="${UI_SUPPRESS_LOGS:-0}"
-
-	ui_stage_start "$label"
-	UI_SUPPRESS_LOGS=1
-	if "$@"; then
-		rc=0
-	else
-		rc=$?
-	fi
-	UI_SUPPRESS_LOGS="$previous_suppress"
-	ui_stage_finish "$rc"
-	return "$rc"
-}
-
-cleanup() {
-	if [ -n "$DRY_RUN_SOURCE_DIR" ]; then
-		rm -rf "$DRY_RUN_SOURCE_DIR"
-	fi
-}
-
-trap cleanup EXIT
-
-yes_value() {
-	case "${1:-}" in
-	y | Y | yes | YES | Yes | true | TRUE | 1) return 0 ;;
-	*) return 1 ;;
-	esac
-}
-
-dry_run_enabled() {
-	yes_value "$DRY_RUN_VALUE"
-}
-
-replace_memory_enabled() {
-	yes_value "$REPLACE_MEMORY_VALUE"
-}
-
-uninstall_enabled() {
-	yes_value "$UNINSTALL_VALUE"
-}
-
-
-can_prompt_api_keys() {
-	! dry_run_enabled || return 1
-	case "$PROMPT_API_KEYS_VALUE" in
-	n | N | no | NO | No | false | FALSE | 0) return 1 ;;
-	auto | AUTO | Auto | y | Y | yes | YES | Yes | true | TRUE | 1) ;;
-	*) die "invalid B_AGENTIC_PROMPT_API_KEYS value: $PROMPT_API_KEYS_VALUE" ;;
-	esac
-	[ -r /dev/tty ] && [ -w /dev/tty ]
-}
-
-run_cmd() {
-	if dry_run_enabled; then
-		printf '[dry-run] %s\n' "$*" >&2
-		return 0
-	fi
-	"$@"
-}
-
-require_bin() {
-	command -v "$1" >/dev/null 2>&1 || die "required binary not found: $1"
-}
-
-require_python_311() {
-	python3 - <<'PY' >/dev/null 2>&1 || die "Python 3.11+ is required."
-import sys
-sys.exit(0 if sys.version_info >= (3, 11) else 1)
-PY
-}
-
-check_dependencies() {
-	local dependency_label="curl, git, python3"
-
-	if command -v curl >/dev/null 2>&1; then
-		:
-	else
-		warn "curl not found; install with the documented curl command will not work on this machine"
-		dependency_label="git, python3"
-	fi
-
-	# git is needed only when the installer must fetch or update its source checkout.
-	if [ "$OPERATION" = "update" ]; then
-		dependency_label="curl, python3, local source"
-	elif uninstall_enabled && { [ -d "$LOCAL_REPO/.git" ] || [ -d "$LOCAL_REPO/skills" ]; }; then
-		dependency_label="${dependency_label}, local source"
-	else
-		require_bin git
-	fi
-
-	# Runtime installers use Python for structured config and manifest updates.
-	require_bin python3
-	require_python_311
-	log "Using $dependency_label"
-}
-
-set_operation() {
-	local next="$1"
-	if [ "$OPERATION" != "install" ]; then
-		die "--sync and --update cannot be combined"
-	fi
-	OPERATION="$next"
+Claude Code is the only supported runtime. The installer never updates the
+Claude Code executable and preserves unrelated files under its configuration root.
+EOF
+	exit 2
 }
 
 parse_args() {
 	while [ "$#" -gt 0 ]; do
 		case "$1" in
-		--dry-run)
-			DRY_RUN_VALUE=Y
-			;;
-		--replace-memory)
-			REPLACE_MEMORY_VALUE=Y
-			;;
-		--preserve-memory)
-			REPLACE_MEMORY_VALUE=N
-			;;
-		--uninstall)
-			UNINSTALL_VALUE=Y
-			;;
-		--sync)
-			set_operation "sync"
-			;;
-		--update)
-			set_operation "update"
-			;;
-		--prompt-api-keys)
-			PROMPT_API_KEYS_VALUE=Y
-			;;
-		--no-prompt-api-keys)
-			PROMPT_API_KEYS_VALUE=N
-			;;
-		--runtime=* | --runtime)
-			die "b-agentic installs Pi only; remove the --runtime option"
-			;;
-		--ref=*)
-			REF="${1#--ref=}"
-			[ -n "$REF" ] || die "invalid ref: empty"
-			;;
-		*)
-			die "unknown argument: $1"
-			;;
+		--dry-run) DRY_RUN=1 ;;
+		--sync) [ "$OPERATION" = install ] || die "lifecycle flags cannot be combined"; OPERATION=sync ;;
+		--update) [ "$OPERATION" = install ] || die "lifecycle flags cannot be combined"; OPERATION=update ;;
+		--uninstall) [ "$OPERATION" = install ] || die "lifecycle flags cannot be combined"; OPERATION=uninstall ;;
+		--replace-kernel) REPLACE_KERNEL=1 ;;
+		--ref=*) REF="${1#--ref=}"; [ -n "$REF" ] || die "empty source ref" ;;
+		-h|--help) usage ;;
+		*) die "unknown argument: $1" ;;
 		esac
 		shift
 	done
+	if [ "$OPERATION" = update ] && [ -n "$REF" ]; then die "--ref cannot be combined with --update"; fi
+	if [ "$OPERATION" != install ] && [ "$REPLACE_KERNEL" -eq 1 ]; then die "--replace-kernel is install-only"; fi
 }
 
-validate_ref() {
-	[ -n "$REF" ] || return 0
-	[ "$OPERATION" != "update" ] || die "--ref cannot be used with --update"
-	case "$REF" in
-	-*) die "invalid ref: $REF (must not start with -)" ;;
-	esac
-}
-
-validate_operation() {
-	if uninstall_enabled && [ "$OPERATION" != "install" ]; then
-		die "--uninstall cannot be combined with --sync or --update"
-	fi
-}
-
-set_source_dir() {
-	SOURCE_DIR="$1"
-	SKILLS_SRC="$SOURCE_DIR/skills"
-	REFERENCES_SRC="$SOURCE_DIR/references"
-	TEMPLATES_SRC="$SOURCE_DIR/pi/configs"
-	KERNEL_SRC="$SOURCE_DIR/references/kernel.template.md"
-}
-
-validate_pi_source_layout() {
-	[ -d "$SKILLS_SRC" ] || die "missing source directory: $SKILLS_SRC"
-	[ -f "$SKILLS_SRC/registry.yaml" ] || die "missing skill registry: $SKILLS_SRC/registry.yaml"
-	[ -d "$REFERENCES_SRC" ] || die "missing source directory: $REFERENCES_SRC"
-	[ -d "$TEMPLATES_SRC" ] || die "missing Pi config directory: $TEMPLATES_SRC"
-	[ -f "$KERNEL_SRC" ] || die "missing Pi kernel source: $KERNEL_SRC"
-	[ -f "$SOURCE_DIR/pi/scripts/install.sh" ] || die "missing Pi installer: $SOURCE_DIR/pi/scripts/install.sh"
-	[ -f "$SOURCE_DIR/tooling/install/common.sh" ] || die "missing installer core: $SOURCE_DIR/tooling/install/common.sh"
-	python3 - "$SKILLS_SRC/registry.yaml" "$SKILLS_SRC" <<'PY' || die "Pi skill payload does not match registry: $SKILLS_SRC"
-import json
+check_dependencies() {
+	command -v python3 >/dev/null 2>&1 || die "python3 is required"
+	python3 - <<'PY' || die "Python 3.11+ is required"
 import sys
-from pathlib import Path
-
-registry_path, skills_path = map(Path, sys.argv[1:])
-registry = json.loads(registry_path.read_text())
-skills = registry.get("skills")
-if not isinstance(skills, list):
-    raise SystemExit("invalid skills registry")
-
-names = []
-for skill in skills:
-    name = skill.get("name") if isinstance(skill, dict) else None
-    if not isinstance(name, str) or not name:
-        raise SystemExit("invalid skill name in registry")
-    names.append(name)
-
-missing = [name for name in names if not (skills_path / name / "SKILL.md").is_file()]
-if missing:
-    raise SystemExit(f"missing generated skill payloads: {', '.join(sorted(missing))}")
+raise SystemExit(0 if sys.version_info >= (3, 11) else 1)
 PY
+	if [ "$OPERATION" != uninstall ] && [ ! -d "$SOURCE_DIR" ]; then command -v git >/dev/null 2>&1 || die "git is required to fetch b-agentic"; fi
 }
 
-sync_source() {
-	require_bin git
-	require_bin python3
-
-	if dry_run_enabled; then
-		if [ -d "$LOCAL_REPO/.git" ] || [ -d "$LOCAL_REPO/skills" ]; then
-			log "Dry-run source: $LOCAL_REPO (no fetch/pull)"
-			set_source_dir "$LOCAL_REPO"
-		else
-			DRY_RUN_SOURCE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/b-agentic-dry-run.XXXXXX")"
-			log "Dry-run source clone: $REPO_URL -> $DRY_RUN_SOURCE_DIR"
-			git clone --quiet "$REPO_URL" "$DRY_RUN_SOURCE_DIR"
-			if [ -n "$REF" ]; then
-				git -C "$DRY_RUN_SOURCE_DIR" checkout --quiet "$REF"
-			fi
-			set_source_dir "$DRY_RUN_SOURCE_DIR"
-		fi
-	elif [ -d "$LOCAL_REPO/.git" ]; then
-		log "Updating source: $LOCAL_REPO"
-		git -C "$LOCAL_REPO" fetch --all --tags --prune --quiet
-		if [ -n "$REF" ]; then
-			git -C "$LOCAL_REPO" checkout --quiet "$REF"
-		else
-			git -C "$LOCAL_REPO" pull --ff-only --quiet
-		fi
-		set_source_dir "$LOCAL_REPO"
-	else
-		log "Cloning source: $REPO_URL -> $LOCAL_REPO"
-		mkdir -p "$(dirname "$LOCAL_REPO")"
-		git clone --quiet "$REPO_URL" "$LOCAL_REPO"
-		if [ -n "$REF" ]; then
-			git -C "$LOCAL_REPO" checkout --quiet "$REF"
-		fi
-		set_source_dir "$LOCAL_REPO"
-	fi
-
-	validate_pi_source_layout
+set_source() {
+	SOURCE_DIR="$1"
+	[ -d "$SOURCE_DIR/plugin" ] || die "missing Claude plugin source: $SOURCE_DIR/plugin"
+	[ -f "$SOURCE_DIR/plugin/.claude-plugin/plugin.json" ] || die "missing Claude plugin manifest"
+	[ -f "$SOURCE_DIR/plugin/settings.json" ] || die "missing Claude plugin settings"
+	[ -f "$SOURCE_DIR/references/kernel.template.md" ] || die "missing kernel source"
+	[ -f "$SOURCE_DIR/tooling/install/claude.py" ] || die "missing Claude installer helper"
 }
 
 prepare_source() {
-	if [ "$OPERATION" = "update" ] || { uninstall_enabled && { [ -d "$LOCAL_REPO/.git" ] || [ -d "$LOCAL_REPO/skills" ]; }; }; then
-		[ -d "$LOCAL_REPO/skills" ] || die "b-agentic source is not installed at $LOCAL_REPO; run the curl installer first"
-		set_source_dir "$LOCAL_REPO"
-		validate_pi_source_layout
-		return 0
+	if [ -n "${B_AGENTIC_SOURCE_DIR:-}" ]; then
+		set_source "$B_AGENTIC_SOURCE_DIR"
+		return
 	fi
-
-	sync_source
+	if [ -d "$SCRIPT_DIR/plugin" ] && [ -f "$SCRIPT_DIR/tooling/install/claude.py" ]; then
+		set_source "$SCRIPT_DIR"
+		return
+	fi
+	if [ "$OPERATION" = uninstall ] || [ "$OPERATION" = sync ]; then
+		[ -d "$LOCAL_REPO/plugin" ] || return 1
+		set_source "$LOCAL_REPO"
+		return
+	fi
+	if [ "$OPERATION" = update ] && [ -d "$LOCAL_REPO/.git" ]; then
+		log "Refreshing b-agentic source: $LOCAL_REPO"
+		git -C "$LOCAL_REPO" fetch --all --tags --prune --quiet
+		git -C "$LOCAL_REPO" pull --ff-only --quiet
+		set_source "$LOCAL_REPO"
+		return
+	fi
+	if [ -d "$LOCAL_REPO/plugin" ]; then
+		set_source "$LOCAL_REPO"
+		return
+	fi
+	command -v git >/dev/null 2>&1 || die "git is required to fetch b-agentic"
+	mkdir -p "$(dirname "$LOCAL_REPO")"
+	log "Cloning b-agentic source: $REPO_URL -> $LOCAL_REPO"
+	git clone --quiet "$REPO_URL" "$LOCAL_REPO"
+	if [ -n "$REF" ]; then git -C "$LOCAL_REPO" checkout --quiet "$REF"; fi
+	set_source "$LOCAL_REPO"
 }
 
-install_app() {
-	if [ "$OPERATION" = "update" ]; then
-		log "Using installed b-agentic source without pulling changes"
-		prepare_source
-		return 0
+manifest_path() { printf '%s\n' "$CLAUDE_CONFIG/b-agentic/install.json"; }
+
+manifest_only_uninstall() {
+	local manifest helper
+	manifest="$(manifest_path)"
+	[ -f "$manifest" ] || return 1
+	helper="$CLAUDE_CONFIG/b-agentic/manifest_uninstall.py"
+	if [ -f "$helper" ]; then
+		python3 "$helper" uninstall --manifest "$manifest"
+		return
 	fi
-
-	if uninstall_enabled; then
-		log "Preparing uninstall source"
-		prepare_source
-		log "Uninstall source ready"
-		return 0
+	if [ -n "$SOURCE_DIR" ] && [ -f "$SOURCE_DIR/tooling/install/claude.py" ]; then
+		python3 "$SOURCE_DIR/tooling/install/claude.py" uninstall --manifest "$manifest"
+		return
 	fi
-
-	if [ -d "$LOCAL_REPO/.git" ] || [ -d "$LOCAL_REPO/skills" ]; then
-		warn "b-agentic is already installed; running upgrade"
-	else
-		log "b-agentic is not installed; downloading installer source"
-	fi
-
-	prepare_source
-	log "Installer source ready"
-}
-
-manifest_only_records() {
-	python3 - <<'PY'
-import json
-import os
-from pathlib import Path
-
-home = Path.home()
-candidates = []
-candidates.extend(home.glob(".*/b-agentic/install.json"))
-# Nested agent homes (e.g. ~/.pi/agent/b-agentic/install.json)
-candidates.extend(home.glob(".*/*/b-agentic/install.json"))
-candidates.extend((home / ".config").glob("*/b-agentic/install.json"))
-candidates.extend((home / ".local" / "share").glob("*/b-agentic/install.json"))
-candidates.extend((home / "Library" / "Application Support").glob("*/b-agentic/install.json"))
-candidates.extend((home / ".gemini").glob("*/b-agentic/install.json"))
-candidates.append(home / ".pi" / "agent" / "b-agentic" / "install.json")
-
-allowed_roots = [home.resolve()]
-
-seen = set()
-for path in candidates:
-    try:
-        resolved = path.resolve()
-        if not any(resolved.is_relative_to(root) for root in allowed_roots):
-            continue
-    except Exception:
-        continue
-    if resolved in seen or not path.is_file():
-        continue
-    seen.add(resolved)
-    try:
-        data = json.loads(path.read_text())
-    except Exception:
-        continue
-    suite = data.get("suite")
-    if suite is not None and suite != "b-agentic":
-        continue
-    runtime = data.get("runtime")
-    if isinstance(runtime, str) and runtime:
-        print(f"{runtime}\t{path}")
-PY
-}
-
-manifest_only_uninstall_one() {
-	local runtime_name="$1" manifest_path="$2"
-	[ -f "$manifest_path" ] || return 1
-	local installed_script="$(dirname "$manifest_path")/tooling/install/manifest_uninstall.py"
-	if [ -f "$installed_script" ]; then
-		run_cmd python3 "$installed_script" "$manifest_path"
-		return $?
-	fi
-	if [ -n "${SOURCE_DIR:-}" ] && [ -f "$SOURCE_DIR/tooling/install/manifest_uninstall.py" ]; then
-		run_cmd python3 "$SOURCE_DIR/tooling/install/manifest_uninstall.py" "$manifest_path"
-		return $?
-	fi
-	die "manifest-only uninstall for $runtime_name requires $installed_script; reinstall once or restore the source checkout to uninstall safely"
-}
-
-try_manifest_only_uninstall() {
-	uninstall_enabled || return 1
-	{ [ -d "$LOCAL_REPO/.git" ] || [ -d "$LOCAL_REPO/skills" ]; } && return 1
-
-	local product_name manifest_path
-	while IFS=$'\t' read -r product_name manifest_path; do
-		[ "$product_name" = "pi" ] || continue
-		[ -f "$manifest_path" ] || continue
-		manifest_only_uninstall_one "$PI_NAME" "$manifest_path"
-		return $?
-	done < <(manifest_only_records)
 	return 1
-}
-
-install_rtk() {
-	if command -v rtk >/dev/null 2>&1; then
-		if dry_run_enabled; then
-			printf '[dry-run] curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh\n' >&2
-			return 0
-		fi
-		log "RTK already installed; upgrading"
-		if curl -fsSL "https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh" | sh; then
-			log "RTK upgraded"
-		else
-			warn "RTK upgrade failed"
-			return 1
-		fi
-		return 0
-	fi
-
-	# Missing RTK is installed automatically; no TTY or confirmation is needed.
-
-	if dry_run_enabled; then
-		printf '[dry-run] curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh\n' >&2
-		return 0
-	fi
-
-	log "Installing RTK"
-	if curl -fsSL "https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh" | sh; then
-		log "RTK installed"
-	else
-		die "RTK installation failed; b-agentic requires RTK"
-	fi
-}
-
-install_uv() {
-	if command -v uv >/dev/null 2>&1; then
-		if dry_run_enabled; then printf '[dry-run] uv self update\n' >&2; return 0; fi
-		log "uv already installed; upgrading"
-		uv self update || return 1
-		return 0
-	fi
-
-	if dry_run_enabled; then
-		printf '[dry-run] curl -LsSf https://astral.sh/uv/install.sh | sh\n' >&2
-		return 0
-	fi
-
-	log "Installing uv"
-	if ! curl -LsSf https://astral.sh/uv/install.sh | sh; then
-		warn "uv installation failed; skipping Serena installation"
-		return 1
-	fi
-
-	if command -v uv >/dev/null 2>&1; then
-		log "uv installed"
-		return 0
-	fi
-
-	if [ -x "$HOME/.cargo/bin/uv" ]; then
-		export PATH="$HOME/.cargo/bin:$PATH"
-		log "uv installed"
-		return 0
-	fi
-
-	if [ -x "$HOME/.local/bin/uv" ]; then
-		export PATH="$HOME/.local/bin:$PATH"
-		log "uv installed"
-		return 0
-	fi
-
-	warn "uv installed but not found on PATH; skipping Serena installation"
-	return 1
-}
-
-install_serena() {
-	install_uv || return 1
-	if command -v serena >/dev/null 2>&1; then
-		if dry_run_enabled; then
-			printf '[dry-run] uv tool upgrade serena-agent\n' >&2
-			return 0
-		fi
-		log "Serena already installed; upgrading"
-		if uv tool upgrade serena-agent; then
-			log "Serena upgraded"
-		else
-			warn "Serena upgrade failed"
-			return 1
-		fi
-		return 0
-	fi
-
-	if dry_run_enabled; then
-		printf '[dry-run] uv tool install -p 3.13 serena-agent\n' >&2
-		return 0
-	fi
-
-	log "Installing Serena"
-	if uv tool install -p 3.13 serena-agent; then
-		log "Serena installed"
-	else
-		warn "Serena installation failed"
-		return 1
-	fi
-}
-
-update_rtk() {
-	log "Updating RTK"
-	if ! command -v rtk >/dev/null 2>&1; then
-		install_rtk
-		return $?
-	fi
-	if dry_run_enabled; then
-		printf '[dry-run] curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh\n' >&2
-	elif curl -fsSL "https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh" | sh; then
-		log "RTK updated"
-	else
-		warn "RTK update failed"
-		return 1
-	fi
-}
-
-update_serena() {
-	log "Updating Serena"
-	install_uv || return 1
-	if ! command -v serena >/dev/null 2>&1; then
-		install_serena
-		return $?
-	fi
-	if dry_run_enabled; then
-		printf '[dry-run] uv tool upgrade serena-agent\n' >&2
-	elif uv tool upgrade serena-agent; then
-		log "Serena updated"
-	else
-		warn "Serena update failed"
-		return 1
-	fi
-}
-
-update_codegraph() {
-	log "Updating CodeGraph"
-	if ! command -v codegraph >/dev/null 2>&1; then
-		install_codegraph
-		return $?
-	fi
-	if dry_run_enabled; then
-		printf '[dry-run] codegraph upgrade\n' >&2
-	elif codegraph upgrade; then
-		log "CodeGraph updated"
-	else
-		warn "CodeGraph update failed"
-		return 1
-	fi
-}
-
-install_bun() {
-	if command -v bun >/dev/null 2>&1; then
-		if dry_run_enabled; then printf '[dry-run] bun upgrade\n' >&2; return 0; fi
-		log "Updating Bun"
-		bun upgrade || return 1
-		return 0
-	fi
-	if dry_run_enabled; then
-		printf '[dry-run] curl -fsSL https://bun.sh/install | bash\n' >&2
-		return 0
-	fi
-	log "Installing Bun"
-	curl -fsSL https://bun.sh/install | bash || return 1
-	export PATH="$HOME/.bun/bin:$PATH"
-	command -v bunx >/dev/null 2>&1 || { warn "Bun installed but bunx is not on PATH"; return 1; }
-}
-
-run_parallel_chains() {
-	local log_dir="$(mktemp -d "${TMPDIR:-/tmp}/b-agentic-chains.XXXXXX")"
-	local -a pids=() pid_indexes=() chains=() logs=() statuses=()
-	local chain pid index position chain_index status rc=0
-	for chain in "$@"; do
-		index=${#chains[@]}; chains+=("$chain"); logs+=("$log_dir/$index.log")
-		(
-			UI_HIDE_STAGES=1
-			UI_SUPPRESS_LOGS=1
-			"$chain"
-		) >"${logs[$index]}" 2>&1 &
-		pids+=("$!")
-		pid_indexes+=("$index")
-		if [ "${#pids[@]}" -ge 3 ]; then
-			for position in "${!pids[@]}"; do
-				pid="${pids[$position]}"
-				chain_index="${pid_indexes[$position]}"
-				if wait "$pid"; then
-					statuses[$chain_index]=0
-				else
-					status=$?
-					statuses[$chain_index]="$status"
-					if [ "$rc" -eq 0 ] || [ "$status" -eq 2 ]; then rc="$status"; fi
-				fi
-			done
-			pids=()
-			pid_indexes=()
-		fi
-	done
-	for position in "${!pids[@]}"; do
-		pid="${pids[$position]}"
-		chain_index="${pid_indexes[$position]}"
-		if wait "$pid"; then
-			statuses[$chain_index]=0
-		else
-			status=$?
-			statuses[$chain_index]="$status"
-			if [ "$rc" -eq 0 ] || [ "$status" -eq 2 ]; then rc="$status"; fi
-		fi
-	done
-	if ui_tty_enabled && [ "$UI_STAGE_ACTIVE" -eq 1 ]; then
-		ui_stage_finish "$rc"
-	fi
-	if dry_run_enabled; then
-		for index in "${!chains[@]}"; do
-			cat "${logs[$index]}"
-		done
-	else
-		for index in "${!chains[@]}"; do
-			awk '/^(warning:|b-agentic .* complete for Pi|Installed:|Planned:|Manifest:|Readiness:|Attention:|  [[:alnum:]_-]+:|Next:)/ { print }' "${logs[$index]}"
-		done
-	fi
-	if [ "$rc" -ne 0 ]; then
-		for index in "${!chains[@]}"; do
-			if [ "${statuses[$index]:-0}" -ne 0 ]; then
-				printf 'Dependency chain failed: %s\n' "${chains[$index]}" >&2
-				if [ -s "${logs[$index]}" ]; then cat "${logs[$index]}" >&2; fi
-			fi
-		done
-	fi
-	rm -rf "$log_dir"
-	return "$rc"
-}
-
-dependency_install_chain() {
-	install_rtk
-	install_serena
-}
-
-bun_install_chain() {
-	install_bun
-}
-
-update_tooling() {
-	set_install_stage_total 6
-	run_parallel_chains update_rtk update_serena update_codegraph bun_install_chain
-}
-
-install_codegraph() {
-	if command -v codegraph >/dev/null 2>&1; then
-		if dry_run_enabled; then
-			printf '[dry-run] codegraph upgrade\n' >&2
-			return 0
-		fi
-		log "CodeGraph already installed; upgrading"
-		if codegraph upgrade; then
-			log "CodeGraph upgraded"
-		else
-			warn "CodeGraph upgrade failed"
-			return 1
-		fi
-		return 0
-	fi
-
-	if dry_run_enabled; then
-		printf '[dry-run] curl -fsSL https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh | sh\n' >&2
-		return 0
-	fi
-
-	log "Installing CodeGraph"
-	if curl -fsSL https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh | sh; then
-		log "CodeGraph installed"
-	else
-		warn "CodeGraph installation failed"
-		return 1
-	fi
-}
-
-source_installer_core() {
-	local common_src="$SOURCE_DIR/tooling/install/common.sh"
-	[ -f "$common_src" ] || die "missing installer core: $common_src"
-	# shellcheck disable=SC1090
-	source "$common_src"
-}
-
-load_pi_installer() {
-	local pi_script="$SOURCE_DIR/pi/scripts/install.sh"
-	[ -f "$pi_script" ] || die "missing Pi installer: $pi_script"
-	# shellcheck disable=SC1090
-	source "$pi_script"
-}
-
-load_installer_sources() {
-	source_installer_core
-	validate_pi_source_layout
-	load_pi_installer
 }
 
 main() {
-	local rc=0
-
-	ui_init
 	parse_args "$@"
-	validate_operation
-	validate_ref
-
-	if try_manifest_only_uninstall; then
-		return 0
+	if [ "$OPERATION" = uninstall ] && [ ! -d "$LOCAL_REPO/plugin" ] && [ ! -d "$SCRIPT_DIR/plugin" ] && [ -z "${B_AGENTIC_SOURCE_DIR:-}" ]; then
+		if manifest_only_uninstall; then exit 0; fi
+		die "b-agentic source and manifest uninstaller are unavailable"
 	fi
-
-	ui_set_stage_total 5
-	run_ui_stage "Checking prerequisites" check_dependencies || return 1
-	run_ui_stage "Preparing source" install_app || return 1
-	run_ui_stage "Loading Pi installer" load_installer_sources || return 1
-	run_ui_stage "Checking optional shell tooling" install_shell_tools || return 1
-
-	if uninstall_enabled; then
-		set +e
-		(
-			set -e
-			pi_uninstall
-		)
-		rc=$?
-		set -e
-		return "$rc"
+	prepare_source || { [ "$OPERATION" = uninstall ] && manifest_only_uninstall && exit 0; die "b-agentic source is not installed at $LOCAL_REPO"; }
+	check_dependencies
+	if [ "$OPERATION" = uninstall ]; then
+		python3 "$SOURCE_DIR/tooling/install/claude.py" uninstall --manifest "$(manifest_path)"
+		exit 0
 	fi
-
-	if [ "$OPERATION" = "install" ]; then
-		run_ui_stage "Installing dependencies and Pi" run_parallel_chains dependency_install_chain install_codegraph bun_install_chain pi_install || return 1
-	elif [ "$OPERATION" = "update" ]; then
-		run_ui_stage "Updating dependencies and Pi" run_parallel_chains update_tooling pi_update || return 1
+	python3 "$SOURCE_DIR/tooling/generate/registry_sync.py" --check || die "generated Claude assets are stale; run registry_sync.py"
+	if [ "$OPERATION" = sync ] && [ ! -f "$(manifest_path)" ]; then
+		die "cannot sync before b-agentic is installed"
 	fi
-
-	if [ "$OPERATION" = "sync" ]; then
-		set +e
-		pi_sync
-		rc=$?
-		set -e
-		[ "$rc" -eq 0 ] && summary_log "b-agentic sync complete for Pi"
-		return "$rc"
+	args=(install --source "$SOURCE_DIR" --config "$CLAUDE_CONFIG")
+	[ "$DRY_RUN" -eq 1 ] && args+=(--dry-run)
+	[ "$REPLACE_KERNEL" -eq 1 ] && args+=(--replace-kernel)
+	python3 "$SOURCE_DIR/tooling/install/claude.py" "${args[@]}"
+	if [ "$DRY_RUN" -eq 1 ]; then
+		log "Next: rerun without --dry-run to apply the plan; Claude Code itself was not changed."
+	else
+		# Make manifest-only uninstall possible without the source checkout.
+		mkdir -p "$CLAUDE_CONFIG/b-agentic"
+		cp "$SOURCE_DIR/tooling/install/claude.py" "$CLAUDE_CONFIG/b-agentic/manifest_uninstall.py"
+		if [ "$OPERATION" = sync ]; then
+			log "b-agentic Claude plugin and managed settings synchronized."
+		else
+			log "Next: start or reload Claude Code with the b-agentic plugin enabled."
+		fi
 	fi
-	if [ "$OPERATION" = "update" ]; then
-		summary_log "b-agentic update complete for Pi"
-	fi
-	return 0
 }
 
 main "$@"

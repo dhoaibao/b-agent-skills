@@ -14,7 +14,7 @@ Write general PR copy for a specified number of latest commits, or commits ahead
 
 ## Tool guidance
 
-- `bash` - `rtk git` only: local log/diff/status and local `origin` tracking refs without contacting the remote.
+- `Bash` - `rtk git` only: local log/diff/status and local `origin` tracking refs without contacting the remote.
 
 ## Steps
 

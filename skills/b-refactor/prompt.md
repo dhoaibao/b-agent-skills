@@ -16,23 +16,23 @@ Run concrete behavior-preserving transforms: rename, extract, move, inline, simp
 
 ## Tool guidance
 
-- `bash` - `rtk git status --short`, checks, and modern discovery routed through `rtk` whenever supported.
+- `Bash` - `rtk git status --short`, checks, and modern discovery routed through `rtk` whenever supported.
 - `codegraph` - only for a concrete repository-wide impact or dependency-structure question that native inspection cannot settle; do not initialize an absent local index merely because the transform spans files.
-- `serena` - after native search/read, use only for a specific exact
+- `serena` - after native search/Read, use only for a specific exact
   declaration/reference/implementation, diagnostic, or reference-aware refactor
   when it materially improves safety or precision; serialize requests and never
   parallelize or batch them.
-- `read`/`edit` - routine file work, prose, comments, config keys, and Serena
+- `Read`/`Edit` - routine file work, prose, comments, config keys, and Serena
   fallbacks. Prefer native edits unless a reference-aware Serena refactor is
   materially safer.
 
 ## Steps
 
 1. Lock the exact target and state the behavior that must remain unchanged.
-2. Use read for relevant repo context only when it materially affects the transform.
+2. Use Read for relevant repo context only when it materially affects the transform.
 3. When native inspection leaves a concrete repository-wide impact question, initialize an absent CodeGraph index and map that impact; do not initialize one merely because the transform spans files. Use native search for routine discovery and Serena separately only for a specific exact declaration/reference when it materially improves precision. Use bash with `rg`/`fdfind` for exports, routes, config keys, docs, and generated consumers Serena cannot see.
 4. When practical, run the narrowest risk-appropriate check to establish a passing behavioral baseline.
-5. Apply the smallest matching transform via Pi native `edit` for routine changes; use Serena symbol ops only for a reference-aware refactor when they materially improve safety or precision.
+5. Apply the smallest matching transform via Claude Code native `Edit` for routine changes; use Serena symbol ops only for a reference-aware refactor when they materially improve safety or precision.
 6. Re-check references with native search, use Serena diagnostics or reference checks only when materially useful, and rerun the baseline check or equivalent narrow verification.
 7. Inspect the diff for unintended behavior changes.
 

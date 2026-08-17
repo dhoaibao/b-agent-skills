@@ -1,0 +1,15 @@
+{
+  "name": "b-agentic",
+  "version": "2.0.0",
+  "description": "Claude Code workflow kernel with routed skills, managed safety hooks, MCP policy, and optional planner/worker agents",
+  "author": {
+    "name": "b-agentic maintainers"
+  },
+  "skills": "./skills/",
+  "agents": [
+    "./agents/b-planner.md",
+    "./agents/b-worker.md"
+  ],
+  "hooks": "./hooks/hooks.json",
+  "mcpServers": "./.mcp.json"
+}

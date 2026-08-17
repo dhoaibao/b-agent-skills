@@ -17,27 +17,27 @@ Make the scoped change in the smallest coherent step, and hand back to planning 
 
 ## Tool guidance
 
-- `serena` - after native search/read, use only when a concrete exact-symbol,
+- `serena` - after native search/Read, use only when a concrete exact-symbol,
   reference, implementation, or diagnostic/refactor need remains and semantic
   tooling materially improves safety or precision. Prefer native
-  `read`/`edit`/`write` for routine file work. Relevant onboarding and durable
+  `Read`/`Edit`/`Write` for routine file work. Relevant onboarding and durable
   project memories are explicit exceptions; serialize requests and never
   parallelize or batch them.
-- `read`/`edit`/`write` - use Pi native file tools by default for routine inspection and changes; also use them for unsupported files or as a fallback when Serena precision work fails.
-- `bash` - `rtk git status --short`, verification commands, and modern discovery routed through `rtk` whenever that command family is supported.
+- `Read`/`Edit`/`Write` - use Claude Code native file tools by default for routine inspection and changes; also use them for unsupported files or as a fallback when Serena precision work fails.
+- `Bash` - `rtk git status --short`, verification commands, and modern discovery routed through `rtk` whenever that command family is supported.
 - `codegraph` - only for a concrete repository-wide architecture, dependency/call flows, impact, or affected-test question that native inspection cannot settle; do not initialize an absent local index merely because the task spans files.
 - `context7` - narrow versioned third-party API checks when needed.
-- `recall` - recover compacted observational-memory ids when present instead of guessing prior context.
+- Claude Code compaction/session context - recover compacted prior context when present instead of guessing prior context.
 
 ## Steps
 
 1. Resolve the source of truth: approved plan, approved chat instruction, or small direct request.
 2. Run `rtk git status --short` via Bash and preserve unrelated changes.
-3. Use read for relevant repo context only when it materially affects the scoped change; use recall when compacted prior plan context is available.
+3. Use Read for relevant repo context only when it materially affects the scoped change; use Claude Code compaction/session context when prior plan details are available.
 4. State expected files/symbols, invariant behavior, and success criteria; infer narrow criteria only when obvious.
 5. When native inspection leaves a concrete repository-wide architecture, impact, or affected-test question, initialize an absent CodeGraph index and use it for that question; do not initialize one merely because the task spans files. Use native tools or local search for routine work; use Serena separately only for a specific exact symbol, reference, diagnostic, or reference-aware refactor when that materially improves precision.
 6. If a material blocker, new uncertainty, missing external fact, or scope drift cannot be resolved from the approved plan, direct request, and repository evidence, stop before the next edit. In delegated worker work, ask the assigning planner one focused question and wait; in solo/Off work, ask the user. The planner owns external research and scope decisions. Re-evaluate each answer; hand back to **b-plan** or **b-research** only when it identifies that handoff.
-7. Edit the smallest coherent slice and match the existing local style. Use Pi native `edit`/`write` for routine changes; use Serena only for a reference-aware symbol refactor or another listed precision task, and keep its requests serialized.
+7. Edit the smallest coherent slice and match the existing local style. Use Claude Code native `Edit`/`Write` for routine changes; use Serena only for a reference-aware symbol refactor or another listed precision task, and keep its requests serialized.
 8. Run the narrowest useful verification (using Context7 for versioned third-party API checks if the implementation relies on them) that proves the requested observable outcome.
 9. If verification exposes an in-scope defect without a material blocker, correct it and rerun the required check. Otherwise stop under step 6.
 10. Inspect changed paths with metadata-only Git output, then inspect diffs only for explicit non-protected paths and report changes, verification, and remaining gaps.

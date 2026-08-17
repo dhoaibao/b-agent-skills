@@ -16,18 +16,18 @@ Initialize or refresh repo-local agent instruction docs. `AGENTS.md` is canonica
 
 ## Tool guidance
 
-- `bash` - repo layout via `eza` and `fdfind`, commands, and `rtk git` diffs/status.
-- `read`/`edit`/`write` - create or refresh `AGENTS.md` / `CLAUDE.md`.
-- `serena` - after native search/read, inspect a specific exact symbol or
+- `Bash` - repo layout via `eza` and `fdfind`, commands, and `rtk git` diffs/status.
+- `Read`/`Edit`/`Write` - create or refresh `AGENTS.md` / `CLAUDE.md`.
+- `serena` - after native search/Read, inspect a specific exact symbol or
   reference only when it materially improves precision about file ownership or
-  code layout; use native `read` first and serialize requests rather than
+  code layout; use native `Read` first and serialize requests rather than
   parallelizing or batching them.
 
 ## Steps
 
 1. Confirm scope: repository root or a specific subtree, and whether the task is create, refresh, or reconcile.
 2. Run `rtk git status --short` via Bash before inspecting or changing the repository; preserve unrelated changes.
-3. Inspect only the repo evidence needed to avoid boilerplate: existing docs, manifests, validation scripts, top-level directories, and source-of-truth files. Use native `read` first; use Serena only after native search/read for a specific exact ownership symbol or reference when it materially improves the codebase-map evidence. Do not use it for routine reads or parallelize/batch its requests.
+3. Inspect only the repo evidence needed to avoid boilerplate: existing docs, manifests, validation scripts, top-level directories, and source-of-truth files. Use native `Read` first; use Serena only after native search/Read for a specific exact ownership symbol or reference when it materially improves the codebase-map evidence. Do not use it for routine reads or parallelize/batch its requests.
 4. Prefer `AGENTS.md` as the only authoritative instruction file. Keep `CLAUDE.md` short and route the reader to `AGENTS.md` using the exact shim pattern:
    ```markdown
    # Claude Code Instructions
