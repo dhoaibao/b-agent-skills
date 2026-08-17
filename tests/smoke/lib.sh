@@ -80,6 +80,25 @@ make_repo_snapshot() {
 	git -C "$snapshot_dir" -c user.name='b-agentic smoke' -c user.email='smoke@example.com' commit -qm 'snapshot'
 }
 
+make_dracula_fixture() {
+	local fixture_dir="$1"
+	mkdir -p "$fixture_dir"
+	git -C "$fixture_dir" init -q
+	git -C "$fixture_dir" config user.name 'b-agentic smoke'
+	git -C "$fixture_dir" config user.email 'smoke@example.com'
+	cat >"$fixture_dir/dracula.json" <<'EOF'
+{
+  "name": "Dracula",
+  "colors": {
+    "background": "#282a36",
+    "foreground": "#f8f8f2"
+  }
+}
+EOF
+	git -C "$fixture_dir" add dracula.json
+	git -C "$fixture_dir" commit -qm 'dracula theme fixture'
+}
+
 smoke_runtime_cli_path() {
 	local sandbox="$1"
 	local bin_dir="$sandbox/smoke-bin"
@@ -238,6 +257,7 @@ run_install_status() {
 		PATH="$smoke_path" \
 		B_AGENTIC_REPO="$repo_snapshot" \
 		B_AGENTIC_DIR="$sandbox/source" \
+		B_AGENTIC_DRACULA_REPO="${B_AGENTIC_DRACULA_REPO:-}" \
 		B_AGENTIC_PROMPT_API_KEYS=N \
 	bash "$ROOT_DIR/install.sh" "$@" >/dev/null 2>&1
 	rc=$?
@@ -261,6 +281,7 @@ run_install_status_in_cwd() {
 			PATH="$smoke_path" \
 			B_AGENTIC_REPO="$repo_snapshot" \
 			B_AGENTIC_DIR="$sandbox/source" \
+			B_AGENTIC_DRACULA_REPO="${B_AGENTIC_DRACULA_REPO:-}" \
 			B_AGENTIC_PROMPT_API_KEYS=N \
 			bash "$ROOT_DIR/install.sh" "$@" >/dev/null 2>&1
 	)

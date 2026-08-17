@@ -188,6 +188,8 @@ def main() -> None:
             "permissionsExtension": home / ".pi" / "agent" / "extensions" / "b-agentic-permissions.ts",
             "extensions": home / ".pi" / "agent" / "extensions",
             "mcpConfig": home / ".pi" / "agent" / "mcp.json",
+            "theme": home / ".pi" / "agent" / "themes" / "dracula.json",
+            "cachedTheme": home / ".pi" / "agent" / "b-agentic" / "themes" / "dracula.json",
         },
     }
 
@@ -285,6 +287,21 @@ def main() -> None:
                 shutil.copy2(original, extension_path)
             else:
                 warn(f"preserving Pi extension because its original backup is unavailable: {extension_path}")
+        theme_path = manifest_managed_path(paths, "theme", defaults["theme"])
+        cached_theme = manifest_managed_path(paths, "cachedTheme", defaults["cachedTheme"])
+        if theme_path.is_symlink():
+            try:
+                target = Path(os.readlink(theme_path))
+                if not target.is_absolute():
+                    target = theme_path.parent / target
+                if target.resolve() == cached_theme.resolve() or target == cached_theme:
+                    remove_file(theme_path)
+                else:
+                    warn(f"preserving symlinked Pi theme: {theme_path}")
+            except Exception:
+                warn(f"preserving symlinked Pi theme: {theme_path}")
+        elif theme_path.exists():
+            warn(f"preserving modified Pi theme: {theme_path}")
     remove_tree(metadata)
     print(f"Manifest-only uninstall complete for {runtime}. Source cache was not required.")
 

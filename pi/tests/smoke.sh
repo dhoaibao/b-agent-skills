@@ -1510,6 +1510,9 @@ run_pi_smoke_cases() {
 	assert_equal_files "$sandbox/home/.pi/agent/AGENTS.md" "$sandbox/source/references/kernel.template.md"
 	assert_equal_files "$sandbox/home/.pi/agent/extensions/b-agentic-sync.ts" "$sandbox/source/pi/extensions/b-agentic-sync.ts"
 	assert_equal_files "$sandbox/home/.pi/agent/extensions/b-agentic-planner-notify.ts" "$sandbox/source/pi/extensions/b-agentic-planner-notify.ts"
+	assert_file "$sandbox/home/.pi/agent/b-agentic/themes/dracula.json"
+	[ -L "$sandbox/home/.pi/agent/themes/dracula.json" ] || fail "expected dracula.json to be a symlink"
+	assert_equal_files "$sandbox/home/.pi/agent/themes/dracula.json" "$sandbox/home/.pi/agent/b-agentic/themes/dracula.json"
 	# Mark an existing package only for the update-mode proof below.
 	: >"$sandbox/smoke-bin/pi-adapter-installed"
 	cat >"$sandbox/smoke-bin/curl" <<'EOF'
@@ -1692,5 +1695,6 @@ PY
 	assert_no_path "$sandbox/home/.pi/agent/skills/b-plan"
 	assert_no_path "$sandbox/home/.pi/agent/b-agentic/install.json"
 	assert_no_path "$sandbox/home/.pi/agent/extensions/b-agentic-permissions.ts"
+	assert_no_path "$sandbox/home/.pi/agent/themes/dracula.json"
 	# User MCP entries would be preserved by merge cleanup; managed-only install removes mcp.json entirely.
 }

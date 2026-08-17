@@ -1147,6 +1147,219 @@ run_skill_doctor_case() {
 
 }
 
+run_dracula_theme_install_and_update_case() {
+	local snapshot_repo="$1"
+	local sandbox="$WORK_DIR/dracula-theme-install-and-update"
+	local fixture_repo="$WORK_DIR/dracula-fixture-update"
+
+	make_dracula_fixture "$fixture_repo"
+	mkdir -p "$sandbox/tmp"
+
+	HOME="$sandbox/home" \
+		TMPDIR="$sandbox/tmp" \
+		PATH="$(smoke_runtime_cli_path "$sandbox")" \
+		B_AGENTIC_REPO="$snapshot_repo" \
+		B_AGENTIC_DIR="$sandbox/source" \
+		B_AGENTIC_DRACULA_REPO="$fixture_repo" \
+		B_AGENTIC_PROMPT_API_KEYS=N \
+		bash "$ROOT_DIR/install.sh" >"$sandbox/install.log" 2>&1
+
+	assert_file "$sandbox/home/.pi/agent/b-agentic/themes/dracula.json"
+	[ -L "$sandbox/home/.pi/agent/themes/dracula.json" ] || fail "expected dracula.json to be a symlink"
+	assert_equal_files "$sandbox/home/.pi/agent/themes/dracula.json" "$sandbox/home/.pi/agent/b-agentic/themes/dracula.json"
+	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['themeAction'] == 'write'"
+	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['themeState'] == 'ready'"
+	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['paths']['theme'] == '$sandbox/home/.pi/agent/themes/dracula.json'"
+	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['paths']['cachedTheme'] == '$sandbox/home/.pi/agent/b-agentic/themes/dracula.json'"
+
+	# Update upstream fixture with new content and verify --update refreshes cached theme and symlink
+	cat >"$fixture_repo/dracula.json" <<'EOF'
+{
+  "name": "Dracula",
+  "colors": {
+    "background": "#000000",
+    "foreground": "#ffffff"
+  }
+}
+EOF
+	git -C "$fixture_repo" add dracula.json
+	git -C "$fixture_repo" commit -qm 'update theme colors'
+
+	HOME="$sandbox/home" \
+		TMPDIR="$sandbox/tmp" \
+		PATH="$(smoke_runtime_cli_path "$sandbox")" \
+		B_AGENTIC_REPO="$snapshot_repo" \
+		B_AGENTIC_DIR="$sandbox/source" \
+		B_AGENTIC_DRACULA_REPO="$fixture_repo" \
+		B_AGENTIC_PROMPT_API_KEYS=N \
+		bash "$ROOT_DIR/install.sh" --update >"$sandbox/update.log" 2>&1
+
+	assert_contains "$sandbox/home/.pi/agent/b-agentic/themes/dracula.json" '"#000000"'
+	assert_contains "$sandbox/home/.pi/agent/themes/dracula.json" '"#000000"'
+
+	# Verify --sync does not update Dracula theme
+	cat >"$fixture_repo/dracula.json" <<'EOF'
+{
+  "name": "Dracula",
+  "colors": {
+    "background": "#111111",
+    "foreground": "#eeeeee"
+  }
+}
+EOF
+	git -C "$fixture_repo" add dracula.json
+	git -C "$fixture_repo" commit -qm 'sync should not pull this'
+
+	HOME="$sandbox/home" \
+		TMPDIR="$sandbox/tmp" \
+		PATH="$(smoke_runtime_cli_path "$sandbox")" \
+		B_AGENTIC_REPO="$snapshot_repo" \
+		B_AGENTIC_DIR="$sandbox/source" \
+		B_AGENTIC_DRACULA_REPO="$fixture_repo" \
+		B_AGENTIC_PROMPT_API_KEYS=N \
+		bash "$ROOT_DIR/install.sh" --sync >"$sandbox/sync.log" 2>&1
+
+	assert_contains "$sandbox/home/.pi/agent/b-agentic/themes/dracula.json" '"#000000"'
+	assert_not_contains "$sandbox/home/.pi/agent/b-agentic/themes/dracula.json" '"#111111"'
+
+	# Verify temporary clone cleanup on successful run
+	local leftover_clones
+	leftover_clones="$(find "$sandbox/tmp" -maxdepth 1 -name "b-agentic-dracula.*" 2>/dev/null || true)"
+	[ -z "$leftover_clones" ] || fail "temporary clone directories were not cleaned up: $leftover_clones"
+
+	# Verify temporary clone cleanup on failure during copy (e.g. cache parent directory is a regular file)
+	local sandbox_fail="$WORK_DIR/dracula-theme-failure-cleanup"
+	mkdir -p "$sandbox_fail/tmp" "$sandbox_fail/home/.pi/agent/b-agentic"
+	touch "$sandbox_fail/home/.pi/agent/b-agentic/themes"
+	local fail_rc=0
+	HOME="$sandbox_fail/home" \
+		TMPDIR="$sandbox_fail/tmp" \
+		PATH="$(smoke_runtime_cli_path "$sandbox_fail")" \
+		B_AGENTIC_REPO="$snapshot_repo" \
+		B_AGENTIC_DIR="$sandbox_fail/source" \
+		B_AGENTIC_DRACULA_REPO="$fixture_repo" \
+		B_AGENTIC_PROMPT_API_KEYS=N \
+		bash "$ROOT_DIR/install.sh" >"$sandbox_fail/install.log" 2>&1 || fail_rc=$?
+
+	[ "$fail_rc" -ne 0 ] || fail "expected installer to fail when cache destination directory cannot be created"
+	assert_contains "$sandbox_fail/install.log" 'failed to cache Dracula theme to'
+
+	local leftover_fail_clones
+	leftover_fail_clones="$(find "$sandbox_fail/tmp" -maxdepth 1 -name "b-agentic-dracula.*" 2>/dev/null || true)"
+	[ -z "$leftover_fail_clones" ] || fail "temporary clone directory leaked after copy error: $leftover_fail_clones"
+}
+
+run_dracula_theme_dry_run_case() {
+	local snapshot_repo="$1"
+	local sandbox="$WORK_DIR/dracula-theme-dry-run"
+
+	HOME="$sandbox/home" \
+		PATH="$(smoke_runtime_cli_path "$sandbox")" \
+		B_AGENTIC_REPO="$snapshot_repo" \
+		B_AGENTIC_DIR="$sandbox/source" \
+		B_AGENTIC_PROMPT_API_KEYS=N \
+		bash "$ROOT_DIR/install.sh" --dry-run >"$sandbox/dry-run.log" 2>&1
+
+	assert_no_path "$sandbox/home/.pi/agent/themes"
+	assert_no_path "$sandbox/home/.pi/agent/b-agentic/themes"
+	assert_contains "$sandbox/dry-run.log" '[dry-run] git clone --depth 1'
+	assert_contains "$sandbox/dry-run.log" '[dry-run] copy dracula.json ->'
+	assert_contains "$sandbox/dry-run.log" '[dry-run] ln -sfn'
+}
+
+run_dracula_theme_collision_case() {
+	local snapshot_repo="$1"
+	local sandbox_user_file="$WORK_DIR/dracula-collision-file"
+	local sandbox_symlink="$WORK_DIR/dracula-collision-symlink"
+
+	mkdir -p "$sandbox_user_file/home/.pi/agent/themes"
+	printf '{"user": "theme"}\n' >"$sandbox_user_file/home/.pi/agent/themes/dracula.json"
+
+	HOME="$sandbox_user_file/home" \
+		PATH="$(smoke_runtime_cli_path "$sandbox_user_file")" \
+		B_AGENTIC_REPO="$snapshot_repo" \
+		B_AGENTIC_DIR="$sandbox_user_file/source" \
+		B_AGENTIC_PROMPT_API_KEYS=N \
+		bash "$ROOT_DIR/install.sh" >"$sandbox_user_file/install.log" 2>&1
+
+	assert_contains "$sandbox_user_file/install.log" 'warning: preserving user-owned theme file:'
+	[ ! -L "$sandbox_user_file/home/.pi/agent/themes/dracula.json" ] || fail "expected regular file, not symlink"
+	assert_contains "$sandbox_user_file/home/.pi/agent/themes/dracula.json" '"user": "theme"'
+	assert_file "$sandbox_user_file/home/.pi/agent/b-agentic/themes/dracula.json"
+
+	# Unrelated symlink collision
+	mkdir -p "$sandbox_symlink/home/.pi/agent/themes" "$sandbox_symlink/external"
+	printf '{"external": "theme"}\n' >"$sandbox_symlink/external/theme.json"
+	ln -s "$sandbox_symlink/external/theme.json" "$sandbox_symlink/home/.pi/agent/themes/dracula.json"
+
+	HOME="$sandbox_symlink/home" \
+		PATH="$(smoke_runtime_cli_path "$sandbox_symlink")" \
+		B_AGENTIC_REPO="$snapshot_repo" \
+		B_AGENTIC_DIR="$sandbox_symlink/source" \
+		B_AGENTIC_PROMPT_API_KEYS=N \
+		bash "$ROOT_DIR/install.sh" >"$sandbox_symlink/install.log" 2>&1
+
+	assert_contains "$sandbox_symlink/install.log" 'warning: preserving symlinked Pi theme:'
+	[ -L "$sandbox_symlink/home/.pi/agent/themes/dracula.json" ] || fail "expected symlink"
+	assert_contains "$sandbox_symlink/home/.pi/agent/themes/dracula.json" '"external": "theme"'
+}
+
+run_dracula_theme_uninstall_case() {
+	local snapshot_repo="$1"
+	local sandbox_std="$WORK_DIR/dracula-uninstall-std"
+	local sandbox_user="$WORK_DIR/dracula-uninstall-user"
+	local sandbox_manifest_std="$WORK_DIR/dracula-uninstall-manifest-std"
+	local sandbox_manifest_user="$WORK_DIR/dracula-uninstall-manifest-user"
+
+	# Standard regular uninstall removes managed symlink
+	expect_install_status 0 "$sandbox_std" "$snapshot_repo"
+	assert_file "$sandbox_std/home/.pi/agent/b-agentic/themes/dracula.json"
+	[ -L "$sandbox_std/home/.pi/agent/themes/dracula.json" ] || fail "expected symlink"
+	expect_install_status 0 "$sandbox_std" "$snapshot_repo" --uninstall
+	assert_no_path "$sandbox_std/home/.pi/agent/themes/dracula.json"
+	assert_no_path "$sandbox_std/home/.pi/agent/b-agentic"
+
+	# Standard regular uninstall preserves user modified theme file
+	expect_install_status 0 "$sandbox_user" "$snapshot_repo"
+	rm "$sandbox_user/home/.pi/agent/themes/dracula.json"
+	printf '{"custom": 1}\n' >"$sandbox_user/home/.pi/agent/themes/dracula.json"
+	HOME="$sandbox_user/home" \
+		PATH="$(smoke_runtime_cli_path "$sandbox_user")" \
+		B_AGENTIC_REPO="$snapshot_repo" \
+		B_AGENTIC_DIR="$sandbox_user/source" \
+		B_AGENTIC_PROMPT_API_KEYS=N \
+		bash "$ROOT_DIR/install.sh" --uninstall >"$sandbox_user/uninstall.log" 2>&1
+	assert_contains "$sandbox_user/uninstall.log" 'preserving modified Pi theme:'
+	assert_file "$sandbox_user/home/.pi/agent/themes/dracula.json"
+	assert_contains "$sandbox_user/home/.pi/agent/themes/dracula.json" '"custom": 1'
+
+	# Manifest-only uninstall removes managed symlink
+	expect_install_status 0 "$sandbox_manifest_std" "$snapshot_repo"
+	rm -rf "$sandbox_manifest_std/source"
+	HOME="$sandbox_manifest_std/home" \
+		B_AGENTIC_REPO="$sandbox_manifest_std/missing-source" \
+		B_AGENTIC_DIR="$sandbox_manifest_std/source" \
+		B_AGENTIC_PROMPT_API_KEYS=N \
+		bash "$ROOT_DIR/install.sh" --uninstall >"$sandbox_manifest_std/uninstall.log" 2>&1
+	assert_contains "$sandbox_manifest_std/uninstall.log" 'Manifest-only uninstall complete for pi'
+	assert_no_path "$sandbox_manifest_std/home/.pi/agent/themes/dracula.json"
+	assert_no_path "$sandbox_manifest_std/home/.pi/agent/b-agentic"
+
+	# Manifest-only uninstall preserves user modified theme file
+	expect_install_status 0 "$sandbox_manifest_user" "$snapshot_repo"
+	rm "$sandbox_manifest_user/home/.pi/agent/themes/dracula.json"
+	printf '{"custom": 2}\n' >"$sandbox_manifest_user/home/.pi/agent/themes/dracula.json"
+	rm -rf "$sandbox_manifest_user/source"
+	HOME="$sandbox_manifest_user/home" \
+		B_AGENTIC_REPO="$sandbox_manifest_user/missing-source" \
+		B_AGENTIC_DIR="$sandbox_manifest_user/source" \
+		B_AGENTIC_PROMPT_API_KEYS=N \
+		bash "$ROOT_DIR/install.sh" --uninstall >"$sandbox_manifest_user/uninstall.log" 2>&1
+	assert_contains "$sandbox_manifest_user/uninstall.log" 'preserving modified Pi theme:'
+	assert_file "$sandbox_manifest_user/home/.pi/agent/themes/dracula.json"
+	assert_contains "$sandbox_manifest_user/home/.pi/agent/themes/dracula.json" '"custom": 2'
+}
+
 run_rtk_latest_dry_run_case() {
 	local snapshot_repo="$1"
 	local sandbox="$WORK_DIR/rtk-latest-dry-run"
@@ -1231,6 +1444,10 @@ run_base_smoke_cases() {
 		run_parallel_chain_output_case
 		run_uninstall_skips_dependency_reconciliation_case
 		run_skill_doctor_case
+		run_dracula_theme_install_and_update_case
+		run_dracula_theme_dry_run_case
+		run_dracula_theme_collision_case
+		run_dracula_theme_uninstall_case
 	)
 	local -a pids=()
 	local worker_index status rc=0
@@ -1257,10 +1474,13 @@ run_base_smoke_cases() {
 
 main() {
 	local snapshot_repo="$WORK_DIR/repo-snapshot"
+	local default_dracula_fixture="$WORK_DIR/dracula-default-fixture"
 
 	require_bin git
 	require_bin node
 	require_bin python3
+	make_dracula_fixture "$default_dracula_fixture"
+	export B_AGENTIC_DRACULA_REPO="$default_dracula_fixture"
 	make_repo_snapshot "$snapshot_repo"
 	# shellcheck disable=SC1090
 	source "$ROOT_DIR/pi/tests/smoke.sh"

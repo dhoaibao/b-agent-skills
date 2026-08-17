@@ -15,6 +15,8 @@ Adapter-owned layout for Pi.
   `b-agentic-worker.ts`, and `b-agentic-sync.ts`
 - Extension snapshots: `~/.pi/agent/b-agentic/extensions/` (one snapshot per
   installed extension; legacy manifests with only `permissionsExtension` remain supported)
+- Theme: `~/.pi/agent/themes/dracula.json` (symlink to b-agentic cached copy)
+- Theme cache: `~/.pi/agent/b-agentic/themes/dracula.json` (cloned from Dracula Pi theme repo)
 - Shared extension helpers live under the non-discovered
   `pi/extensions/b-agentic-support/` source directory
 
@@ -46,7 +48,7 @@ Coordination is concise natural language, not `B_AGENTIC_*` fields or a state ma
 
 For non-trivial work, the handoff concisely includes applicable observable behavior, scope/non-goals, constraints/invariants, relevant paths/symbols/evidence, acceptance criteria, validation expectations, and assumptions, pre-existing changes, or gaps. Every terminal worker result goes to the same assigning planner before pausing, including when no edits were needed or a task ends with a reported gap; it includes implemented behavior (or the no-change outcome), changed paths, acceptance coverage, exact checks/outcomes, and deviations, assumptions, or gaps. For delegated worktree-changing work, it requests actual `b-review` and pauses edits. The latest approved plan, handoff, and clarifications are its review baseline. Only delegated worktree-changing tasks need actual `b-review` of the diff and verification before approval; generic review cannot substitute. Findings give location, evidence, impact, violated baseline, smallest correction, and regression check. For a two-role blocker, the worker calls `pending`; it replies without `list-cwd`, `send`, or `ask` if inbound, otherwise refreshes `list-cwd` and uses `ask` to the assigning planner with that returned identifier token verbatim. In solo/Off, it asks the user. The planner replies when evidence resolves it or asks the user one focused question. After approval, the same worker may `b-commit` only on explicit user request and only for the unchanged reviewed snapshot; changed content reopens review.
 After reconciling required Pi packages, the installer runs
-`pi update --extensions`.
+`pi update --extensions`. On normal install/upgrade and `--update` (not `--sync`), b-agentic shallow-clones `https://github.com/dracula/pi-coding-agent.git` into a temporary directory, validates `dracula.json`, copies it to `~/.pi/agent/b-agentic/themes/dracula.json`, and links `~/.pi/agent/themes/dracula.json` to that cached copy while cleaning up the temporary clone. Pi settings and theme selections are not modified. User-owned theme files and unrelated symlinks at `~/.pi/agent/themes/dracula.json` are preserved with a warning.
 
 ## In-session refresh
 
@@ -61,8 +63,9 @@ optional `rtk init --agent pi --global` integration is rewrite-only and does
 not replace b-agentic's permission extension; b-agentic does not install it
 automatically.
 
-Uninstall removes b-agentic-managed MCP config and unchanged permission
-extensions. Modified files and symlinks are preserved; legacy manifests with
+Uninstall removes b-agentic-managed MCP config, unchanged permission
+extensions, and the unchanged managed Dracula theme symlink. Modified files,
+symlinks, and user-owned theme entries are preserved; legacy manifests with
 only `permissionsExtension` are restored using the original compatibility path.
 It does not remove any of these packages.
 

@@ -31,7 +31,7 @@ Useful flags:
 - `--uninstall` removes managed files.
 - `--ref=<tag-or-commit>` checks out that b-agentic ref before installing managed files.
 - `--sync` pulls the installed checkout and syncs managed Pi skills, kernel, and first-party extensions only.
-- `--update` installs or updates RTK, Serena, CodeGraph, Bun, Pi, and Pi extensions without pulling b-agentic.
+- `--update` installs or updates RTK, Serena, CodeGraph, Bun, Pi, Dracula theme, and Pi extensions without pulling b-agentic.
 
 Requirements: `bash`, `git`, and Python 3.11+. Bun, Pi, RTK, Serena, and
 CodeGraph are installed or updated automatically without dependency opt-in
@@ -203,13 +203,20 @@ standalone Pi extensions. Pi enforces managed MCP and RTK policy from
 - Shared references: `~/.pi/agent/b-agentic/references/kernel.template.md` and `mcp_operations.yaml`
 - MCP template: `~/.pi/agent/b-agentic/templates/mcp.user.template.json`
 - User MCP config: `~/.pi/agent/mcp.json`
+- Dracula theme: `~/.pi/agent/themes/dracula.json` (symlink to cached copy)
+- Theme cache: `~/.pi/agent/b-agentic/themes/dracula.json`
 - Permission extensions: `~/.pi/agent/extensions/` (managed files listed above)
 - Extension snapshots and backups: `~/.pi/agent/b-agentic/extensions/` and `backups/`
 
 Installers merge MCP configuration rather than replace it: unrelated user
 servers survive, prompted secrets use a private input pipe, and API-key
-placeholders remain in the tracked template. Uninstall removes only unchanged
-managed content, restores recorded user backups, preserves modified or
+placeholders remain in the tracked template. On normal install/upgrade and
+`--update` (not `--sync`), b-agentic shallow-clones the Dracula Pi theme
+repository, validates `dracula.json`, copies it to the theme cache, and links
+`~/.pi/agent/themes/dracula.json` to that cached copy without changing Pi theme
+settings or selection. User files and unrelated symlinks at the theme destination
+are preserved with a warning. Uninstall removes only unchanged managed content
+and symlinks, restores recorded user backups, preserves modified or
 symlinked files, and never removes installed packages.
 
 ## Roles and coordination

@@ -25,6 +25,11 @@ TEMPLATES_DST="$METADATA_DIR/templates"
 MANIFEST_DST="$METADATA_DIR/install.json"
 MCP_CONFIG_DST="${B_AGENTIC_PI_MCP_JSON:-$PI_AGENT_DIR/mcp.json}"
 EXTENSIONS_DST="$PI_AGENT_DIR/extensions"
+THEMES_DST="$PI_AGENT_DIR/themes"
+THEME_DST="$THEMES_DST/dracula.json"
+THEMES_SNAPSHOT_DST="$METADATA_DIR/themes"
+THEME_CACHED_DST="$THEMES_SNAPSHOT_DST/dracula.json"
+DRACULA_REPO_URL="${B_AGENTIC_DRACULA_REPO:-https://github.com/dracula/pi-coding-agent.git}"
 EXTENSION_NAMES=(
 	b-agentic-permissions.ts
 	b-agentic-mcp-permissions.ts
@@ -70,7 +75,8 @@ set_pi_readonly \
 	PI_OBSERVATIONAL_MEMORY_PACKAGE PI_USAGE_SPEC PI_USAGE_PACKAGE \
 	PI_INTERCOM_SPEC PI_INTERCOM_PACKAGE MCP_ROOT_KEY MCP_PLACEHOLDER_STYLE \
 	MCP_CONTEXT7_SECTION MCP_BRAVE_SECTION MCP_FIRECRAWL_SECTION MCP_BACKUP_KEY \
-	EXTENSION_BACKUP_KEY
+	EXTENSION_BACKUP_KEY THEMES_DST THEME_DST THEMES_SNAPSHOT_DST THEME_CACHED_DST \
+	DRACULA_REPO_URL
 
 CONTEXT7_API_KEY_INPUT=""
 BRAVE_API_KEY_INPUT=""
@@ -87,6 +93,8 @@ INSTALL_PI_USAGE_ACTION="skip"
 INSTALL_PI_USAGE_STATE="missing"
 INSTALL_PI_INTERCOM_ACTION="skip"
 INSTALL_PI_INTERCOM_STATE="missing"
+INSTALL_THEME_ACTION="skip"
+INSTALL_THEME_STATE="none"
 
 runtime_warn_missing_cli() {
 	command -v pi >/dev/null 2>&1 || warn "Pi CLI 'pi' not found; files will still be installed for Pi to discover later."
@@ -304,8 +312,120 @@ maybe_install_pi_observational_memory() {
 	fi
 }
 
-runtime_install_config_stage_count() { # extension update + permission extension + MCP merge + prompted keys
-	printf '4'
+runtime_install_config_stage_count() { # extension update + permission extension + MCP merge + prompted keys + Dracula theme
+	printf '5'
+}
+
+install_dracula_theme() {
+	local tmp_clone="" rc=0
+	local repo_url="${DRACULA_REPO_URL:-https://github.com/dracula/pi-coding-agent.git}"
+
+	if dry_run_enabled; then
+		printf '[dry-run] git clone --depth 1 %s <tmpdir>\n' "$repo_url" >&2
+		printf '[dry-run] copy dracula.json -> %s\n' "$THEME_CACHED_DST" >&2
+		printf '[dry-run] ln -sfn %s %s\n' "$THEME_CACHED_DST" "$THEME_DST" >&2
+		INSTALL_THEME_ACTION="write"
+		INSTALL_THEME_STATE="dry-run"
+		return 0
+	fi
+
+	require_bin git
+	require_bin python3
+
+	tmp_clone="$(mktemp -d "${TMPDIR:-/tmp}/b-agentic-dracula.XXXXXX")"
+	cleanup_dracula_clone() {
+		if [ -n "$tmp_clone" ] && [ -d "$tmp_clone" ]; then
+			rm -rf "$tmp_clone"
+		fi
+	}
+
+	if ! git clone --depth 1 --quiet "$repo_url" "$tmp_clone"; then
+		cleanup_dracula_clone
+		warn "failed to clone Dracula theme from $repo_url"
+		INSTALL_THEME_ACTION="failed"
+		INSTALL_THEME_STATE="missing"
+		return 1
+	fi
+
+	if [ ! -f "$tmp_clone/dracula.json" ]; then
+		cleanup_dracula_clone
+		warn "missing dracula.json in Dracula theme repository"
+		INSTALL_THEME_ACTION="failed"
+		INSTALL_THEME_STATE="missing"
+		return 1
+	fi
+
+	if ! python3 - "$tmp_clone/dracula.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+try:
+    data = json.loads(Path(sys.argv[1]).read_text())
+    if not isinstance(data, dict):
+        sys.exit(1)
+except Exception:
+    sys.exit(1)
+sys.exit(0)
+PY
+	then
+		cleanup_dracula_clone
+		warn "invalid dracula.json in Dracula theme repository"
+		INSTALL_THEME_ACTION="failed"
+		INSTALL_THEME_STATE="missing"
+		return 1
+	fi
+
+	if ! ensure_dir "$THEMES_SNAPSHOT_DST" || ! copy_file "$tmp_clone/dracula.json" "$THEME_CACHED_DST"; then
+		cleanup_dracula_clone
+		warn "failed to cache Dracula theme to $THEME_CACHED_DST"
+		INSTALL_THEME_ACTION="failed"
+		INSTALL_THEME_STATE="missing"
+		return 1
+	fi
+	cleanup_dracula_clone
+
+	ensure_dir "$THEMES_DST"
+	if [ -L "$THEME_DST" ]; then
+		local is_owned
+		is_owned="$(python3 - "$THEME_DST" "$THEME_CACHED_DST" <<'PY'
+import os
+import sys
+from pathlib import Path
+
+dst = Path(sys.argv[1])
+cached = Path(sys.argv[2])
+try:
+    target = Path(os.readlink(dst))
+    if not target.is_absolute():
+        target = dst.parent / target
+    if target.resolve() == cached.resolve() or target == cached:
+        print("yes")
+    else:
+        print("no")
+except Exception:
+    print("no")
+PY
+)"
+		if [ "$is_owned" = "yes" ]; then
+			run_cmd ln -sfn "$THEME_CACHED_DST" "$THEME_DST"
+			INSTALL_THEME_ACTION="replace"
+			INSTALL_THEME_STATE="ready"
+		else
+			warn "preserving symlinked Pi theme: $THEME_DST"
+			INSTALL_THEME_ACTION="preserve"
+			INSTALL_THEME_STATE="preserved"
+		fi
+	elif [ -e "$THEME_DST" ]; then
+		warn "preserving user-owned theme file: $THEME_DST"
+		INSTALL_THEME_ACTION="preserve"
+		INSTALL_THEME_STATE="preserved"
+	else
+		run_cmd ln -s "$THEME_CACHED_DST" "$THEME_DST"
+		INSTALL_THEME_ACTION="write"
+		INSTALL_THEME_STATE="ready"
+	fi
+	return 0
 }
 
 install_permissions_extension() {
@@ -389,7 +509,8 @@ runtime_install_configs() {
 		INSTALL_EXTENSION_ACTION INSTALL_EXTENSION_STATE INSTALL_EXTENSION_BACKUP || return $?
 	run_install_triplet_stage "Merging MCP config" install_mcp_config "skip" "none" "none" \
 		INSTALL_MCP_ACTION INSTALL_MCP_STATE INSTALL_MCP_BACKUP || return $?
-	apply_prompted_mcp_keys_stage INSTALL_MCP_ACTION INSTALL_MCP_BACKUP
+	apply_prompted_mcp_keys_stage INSTALL_MCP_ACTION INSTALL_MCP_BACKUP || return $?
+	run_stage "Installing Dracula theme" install_dracula_theme || return $?
 }
 
 runtime_write_manifest() {
@@ -422,6 +543,8 @@ runtime_write_manifest() {
 		PI_USAGE_STATE="$INSTALL_PI_USAGE_STATE" \
 		PI_INTERCOM_ACTION="$INSTALL_PI_INTERCOM_ACTION" \
 		PI_INTERCOM_STATE="$INSTALL_PI_INTERCOM_STATE" \
+		THEME_ACTION="$INSTALL_THEME_ACTION" \
+		THEME_STATE="$INSTALL_THEME_STATE" \
 		PI_AGENT_DIR="$PI_AGENT_DIR" \
 		MCP_CONFIG_DST="$MCP_CONFIG_DST" \
 		EXTENSION_DST="$EXTENSION_DST" \
@@ -432,6 +555,8 @@ runtime_write_manifest() {
 		REFERENCES_DST="$REFERENCES_DST" \
 		TEMPLATES_DST="$TEMPLATES_DST" \
 		KERNEL_DST="$KERNEL_DST" \
+		THEME_DST="$THEME_DST" \
+		THEME_CACHED_DST="$THEME_CACHED_DST" \
 		SKILLS="$skills_string" \
 		python3 - <<'PY'
 import json
@@ -470,6 +595,8 @@ manifest = {
     'piUsageState': os.environ['PI_USAGE_STATE'],
     'piIntercomAction': os.environ['PI_INTERCOM_ACTION'],
     'piIntercomState': os.environ['PI_INTERCOM_STATE'],
+    'themeAction': os.environ['THEME_ACTION'],
+    'themeState': os.environ['THEME_STATE'],
     'paths': {
         'piAgentDir': os.environ['PI_AGENT_DIR'],
         'mcpConfig': os.environ['MCP_CONFIG_DST'],
@@ -482,6 +609,8 @@ manifest = {
         'skills': os.environ['SKILLS_DST'],
         'references': os.environ['REFERENCES_DST'],
         'templates': os.environ['TEMPLATES_DST'],
+        'theme': os.environ['THEME_DST'],
+        'cachedTheme': os.environ['THEME_CACHED_DST'],
     },
     'skills': skills,
     'backups': {
@@ -562,7 +691,7 @@ runtime_print_install_report() {
 }
 
 runtime_uninstall_configs() {
-	local mcp_config_path name extension_path snapshot original backup
+	local mcp_config_path name extension_path snapshot original backup theme_path cached_theme_path is_owned
 	mcp_config_path="$(manifest_path_value mcpConfig "$MCP_CONFIG_DST")"
 	remove_merged_config "$mcp_config_path" "$TEMPLATES_DST/mcp.user.template.json" "mcp.json" "mcpConfig" "mcpAction"
 	for name in "${EXTENSION_NAMES[@]}"; do
@@ -586,6 +715,37 @@ runtime_uninstall_configs() {
 			fi
 		fi
 	 done
+
+	theme_path="$(manifest_path_value theme "$THEME_DST")"
+	cached_theme_path="$(manifest_path_value cachedTheme "$THEME_CACHED_DST")"
+	if [ -L "$theme_path" ]; then
+		is_owned="$(python3 - "$theme_path" "$cached_theme_path" <<'PY'
+import os
+import sys
+from pathlib import Path
+
+theme_dst = Path(sys.argv[1])
+cached = Path(sys.argv[2])
+try:
+    target = Path(os.readlink(theme_dst))
+    if not target.is_absolute():
+        target = theme_dst.parent / target
+    if target.resolve() == cached.resolve() or target == cached:
+        print("yes")
+    else:
+        print("no")
+except Exception:
+    print("no")
+PY
+)"
+		if [ "$is_owned" = "yes" ]; then
+			run_cmd rm -f "$theme_path"
+		else
+			warn "preserving symlinked Pi theme: $theme_path"
+		fi
+	elif [ -e "$theme_path" ]; then
+		warn "preserving modified Pi theme: $theme_path"
+	fi
 	# Intentionally leave pi-mcp-adapter, pi-observational-memory, and pi-usage packages installed.
 }
 
@@ -606,7 +766,8 @@ pi_update() {
 	run_stage "Installing Pi usage" maybe_install_pi_usage || return $?
 	run_stage "Installing Pi intercom" maybe_install_pi_intercom || return $?
 	run_stage "Syncing first-party extensions" install_permissions_extension >/dev/null || return $?
-	run_stage "Updating Pi extensions" update_pi_extensions
+	run_stage "Updating Pi extensions" update_pi_extensions || return $?
+	run_stage "Updating Dracula theme" install_dracula_theme
 }
 
 pi_uninstall() {
