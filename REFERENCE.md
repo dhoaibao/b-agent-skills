@@ -147,8 +147,9 @@ Bun is installed or refreshed automatically, while Bun-backed MCP packages are
 resolved and cached by `bunx` on first use. b-agentic initializes CodeGraph only when native inspection leaves a concrete
 repository-wide architecture or impact question and its local index is absent;
 it does not initialize merely because work spans files. Serena onboarding runs
-only when repository onboarding is useful. Missing CLIs are not installed
-automatically. Use `scripts/mcp-doctor.sh --session-tools` to verify the active
+only when repository onboarding is useful. b-agentic automatically installs
+or updates RTK, Serena, CodeGraph, and Bun; modern shell tools remain
+user-installed. Use `scripts/mcp-doctor.sh --session-tools` to verify the active
 session has RTK. Use `--allow-degraded` to inspect status without failing.
 
 When live network/process activity is approved,
