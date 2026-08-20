@@ -61,16 +61,20 @@ function fixedColor(color: string, text: string): string {
   return `${color}${text}${ANSI_FOREGROUND_RESET}`;
 }
 
+function fixedCodeSurface(background: string, foreground: string, text: string): string {
+  return `${background}${foreground}${text}${ANSI_RESET}${FIXED_CARD_BACKGROUND}`;
+}
+
 function fixedInlineCode(text: string): string {
-  return `${FIXED_HIGHLIGHT_BACKGROUND}${FIXED_CODE}${text}${ANSI_FOREGROUND_RESET}${FIXED_CARD_BACKGROUND}`;
+  return fixedCodeSurface(FIXED_HIGHLIGHT_BACKGROUND, FIXED_CODE, text);
 }
 
 function fixedCodeBlock(text: string): string {
-  return `${FIXED_DEEPEST_BACKGROUND}${FIXED_CODE_BLOCK}${text}${ANSI_FOREGROUND_RESET}${FIXED_CARD_BACKGROUND}`;
+  return fixedCodeSurface(FIXED_DEEPEST_BACKGROUND, FIXED_CODE_BLOCK, text);
 }
 
 function fixedCodeBlockBorder(text: string): string {
-  return `${FIXED_DEEPEST_BACKGROUND}${FIXED_COMMENT}${text}${ANSI_FOREGROUND_RESET}${FIXED_CARD_BACKGROUND}`;
+  return fixedCodeSurface(FIXED_DEEPEST_BACKGROUND, FIXED_COMMENT, text);
 }
 
 const FIXED_MARKDOWN_THEME = {

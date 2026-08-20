@@ -138,13 +138,13 @@ const shortcutContext = {
 await previewShortcut.handler(shortcutContext);
 expect(shortcutNotifications.at(-1)?.message === 'No Markdown preview source is available to copy' && shortcutNotifications.at(-1)?.level === 'warning', 'shortcut must guard when no TUI preview exists');
 const previewSource = readFileSync(path.join(root, 'pi/extensions/b-agentic-preview-markdown.ts'), 'utf8');
-for (const marker of ['renderResult', 'new Markdown', 'registerShortcut', 'ctrl+shift+m', 'copyToClipboard', 'PreviewCard', 'PALETTE', '#1e2030', '#222436', '#191b29', '#2f334d', '#c8d3f5', '#828bb8', '#636da6', '#3b4261', '#82aaff', '#86e1fc', '#ffc777', '#c3e88d', '#c099ff', '#65bcff', 'FIXED_PAGE_BACKGROUND', 'FIXED_CARD_BACKGROUND', 'fixedCodeBlockBorder', 'MARKDOWN PREVIEW', 'Ctrl+Shift+M  Copy source', 'Markdown preview rendered inline']) {
+for (const marker of ['renderResult', 'new Markdown', 'registerShortcut', 'ctrl+shift+m', 'copyToClipboard', 'PreviewCard', 'PALETTE', '#1e2030', '#222436', '#191b29', '#2f334d', '#c8d3f5', '#828bb8', '#636da6', '#3b4261', '#82aaff', '#86e1fc', '#ffc777', '#c3e88d', '#c099ff', '#65bcff', 'FIXED_PAGE_BACKGROUND', 'FIXED_CARD_BACKGROUND', 'fixedCodeSurface', 'fixedCodeBlockBorder', 'MARKDOWN PREVIEW', 'Ctrl+Shift+M  Copy source', 'Markdown preview rendered inline']) {
   expect(previewSource.includes(marker), `preview inline source must include ${marker}`);
 }
 for (const obsolete of ['ctx.ui.custom', 'onKey', 'handleInput', 'MarkdownPreviewComponent', 'createMarkdownPreviewComponent', 'Original Markdown source']) {
   expect(!previewSource.includes(obsolete), `preview inline source must not include ${obsolete}`);
 }
-const inlineMarkdown = '# Original Markdown\n\n**exact source**\n\n- item\n\n[link](https://example.com) and `code`\n\n```js\nconst value = 1;\n```';
+const inlineMarkdown = '# Original Markdown\n\n**exact source**\n\n## Syntax coverage\n\n_emphasis_, **strong**, and ~~strike~~.\n\n- item\n  - nested item\n1. ordered item\n\n[docs](https://example.com) and https://example.org with `inline code`.\n\n> quoted line\n\n---\n\n| Col A | Col B |\n| --- | --- |\n| cell one | cell two |\n\nThis deliberately long paragraph exercises wrapping across narrow and normal preview widths without changing the original source.\n\n```js\nconst value = 1;\nsecond line\n```';
 let customCalls = 0;
 const inlineResult = await previewTool.execute('preview-2', { markdown: inlineMarkdown, title: 'Inline example' }, undefined, undefined, {
   mode: 'tui',
@@ -167,14 +167,21 @@ const renderedPreview = previewTool.renderResult(inlineResult, { expanded: true,
 expect(renderedPreview && typeof renderedPreview.render === 'function', 'inline renderer must return a Component');
 const renderedLines = renderedPreview.render(120);
 const renderedText = renderedLines.join('\n');
+const stripTerminalSequences = (line) => line
+  .replace(/\u001b\[[0-9;]*m/g, '')
+  .replace(/\u001b\]8;;.*?\u001b\\/g, '');
 const normalizedRenderedText = renderedLines
-  .map((line) => line.replace(/\u001b\[[0-9;]*m/g, '').trimEnd())
+  .map((line) => stripTerminalSequences(line).trimEnd())
   .join('\n');
 expect(renderedText.includes('╭') && renderedText.includes('╮') && renderedText.includes('╰') && renderedText.includes('╯'), 'inline renderer must show a complete elevated card border');
 expect(renderedText.includes('MARKDOWN PREVIEW'), 'inline renderer must show the uppercase card header');
 expect(renderedText.includes('Inline example'), 'inline renderer must show the preview title');
 expect(renderedText.includes('Original Markdown'), 'inline renderer must show rendered Markdown content');
 expect(renderedText.includes('exact source') && renderedText.includes('item'), 'inline renderer must render Markdown syntax content');
+for (const fragment of ['Syntax coverage', 'emphasis', 'strong', 'strike', 'nested item', 'ordered item', 'docs', 'https://example.org', 'quoted line', 'cell one', 'cell two', 'deliberately long paragraph']) {
+  expect(normalizedRenderedText.includes(fragment), `inline renderer must visibly render ${fragment}`);
+}
+expect(renderedText.includes('\u001b]8;;https://example.com'), 'inline renderer must preserve the link URL in terminal hyperlink metadata');
 expect(renderedText.includes('Ctrl+Shift+M  Copy source'), 'inline renderer must show the copy shortcut hint');
 expect(renderedText.includes('\u001b[48;2;30;32;48m'), 'inline renderer must use the Tokyo Night page-dark frame palette');
 expect(renderedText.includes('\u001b[48;2;34;36;54m'), 'inline renderer must use the Tokyo Night card surface palette');
@@ -197,6 +204,26 @@ const lineLengths = renderedLines.map((line) => line
   .length);
 expect(Math.max(...lineLengths) <= 120, 'inline renderer must keep every line within the component width');
 expect(!normalizedRenderedText.includes(inlineMarkdown) && !normalizedRenderedText.includes('**exact source**'), 'inline renderer must not show raw Markdown source');
+const syntaxFragments = ['Syntax coverage', 'emphasis', 'strong', 'strike', 'nested item', 'ordered item', 'docs', 'https://example.org', 'quoted line', 'cell one', 'cell two', 'deliberately', 'paragraph'];
+for (const [width, lines] of [[28, renderedPreview.render(28)], [120, renderedLines]]) {
+  const plainLines = lines.map((line) => stripTerminalSequences(line));
+  const plainText = plainLines.join('\n');
+  for (const fragment of syntaxFragments) {
+    expect(plainText.includes(fragment), `inline renderer must visibly render ${fragment} at width ${width}`);
+  }
+  const codeLines = plainLines.filter((line) => /```|const value = 1;|second line/.test(line));
+  expect(codeLines.length >= 3, `inline renderer must preserve all fenced code lines at width ${width}`);
+  expect(codeLines.some((line) => line.includes('```js')), `inline renderer must preserve the opening fence at width ${width}`);
+  expect(codeLines.some((line) => line.includes('const value = 1;')), `inline renderer must preserve code content at width ${width}`);
+  expect(codeLines.some((line) => line.includes('second line')), `inline renderer must preserve the second code line at width ${width}`);
+  expect(codeLines.some((line) => line.replace(/[│]/g, '').trim() === '```'), `inline renderer must preserve the closing fence at width ${width}`);
+  expect(lines.every((line) => stripTerminalSequences(line).length <= width), `inline renderer must keep code layout within width ${width}`);
+  expect(lines.every((line) => !stripTerminalSequences(line).includes('\u001b')), `inline renderer must keep ANSI sequences well-formed at width ${width}`);
+  const surfaceLines = lines.filter((line) => /\u001b\[48;2;(25;27;41|47;51;77)m/.test(line));
+  expect(surfaceLines.length > 0 && surfaceLines.every((line) => !line.includes('\u001b[0m') || line.includes('\u001b[0m\u001b[48;2;34;36;54m')), `inline renderer must keep code surfaces ANSI-safe at width ${width}`);
+}
+expect(renderedText.includes('\u001b[48;2;47;51;77m\u001b[38;2;192;153;255minline code\u001b[0m\u001b[48;2;34;36;54m'), 'inline code must restore the card surface after a full reset');
+expect(renderedText.includes('\u001b[48;2;25;27;41m\u001b[38;2;195;232;141mconst value = 1;\u001b[0m\u001b[48;2;34;36;54m'), 'code blocks must restore the card surface after a full reset');
 const [autoSessionStartHandler, roleSessionStartHandler] = registrations.session_start;
 const toolCallHandler = handlers.tool_call;
 
