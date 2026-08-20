@@ -107,7 +107,7 @@ const nonTuiResult = await previewTool.execute('preview-1', { markdown: '# Hello
 });
 expect(nonTuiResult.details.interactive === false && nonTuiResult.content[0].text.includes('only available in Pi TUI'), 'preview_markdown must return a concise non-TUI fallback');
 const previewSource = readFileSync(path.join(root, 'pi/extensions/b-agentic-preview-markdown.ts'), 'utf8');
-for (const marker of ['ctx.ui.custom', 'new Markdown', '⧉ Copy [c]', 'data === "c"', 'copyToClipboard', 'data === "\\u001b"']) {
+for (const marker of ['ctx.ui.custom', 'new Markdown', '⧉ Copy [c]', 'onKey', 'key === "escape"', 'copyToClipboard']) {
   expect(previewSource.includes(marker), `preview TUI source must include ${marker}`);
 }
 const copyCalls = [];
@@ -121,12 +121,13 @@ const previewComponent = new previewModule.MarkdownPreviewComponent(
   (message, level) => { notifications.push({ message, level }); },
   () => { closeCalls += 1; },
 );
-previewComponent.handleInput('c');
+expect(previewComponent.onKey('c') === true, 'TUI copy key must be consumed');
 await new Promise((resolve) => setImmediate(resolve));
 expect(copyCalls.length === 1 && copyCalls[0] === '# Original Markdown', 'TUI copy must pass the exact original Markdown source');
 expect(notifications.at(-1)?.message === 'Markdown source copied to clipboard' && notifications.at(-1)?.level === 'info', 'TUI copy success must notify the user');
-previewComponent.handleInput('\u001b');
+expect(previewComponent.onKey('escape') === true, 'Escape key must be consumed');
 expect(closeCalls === 1, 'Escape must close the Markdown preview');
+expect(previewComponent.onKey('unknown') === false, 'Unhandled preview keys must not be consumed');
 const failedPreviewComponent = new previewModule.MarkdownPreviewComponent(
   '# Original Markdown',
   fakeFrame,
@@ -134,7 +135,7 @@ const failedPreviewComponent = new previewModule.MarkdownPreviewComponent(
   (message, level) => { notifications.push({ message, level }); },
   () => {},
 );
-failedPreviewComponent.handleInput('c');
+expect(failedPreviewComponent.onKey('C') === true, 'Uppercase TUI copy key must be consumed');
 await new Promise((resolve) => setImmediate(resolve));
 expect(notifications.at(-1)?.message === 'Failed to copy Markdown source to clipboard' && notifications.at(-1)?.level === 'error', 'TUI copy failure must notify the user');
 const [autoSessionStartHandler, roleSessionStartHandler] = registrations.session_start;

@@ -45,14 +45,20 @@ export class MarkdownPreviewComponent implements Component {
     this.frame.invalidate();
   }
 
-  handleInput(data: string): void {
-    if (data === "\u001b" || data === "\u001b\u001b") {
+  readonly onKey = (key: string): boolean => {
+    if (key === "escape" || key === "\u001b" || key === "\u001b\u001b") {
       this.close();
-      return;
+      return true;
     }
-    if (data === "c" || data === "C") {
+    if (key === "c" || key === "C") {
       void this.copy();
+      return true;
     }
+    return false;
+  };
+
+  handleInput(data: string): void {
+    this.onKey(data);
   }
 
   private async copy(): Promise<void> {
