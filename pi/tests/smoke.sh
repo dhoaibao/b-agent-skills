@@ -7,8 +7,14 @@ fi
 run_pi_permission_behavioral_fixture() {
 	local sandbox="$1"
 	# Behavioral permission coverage via node --experimental-strip-types (no Pi runtime).
-	ROOT_DIR="$ROOT_DIR" PI_TEST_HOME="$sandbox/home" PI_CODING_AGENT_DIR="$sandbox/home/.pi/agent" node --experimental-strip-types --input-type=module - <<'NODE'
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+	local pi_package_root=""
+	if command -v pi >/dev/null 2>&1; then
+		local pi_path
+		pi_path="$(readlink -f "$(command -v pi)")"
+		pi_package_root="$(dirname "$(dirname "$pi_path")")"
+	fi
+	ROOT_DIR="$ROOT_DIR" PI_TEST_HOME="$sandbox/home" PI_CODING_AGENT_DIR="$sandbox/home/.pi/agent" PI_PACKAGE_ROOT="$pi_package_root" node --experimental-strip-types --input-type=module - <<'NODE'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -16,6 +22,17 @@ import { pathToFileURL } from 'node:url';
 const root = process.env.ROOT_DIR || process.cwd();
 process.env.B_AGENTIC_DIR = path.join(root, '.b-agentic-test');
 const installedRoot = path.join(process.env.PI_TEST_HOME || '', '.pi/agent/extensions');
+const packageLinks = path.join(process.env.PI_CODING_AGENT_DIR || '', 'node_modules', '@earendil-works');
+if (process.env.PI_PACKAGE_ROOT) {
+  mkdirSync(packageLinks, { recursive: true });
+  for (const [name, target] of [
+    ['pi-coding-agent', process.env.PI_PACKAGE_ROOT],
+    ['pi-tui', path.join(process.env.PI_PACKAGE_ROOT, 'node_modules/@earendil-works/pi-tui')],
+  ]) {
+    const link = path.join(packageLinks, name);
+    if (!existsSync(link)) symlinkSync(target, link, 'junction');
+  }
+}
 const extensionModules = await Promise.all([
   'b-agentic-permissions.ts', 'b-agentic-mcp-permissions.ts', 'b-agentic-auto-mode.ts', 'b-agentic-role.ts',
   'b-agentic-planner.ts', 'b-agentic-worker.ts', 'b-agentic-sync.ts', 'b-agentic-planner-notify.ts',
@@ -25,6 +42,10 @@ for (const name of ['shell.ts', 'mcp.ts', 'role.ts', 'role-models.ts', 'worker.t
   await import(pathToFileURL(path.join(installedRoot, 'b-agentic-support', name)).href);
 }
 const autoStateTest = await import(pathToFileURL(path.join(installedRoot, 'b-agentic-support', 'state.ts')).href);
+if (process.env.PI_PACKAGE_ROOT) {
+  const { initTheme } = await import(pathToFileURL(path.join(process.env.PI_PACKAGE_ROOT, 'dist/index.js')).href);
+  initTheme('dark');
+}
 const mod = extensionModules[0];
 const t = mod.__test__;
 const roleTest = extensionModules[3].__test__;
@@ -98,7 +119,7 @@ const previewModule = extensionModules[8];
 const previewTest = previewModule.__test__;
 const previewTool = tools.preview_markdown;
 if (!previewTool || !previewTest) throw new Error('preview_markdown extension must register its tool and test surface');
-expect(previewTool.promptSnippet.includes('Preview Markdown'), 'preview_markdown must advertise direct Markdown previews');
+expect(previewTool.promptSnippet.includes('inline'), 'preview_markdown must advertise inline Markdown previews');
 expect(previewTool.promptGuidelines.some((line) => line.includes('original Markdown source')), 'preview_markdown prompt metadata must preserve original source guidance');
 expect(previewTool.parameters.type === 'object' && previewTool.parameters.properties.markdown, 'preview_markdown schema must require Markdown');
 const nonTuiResult = await previewTool.execute('preview-1', { markdown: '# Hello' }, undefined, undefined, {
@@ -107,37 +128,37 @@ const nonTuiResult = await previewTool.execute('preview-1', { markdown: '# Hello
 });
 expect(nonTuiResult.details.interactive === false && nonTuiResult.content[0].text.includes('only available in Pi TUI'), 'preview_markdown must return a concise non-TUI fallback');
 const previewSource = readFileSync(path.join(root, 'pi/extensions/b-agentic-preview-markdown.ts'), 'utf8');
-for (const marker of ['ctx.ui.custom', 'new Markdown', '⧉ Copy [c]', 'onKey', 'key === "escape"', 'copyToClipboard']) {
-  expect(previewSource.includes(marker), `preview TUI source must include ${marker}`);
+for (const marker of ['renderResult', 'new Markdown', 'Original Markdown source', 'Markdown preview rendered inline']) {
+  expect(previewSource.includes(marker), `preview inline source must include ${marker}`);
 }
-const copyCalls = [];
-const notifications = [];
-let closeCalls = 0;
-const fakeFrame = { render: () => ['preview'], invalidate() {} };
-const previewComponent = new previewModule.MarkdownPreviewComponent(
-  '# Original Markdown',
-  fakeFrame,
-  async (source) => { copyCalls.push(source); },
-  (message, level) => { notifications.push({ message, level }); },
-  () => { closeCalls += 1; },
-);
-expect(previewComponent.onKey('c') === true, 'TUI copy key must be consumed');
-await new Promise((resolve) => setImmediate(resolve));
-expect(copyCalls.length === 1 && copyCalls[0] === '# Original Markdown', 'TUI copy must pass the exact original Markdown source');
-expect(notifications.at(-1)?.message === 'Markdown source copied to clipboard' && notifications.at(-1)?.level === 'info', 'TUI copy success must notify the user');
-expect(previewComponent.onKey('escape') === true, 'Escape key must be consumed');
-expect(closeCalls === 1, 'Escape must close the Markdown preview');
-expect(previewComponent.onKey('unknown') === false, 'Unhandled preview keys must not be consumed');
-const failedPreviewComponent = new previewModule.MarkdownPreviewComponent(
-  '# Original Markdown',
-  fakeFrame,
-  async () => { throw new Error('clipboard unavailable'); },
-  (message, level) => { notifications.push({ message, level }); },
-  () => {},
-);
-expect(failedPreviewComponent.onKey('C') === true, 'Uppercase TUI copy key must be consumed');
-await new Promise((resolve) => setImmediate(resolve));
-expect(notifications.at(-1)?.message === 'Failed to copy Markdown source to clipboard' && notifications.at(-1)?.level === 'error', 'TUI copy failure must notify the user');
+for (const obsolete of ['ctx.ui.custom', 'onKey', 'handleInput', 'copyToClipboard', 'Esc Close']) {
+  expect(!previewSource.includes(obsolete), `preview inline source must not include ${obsolete}`);
+}
+const inlineMarkdown = '# Original Markdown\n\n**exact source**\n\n- item';
+let customCalls = 0;
+const inlineResult = await previewTool.execute('preview-2', { markdown: inlineMarkdown, title: 'Inline example' }, undefined, undefined, {
+  mode: 'tui',
+  ui: { custom: async () => { customCalls += 1; throw new Error('inline preview must not open custom UI'); } },
+});
+expect(customCalls === 0, 'inline preview must not open custom UI');
+expect(inlineResult.content[0].text === 'Markdown preview rendered inline.', 'inline preview result must keep LLM content concise');
+expect(inlineResult.details.markdown === inlineMarkdown && inlineResult.details.title === 'Inline example', 'inline preview result must retain source and title details');
+const fakeTheme = {
+  fg: (_color, text) => text,
+  bold: (text) => text,
+};
+const renderedPreview = previewTool.renderResult(inlineResult, { expanded: true, isPartial: false }, fakeTheme, {});
+expect(renderedPreview && typeof renderedPreview.render === 'function', 'inline renderer must return a Component');
+const renderedLines = renderedPreview.render(120);
+const renderedText = renderedLines.join('\n');
+const normalizedRenderedText = renderedLines
+  .map((line) => line.replace(/\u001b\[[0-9;]*m/g, '').trimEnd())
+  .join('\n');
+expect(renderedText.includes('Inline example'), 'inline renderer must show the preview title');
+expect(renderedText.includes('Original Markdown'), 'inline renderer must show rendered Markdown content');
+expect(renderedText.includes('exact source') && renderedText.includes('item'), 'inline renderer must render Markdown syntax content');
+expect(renderedText.includes('Original Markdown source'), 'inline renderer must show a distinct source section');
+expect(normalizedRenderedText.includes(inlineMarkdown), 'inline renderer must show the exact original Markdown source');
 const [autoSessionStartHandler, roleSessionStartHandler] = registrations.session_start;
 const toolCallHandler = handlers.tool_call;
 
