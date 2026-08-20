@@ -342,6 +342,7 @@ run_output_contract_case() {
 	rc=$?
 	set -e
 	[ "$rc" -eq 0 ] || fail "expected redirected output contract install exit 0, got $rc"
+	assert_contains "$sandbox/non-tty.log" '[dry-run] CODEGRAPH_NO_INSTALL_REFRESH=1 codegraph upgrade'
 	python3 - "$sandbox/non-tty.log" <<'PY' || fail "redirected installer output contains terminal control data"
 from pathlib import Path
 import sys
@@ -617,7 +618,7 @@ exit 0
 EOF
 	cat >"$bin_dir/codegraph" <<EOF
 #!/usr/bin/env bash
-printf 'codegraph:%s\n' "\$*" >> "$upgrade_log"
+printf 'codegraph:%s:refresh=%s\n' "\$*" "\${CODEGRAPH_NO_INSTALL_REFRESH:-unset}" >> "$upgrade_log"
 exit 0
 EOF
 	cat >"$bin_dir/uv" <<EOF
@@ -683,7 +684,18 @@ PY
 	assert_contains "$upgrade_log" 'rtk-upgrade'
 	assert_contains "$upgrade_log" 'uv:self update'
 	assert_contains "$upgrade_log" 'uv:tool upgrade serena-agent'
-	assert_contains "$upgrade_log" 'codegraph:upgrade'
+	assert_contains "$upgrade_log" 'codegraph:upgrade:refresh=1'
+
+	: >"$upgrade_log"
+	set +e
+	HOME="$sandbox/home" PATH="$smoke_path" \
+		B_AGENTIC_REPO="$snapshot_repo" B_AGENTIC_DIR="$sandbox/source" \
+		B_AGENTIC_PROMPT_API_KEYS=N bash "$ROOT_DIR/install.sh" --update >"$sandbox/update.log" 2>&1
+	rc=$?
+	set -e
+	[ "$rc" -eq 0 ] || fail "expected existing tool update exit 0, got $rc"
+	assert_contains "$upgrade_log" 'codegraph:upgrade:refresh=1'
+	assert_contains "$sandbox/update.log" 'b-agentic update complete for Pi'
 	assert_contains "$install_log" '[5/5]'
 	assert_contains "$install_log" 'b-agentic install complete for Pi'
 	assert_not_contains "$install_log" 'RTK already installed; upgrading'

@@ -661,8 +661,8 @@ update_codegraph() {
 		return $?
 	fi
 	if dry_run_enabled; then
-		printf '[dry-run] codegraph upgrade\n' >&2
-	elif codegraph upgrade; then
+		printf '[dry-run] CODEGRAPH_NO_INSTALL_REFRESH=1 codegraph upgrade\n' >&2
+	elif CODEGRAPH_NO_INSTALL_REFRESH=1 codegraph upgrade; then
 		log "CodeGraph updated"
 	else
 		warn "CodeGraph update failed"
@@ -768,11 +768,11 @@ update_tooling() {
 install_codegraph() {
 	if command -v codegraph >/dev/null 2>&1; then
 		if dry_run_enabled; then
-			printf '[dry-run] codegraph upgrade\n' >&2
+			printf '[dry-run] CODEGRAPH_NO_INSTALL_REFRESH=1 codegraph upgrade\n' >&2
 			return 0
 		fi
 		log "CodeGraph already installed; upgrading"
-		if codegraph upgrade; then
+		if CODEGRAPH_NO_INSTALL_REFRESH=1 codegraph upgrade; then
 			log "CodeGraph upgraded"
 		else
 			warn "CodeGraph upgrade failed"

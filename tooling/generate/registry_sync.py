@@ -235,7 +235,7 @@ def render_skill_ownership(skills: list[dict]) -> str:
     return "\n".join([
         f"- Planner-owned skills: {', '.join('external `b-research`' if name == 'b-research' else f'`{name}`' for name in by_owner['planner'])}. The planner may execute these only inside its read-only coordinator boundary.",
         f"- Worker-owned skills: {', '.join(f'`{name}`' for name in by_owner['worker'])}. The planner delegates their execution to a ready same-CWD worker.",
-        f"- Ownership governs execution, not inspection: the planner may read any skill for planning, delegation, audit, or review. {SKILL_OWNERSHIP_CRITERION} Direct user wording or no ready worker never permits planner implementation. Unknown or ambiguous skill ownership is worker-owned; registry validation rejects a missing or invalid owner.",
+        f"- Ownership governs execution, not inspection: the planner may read any skill for planning, delegation, audit, or review. {SKILL_OWNERSHIP_CRITERION} Direct wording or no ready worker forbids implementation. Unknown or ambiguous skill ownership is worker-owned; registry rejects missing or invalid ownership.",
     ])
 
 
