@@ -138,7 +138,7 @@ const shortcutContext = {
 await previewShortcut.handler(shortcutContext);
 expect(shortcutNotifications.at(-1)?.message === 'No Markdown preview source is available to copy' && shortcutNotifications.at(-1)?.level === 'warning', 'shortcut must guard when no TUI preview exists');
 const previewSource = readFileSync(path.join(root, 'pi/extensions/b-agentic-preview-markdown.ts'), 'utf8');
-for (const marker of ['renderResult', 'new Markdown', 'registerShortcut', 'ctrl+shift+m', 'copyToClipboard', 'Markdown preview rendered inline']) {
+for (const marker of ['renderResult', 'new Markdown', 'registerShortcut', 'ctrl+shift+m', 'copyToClipboard', 'PreviewCard', 'FIXED_CARD_BACKGROUND', 'MARKDOWN PREVIEW', 'Ctrl+Shift+M  Copy source', 'Markdown preview rendered inline']) {
   expect(previewSource.includes(marker), `preview inline source must include ${marker}`);
 }
 for (const obsolete of ['ctx.ui.custom', 'onKey', 'handleInput', 'MarkdownPreviewComponent', 'createMarkdownPreviewComponent', 'Original Markdown source']) {
@@ -170,9 +170,17 @@ const renderedText = renderedLines.join('\n');
 const normalizedRenderedText = renderedLines
   .map((line) => line.replace(/\u001b\[[0-9;]*m/g, '').trimEnd())
   .join('\n');
+expect(renderedText.includes('╭') && renderedText.includes('╮') && renderedText.includes('╰') && renderedText.includes('╯'), 'inline renderer must show a complete elevated card border');
+expect(renderedText.includes('MARKDOWN PREVIEW'), 'inline renderer must show the uppercase card header');
 expect(renderedText.includes('Inline example'), 'inline renderer must show the preview title');
 expect(renderedText.includes('Original Markdown'), 'inline renderer must show rendered Markdown content');
 expect(renderedText.includes('exact source') && renderedText.includes('item'), 'inline renderer must render Markdown syntax content');
+expect(renderedText.includes('Ctrl+Shift+M  Copy source'), 'inline renderer must show the copy shortcut hint');
+expect(renderedText.includes('\u001b[48;5;236m'), 'inline renderer must use the fixed dark card palette');
+const headerLine = renderedLines.find((line) => line.includes('MARKDOWN PREVIEW')) ?? '';
+expect(headerLine.includes('\u001b[38;5;110mMARKDOWN PREVIEW\u001b[39m'), 'card header must reset only foreground color and preserve its background');
+expect(!headerLine.includes('\u001b[38;5;110mMARKDOWN PREVIEW\u001b[0m'), 'card header must not fully reset the card background');
+expect(renderedLines.every((line) => line.replace(/\u001b\[[0-9;]*m/g, '').length <= 120), 'inline renderer must keep every line within the component width');
 expect(!normalizedRenderedText.includes(inlineMarkdown) && !normalizedRenderedText.includes('**exact source**'), 'inline renderer must not show raw Markdown source');
 const [autoSessionStartHandler, roleSessionStartHandler] = registrations.session_start;
 const toolCallHandler = handlers.tool_call;

@@ -101,7 +101,7 @@ Pi CLI, RTK, Serena, CodeGraph, Bun, and Pi packages install or refresh automati
 
 | Extension | Purpose | Status |
 |---|---|---|
-| `b-agentic-preview-markdown.ts` | Inline native Markdown previews with `ctrl+shift+m` copying the latest source | Default; installed and configured by b-agentic |
+| `b-agentic-preview-markdown.ts` | Inline dark elevated Markdown cards with `ctrl+shift+m` copying the latest source | Default; installed and configured by b-agentic |
 | `b-agentic-permissions.ts` | Shell, filesystem, and dangerous-command policy | Default; installed and configured by b-agentic |
 | `b-agentic-mcp-permissions.ts` | Managed MCP and custom-tool approval | Default; installed and configured by b-agentic |
 | `b-agentic-auto-mode.ts` | Confirmed automatic approval mode with explicit-deny protection | Default; installed and configured by b-agentic |
