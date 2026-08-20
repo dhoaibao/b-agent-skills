@@ -86,7 +86,8 @@ if extension.exists():
         preview_text = preview_extension.read_text()
         for marker in [
             'preview_markdown', 'promptSnippet', 'promptGuidelines', 'ctx.mode', 'renderResult',
-            'getMarkdownTheme', 'Original Markdown source', 'Markdown preview rendered inline',
+            'registerShortcut', 'ctrl+shift+m', 'copyToClipboard',
+            'getMarkdownTheme', 'Markdown preview rendered inline',
         ]:
             if marker not in preview_text:
                 errors.append(f'{preview_extension}: missing preview marker {marker!r}')

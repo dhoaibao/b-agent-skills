@@ -59,6 +59,7 @@ const handlers = {};
 const registrations = {};
 const commands = {};
 const tools = {};
+const shortcuts = {};
 const flags = {};
 const flagDefinitions = {};
 const persistedEntries = [];
@@ -88,6 +89,7 @@ const extensionHost = {
   registerFlag(name, definition) { flagDefinitions[name] = definition; },
   getFlag(name) { return flags[name]; },
   registerCommand(name, definition) { commands[name] = definition; },
+  registerShortcut(name, definition) { shortcuts[name] = definition; },
   registerTool(definition) { tools[definition.name] = definition; },
   async exec(command, args, options) {
     executedCommands.push({ command, args, options });
@@ -118,20 +120,28 @@ for (const extension of extensionModules) extension.default(extensionHost);
 const previewModule = extensionModules[8];
 const previewTest = previewModule.__test__;
 const previewTool = tools.preview_markdown;
-if (!previewTool || !previewTest) throw new Error('preview_markdown extension must register its tool and test surface');
+const previewShortcut = shortcuts['ctrl+shift+m'];
+if (!previewTool || !previewTest || !previewShortcut) throw new Error('preview_markdown extension must register its tool, shortcut, and test surface');
+expect(previewShortcut.description.includes('latest Markdown preview source'), 'preview shortcut must describe latest source copying');
 expect(previewTool.promptSnippet.includes('inline'), 'preview_markdown must advertise inline Markdown previews');
-expect(previewTool.promptGuidelines.some((line) => line.includes('original Markdown source')), 'preview_markdown prompt metadata must preserve original source guidance');
+expect(previewTool.promptGuidelines.some((line) => line.includes('ctrl+shift+m')), 'preview_markdown prompt metadata must describe the source-copy shortcut');
 expect(previewTool.parameters.type === 'object' && previewTool.parameters.properties.markdown, 'preview_markdown schema must require Markdown');
 const nonTuiResult = await previewTool.execute('preview-1', { markdown: '# Hello' }, undefined, undefined, {
   mode: 'print',
   ui: { custom: async () => { throw new Error('non-TUI preview must not open custom UI'); } },
 });
 expect(nonTuiResult.details.interactive === false && nonTuiResult.content[0].text.includes('only available in Pi TUI'), 'preview_markdown must return a concise non-TUI fallback');
+const shortcutNotifications = [];
+const shortcutContext = {
+  ui: { notify(message, level) { shortcutNotifications.push({ message, level }); } },
+};
+await previewShortcut.handler(shortcutContext);
+expect(shortcutNotifications.at(-1)?.message === 'No Markdown preview source is available to copy' && shortcutNotifications.at(-1)?.level === 'warning', 'shortcut must guard when no TUI preview exists');
 const previewSource = readFileSync(path.join(root, 'pi/extensions/b-agentic-preview-markdown.ts'), 'utf8');
-for (const marker of ['renderResult', 'new Markdown', 'Original Markdown source', 'Markdown preview rendered inline']) {
+for (const marker of ['renderResult', 'new Markdown', 'registerShortcut', 'ctrl+shift+m', 'copyToClipboard', 'Markdown preview rendered inline']) {
   expect(previewSource.includes(marker), `preview inline source must include ${marker}`);
 }
-for (const obsolete of ['ctx.ui.custom', 'onKey', 'handleInput', 'copyToClipboard', 'Esc Close']) {
+for (const obsolete of ['ctx.ui.custom', 'onKey', 'handleInput', 'MarkdownPreviewComponent', 'createMarkdownPreviewComponent', 'Original Markdown source']) {
   expect(!previewSource.includes(obsolete), `preview inline source must not include ${obsolete}`);
 }
 const inlineMarkdown = '# Original Markdown\n\n**exact source**\n\n- item';
@@ -143,6 +153,12 @@ const inlineResult = await previewTool.execute('preview-2', { markdown: inlineMa
 expect(customCalls === 0, 'inline preview must not open custom UI');
 expect(inlineResult.content[0].text === 'Markdown preview rendered inline.', 'inline preview result must keep LLM content concise');
 expect(inlineResult.details.markdown === inlineMarkdown && inlineResult.details.title === 'Inline example', 'inline preview result must retain source and title details');
+const copiedSources = [];
+await previewTest.copyLatestPreviewSource(shortcutContext, async (source) => { copiedSources.push(source); });
+expect(copiedSources.length === 1 && copiedSources[0] === inlineMarkdown, 'shortcut copy must use the exact latest preview source');
+expect(shortcutNotifications.at(-1)?.message === 'Latest Markdown preview source copied to clipboard' && shortcutNotifications.at(-1)?.level === 'info', 'shortcut copy success must notify');
+await previewTest.copyLatestPreviewSource(shortcutContext, async () => { throw new Error('clipboard unavailable'); });
+expect(shortcutNotifications.at(-1)?.message === 'Failed to copy latest Markdown preview source to clipboard' && shortcutNotifications.at(-1)?.level === 'error', 'shortcut copy failure must notify without throwing');
 const fakeTheme = {
   fg: (_color, text) => text,
   bold: (text) => text,
@@ -157,8 +173,7 @@ const normalizedRenderedText = renderedLines
 expect(renderedText.includes('Inline example'), 'inline renderer must show the preview title');
 expect(renderedText.includes('Original Markdown'), 'inline renderer must show rendered Markdown content');
 expect(renderedText.includes('exact source') && renderedText.includes('item'), 'inline renderer must render Markdown syntax content');
-expect(renderedText.includes('Original Markdown source'), 'inline renderer must show a distinct source section');
-expect(normalizedRenderedText.includes(inlineMarkdown), 'inline renderer must show the exact original Markdown source');
+expect(!normalizedRenderedText.includes(inlineMarkdown) && !normalizedRenderedText.includes('**exact source**'), 'inline renderer must not show raw Markdown source');
 const [autoSessionStartHandler, roleSessionStartHandler] = registrations.session_start;
 const toolCallHandler = handlers.tool_call;
 
