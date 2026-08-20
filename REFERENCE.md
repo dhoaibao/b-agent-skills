@@ -178,6 +178,15 @@ V2, migrate the settings and start a clean Pi session.
 
 b-agentic installs the `@narumitw/pi-usage` extension automatically.
 
+b-agentic installs `@narumitw/pi-lsp@0.32.0` automatically for optional, on-demand
+`lsp_diagnostics` and `lsp_fix` capabilities and source-action previews. pi-lsp
+starts language servers only when its tools are called and does not install their
+binaries; the language-server commands must already be on `PATH`. The installer
+writes no pi-lsp configuration: user `~/.pi/agent/pi-lsp.json` and trusted project
+`.pi/pi-lsp.json` remain owner-controlled. `lsp_fix` write actions and custom LSP
+calls retain the generic custom-tool approval behavior, and authoritative
+repository validation remains required.
+
 b-agentic installs `pi-intercom` automatically for its two-role workflow and installs
 `@juicesharp/rpiv-ask-user-question@2.6.2` for structured planner decisions and blockers.
 Planner questions group 1–4 related questions, offer 2–4 concrete options with
@@ -225,7 +234,7 @@ repository, validates `dracula.json`, copies it to the theme cache, and links
 settings or selection. User files and unrelated symlinks at the theme destination
 are preserved with a warning. Uninstall removes only unchanged managed content
 and symlinks, restores recorded user backups, preserves modified or
-symlinked files, and never removes installed packages.
+symlinked files, and never removes installed packages, including `@narumitw/pi-lsp`.
 
 ## Roles and coordination
 

@@ -1484,7 +1484,11 @@ run_pi_smoke_cases() {
 	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@narumitw/pi-usage'
 	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:pi-intercom'
 	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@juicesharp/rpiv-ask-user-question@2.6.2'
+	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@narumitw/pi-lsp@0.32.0'
 	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piAskUserQuestionState": "ready"'
+	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piLspState": "ready"'
+	local initial_lsp_install_count
+	initial_lsp_install_count="$(grep -Fc 'npm:@narumitw/pi-lsp@0.32.0' "$sandbox/smoke-bin/pi-install.log")"
 
 	# Split in-session modes: sync pulls/assets only; update uses installed source without Git.
 	# Exercise sync with the default environment so package, Pi CLI, and MCP setup
@@ -1532,6 +1536,7 @@ EOF
 	mv "$sandbox/source/.git-without-pull" "$sandbox/source/.git"
 	assert_contains "$sandbox/smoke-bin/pi-install.log" 'update'
 	assert_contains "$sandbox/smoke-bin/pi-install.log" 'update --extensions'
+	[ "$(grep -Fc 'npm:@narumitw/pi-lsp@0.32.0' "$sandbox/smoke-bin/pi-install.log")" -eq "$initial_lsp_install_count" ] || fail "Pi update reinstalled pi-lsp despite package being present"
 
 	local behavioral_pid
 	run_pi_permission_behavioral_fixture "$sandbox" &
@@ -1558,7 +1563,9 @@ EOF
 	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:pi-observational-memory'
 	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:@narumitw/pi-usage'
 	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:@juicesharp/rpiv-ask-user-question@2.6.2'
+	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:@narumitw/pi-lsp@0.32.0'
 	assert_contains "$sandbox_adapter/home/.pi/agent/b-agentic/install.json" '"piAskUserQuestionState": "ready"'
+	assert_contains "$sandbox_adapter/home/.pi/agent/b-agentic/install.json" '"piLspState": "ready"'
 	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'update --extensions'
 
 	# Preserve user-owned kernel.

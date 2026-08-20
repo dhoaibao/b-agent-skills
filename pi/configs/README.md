@@ -33,6 +33,14 @@ memory/compaction layer rather than combining it with another such extension.
 b-agentic can also install the optional `@narumitw/pi-usage` extension.
 `pi install npm:@narumitw/pi-usage`;
 
+b-agentic installs `@narumitw/pi-lsp@0.32.0` for optional, on-demand
+`lsp_diagnostics` and `lsp_fix` capabilities and source-action previews.
+pi-lsp starts servers only when called, does not install language-server binaries,
+and requires those commands to already be on `PATH`. No pi-lsp configuration is
+written; user `~/.pi/agent/pi-lsp.json` and trusted project `.pi/pi-lsp.json`
+remain owner-controlled. `lsp_fix` write actions and custom LSP calls retain the
+generic custom-tool approval behavior, and authoritative repository validation
+remains required.
 
 b-agentic installs `pi-intercom` by default for its two-role workflow; the permission extension auto-approves schema-valid Intercom actions (`list`, `list-cwd`, `status`, `pending`, `send`, `ask`, `reply`, and `cancel`), including supported optional string fields and attachment arrays; invalid actions, unknown fields, and malformed optional values remain approval-gated.
 
@@ -69,7 +77,7 @@ Uninstall removes b-agentic-managed MCP config, unchanged permission
 extensions, and the unchanged managed Dracula theme symlink. Modified files,
 symlinks, and user-owned theme entries are preserved; legacy manifests with
 only `permissionsExtension` are restored using the original compatibility path.
-It does not remove any of these packages, including `@juicesharp/rpiv-ask-user-question`.
+It does not remove any of these packages, including `@juicesharp/rpiv-ask-user-question` and `@narumitw/pi-lsp`.
 
 Servers default to lazy lifecycle through the adapter's proxy tool so schemas
 are not eagerly injected into context. Linear is configured for deferred OAuth and exposes only `get_issue`; it does not authenticate during install, and its authentication state remains unverified until the adapter needs it. The template sets the adapter's global

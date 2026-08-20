@@ -875,6 +875,43 @@ run_bun_mcp_package_lifecycle_case() {
 	assert_not_contains "$bun_log" 'bun install --global'
 }
 
+run_pi_lsp_package_lifecycle_case() {
+	local snapshot_repo="$1"
+	local sandbox="$WORK_DIR/pi-lsp-package-lifecycle"
+	local install_log="$sandbox/install.log"
+	local package_log="$sandbox/smoke-bin/pi-install.log"
+	local package_count
+	local rc=0
+
+	mkdir -p "$sandbox/home"
+	set +e
+	HOME="$sandbox/home" PATH="$(smoke_runtime_cli_path "$sandbox")" \
+		B_AGENTIC_REPO="$snapshot_repo" B_AGENTIC_DIR="$sandbox/source" \
+		B_AGENTIC_PROMPT_API_KEYS=N bash "$ROOT_DIR/install.sh" --dry-run >"$install_log" 2>&1
+	rc=$?
+	set -e
+	[ "$rc" -eq 0 ] || fail "expected pi-lsp dry-run exit 0, got $rc"
+	assert_contains "$install_log" '[dry-run] pi install npm:@narumitw/pi-lsp@0.32.0'
+	assert_no_path "$sandbox/smoke-bin/pi-lsp-installed"
+
+	expect_install_status 0 "$sandbox" "$snapshot_repo"
+	assert_contains "$package_log" 'npm:@narumitw/pi-lsp@0.32.0'
+	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piLspAction": "install"'
+	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piLspState": "ready"'
+	package_count="$(grep -Fc 'npm:@narumitw/pi-lsp@0.32.0' "$package_log")"
+	[ "$package_count" -eq 1 ] || fail "expected initial pi-lsp install exactly once"
+	assert_contains "$install_log" 'pi-lsp'
+
+	expect_install_status 0 "$sandbox" "$snapshot_repo"
+	expect_install_status 0 "$sandbox" "$snapshot_repo" --update
+	[ "$(grep -Fc 'npm:@narumitw/pi-lsp@0.32.0' "$package_log")" -eq "$package_count" ] || fail "pi-lsp was reinstalled after package detection"
+	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piLspState": "ready"'
+
+	expect_install_status 0 "$sandbox" "$snapshot_repo" --uninstall
+	assert_file "$sandbox/smoke-bin/pi-lsp-installed"
+	assert_no_path "$sandbox/home/.pi/agent/b-agentic/install.json"
+}
+
 run_parallel_chain_output_case() {
 	local snapshot_repo="$1"
 	local sandbox="$WORK_DIR/parallel-chain-output"
@@ -1453,6 +1490,7 @@ run_base_smoke_cases() {
 		run_existing_tool_upgrade_case
 		run_existing_tool_default_skip_case
 		run_bun_mcp_package_lifecycle_case
+		run_pi_lsp_package_lifecycle_case
 		run_parallel_chain_output_case
 		run_uninstall_skips_dependency_reconciliation_case
 		run_skill_doctor_case

@@ -91,8 +91,11 @@ The installer writes all seven recommended entries to Pi's MCP configuration wit
 | `@juicesharp/rpiv-ask-user-question` | Structured interactive user decisions and blockers | Required for planner questions | Installed automatically at v2.6.2 |
 | `pi-observational-memory` | Long-session compaction continuity | Optional | Installed automatically |
 | `@narumitw/pi-usage` | Pi usage reporting | Optional | Installed automatically |
+| `@narumitw/pi-lsp@0.32.0` | On-demand LSP diagnostics and source-action previews | Optional | Installed automatically at v0.32.0 |
 
 Pi CLI, RTK, Serena, CodeGraph, Bun, and Pi packages install or refresh automatically without prompts. Bun-backed MCP servers use `bunx`, which resolves and caches their packages on first use. Modern shell tools are reported with an install hint because they generally require sudo.
+
+`pi-lsp` provides optional, on-demand `lsp_diagnostics` and `lsp_fix` capabilities and source-action previews. It does not install language-server binaries: the commands for the language servers you use must already be on `PATH`. b-agentic writes no pi-lsp configuration; user `~/.pi/agent/pi-lsp.json` and trusted project `.pi/pi-lsp.json` remain owner-controlled. `lsp_fix` write actions and custom LSP calls retain the generic custom-tool approval behavior, and authoritative repository validation remains required.
 
 ## First-party extensions
 

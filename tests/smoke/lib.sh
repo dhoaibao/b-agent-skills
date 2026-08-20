@@ -144,6 +144,10 @@ if [ "${1:-}" = "list" ]; then
     printf 'npm:@juicesharp/rpiv-ask-user-question@2.6.2\n'
     found=1
   fi
+  if [ -f "$log_dir/pi-lsp-installed" ]; then
+    printf 'npm:@narumitw/pi-lsp@0.32.0\n'
+    found=1
+  fi
   [ "$found" -eq 1 ] || printf 'No packages installed.\n'
   exit 0
 fi
@@ -167,6 +171,9 @@ if [ "${1:-}" = "install" ]; then
   fi
   if [ "${2:-}" = "npm:@juicesharp/rpiv-ask-user-question@2.6.2" ]; then
     : > "$log_dir/pi-ask-user-question-installed"
+  fi
+  if [ "${2:-}" = "npm:@narumitw/pi-lsp@0.32.0" ]; then
+    : > "$log_dir/pi-lsp-installed"
   fi
   exit 0
 fi
