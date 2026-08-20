@@ -14,15 +14,20 @@ type PreviewDetails = {
 
 const DEFAULT_TITLE = "Markdown preview";
 const PALETTE = {
-  pageBg: "#18181e",
-  cardBg: "#1e1e24",
-  text: "#d4d4d4",
-  accent: "#8abeb7",
-  muted: "#808080",
-  darkGray: "#505050",
-  heading: "#f0c674",
-  link: "#81a2be",
-  codeBlock: "#b5bd68",
+  pageBg: "#1e2030",
+  cardBg: "#222436",
+  deepest: "#191b29",
+  highlight: "#2f334d",
+  text: "#c8d3f5",
+  muted: "#828bb8",
+  comment: "#636da6",
+  border: "#3b4261",
+  accent: "#82aaff",
+  cyan: "#86e1fc",
+  heading: "#ffc777",
+  codeBlock: "#c3e88d",
+  inlineCode: "#c099ff",
+  link: "#65bcff",
 } as const;
 const ANSI_RESET = "\u001b[0m";
 const ANSI_FOREGROUND_RESET = "\u001b[39m";
@@ -37,14 +42,18 @@ function truecolor(mode: "38" | "48", hex: string): string {
 
 const FIXED_PAGE_BACKGROUND = truecolor("48", PALETTE.pageBg);
 const FIXED_CARD_BACKGROUND = truecolor("48", PALETTE.cardBg);
-const FIXED_BORDER = truecolor("38", PALETTE.darkGray);
+const FIXED_DEEPEST_BACKGROUND = truecolor("48", PALETTE.deepest);
+const FIXED_HIGHLIGHT_BACKGROUND = truecolor("48", PALETTE.highlight);
+const FIXED_BORDER = truecolor("38", PALETTE.border);
 const FIXED_HEADER = truecolor("38", PALETTE.accent);
 const FIXED_TITLE = truecolor("38", PALETTE.text);
 const FIXED_TEXT = truecolor("38", PALETTE.text);
 const FIXED_MUTED = truecolor("38", PALETTE.muted);
+const FIXED_COMMENT = truecolor("38", PALETTE.comment);
+const FIXED_CYAN = truecolor("38", PALETTE.cyan);
 const FIXED_HEADING = truecolor("38", PALETTE.heading);
 const FIXED_LINK = truecolor("38", PALETTE.link);
-const FIXED_CODE = truecolor("38", PALETTE.accent);
+const FIXED_CODE = truecolor("38", PALETTE.inlineCode);
 const FIXED_CODE_BLOCK = truecolor("38", PALETTE.codeBlock);
 let lastPreviewMarkdown: string | undefined;
 
@@ -52,17 +61,29 @@ function fixedColor(color: string, text: string): string {
   return `${color}${text}${ANSI_FOREGROUND_RESET}`;
 }
 
+function fixedInlineCode(text: string): string {
+  return `${FIXED_HIGHLIGHT_BACKGROUND}${FIXED_CODE}${text}${ANSI_FOREGROUND_RESET}${FIXED_CARD_BACKGROUND}`;
+}
+
+function fixedCodeBlock(text: string): string {
+  return `${FIXED_DEEPEST_BACKGROUND}${FIXED_CODE_BLOCK}${text}${ANSI_FOREGROUND_RESET}${FIXED_CARD_BACKGROUND}`;
+}
+
+function fixedCodeBlockBorder(text: string): string {
+  return `${FIXED_DEEPEST_BACKGROUND}${FIXED_COMMENT}${text}${ANSI_FOREGROUND_RESET}${FIXED_CARD_BACKGROUND}`;
+}
+
 const FIXED_MARKDOWN_THEME = {
   heading: (text: string) => fixedColor(FIXED_HEADING, text),
   link: (text: string) => fixedColor(FIXED_LINK, text),
-  linkUrl: (text: string) => fixedColor(FIXED_MUTED, text),
-  code: (text: string) => fixedColor(FIXED_CODE, text),
-  codeBlock: (text: string) => fixedColor(FIXED_CODE_BLOCK, text),
-  codeBlockBorder: (text: string) => fixedColor(FIXED_MUTED, text),
-  quote: (text: string) => fixedColor(FIXED_MUTED, text),
-  quoteBorder: (text: string) => fixedColor(FIXED_MUTED, text),
-  hr: (text: string) => fixedColor(FIXED_MUTED, text),
-  listBullet: (text: string) => fixedColor(FIXED_HEADER, text),
+  linkUrl: (text: string) => fixedColor(FIXED_COMMENT, text),
+  code: fixedInlineCode,
+  codeBlock: fixedCodeBlock,
+  codeBlockBorder: fixedCodeBlockBorder,
+  quote: (text: string) => fixedColor(FIXED_COMMENT, text),
+  quoteBorder: (text: string) => fixedColor(FIXED_COMMENT, text),
+  hr: (text: string) => fixedColor(FIXED_COMMENT, text),
+  listBullet: (text: string) => fixedColor(FIXED_CYAN, text),
   bold: (text: string) => fixedColor(FIXED_TITLE, text),
   italic: (text: string) => fixedColor(FIXED_TEXT, text),
   strikethrough: (text: string) => fixedColor(FIXED_MUTED, text),
@@ -175,7 +196,7 @@ export default function bAgenticPreviewMarkdown(pi: ExtensionAPI): void {
         }),
       );
       body.addChild(new Spacer(1));
-      body.addChild(new Text(fixedColor(FIXED_MUTED, "Ctrl+Shift+M  Copy source"), 0, 0));
+      body.addChild(new Text(fixedColor(FIXED_COMMENT, "Ctrl+Shift+M  Copy source"), 0, 0));
       return new PreviewCard(body);
     },
   });

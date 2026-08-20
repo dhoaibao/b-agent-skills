@@ -87,8 +87,9 @@ if extension.exists():
         for marker in [
             'preview_markdown', 'promptSnippet', 'promptGuidelines', 'ctx.mode', 'renderResult',
             'registerShortcut', 'ctrl+shift+m', 'copyToClipboard',
-            'PALETTE', '#18181e', '#1e1e24', '#d4d4d4', '#8abeb7', '#808080', '#505050',
-            '#f0c674', '#81a2be', '#b5bd68', 'FIXED_PAGE_BACKGROUND',
+            'PALETTE', '#1e2030', '#222436', '#191b29', '#2f334d', '#c8d3f5', '#828bb8', '#636da6',
+            '#3b4261', '#82aaff', '#86e1fc', '#ffc777', '#c3e88d', '#c099ff', '#65bcff',
+            'FIXED_PAGE_BACKGROUND',
             'FIXED_CARD_BACKGROUND', 'MARKDOWN PREVIEW', 'Ctrl+Shift+M  Copy source',
             'Markdown preview rendered inline',
         ]:
