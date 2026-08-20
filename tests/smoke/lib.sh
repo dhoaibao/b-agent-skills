@@ -140,6 +140,10 @@ if [ "${1:-}" = "list" ]; then
     printf 'npm:pi-intercom\n'
     found=1
   fi
+  if [ -f "$log_dir/pi-ask-user-question-installed" ]; then
+    printf 'npm:@juicesharp/rpiv-ask-user-question@2.6.2\n'
+    found=1
+  fi
   [ "$found" -eq 1 ] || printf 'No packages installed.\n'
   exit 0
 fi
@@ -160,6 +164,9 @@ if [ "${1:-}" = "install" ]; then
   fi
   if [ "${2:-}" = "npm:pi-intercom" ]; then
     : > "$log_dir/pi-intercom-installed"
+  fi
+  if [ "${2:-}" = "npm:@juicesharp/rpiv-ask-user-question@2.6.2" ]; then
+    : > "$log_dir/pi-ask-user-question-installed"
   fi
   exit 0
 fi

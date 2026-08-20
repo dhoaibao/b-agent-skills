@@ -55,6 +55,8 @@ if kernel.exists():
         'location, evidence, impact, violated baseline, smallest correction, and regression check',
         'Planner-owned audit/review obtains blocked verification through bounded worker evidence',
         'same worker may run `b-commit` only on explicit user request',
+        'ask_user_question', '2–4 concrete options', ' (Recommended)', 'automatic custom-answer row',
+        'focused plain-text question only',
     ]:
         if marker not in text:
             errors.append(f'{kernel}: missing {marker!r}')
@@ -152,7 +154,7 @@ if readme.exists():
 if readme.exists():
     text = readme.read_text()
     for marker in [
-        'pi-mcp-adapter', 'pi-observational-memory', '@narumitw/pi-usage',
+        'pi-mcp-adapter', 'pi-observational-memory', '@narumitw/pi-usage', '@juicesharp/rpiv-ask-user-question',
         'extensions/b-agentic-permissions.ts', 'mcp.json', '/b-role planner',
         'pi --b-role planner|worker', '/b-auto-mode', '/b-sync', '/b-update',
         'Planner mode is prompt-governed rather than tool-gated', 'generated ownership mapping gives the planner',

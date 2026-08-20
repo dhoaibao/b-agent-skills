@@ -401,7 +401,7 @@ for (const toolName of ['serena_replace_content', 'serena_serena_replace_content
 expect(await toolCallHandler({ toolName: 'mcp', input: { server: 'linear', tool: 'list_issues', args: {} } }, roleContext) === undefined, 'planner must not have a role-specific MCP execution block');
 const plannerStart = await handlers.before_agent_start({ systemPrompt: 'base', systemPromptOptions: { skills: [] } }, roleContext);
 expect(plannerStart.systemPrompt.includes('planner profile (read-only coordinator)') && plannerStart.systemPrompt.includes('Your in-scope planner skills are: `b-plan`, `b-research`, `b-agentic-audit`, `b-review`, `b-pr-summary`') && plannerStart.systemPrompt.includes('Delegate these worker-owned skills to a ready same-CWD worker: `b-design`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, `b-commit`'), 'planner prompt must enumerate its skills and its delegation list');
-expect(plannerStart.systemPrompt.includes('The planner keeps external b-research planner-owned and never delegates it.') && plannerStart.systemPrompt.includes("When needed, agree with the worker on the approach before edits begin. Use send for task delegation and worker result/review reporting; use ask only for blockers, clarifications, or a planner's quick-answer need—not to wait for a delegated result.") && plannerStart.systemPrompt.includes('Desktop attention signals are explicit, privacy-safe, and mutually exclusive: emit at most one exact signal on its own standalone line') && plannerStart.systemPrompt.includes('all required delegated b-review gates have passed') && plannerStart.systemPrompt.includes('immediately before the final verdict line') && plannerStart.systemPrompt.includes('B_AGENTIC_TASK_COMPLETE') && plannerStart.systemPrompt.includes('B_AGENTIC_USER_INPUT_NEEDED'), 'planner prompt must keep research ownership, allocate send versus ask, and enforce the standalone attention signal contract');
+expect(plannerStart.systemPrompt.includes('The planner keeps external b-research planner-owned and never delegates it.') && plannerStart.systemPrompt.includes("When needed, agree with the worker on the approach before edits begin. Use send for task delegation and worker result/review reporting; use ask only for blockers, clarifications, or a planner's quick-answer need—not to wait for a delegated result.") && plannerStart.systemPrompt.includes('ask_user_question') && plannerStart.systemPrompt.includes('2–4 concrete options') && plannerStart.systemPrompt.includes(' (Recommended)') && plannerStart.systemPrompt.includes('automatic custom-answer row') && plannerStart.systemPrompt.includes('B_AGENTIC_TASK_COMPLETE') && plannerStart.systemPrompt.includes('B_AGENTIC_USER_INPUT_NEEDED'), 'planner prompt must keep research ownership, questionnaire guidance, and both privacy-safe attention signals');
 
 let activePeerWorker = true;
 roleChannelRegistration.onReady({
@@ -1483,6 +1483,8 @@ run_pi_smoke_cases() {
 	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:pi-observational-memory'
 	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@narumitw/pi-usage'
 	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:pi-intercom'
+	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@juicesharp/rpiv-ask-user-question@2.6.2'
+	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piAskUserQuestionState": "ready"'
 
 	# Split in-session modes: sync pulls/assets only; update uses installed source without Git.
 	# Exercise sync with the default environment so package, Pi CLI, and MCP setup
@@ -1555,6 +1557,8 @@ EOF
 	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:pi-mcp-adapter'
 	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:pi-observational-memory'
 	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:@narumitw/pi-usage'
+	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:@juicesharp/rpiv-ask-user-question@2.6.2'
+	assert_contains "$sandbox_adapter/home/.pi/agent/b-agentic/install.json" '"piAskUserQuestionState": "ready"'
 	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'update --extensions'
 
 	# Preserve user-owned kernel.

@@ -88,6 +88,7 @@ The installer writes all seven recommended entries to Pi's MCP configuration wit
 |---|---|---|---|
 | `pi-mcp-adapter` | Loads Pi MCP configuration | Required for MCP use | Installed automatically |
 | `pi-intercom` | Provides planner/worker coordination | Default for the optional two-role workflow | Installed automatically |
+| `@juicesharp/rpiv-ask-user-question` | Structured interactive user decisions and blockers | Required for planner questions | Installed automatically at v2.6.2 |
 | `pi-observational-memory` | Long-session compaction continuity | Optional | Installed automatically |
 | `@narumitw/pi-usage` | Pi usage reporting | Optional | Installed automatically |
 
@@ -102,7 +103,7 @@ Pi CLI, RTK, Serena, CodeGraph, Bun, and Pi packages install or refresh automati
 | `b-agentic-auto-mode.ts` | Confirmed automatic approval mode with explicit-deny protection | Default; installed and configured by b-agentic |
 | `b-agentic-role.ts` | Explicit solo/planner/worker role selection | Default; installed and configured by b-agentic |
 | `b-agentic-planner.ts` | Planner prompt-governed collaboration profile | Default; installed and configured by b-agentic |
-| `b-agentic-planner-notify.ts` | Privacy-safe desktop notifications for explicit planner task-complete or user-input attention signals | Default; installed and configured by b-agentic |
+| `b-agentic-planner-notify.ts` | Privacy-safe desktop notifications for explicit planner task-complete and user-input attention signals | Default; installed and configured by b-agentic |
 | `b-agentic-worker.ts` | Worker collaboration profile | Default; installed and configured by b-agentic |
 | `b-agentic-sync.ts` | In-session `/b-sync` and `/b-update` refresh commands | Default; installed and configured by b-agentic |
 

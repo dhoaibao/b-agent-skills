@@ -170,15 +170,22 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   end a response with exactly one of `B_AGENTIC_TASK_COMPLETE` (task complete
   and all delegated b-review gates passed; in b-review it sits on its own
   standalone line immediately before the final verdict line) or
-  `B_AGENTIC_USER_INPUT_NEEDED` (a focused user decision or blocker only),
-  never both, and both are omitted for normal planning, discovery, handoffs,
-  intermediate updates, and reviews needing fixes. The planner-notify extension
-  surfaces these signals as desktop notifications (`notify-send` on Linux,
-  `osascript` on macOS, bounded timeout, notifier failures ignored) only while
-  the planner role is active; the signal text never carries task or session
-  content. Evidence: `pi/extensions/b-agentic-planner-notify.ts`,
-  `pi/extensions/b-agentic-support/role.ts`, `skills/b-plan/prompt.md`,
-  `skills/b-review/prompt.md`, `pi/tests/smoke.sh`.
+  `B_AGENTIC_USER_INPUT_NEEDED` (paired with the installed `ask_user_question`
+  tool for a focused user decision or blocker), never both. Questionnaire calls
+  group 1–4 related questions, provide 2–4 concrete options with concise
+  trade-offs, suffix the first recommended label with ` (Recommended)`, and
+  leave the extension's automatic custom-answer row available; reserved labels
+  `Other`, `Type something.`, and `Next` are not authored. If the package or
+  interactive UI is unavailable, the fallback is one focused plain-text
+  question plus the user-input signal. Both signals are omitted for normal
+  planning, discovery, handoffs, intermediate updates, and reviews needing
+  fixes. The planner-notify extension surfaces these signals as desktop
+  notifications (`notify-send` on Linux, `osascript` on macOS, bounded timeout,
+  notifier failures ignored) only while the planner role is active; the signal
+  text never carries task or session content. Evidence:
+  `pi/extensions/b-agentic-planner-notify.ts`,
+  `pi/extensions/b-agentic-support/role.ts`, `references/kernel.template.md`,
+  `pi/tests/smoke.sh`.
 - Role-specific provider/model/thinking preferences are user-local and stored
   atomically under Pi agent state; role selection itself does not open a model
   picker. Evidence: `pi/extensions/b-agentic-role.ts`,

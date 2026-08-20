@@ -178,9 +178,16 @@ V2, migrate the settings and start a clean Pi session.
 
 b-agentic installs the `@narumitw/pi-usage` extension automatically.
 
-b-agentic installs `pi-intercom` automatically for its two-role workflow. After checking `pi list`, the installer runs
-`pi update --extensions` after reconciling required Pi packages. Uninstall removes
-managed config and extension files but not any package.
+b-agentic installs `pi-intercom` automatically for its two-role workflow and installs
+`@juicesharp/rpiv-ask-user-question@2.6.2` for structured planner decisions and blockers.
+Planner questions group 1–4 related questions, offer 2–4 concrete options with
+concise trade-offs, suffix the first recommended option with ` (Recommended)`,
+and rely on the extension's automatic custom-answer row. Do not author `Other`,
+`Type something.`, or `Next`. If the package or interactive UI is unavailable,
+fall back to one focused plain-text question and retain the user-input attention
+signal. After checking `pi list`, the installer runs `pi update --extensions`
+after reconciling required Pi packages. Uninstall removes managed config and
+extension files but not any package.
 
 Pi has no native permission model, so b-agentic installs a first-party set of
 purpose-specific `tool_call` extensions under `~/.pi/agent/extensions/`:
@@ -190,7 +197,7 @@ purpose-specific `tool_call` extensions under `~/.pi/agent/extensions/`:
 - `b-agentic-auto-mode.ts` for confirmed automatic approval with explicit-deny protection.
 - `b-agentic-role.ts` for role selection and persistence.
 - `b-agentic-planner.ts` and `b-agentic-worker.ts` for collaboration profiles.
-- `b-agentic-planner-notify.ts` for privacy-safe desktop notifications from explicit planner task-complete or user-input attention signals.
+- `b-agentic-planner-notify.ts` for privacy-safe desktop notifications from explicit planner task-complete and user-input attention signals.
 - `b-agentic-sync.ts` for in-session refresh commands.
 
 Helpers under `pi/extensions/b-agentic-support/` are not discovered as

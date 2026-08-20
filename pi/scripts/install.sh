@@ -58,6 +58,8 @@ PI_USAGE_SPEC="npm:@narumitw/pi-usage"
 PI_USAGE_PACKAGE="@narumitw/pi-usage"
 PI_INTERCOM_SPEC="npm:pi-intercom"
 PI_INTERCOM_PACKAGE="pi-intercom"
+PI_ASK_USER_QUESTION_SPEC="npm:@juicesharp/rpiv-ask-user-question@2.6.2"
+PI_ASK_USER_QUESTION_PACKAGE="@juicesharp/rpiv-ask-user-question"
 MCP_ROOT_KEY="mcpServers"
 MCP_PLACEHOLDER_STYLE="env-brace"
 MCP_CONTEXT7_SECTION="headers"
@@ -73,7 +75,8 @@ set_pi_readonly \
 	EXTENSION_NAMES EXTENSION_DST EXTENSION_SNAPSHOT_DST EXTENSION_SRC \
 	PI_MCP_ADAPTER_SPEC PI_MCP_ADAPTER_PACKAGE PI_OBSERVATIONAL_MEMORY_SPEC \
 	PI_OBSERVATIONAL_MEMORY_PACKAGE PI_USAGE_SPEC PI_USAGE_PACKAGE \
-	PI_INTERCOM_SPEC PI_INTERCOM_PACKAGE MCP_ROOT_KEY MCP_PLACEHOLDER_STYLE \
+	PI_INTERCOM_SPEC PI_INTERCOM_PACKAGE PI_ASK_USER_QUESTION_SPEC \
+	PI_ASK_USER_QUESTION_PACKAGE MCP_ROOT_KEY MCP_PLACEHOLDER_STYLE \
 	MCP_CONTEXT7_SECTION MCP_BRAVE_SECTION MCP_FIRECRAWL_SECTION MCP_BACKUP_KEY \
 	EXTENSION_BACKUP_KEY THEMES_DST THEME_DST THEMES_SNAPSHOT_DST THEME_CACHED_DST \
 	DRACULA_REPO_URL
@@ -93,6 +96,8 @@ INSTALL_PI_USAGE_ACTION="skip"
 INSTALL_PI_USAGE_STATE="missing"
 INSTALL_PI_INTERCOM_ACTION="skip"
 INSTALL_PI_INTERCOM_STATE="missing"
+INSTALL_PI_ASK_USER_QUESTION_ACTION="skip"
+INSTALL_PI_ASK_USER_QUESTION_STATE="missing"
 INSTALL_THEME_ACTION="skip"
 INSTALL_THEME_STATE="none"
 
@@ -108,6 +113,9 @@ runtime_warn_missing_cli() {
 	fi
 	if command -v pi >/dev/null 2>&1 && ! pi_usage_installed; then
 		warn "@narumitw/pi-usage not installed; Pi usage reporting is unavailable."
+	fi
+	if command -v pi >/dev/null 2>&1 && ! pi_ask_user_question_installed; then
+		warn "@juicesharp/rpiv-ask-user-question not installed; interactive user questions are unavailable."
 	fi
 }
 
@@ -194,6 +202,10 @@ pi_intercom_installed() {
 	pi_package_installed "$PI_INTERCOM_PACKAGE"
 }
 
+pi_ask_user_question_installed() {
+	pi_package_installed "$PI_ASK_USER_QUESTION_PACKAGE"
+}
+
 maybe_install_pi_mcp_adapter() {
 	if pi_mcp_adapter_installed; then
 		INSTALL_PI_MCP_ADAPTER_ACTION="present"
@@ -278,6 +290,39 @@ maybe_install_pi_intercom() {
 	fi
 }
 
+maybe_install_pi_ask_user_question() {
+	if pi_ask_user_question_installed; then
+		INSTALL_PI_ASK_USER_QUESTION_ACTION="present"
+		INSTALL_PI_ASK_USER_QUESTION_STATE="ready"
+		log "Pi Ask User Question $PI_ASK_USER_QUESTION_PACKAGE already installed"
+		return 0
+	fi
+
+	if ! command -v pi >/dev/null 2>&1 && ! dry_run_enabled; then
+		warn "Pi CLI missing; cannot install $PI_ASK_USER_QUESTION_PACKAGE"
+		return 1
+	fi
+
+	if dry_run_enabled; then
+		printf '[dry-run] pi install %s\n' "$PI_ASK_USER_QUESTION_SPEC" >&2
+		INSTALL_PI_ASK_USER_QUESTION_ACTION="install"
+		INSTALL_PI_ASK_USER_QUESTION_STATE="dry-run"
+		return 0
+	fi
+
+	log "Installing $PI_ASK_USER_QUESTION_PACKAGE"
+	if pi install "$PI_ASK_USER_QUESTION_SPEC"; then
+		INSTALL_PI_ASK_USER_QUESTION_ACTION="install"
+		INSTALL_PI_ASK_USER_QUESTION_STATE="ready"
+		log "Installed $PI_ASK_USER_QUESTION_PACKAGE"
+	else
+		INSTALL_PI_ASK_USER_QUESTION_ACTION="failed"
+		INSTALL_PI_ASK_USER_QUESTION_STATE="missing"
+		warn "Failed to install $PI_ASK_USER_QUESTION_PACKAGE"
+		return 1
+	fi
+}
+
 maybe_install_pi_observational_memory() {
 	if pi_observational_memory_installed; then
 		INSTALL_PI_OBSERVATIONAL_MEMORY_ACTION="present"
@@ -313,7 +358,7 @@ maybe_install_pi_observational_memory() {
 }
 
 runtime_install_config_stage_count() { # extension update + permission extension + MCP merge + prompted keys + Dracula theme
-	printf '5'
+	printf '6'
 }
 
 install_dracula_theme() {
@@ -504,6 +549,7 @@ runtime_install_configs() {
 	maybe_install_pi_observational_memory || return $?
 	maybe_install_pi_usage || return $?
 	maybe_install_pi_intercom || return $?
+	maybe_install_pi_ask_user_question || return $?
 	run_stage "Updating Pi extensions" update_pi_extensions || return $?
 	run_install_triplet_stage "Installing Pi permission extension" install_permissions_extension "skip" "none" "none" \
 		INSTALL_EXTENSION_ACTION INSTALL_EXTENSION_STATE INSTALL_EXTENSION_BACKUP || return $?
@@ -543,6 +589,8 @@ runtime_write_manifest() {
 		PI_USAGE_STATE="$INSTALL_PI_USAGE_STATE" \
 		PI_INTERCOM_ACTION="$INSTALL_PI_INTERCOM_ACTION" \
 		PI_INTERCOM_STATE="$INSTALL_PI_INTERCOM_STATE" \
+		PI_ASK_USER_QUESTION_ACTION="$INSTALL_PI_ASK_USER_QUESTION_ACTION" \
+		PI_ASK_USER_QUESTION_STATE="$INSTALL_PI_ASK_USER_QUESTION_STATE" \
 		THEME_ACTION="$INSTALL_THEME_ACTION" \
 		THEME_STATE="$INSTALL_THEME_STATE" \
 		PI_AGENT_DIR="$PI_AGENT_DIR" \
@@ -595,6 +643,8 @@ manifest = {
     'piUsageState': os.environ['PI_USAGE_STATE'],
     'piIntercomAction': os.environ['PI_INTERCOM_ACTION'],
     'piIntercomState': os.environ['PI_INTERCOM_STATE'],
+    'piAskUserQuestionAction': os.environ['PI_ASK_USER_QUESTION_ACTION'],
+    'piAskUserQuestionState': os.environ['PI_ASK_USER_QUESTION_STATE'],
     'themeAction': os.environ['THEME_ACTION'],
     'themeState': os.environ['THEME_STATE'],
     'paths': {
@@ -664,6 +714,7 @@ runtime_print_install_report() {
 	[ "$INSTALL_PI_OBSERVATIONAL_MEMORY_STATE" = "ready" ] || attention+=("observational-memory: install $PI_OBSERVATIONAL_MEMORY_PACKAGE with 'pi install $PI_OBSERVATIONAL_MEMORY_SPEC'")
 	[ "$INSTALL_PI_USAGE_STATE" = "ready" ] || attention+=("pi-usage: install $PI_USAGE_PACKAGE with 'pi install $PI_USAGE_SPEC'")
 	[ "$INSTALL_PI_INTERCOM_STATE" = "ready" ] || attention+=("pi-intercom: install $PI_INTERCOM_PACKAGE with 'pi install $PI_INTERCOM_SPEC'")
+	[ "$INSTALL_PI_ASK_USER_QUESTION_STATE" = "ready" ] || attention+=("ask-user-question: install $PI_ASK_USER_QUESTION_PACKAGE with 'pi install $PI_ASK_USER_QUESTION_SPEC'")
 
 	shell_status="$(shell_tool_readiness_status)"
 	case "$shell_status" in
@@ -746,7 +797,7 @@ PY
 	elif [ -e "$theme_path" ]; then
 		warn "preserving modified Pi theme: $theme_path"
 	fi
-	# Intentionally leave pi-mcp-adapter, pi-observational-memory, and pi-usage packages installed.
+	# Intentionally leave Pi packages installed, including the ask-user-question extension.
 }
 
 
@@ -759,12 +810,13 @@ pi_sync() {
 }
 
 pi_update() {
-	set_install_stage_total 8
+	set_install_stage_total 9
 	run_stage "Updating Pi CLI" runtime_upgrade_cli || return $?
 	run_stage "Installing Pi MCP adapter" maybe_install_pi_mcp_adapter || return $?
 	run_stage "Installing observational memory" maybe_install_pi_observational_memory || return $?
 	run_stage "Installing Pi usage" maybe_install_pi_usage || return $?
 	run_stage "Installing Pi intercom" maybe_install_pi_intercom || return $?
+	run_stage "Installing ask-user-question extension" maybe_install_pi_ask_user_question || return $?
 	run_stage "Syncing first-party extensions" install_permissions_extension >/dev/null || return $?
 	run_stage "Updating Pi extensions" update_pi_extensions || return $?
 	run_stage "Updating Dracula theme" install_dracula_theme
