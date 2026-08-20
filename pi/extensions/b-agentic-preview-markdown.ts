@@ -13,15 +13,39 @@ type PreviewDetails = {
 };
 
 const DEFAULT_TITLE = "Markdown preview";
+const PALETTE = {
+  pageBg: "#18181e",
+  cardBg: "#1e1e24",
+  text: "#d4d4d4",
+  accent: "#8abeb7",
+  muted: "#808080",
+  darkGray: "#505050",
+  heading: "#f0c674",
+  link: "#81a2be",
+  codeBlock: "#b5bd68",
+} as const;
 const ANSI_RESET = "\u001b[0m";
 const ANSI_FOREGROUND_RESET = "\u001b[39m";
-const FIXED_CARD_BACKGROUND = "\u001b[48;5;236m";
-const FIXED_BORDER = "\u001b[38;5;245m";
-const FIXED_HEADER = "\u001b[38;5;110m";
-const FIXED_TITLE = "\u001b[38;5;255m";
-const FIXED_TEXT = "\u001b[38;5;252m";
-const FIXED_MUTED = "\u001b[38;5;146m";
-const FIXED_CODE = "\u001b[38;5;186m";
+
+function truecolor(mode: "38" | "48", hex: string): string {
+  const value = Number.parseInt(hex.slice(1), 16);
+  const red = (value >> 16) & 0xff;
+  const green = (value >> 8) & 0xff;
+  const blue = value & 0xff;
+  return `\u001b[${mode};2;${red};${green};${blue}m`;
+}
+
+const FIXED_PAGE_BACKGROUND = truecolor("48", PALETTE.pageBg);
+const FIXED_CARD_BACKGROUND = truecolor("48", PALETTE.cardBg);
+const FIXED_BORDER = truecolor("38", PALETTE.darkGray);
+const FIXED_HEADER = truecolor("38", PALETTE.accent);
+const FIXED_TITLE = truecolor("38", PALETTE.text);
+const FIXED_TEXT = truecolor("38", PALETTE.text);
+const FIXED_MUTED = truecolor("38", PALETTE.muted);
+const FIXED_HEADING = truecolor("38", PALETTE.heading);
+const FIXED_LINK = truecolor("38", PALETTE.link);
+const FIXED_CODE = truecolor("38", PALETTE.accent);
+const FIXED_CODE_BLOCK = truecolor("38", PALETTE.codeBlock);
 let lastPreviewMarkdown: string | undefined;
 
 function fixedColor(color: string, text: string): string {
@@ -29,15 +53,15 @@ function fixedColor(color: string, text: string): string {
 }
 
 const FIXED_MARKDOWN_THEME = {
-  heading: (text: string) => fixedColor(FIXED_HEADER, text),
-  link: (text: string) => fixedColor(FIXED_HEADER, text),
+  heading: (text: string) => fixedColor(FIXED_HEADING, text),
+  link: (text: string) => fixedColor(FIXED_LINK, text),
   linkUrl: (text: string) => fixedColor(FIXED_MUTED, text),
   code: (text: string) => fixedColor(FIXED_CODE, text),
-  codeBlock: (text: string) => fixedColor(FIXED_CODE, text),
-  codeBlockBorder: (text: string) => fixedColor(FIXED_BORDER, text),
+  codeBlock: (text: string) => fixedColor(FIXED_CODE_BLOCK, text),
+  codeBlockBorder: (text: string) => fixedColor(FIXED_MUTED, text),
   quote: (text: string) => fixedColor(FIXED_MUTED, text),
-  quoteBorder: (text: string) => fixedColor(FIXED_BORDER, text),
-  hr: (text: string) => fixedColor(FIXED_BORDER, text),
+  quoteBorder: (text: string) => fixedColor(FIXED_MUTED, text),
+  hr: (text: string) => fixedColor(FIXED_MUTED, text),
   listBullet: (text: string) => fixedColor(FIXED_HEADER, text),
   bold: (text: string) => fixedColor(FIXED_TITLE, text),
   italic: (text: string) => fixedColor(FIXED_TEXT, text),
@@ -57,9 +81,13 @@ class PreviewCard implements Component {
 
     const innerWidth = width - 2;
     const bodyLines = this.body.render(innerWidth).map((line) => truncateToWidth(line, innerWidth, "", true));
+    const pageLine = (line: string) => `${FIXED_PAGE_BACKGROUND}${line}${ANSI_RESET}`;
     const border = (left: string, right: string) =>
-      fixedColor(FIXED_BORDER, `${left}${"─".repeat(innerWidth)}${right}`);
-    const framed = bodyLines.map((line) => `${fixedColor(FIXED_BORDER, "│")}${line}${fixedColor(FIXED_BORDER, "│")}`);
+      pageLine(fixedColor(FIXED_BORDER, `${left}${"─".repeat(innerWidth)}${right}`));
+    const framed = bodyLines.map(
+      (line) =>
+        `${FIXED_PAGE_BACKGROUND}${fixedColor(FIXED_BORDER, "│")}${line}${FIXED_PAGE_BACKGROUND}${fixedColor(FIXED_BORDER, "│")}${ANSI_RESET}`,
+    );
     return [border("╭", "╮"), ...framed, border("╰", "╯")];
   }
 
