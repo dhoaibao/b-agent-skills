@@ -56,7 +56,7 @@ if kernel.exists():
         'Planner-owned audit/review obtains blocked verification through bounded worker evidence',
         'same worker may run `b-commit` only on explicit user request',
         'ask_user_question', '2–4 concrete options', ' (Recommended)', 'automatic custom-answer row',
-        'focused plain-text question only',
+        'focused plain-text question',
     ]:
         if marker not in text:
             errors.append(f'{kernel}: missing {marker!r}')

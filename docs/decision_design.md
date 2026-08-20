@@ -30,6 +30,10 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   kernel template and MCP policy, and the suite audit caps the kernel at 120
   lines/12,000 bytes. Evidence: `AGENTS.md`,
   `tooling/validate/suite_audit.py`, `tooling/validate/shared.py`.
+- If a new or tightened kernel rule exceeds either guard and cannot be reduced
+  below it without materially weakening accuracy or tightness, stop and present
+  the user with a justified suitable new limit for approval; do not dilute the
+  rule or silently raise the limit.
 
 ### Canonical sources own generated delivery assets
 
@@ -166,18 +170,19 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   `references/kernel.template.md`, `pi/configs/README.md`,
   `pi/extensions/b-agentic-support/role.ts`, `tests/behavior/roles.json`,
   `pi/tests/smoke.sh`.
-- Planner attention is signaled through privacy-safe fixed text. The planner may
-  end a response with exactly one of `B_AGENTIC_TASK_COMPLETE` (task complete
-  and all delegated b-review gates passed; in b-review it sits on its own
-  standalone line immediately before the final verdict line) or
-  `B_AGENTIC_USER_INPUT_NEEDED` (paired with the installed `ask_user_question`
-  tool for a focused user decision or blocker), never both. Questionnaire calls
-  group 1–4 related questions, provide 2–4 concrete options with concise
-  trade-offs, suffix the first recommended label with ` (Recommended)`, and
-  leave the extension's automatic custom-answer row available; reserved labels
-  `Other`, `Type something.`, and `Next` are not authored. If the package or
-  interactive UI is unavailable, the fallback is one focused plain-text
-  question plus the user-input signal. Both signals are omitted for normal
+- Interactive, user-facing material decisions and blockers use the installed
+  `ask_user_question` tool in planner or solo/Off work. Calls group 1–4 related
+  questions, provide 2–4 concrete options with concise trade-offs, suffix the
+  first recommended label with ` (Recommended)`, and leave the extension's
+  automatic custom-answer row available; reserved labels `Other`, `Type
+  something.`, and `Next` are not authored. If the package or interactive UI is
+  unavailable, the fallback is one focused plain-text question. Planner
+  decisions/blockers also emit exactly one `B_AGENTIC_USER_INPUT_NEEDED` signal;
+  solo/Off workers emit no planner signal. Worker→planner material blockers
+  remain Intercom `ask`/`reply`, and native tool-permission prompts remain for
+  browser, external, or privileged actions rather than being replaced by
+  questionnaire calls. A completed task that passed all delegated b-review
+  gates uses `B_AGENTIC_TASK_COMPLETE`; both signals are omitted for normal
   planning, discovery, handoffs, intermediate updates, and reviews needing
   fixes. The planner-notify extension surfaces these signals as desktop
   notifications (`notify-send` on Linux, `osascript` on macOS, bounded timeout,
@@ -185,7 +190,7 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   text never carries task or session content. Evidence:
   `pi/extensions/b-agentic-planner-notify.ts`,
   `pi/extensions/b-agentic-support/role.ts`, `references/kernel.template.md`,
-  `pi/tests/smoke.sh`.
+  `pi/configs/README.md`, `pi/tests/smoke.sh`.
 - Role-specific provider/model/thinking preferences are user-local and stored
   atomically under Pi agent state; role selection itself does not open a model
   picker. Evidence: `pi/extensions/b-agentic-role.ts`,
@@ -239,14 +244,18 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   genuinely untrusted code. Evidence: `REFERENCE.md`,
   `references/kernel.template.md`.
 - Commit creation requires presenting an exact proposal and receiving explicit
-  user approval in chat before staging or committing, as specified by
-  `skills/b-commit/prompt.md`. Pushes are not performed by b-agentic. Role
-  application preserves normal active tools; planner write/commit limits are
-  governed by prompt-level skill ownership and shared policy, not role-specific
-  tool exclusion. Regression evidence for role preservation is limited to the
-  planner-active-tools and stale-planner-to-worker assertions in
-  `pi/tests/smoke.sh`. Evidence: `skills/b-commit/prompt.md`,
-  `pi/extensions/b-agentic-role.ts`, `pi/tests/smoke.sh`.
+  approval before staging or committing. When the interactive questionnaire is
+  available in planner or solo/Off work, b-commit presents structured
+  `Approve (Recommended)` and `Decline` options; unavailable/noninteractive
+  sessions use the focused plain-text fallback. In a two-role worker,
+  worker→planner coordination remains Intercom. Pushes are not performed by
+  b-agentic. Role application preserves normal active tools; planner
+  write/commit limits are governed by prompt-level skill ownership and shared
+  policy, not role-specific tool exclusion. Regression evidence for role
+  preservation and generated universal questionnaire/commit guidance is in
+  `tooling/validate/shared.py` and `pi/tests/smoke.sh`. Evidence:
+  `skills/b-commit/prompt.md`, `pi/extensions/b-agentic-role.ts`,
+  `pi/tests/smoke.sh`.
 
 ## MCP and external-evidence design
 

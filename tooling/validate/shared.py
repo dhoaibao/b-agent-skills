@@ -110,6 +110,54 @@ for skill_name, markers in prompt_regression_contracts.items():
         if marker not in text:
             errors.append(f"skills/{skill_name}/prompt.md: missing behavior regression anchor {marker!r}")
 
+# Regression: the questionnaire package was installed, but worker-facing material
+# decisions still prescribed plain chat and b-commit lacked a structured approval
+# path. Check canonical and generated guidance, not only package installation.
+INTERACTIVE_DECISION_REGRESSION = {
+    "observed_failure": (
+        "Worker-facing material decisions still prescribed plain chat despite the "
+        "questionnaire extension being installed."
+    ),
+    "intended_behavior": (
+        "Planner and solo/Off worker material user-facing decisions and blockers use "
+        "the questionnaire with its grouped-option contract, while worker-to-planner "
+        "questions remain Intercom and b-commit exposes structured approval with fallback."
+    ),
+    "anchors": {
+        "references/kernel.template.md": [
+            "Interactive, user-facing material decisions or blockers in planner or solo/Off work",
+            "Worker→planner material blockers remain Intercom",
+            "native tool-permission prompts for browser, external, or privileged actions are not replaced",
+        ],
+        "pi/configs/README.md": [
+            "interactive, user-facing material decisions and blockers in planner or solo/Off work",
+            "Worker→planner material blockers remain Intercom",
+        ],
+        "pi/extensions/b-agentic-support/role.ts": [
+            "any interactive, user-facing material decision or blocker",
+            "Solo/Off workers do not emit planner signals",
+        ],
+        "skills/b-commit/prompt.md": [
+            "Approve (Recommended)",
+            "Decline",
+            "focused plain-text confirmation in chat",
+        ],
+        "skills/b-commit/SKILL.md": [
+            "Approve (Recommended)",
+            "Decline",
+            "focused plain-text confirmation in chat",
+        ],
+    },
+}
+for relative_path, markers in INTERACTIVE_DECISION_REGRESSION["anchors"].items():
+    text = read_text(ROOT / relative_path)
+    for marker in markers:
+        if marker not in text:
+            errors.append(
+                f"{relative_path}: missing interactive-decision regression anchor {marker!r}; "
+                f"observed failure: {INTERACTIVE_DECISION_REGRESSION['observed_failure']}"
+            )
+
 # Regression: MCPs were named but agents had no durable selection, sequencing, or
 # first-use bootstrap workflow, and broad cross-file tasks could trigger needless
 # CodeGraph setup or Serena symbol inspection. Keep the checks narrow so prompts

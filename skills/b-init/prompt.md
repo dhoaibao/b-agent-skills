@@ -40,7 +40,7 @@ Initialize or refresh repo-local agent instruction docs. `AGENTS.md` is canonica
    ...
    <!-- b-init-managed:end -->
    ```
-6. If the target file contains these markers, update only the managed block with edit/write. Preserve user-owned notes above or below it. If it contains substantial unmarked content, ask before replacing it wholesale.
+6. If the target file contains these markers, update only the managed block with edit/write. Preserve user-owned notes above or below it. If it contains substantial unmarked content, treat replacement as a material user-facing choice: in planner or solo/Off work use `ask_user_question` with 2–4 concrete options such as preserve the unmarked content (`Preserve (Recommended)`), replace it wholesale, or stop; if unavailable or noninteractive, ask one focused plain-text question. In a two-role worker, ask the assigning planner through Intercom instead. Planner mode emits exactly one `B_AGENTIC_USER_INPUT_NEEDED` signal for the decision; solo/Off workers emit no planner signal.
 7. Write concise `AGENTS.md` sections grounded in repo evidence:
    - Repository purpose: one short paragraph on what the repo ships or maintains.
    - Working rules: local conventions, edit boundaries, and approval expectations.

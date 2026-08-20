@@ -38,7 +38,7 @@ Figure out what to do when the task is unclear, then turn the chosen path into t
 5. When the task is fuzzy, investigate the current code or constraints enough to compare viable paths before choosing one.
 6. Choose the smallest safe approach, surface material tradeoffs, and push back if a simpler or safer path exists.
 7. Include `Done when` verification for each step that proves the intended observable outcome, not just command success.
-8. End with either a plan that is ready for **b-implement** or one focused blocking question that must be answered before implementation.
+8. End with either a plan that is ready for **b-implement** or one focused blocking question that must be answered before implementation. For a user-facing material decision or blocker, use the installed `ask_user_question` tool with 1–4 grouped questions, 2–4 concrete options, and a recommended first option; if unavailable or noninteractive, ask one focused plain-text question. Emit exactly one `B_AGENTIC_USER_INPUT_NEEDED` signal for that planner decision/blocker. Omit both questionnaire and signal for normal planning, discovery, handoffs, and updates.
 9. For larger plans, tag steps only when useful: `AFK` for agent-ready work, `HITL` for user decision, approval, external access, or judgment.
 
 For plans spanning more than 3 files, public contracts, dependencies, CI/build, or durable coordination, save a plan under `.b-agentic/b-plan/` only if it will materially help execution. In planner mode, instead keep the approved plan in the handoff or conversation; do not save plan files.

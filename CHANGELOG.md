@@ -6,10 +6,10 @@ All notable shipped revisions of b-agentic are recorded here. Released version h
 
 ### Changed
 
-- Structured planner user questions:
-  - Observed failure: focused planner decisions and blockers relied on a fixed desktop notification rather than presenting actionable choices in Pi, while the installer did not provide the questionnaire extension.
-  - Intended behavior: install and track `npm:@juicesharp/rpiv-ask-user-question@2.6.2`; use `ask_user_question` with 1–4 grouped questions, 2–4 concrete options with concise trade-offs, a recommended first option, and the extension's automatic custom-answer row, while retaining the privacy-safe user-input attention signal and plain-text fallback for unavailable/noninteractive UI.
-  - Regression: `pi/tests/smoke.sh` covers the questionnaire guidance, retained task-complete/user-input notification behavior, and package install/manifest state; installer package lifecycle is covered by `tests/smoke/lib.sh`.
+- Structured interactive user questions:
+  - Observed failure: focused planner decisions and blockers relied on a fixed desktop notification rather than presenting actionable choices in Pi, while worker-facing material decisions still prescribed plain chat despite the questionnaire extension being installed.
+  - Intended behavior: install and track `npm:@juicesharp/rpiv-ask-user-question@2.6.2`; use `ask_user_question` for any interactive, user-facing material decision or blocker in planner or solo/Off work with 1–4 grouped questions, 2–4 concrete options with concise trade-offs, a recommended first option, and the extension's automatic custom-answer row. Retain the focused plain-text fallback when unavailable/noninteractive; emit exactly one privacy-safe user-input signal only for planner decisions/blockers; keep worker→planner questions in Intercom and native permission prompts for browser/external/privileged actions.
+  - Regression: generated planner/worker guidance and b-commit structured approval wording are checked by `tooling/validate/shared.py`; `pi/tests/smoke.sh` covers retained task-complete/user-input notification behavior and package install/manifest state; installer package lifecycle is covered by `tests/smoke/lib.sh`.
 
 - Planner read-only command policy:
   - Observed failure: the planner's command allowlist blocked harmless inspection utilities such as `printf`, creating approval friction during discovery.

@@ -39,7 +39,7 @@ Create approved, cohesive commits from the current working tree, or draft one me
 5. Propose the smallest set of cohesive commit groups. Treat a pre-existing staged set as user-curated: preserve it as one group and do not reset or reorganize it without explicit approval.
 6. Block if a group mixes unrelated concerns, a protected file needs permission, or a file cannot be assigned confidently.
 7. For each group, choose the narrowest accurate type: `feat`, `fix`, `refactor`, `perf`, `docs`, `test`, `chore`, or `style`; write an imperative subject of at most 50 characters with no trailing punctuation.
-8. Present the groups, exact file paths, and proposed commit messages. Ask the user in chat to explicitly confirm that exact proposal before staging or committing. Proceed only after explicit approval; stop on a decline.
+8. Present the groups, exact file paths, and proposed commit messages. This is a material user-facing approval: when `ask_user_question` is available in planner or solo/Off work, ask one structured question with `Approve (Recommended)` and `Decline` options, preserving the exact proposal and the extension's custom-answer row. In a two-role worker, keep worker→planner coordination in Intercom and let the planner obtain the user decision. If the questionnaire is unavailable or noninteractive, ask one focused plain-text confirmation in chat. In every case, require explicit approval before staging or committing; stop on a decline or any non-approval.
 9. After confirmation, verify the snapshot is unchanged. Stage only the approved paths for each unstaged group; do not use broad staging commands that can capture unrelated files.
 10. Reinspect each staged group immediately before committing with a targeted non-protected-path diff. Create its commit on the current branch, then continue to the next approved group. Stop on the first Git error; do not amend, reset, push, or retry by changing history.
 11. Report commit hashes, messages, remaining changes, and any blockers. Recommend `b-pr-summary <commit-count>` for PR copy.
@@ -53,7 +53,7 @@ Proposed commits:
 1. <type>: <subject>
    Files: <paths>
 
-Reply with explicit approval in chat to stage and create these commits, or decline to stop.
+When interactive, choose `Approve (Recommended)` or `Decline` through `ask_user_question`; otherwise reply with explicit approval in chat to stage and create these commits, or decline to stop.
 ```
 
 For a message-only request:
