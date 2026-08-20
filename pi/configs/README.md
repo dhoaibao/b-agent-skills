@@ -9,8 +9,9 @@ Adapter-owned layout for Pi.
 - Shared references: `~/.pi/agent/b-agentic/references/kernel.template.md` and `mcp_operations.yaml`
 - MCP template: `~/.pi/agent/b-agentic/templates/mcp.user.template.json`
 - User MCP config: `~/.pi/agent/mcp.json` (Pi-owned override read by `pi-mcp-adapter`)
-- Permission extensions: `~/.pi/agent/extensions/b-agentic-permissions.ts`,
-  `b-agentic-mcp-permissions.ts`, `b-agentic-auto-mode.ts`,
+- First-party extensions: `~/.pi/agent/extensions/b-agentic-preview-markdown.ts`,
+  `~/.pi/agent/extensions/b-agentic-permissions.ts`, `b-agentic-mcp-permissions.ts`,
+  `b-agentic-auto-mode.ts`,
   `b-agentic-role.ts`, `b-agentic-planner.ts`, `b-agentic-planner-notify.ts`,
   `b-agentic-worker.ts`, and `b-agentic-sync.ts`
 - Extension snapshots: `~/.pi/agent/b-agentic/extensions/` (one snapshot per

@@ -891,9 +891,19 @@ function isDirectClassifiedManagedTool(toolName: string, input: unknown, server:
   return isTrustedManagedTool(server, base, input);
 }
 
+/** Return true only for the exact, local-only preview_markdown tool shape. */
+export function isTrustedPreviewMarkdownCall(input: unknown): boolean {
+  if (!isPlainObject(input)) return false;
+  const keys = Object.keys(input);
+  if (!keys.every((key) => key === "markdown" || key === "title")) return false;
+  if (typeof input.markdown !== "string") return false;
+  return input.title === undefined || typeof input.title === "string";
+}
+
 /** Returns true when the top-level tool call needs the custom/MCP approval prompt. */
 export function isMcpOrCustomTool(toolName: string, input?: unknown): boolean {
   if (SPECIALIZED_TOOLS.has(toolName)) return false;
+  if (toolName === "preview_markdown" && isTrustedPreviewMarkdownCall(input)) return false;
   // Only explicit adapter proxy executions reach the broker; metadata and
   // lifecycle selectors remain behind the generic custom-tool approval gate.
   if (toolName === "mcp") return !isMcpProxyToolExecution(input);

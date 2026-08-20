@@ -31,6 +31,7 @@ THEMES_SNAPSHOT_DST="$METADATA_DIR/themes"
 THEME_CACHED_DST="$THEMES_SNAPSHOT_DST/dracula.json"
 DRACULA_REPO_URL="${B_AGENTIC_DRACULA_REPO:-https://github.com/dracula/pi-coding-agent.git}"
 EXTENSION_NAMES=(
+	b-agentic-preview-markdown.ts
 	b-agentic-permissions.ts
 	b-agentic-mcp-permissions.ts
 	b-agentic-auto-mode.ts

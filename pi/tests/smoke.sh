@@ -19,6 +19,7 @@ const installedRoot = path.join(process.env.PI_TEST_HOME || '', '.pi/agent/exten
 const extensionModules = await Promise.all([
   'b-agentic-permissions.ts', 'b-agentic-mcp-permissions.ts', 'b-agentic-auto-mode.ts', 'b-agentic-role.ts',
   'b-agentic-planner.ts', 'b-agentic-worker.ts', 'b-agentic-sync.ts', 'b-agentic-planner-notify.ts',
+  'b-agentic-preview-markdown.ts',
 ].map((name) => import(pathToFileURL(path.join(installedRoot, name)).href)));
 for (const name of ['shell.ts', 'mcp.ts', 'role.ts', 'role-models.ts', 'worker.ts', 'state.ts', 'auto.ts']) {
   await import(pathToFileURL(path.join(installedRoot, 'b-agentic-support', name)).href);
@@ -93,6 +94,49 @@ const extensionHost = {
   },
 };
 for (const extension of extensionModules) extension.default(extensionHost);
+const previewModule = extensionModules[8];
+const previewTest = previewModule.__test__;
+const previewTool = tools.preview_markdown;
+if (!previewTool || !previewTest) throw new Error('preview_markdown extension must register its tool and test surface');
+expect(previewTool.promptSnippet.includes('Preview Markdown'), 'preview_markdown must advertise direct Markdown previews');
+expect(previewTool.promptGuidelines.some((line) => line.includes('original Markdown source')), 'preview_markdown prompt metadata must preserve original source guidance');
+expect(previewTool.parameters.type === 'object' && previewTool.parameters.properties.markdown, 'preview_markdown schema must require Markdown');
+const nonTuiResult = await previewTool.execute('preview-1', { markdown: '# Hello' }, undefined, undefined, {
+  mode: 'print',
+  ui: { custom: async () => { throw new Error('non-TUI preview must not open custom UI'); } },
+});
+expect(nonTuiResult.details.interactive === false && nonTuiResult.content[0].text.includes('only available in Pi TUI'), 'preview_markdown must return a concise non-TUI fallback');
+const previewSource = readFileSync(path.join(root, 'pi/extensions/b-agentic-preview-markdown.ts'), 'utf8');
+for (const marker of ['ctx.ui.custom', 'new Markdown', '⧉ Copy [c]', 'data === "c"', 'copyToClipboard', 'data === "\\u001b"']) {
+  expect(previewSource.includes(marker), `preview TUI source must include ${marker}`);
+}
+const copyCalls = [];
+const notifications = [];
+let closeCalls = 0;
+const fakeFrame = { render: () => ['preview'], invalidate() {} };
+const previewComponent = new previewModule.MarkdownPreviewComponent(
+  '# Original Markdown',
+  fakeFrame,
+  async (source) => { copyCalls.push(source); },
+  (message, level) => { notifications.push({ message, level }); },
+  () => { closeCalls += 1; },
+);
+previewComponent.handleInput('c');
+await new Promise((resolve) => setImmediate(resolve));
+expect(copyCalls.length === 1 && copyCalls[0] === '# Original Markdown', 'TUI copy must pass the exact original Markdown source');
+expect(notifications.at(-1)?.message === 'Markdown source copied to clipboard' && notifications.at(-1)?.level === 'info', 'TUI copy success must notify the user');
+previewComponent.handleInput('\u001b');
+expect(closeCalls === 1, 'Escape must close the Markdown preview');
+const failedPreviewComponent = new previewModule.MarkdownPreviewComponent(
+  '# Original Markdown',
+  fakeFrame,
+  async () => { throw new Error('clipboard unavailable'); },
+  (message, level) => { notifications.push({ message, level }); },
+  () => {},
+);
+failedPreviewComponent.handleInput('c');
+await new Promise((resolve) => setImmediate(resolve));
+expect(notifications.at(-1)?.message === 'Failed to copy Markdown source to clipboard' && notifications.at(-1)?.level === 'error', 'TUI copy failure must notify the user');
 const [autoSessionStartHandler, roleSessionStartHandler] = registrations.session_start;
 const toolCallHandler = handlers.tool_call;
 
@@ -123,7 +167,13 @@ expect(t.isAutoApprovedIntercomCall('intercom', { action: 'reply', replyTo: 'mes
 
 expect(typeof toolCallHandler === 'function', 'permission extension must register a tool_call handler');
 expect(typeof mcpApprovalHandler === 'function', 'permission extension must register the MCP approval broker');
+expect(t.isTrustedPreviewMarkdownCall({ markdown: '# Preview' }) === true, 'preview_markdown policy must trust the required Markdown-only shape');
+expect(t.isTrustedPreviewMarkdownCall({ markdown: '# Preview', title: 'Example' }) === true, 'preview_markdown policy must trust an optional string title');
+expect(t.isTrustedPreviewMarkdownCall({ markdown: '# Preview', extra: true }) === false, 'preview_markdown policy must reject extra fields');
+expect(t.isTrustedPreviewMarkdownCall({ markdown: 42 }) === false, 'preview_markdown policy must reject non-string Markdown');
 const noUiContext = { hasUI: false, ui: { select: async () => 'Approve' } };
+expect(await toolCallHandler({ toolName: 'preview_markdown', input: { markdown: '# Preview', title: 'Example' } }, noUiContext) === undefined, 'safe preview_markdown calls must bypass approval without UI');
+expect((await toolCallHandler({ toolName: 'preview_markdown', input: { markdown: '# Preview', extra: true } }, noUiContext))?.block === true, 'malformed preview_markdown calls must remain approval-gated');
 let rolePickerCalls = 0;
 let modelPickerCalls = 0;
 const roleContext = {
@@ -1475,6 +1525,8 @@ run_pi_smoke_cases() {
 	assert_contains "$sandbox/home/.pi/agent/mcp.json" '"get_issue"'
 	assert_contains "$sandbox/home/.pi/agent/mcp.json" '"lifecycle": "lazy"'
 	assert_contains "$sandbox/home/.pi/agent/extensions/b-agentic-permissions.ts" 'tool_call'
+	assert_equal_files "$sandbox/home/.pi/agent/extensions/b-agentic-preview-markdown.ts" "$sandbox/source/pi/extensions/b-agentic-preview-markdown.ts"
+	assert_contains "$sandbox/home/.pi/agent/extensions/b-agentic-preview-markdown.ts" 'preview_markdown'
 	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"mcpAdapterState": "ready"'
 	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"extensions"'
 	assert_contains "$sandbox/home/.pi/agent/AGENTS.md" 'b-agentic-managed'

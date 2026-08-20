@@ -15,8 +15,10 @@ errors = []
 kernel = root / 'references/kernel.template.md'
 mcp = root / 'pi/configs/mcp.user.template.json'
 extension = root / 'pi/extensions/b-agentic-permissions.ts'
+preview_extension = root / 'pi/extensions/b-agentic-preview-markdown.ts'
 extension_files = [
     extension,
+    preview_extension,
     root / 'pi/extensions/b-agentic-mcp-permissions.ts',
     root / 'pi/extensions/b-agentic-auto-mode.ts',
     root / 'pi/extensions/b-agentic-role.ts',
@@ -80,6 +82,15 @@ if mcp.exists():
 
 if extension.exists():
     text = '\n'.join(path.read_text() for path in extension_files if path.exists())
+    if preview_extension.exists():
+        preview_text = preview_extension.read_text()
+        for marker in [
+            'preview_markdown', 'promptSnippet', 'promptGuidelines', 'ctx.mode', 'ctx.ui.custom',
+            'getMarkdownTheme', 'copyToClipboard', '⧉ Copy [c]',
+            'Markdown source copied to clipboard', 'Failed to copy Markdown source to clipboard',
+        ]:
+            if marker not in preview_text:
+                errors.append(f'{preview_extension}: missing preview marker {marker!r}')
     for marker in [
         'tool_call', 'isAutoApprovedIntercomCall', 'PLANNER_PROMPT', 'workerPrompt',
         'planner profile (read-only coordinator)', 'worker profile (implementation)',
@@ -133,7 +144,7 @@ if extension.exists():
     playwright_trusted = re.search(r'PLAYWRIGHT_TRUSTED_TOOLS = new Set\(\[(.*?)\]\)', text, re.DOTALL)
     if playwright_trusted and re.search(r'"browser_click"', playwright_trusted.group(1)):
         errors.append(f'{extension}: browser_click must not be in PLAYWRIGHT_TRUSTED_TOOLS')
-    if 'isTrustedManagedGatewayCall' not in text or 'isMcpProxyToolExecution' not in text or 'if (toolName === "mcp") return !isMcpProxyToolExecution(input);' not in text:
+    if 'isTrustedManagedGatewayCall' not in text or 'isMcpProxyToolExecution' not in text or 'isTrustedPreviewMarkdownCall' not in text or 'if (toolName === "mcp") return !isMcpProxyToolExecution(input);' not in text:
         errors.append(f'{extension}: must route only explicit MCP proxy executions through the adapter broker')
     if 'Blocked' not in text or 'protected path' not in text:
         errors.append(f'{extension}: must block protected paths')
