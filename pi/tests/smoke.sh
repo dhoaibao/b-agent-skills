@@ -32,6 +32,8 @@ if (process.env.PI_PACKAGE_ROOT) {
     const link = path.join(packageLinks, name);
     if (!existsSync(link)) symlinkSync(target, link, 'junction');
   }
+  const { setCapabilities } = await import(pathToFileURL(path.join(process.env.PI_CODING_AGENT_DIR, 'node_modules/@earendil-works/pi-tui/dist/index.js')).href);
+  setCapabilities({ images: null, trueColor: true, hyperlinks: true });
 }
 const extensionModules = await Promise.all([
   'b-agentic-permissions.ts', 'b-agentic-mcp-permissions.ts', 'b-agentic-auto-mode.ts', 'b-agentic-role.ts',
