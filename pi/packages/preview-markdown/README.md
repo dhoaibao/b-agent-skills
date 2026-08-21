@@ -6,7 +6,7 @@ copying.
 
 ## Install
 
-After the package is published, install it with Pi:
+Install with Pi:
 
 ```bash
 pi install npm:@dhoaibao/preview-markdown
@@ -23,7 +23,7 @@ The package registers the `preview_markdown` tool and these commands:
 ## Raw GitHub alternative
 
 The npm package and the raw installer use the same canonical extension source:
-`pi/extensions/b-agentic-preview-markdown.ts`.
+`extensions/b-agentic-preview-markdown.ts` within this package.
 
 For a version-pinned GitHub install without the npm package, use the standalone
 raw installer after the corresponding public release tag exists:

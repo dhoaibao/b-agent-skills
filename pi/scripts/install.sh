@@ -521,7 +521,11 @@ PY
 install_permissions_extension() {
 	local name src dst snapshot previous_backup backup action="skip" state="active" backups=()
 	for name in "${EXTENSION_NAMES[@]}"; do
-		src="$SOURCE_DIR/pi/extensions/$name"
+		if [ "$name" = "b-agentic-preview-markdown.ts" ]; then
+			src="$SOURCE_DIR/pi/packages/preview-markdown/extensions/$name"
+		else
+			src="$SOURCE_DIR/pi/extensions/$name"
+		fi
 		if [ ! -f "$src" ]; then
 			die "missing Pi extension source: $src"
 		fi

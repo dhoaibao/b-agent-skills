@@ -17,7 +17,7 @@ errors = []
 kernel = root / 'references/kernel.template.md'
 mcp = root / 'pi/configs/mcp.user.template.json'
 extension = root / 'pi/extensions/b-agentic-permissions.ts'
-preview_extension = root / 'pi/extensions/b-agentic-preview-markdown.ts'
+preview_extension = root / 'pi/packages/preview-markdown/extensions/b-agentic-preview-markdown.ts'
 extension_files = [
     extension,
     preview_extension,
@@ -168,7 +168,7 @@ if standalone_preview_installer.exists():
     text = standalone_preview_installer.read_text()
     for marker in [
         'dhoaibao/b-agentic', 'VERSION', 'invalid version',
-        'pi/extensions/b-agentic-preview-markdown.ts',
+        'pi/packages/preview-markdown/extensions/b-agentic-preview-markdown.ts',
         'PI_CODING_AGENT_DIR', 'registerShortcut("ctrl+shift+m"',
         'name: "preview_markdown"', 'export default function',
         'Run /reload', 'AGENTS.md',
@@ -179,7 +179,10 @@ if standalone_preview_installer.exists():
 if readme.exists():
     text = readme.read_text()
     # The first-party extension set is installed as one coherent bundle.
-    for name in [path.name for path in extension_files if '/' not in str(path.relative_to(root / 'pi/extensions'))]:
+    for path in extension_files:
+        if path.parent != root / 'pi/extensions':
+            continue
+        name = path.name
         if name not in text and name != 'b-agentic-permissions.ts':
             errors.append(f'{readme}: missing extension {name!r}')
 

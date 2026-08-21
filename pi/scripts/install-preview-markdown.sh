@@ -2,7 +2,7 @@
 set -euo pipefail
 
 readonly REPOSITORY="dhoaibao/b-agentic"
-readonly SOURCE_PATH="pi/extensions/b-agentic-preview-markdown.ts"
+readonly SOURCE_PATH="pi/packages/preview-markdown/extensions/b-agentic-preview-markdown.ts"
 
 if [ "$#" -ne 1 ]; then
 	printf 'usage: %s vX.Y.Z\n' "${BASH_SOURCE[0]}" >&2

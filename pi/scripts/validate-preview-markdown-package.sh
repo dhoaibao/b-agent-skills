@@ -2,23 +2,26 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-cd "$ROOT_DIR"
+PACKAGE_DIR="$ROOT_DIR/pi/packages/preview-markdown"
+cd "$PACKAGE_DIR"
 
 WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/b-agentic-preview-package.XXXXXX")"
 trap 'rm -rf "$WORK_DIR"' EXIT
 
-node - "$ROOT_DIR/package.json" <<'NODE'
+node - "$PACKAGE_DIR/package.json" <<'NODE'
 const fs = require("node:fs");
 const path = require("node:path");
 
 const packagePath = process.argv[2];
 const manifest = JSON.parse(fs.readFileSync(packagePath, "utf8"));
-const expectedExtension = "./pi/extensions/b-agentic-preview-markdown.ts";
+const expectedExtension = "./extensions/b-agentic-preview-markdown.ts";
 const errors = [];
 
 if (manifest.name !== "@dhoaibao/preview-markdown") errors.push("package name must be @dhoaibao/preview-markdown");
 if (manifest.publishConfig?.access !== "public") errors.push("publishConfig.access must be public");
+if (manifest.repository?.url !== "git+https://github.com/dhoaibao/b-agentic.git") errors.push("repository.url must use the canonical git+https URL");
 if (manifest.keywords?.includes("pi-package") !== true) errors.push("keywords must include pi-package");
+if (manifest.repository?.directory !== "pi/packages/preview-markdown") errors.push("repository.directory must identify the package root");
 if (JSON.stringify(manifest.pi?.extensions) !== JSON.stringify([expectedExtension])) {
   errors.push("pi.extensions must contain only the canonical preview extension");
 }
@@ -30,10 +33,7 @@ for (const dependency of ["@earendil-works/pi-coding-agent", "@earendil-works/pi
 if (manifest.dependencies && Object.keys(manifest.dependencies).length > 0) {
   errors.push("package must not bundle runtime dependencies");
 }
-if (manifest.scripts?.["package:check"] !== "bash pi/scripts/validate-preview-markdown-package.sh") {
-  errors.push("package:check must remain package-manager-independent");
-}
-for (const relativePath of ["README.preview-markdown.md", "pi/extensions/b-agentic-preview-markdown.ts"]) {
+for (const relativePath of ["README.md", "extensions/b-agentic-preview-markdown.ts"]) {
   if (!fs.existsSync(path.join(path.dirname(packagePath), relativePath))) {
     errors.push(`missing package source ${relativePath}`);
   }
@@ -56,9 +56,8 @@ fi
 tar -tzf "$TARBALL_PATH" | LC_ALL=C sort > "$WORK_DIR/entries.txt"
 cat > "$WORK_DIR/expected.txt" <<'EOF'
 package/README.md
-package/README.preview-markdown.md
+package/extensions/b-agentic-preview-markdown.ts
 package/package.json
-package/pi/extensions/b-agentic-preview-markdown.ts
 EOF
 
 if ! diff -u "$WORK_DIR/expected.txt" "$WORK_DIR/entries.txt"; then
@@ -68,7 +67,7 @@ fi
 
 tar -xOf "$TARBALL_PATH" package/package.json > "$WORK_DIR/packed-package.json"
 # Compare the packed manifest and verify that its Pi source path is present.
-PACKAGE_ENTRIES="$WORK_DIR/entries.txt" node - "$ROOT_DIR/package.json" "$WORK_DIR/packed-package.json" <<'NODE'
+PACKAGE_ENTRIES="$WORK_DIR/entries.txt" node - "$PACKAGE_DIR/package.json" "$WORK_DIR/packed-package.json" <<'NODE'
 const fs = require("node:fs");
 
 const source = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));

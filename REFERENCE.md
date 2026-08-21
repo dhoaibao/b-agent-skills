@@ -26,7 +26,7 @@ curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agentic/v0.1.0/pi/script
 
 The trailing `v0.1.0` argument must match the bootstrap URL tag; the
 installer accepts only `vX.Y.Z` release refs. This exact future command fetches
-only `pi/extensions/b-agentic-preview-markdown.ts` from the `v0.1.0` tag,
+only `pi/packages/preview-markdown/extensions/b-agentic-preview-markdown.ts` from the `v0.1.0` tag,
 validates it, and atomically installs it as
 `${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/extensions/b-agentic-preview-markdown.ts`.
 It preserves unrelated extension files and Pi configuration and does not
@@ -43,7 +43,9 @@ pi install npm:@dhoaibao/preview-markdown
 
 The npm package contains only the preview extension and package-facing
  documentation; the raw GitHub installer remains the version-pinned alternative
-and does not install the broader b-agentic bundle.
+and does not install the broader b-agentic bundle. Maintainers should use the
+[standalone preview package publishing procedure](docs/publish-preview-markdown.md)
+for validation and release steps.
 
 No `AGENTS.md` entry is required because the extension self-registers its
 `preview_markdown` tool and prompt metadata. An optional local `AGENTS.md` note

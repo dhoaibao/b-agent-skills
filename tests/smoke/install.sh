@@ -1437,7 +1437,7 @@ while [ "\$#" -gt 0 ]; do
 done
 printf '%s\n' "\$url" >>"$curl_log"
 [ -n "\$output" ]
-cp "$snapshot_repo/pi/extensions/b-agentic-preview-markdown.ts" "\$output"
+cp "$snapshot_repo/pi/packages/preview-markdown/extensions/b-agentic-preview-markdown.ts" "\$output"
 EOF
 	chmod +x "$bin_dir/curl"
 
@@ -1447,10 +1447,10 @@ EOF
 		PATH="$bin_dir:$(smoke_system_path)" \
 		bash "$snapshot_repo/pi/scripts/install-preview-markdown.sh" "$test_version" >"$sandbox/install.log" 2>&1
 
-	assert_equal_files "$target" "$snapshot_repo/pi/extensions/b-agentic-preview-markdown.ts"
+	assert_equal_files "$target" "$snapshot_repo/pi/packages/preview-markdown/extensions/b-agentic-preview-markdown.ts"
 	assert_contains "$unrelated_extension" 'user extension'
 	assert_contains "$config_path" 'keep-me'
-	assert_contains "$curl_log" "https://raw.githubusercontent.com/dhoaibao/b-agentic/$test_version/pi/extensions/b-agentic-preview-markdown.ts"
+	assert_contains "$curl_log" "https://raw.githubusercontent.com/dhoaibao/b-agentic/$test_version/pi/packages/preview-markdown/extensions/b-agentic-preview-markdown.ts"
 	assert_not_contains "$curl_log" 'b-agentic-permissions.ts'
 	assert_contains "$sandbox/install.log" 'Run /reload'
 	[ -z "$(find "$sandbox/tmp" -maxdepth 1 -name 'b-agentic-preview-markdown.*' -print -quit)" ] || fail 'standalone preview installer leaked a temporary download'
