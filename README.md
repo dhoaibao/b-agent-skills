@@ -19,6 +19,16 @@ Benefits:
 curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agentic/main/install.sh | bash
 ```
 
+To install only the inline Markdown preview extension, use this standalone path after the public immutable `v0.1.0` tag has been published (the tag is not published by this repository state yet):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agentic/v0.1.0/pi/scripts/install-preview-markdown.sh | bash -s -- v0.1.0
+```
+
+The trailing `v0.1.0` argument must match the tag in the bootstrap URL; the installer accepts only `vX.Y.Z` release refs. That command fetches only the version-pinned preview extension, installs it atomically under `${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/extensions`, preserves unrelated Pi files, and installs no other b-agentic extensions or dependencies. Run `/reload` in Pi afterward. An `AGENTS.md` entry is optional because the extension self-registers its `preview_markdown` tool and prompt metadata; add a local note only if you want an extra workflow reminder. Do not run this command until `v0.1.0` exists publicly.
+
+The preview defaults to Tokyo Night Moon. In TUI, use `/preview-markdown-theme` to choose the globally persisted Tokyo Night Moon or Tokyo Night Day palette; Escape cancels, and no `AGENTS.md` entry or Pi `settings.json` change is required. See [REFERENCE.md](REFERENCE.md) for the preference path and fallback behavior.
+
 Pin the bootstrap and source to a reviewed tag or commit with `B_AGENTIC_REF=<tag-or-commit>` and `--ref=<tag-or-commit>`. Use `--dry-run`, `--replace-memory`, `--uninstall`, `--sync`, or `--update` as needed. See [REFERENCE.md](REFERENCE.md) for flags, requirements, readiness checks, and safety details.
 
 ## How b-agentic works
@@ -101,7 +111,7 @@ Pi CLI, RTK, Serena, CodeGraph, Bun, and Pi packages install or refresh automati
 
 | Extension | Purpose | Status |
 |---|---|---|
-| `b-agentic-preview-markdown.ts` | Inline Tokyo Night Moon export-style Markdown cards with `ctrl+shift+m` copying the latest source | Default; installed and configured by b-agentic |
+| `b-agentic-preview-markdown.ts` | Inline Tokyo Night Moon/Day cards with `/preview-markdown-theme` and `ctrl+shift+m` source copying | Default; installed and configured by b-agentic |
 | `b-agentic-permissions.ts` | Shell, filesystem, and dangerous-command policy | Default; installed and configured by b-agentic |
 | `b-agentic-mcp-permissions.ts` | Managed MCP and custom-tool approval | Default; installed and configured by b-agentic |
 | `b-agentic-auto-mode.ts` | Confirmed automatic approval mode with explicit-deny protection | Default; installed and configured by b-agentic |

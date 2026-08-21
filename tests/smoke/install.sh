@@ -1409,6 +1409,68 @@ run_dracula_theme_uninstall_case() {
 	assert_contains "$sandbox_manifest_user/home/.pi/agent/themes/dracula.json" '"custom": 2'
 }
 
+run_standalone_preview_installer_case() {
+	local snapshot_repo="$1"
+	local sandbox="$WORK_DIR/standalone-preview-installer"
+	local bin_dir="$sandbox/bin"
+	local curl_log="$sandbox/curl.log"
+	local target="$sandbox/pi/extensions/b-agentic-preview-markdown.ts"
+	local unrelated_extension="$sandbox/pi/extensions/user-extension.ts"
+	local config_path="$sandbox/pi/mcp.json"
+	local test_version="v9.8.7"
+	local rc=0
+
+	mkdir -p "$bin_dir" "$sandbox/tmp" "$(dirname "$target")"
+	printf 'old preview extension\n' >"$target"
+	printf 'user extension\n' >"$unrelated_extension"
+	printf '{"mcpServers":{"user":{"command":"keep-me"}}}\n' >"$config_path"
+	cat >"$bin_dir/curl" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+output=""
+url=""
+while [ "\$#" -gt 0 ]; do
+	case "\$1" in
+		--output) output="\$2"; shift 2 ;;
+		*) url="\$1"; shift ;;
+	esac
+done
+printf '%s\n' "\$url" >>"$curl_log"
+[ -n "\$output" ]
+cp "$snapshot_repo/pi/extensions/b-agentic-preview-markdown.ts" "\$output"
+EOF
+	chmod +x "$bin_dir/curl"
+
+	HOME="$sandbox/home" \
+		PI_CODING_AGENT_DIR="$sandbox/pi" \
+		TMPDIR="$sandbox/tmp" \
+		PATH="$bin_dir:$(smoke_system_path)" \
+		bash "$snapshot_repo/pi/scripts/install-preview-markdown.sh" "$test_version" >"$sandbox/install.log" 2>&1
+
+	assert_equal_files "$target" "$snapshot_repo/pi/extensions/b-agentic-preview-markdown.ts"
+	assert_contains "$unrelated_extension" 'user extension'
+	assert_contains "$config_path" 'keep-me'
+	assert_contains "$curl_log" "https://raw.githubusercontent.com/dhoaibao/b-agentic/$test_version/pi/extensions/b-agentic-preview-markdown.ts"
+	assert_not_contains "$curl_log" 'b-agentic-permissions.ts'
+	assert_contains "$sandbox/install.log" 'Run /reload'
+	[ -z "$(find "$sandbox/tmp" -maxdepth 1 -name 'b-agentic-preview-markdown.*' -print -quit)" ] || fail 'standalone preview installer leaked a temporary download'
+
+	printf 'old preview extension\n' >"$target"
+	set +e
+	HOME="$sandbox/home" \
+		PI_CODING_AGENT_DIR="$sandbox/pi" \
+		TMPDIR="$sandbox/tmp" \
+		PATH="$bin_dir:$(smoke_system_path)" \
+		bash "$snapshot_repo/pi/scripts/install-preview-markdown.sh" not-a-version >"$sandbox/invalid.log" 2>&1
+	rc=$?
+	set -e
+	[ "$rc" -ne 0 ] || fail 'standalone preview installer accepted an invalid download'
+	assert_contains "$sandbox/invalid.log" 'invalid version ref not-a-version'
+	assert_contains "$target" 'old preview extension'
+	[ "$(wc -l <"$curl_log")" -eq 1 ] || fail 'invalid standalone preview version unexpectedly invoked curl'
+	[ -z "$(find "$sandbox/tmp" -maxdepth 1 -name 'b-agentic-preview-markdown.*' -print -quit)" ] || fail 'standalone preview installer leaked a temporary file after validation failure'
+}
+
 run_rtk_latest_dry_run_case() {
 	local snapshot_repo="$1"
 	local sandbox="$WORK_DIR/rtk-latest-dry-run"
@@ -1465,6 +1527,7 @@ run_base_smoke_cases() {
 	local worker_count=2
 	local pool_dir="$WORK_DIR/base-smoke-pool"
 	local -a cases=(
+		run_standalone_preview_installer_case
 		run_rtk_latest_dry_run_case
 		run_ref_install_case
 		run_manifest_only_corrupted_manifest_case

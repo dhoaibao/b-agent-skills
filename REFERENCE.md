@@ -15,6 +15,37 @@ curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agentic/main/install.sh 
 
 Default install writes b-agentic files and Pi configuration only. Pi CLI installation and upgrade run automatically without prompts.
 
+### Standalone Markdown preview install
+
+After the public immutable `v0.1.0` tag has been published, a user who wants
+only the inline Markdown preview can run:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agentic/v0.1.0/pi/scripts/install-preview-markdown.sh | bash -s -- v0.1.0
+```
+
+The trailing `v0.1.0` argument must match the bootstrap URL tag; the
+installer accepts only `vX.Y.Z` release refs. This exact future command fetches
+only `pi/extensions/b-agentic-preview-markdown.ts` from the `v0.1.0` tag,
+validates it, and atomically installs it as
+`${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/extensions/b-agentic-preview-markdown.ts`.
+It preserves unrelated extension files and Pi configuration and does not
+install any other b-agentic extension or dependency. Run `/reload` in the
+current Pi session after installation. The tag is not claimed to be published
+or executable from this repository state; wait until `v0.1.0` exists publicly.
+
+No `AGENTS.md` entry is required because the extension self-registers its
+`preview_markdown` tool and prompt metadata. An optional local `AGENTS.md` note
+may remind future sessions to prefer `preview_markdown` when appropriate.
+
+The preview defaults to Tokyo Night Moon. In a TUI session,
+`/preview-markdown-theme` opens a native Moon/Day selector; the selected theme is persisted globally in
+`<Pi agent dir>/b-agentic/preview-theme.json`, not in a project file or Pi
+`settings.json`. Escape cancels without changing the preference. A malformed
+or missing preference safely falls back to Moon, and a persistence failure is
+reported without changing the active behavior. Existing rendered entries keep
+their stored palette while later previews use the current global selection.
+
 For professional or shared environments, pin both the bootstrap script and
 installed source to a reviewed tag or commit instead of consuming whatever is
 currently on `main`:

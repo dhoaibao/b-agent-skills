@@ -121,7 +121,8 @@ const previewModule = extensionModules[8];
 const previewTest = previewModule.__test__;
 const previewTool = tools.preview_markdown;
 const previewShortcut = shortcuts['ctrl+shift+m'];
-if (!previewTool || !previewTest || !previewShortcut) throw new Error('preview_markdown extension must register its tool, shortcut, and test surface');
+const previewThemeCommand = commands['preview-markdown-theme'];
+if (!previewTool || !previewTest || !previewShortcut || !previewThemeCommand) throw new Error('preview_markdown extension must register its tool, shortcut, command, and test surface');
 expect(previewShortcut.description.includes('latest Markdown preview source'), 'preview shortcut must describe latest source copying');
 expect(previewTool.promptSnippet.includes('inline'), 'preview_markdown must advertise inline Markdown previews');
 expect(previewTool.promptGuidelines.some((line) => line.includes('ctrl+shift+m')), 'preview_markdown prompt metadata must describe the source-copy shortcut');
@@ -137,8 +138,24 @@ const shortcutContext = {
 };
 await previewShortcut.handler(shortcutContext);
 expect(shortcutNotifications.at(-1)?.message === 'No Markdown preview source is available to copy' && shortcutNotifications.at(-1)?.level === 'warning', 'shortcut must guard when no TUI preview exists');
+const previewAgentDir = process.env.PI_CODING_AGENT_DIR;
+const previewThemePath = path.join(previewAgentDir, 'b-agentic/preview-theme.json');
+const previewThemeNotifications = [];
+let previewThemeSelection;
+let previewThemeMenuOptions = [];
+const previewThemeContext = {
+  hasUI: true,
+  ui: {
+    async select(title, options) {
+      expect(title === 'Select preview theme', 'preview-markdown-theme must use a native selection title');
+      previewThemeMenuOptions = [...options];
+      return previewThemeSelection;
+    },
+    notify(message, level) { previewThemeNotifications.push({ message, level }); },
+  },
+};
 const previewSource = readFileSync(path.join(root, 'pi/extensions/b-agentic-preview-markdown.ts'), 'utf8');
-for (const marker of ['renderResult', 'new Markdown', 'registerShortcut', 'ctrl+shift+m', 'copyToClipboard', 'PreviewCard', 'PALETTE', '#1e2030', '#222436', '#191b29', '#2f334d', '#c8d3f5', '#828bb8', '#636da6', '#3b4261', '#82aaff', '#86e1fc', '#ffc777', '#c3e88d', '#c099ff', '#65bcff', 'FIXED_PAGE_BACKGROUND', 'FIXED_CARD_BACKGROUND', 'fixedCodeSurface', 'fixedCodeBlockBorder', 'MARKDOWN PREVIEW', 'Ctrl+Shift+M  Copy source', 'Markdown preview rendered inline']) {
+for (const marker of ['renderResult', 'new Markdown', 'registerShortcut', 'ctrl+shift+m', 'copyToClipboard', 'PreviewCard', 'PALETTE', '#1e2030', '#222436', '#191b29', '#2f334d', '#c8d3f5', '#828bb8', '#636da6', '#3b4261', '#82aaff', '#86e1fc', '#ffc777', '#c3e88d', '#c099ff', '#65bcff', '#d5d6db', '#e1e2e7', '#c4c8da', '#dcdfe4', '#3760bf', '#6172b0', '#848cb5', '#8990b3', '#2e7de9', '#007197', '#8c6c3e', '#587539', '#9854f1', 'getAgentDir', 'preview-markdown-theme', 'Tokyo Night Day', 'preview-theme.json', 'FIXED_PAGE_BACKGROUND', 'FIXED_CARD_BACKGROUND', 'fixedCodeSurface', 'fixedCodeBlockBorder', 'MARKDOWN PREVIEW', 'Ctrl+Shift+M  Copy source', 'Markdown preview rendered inline']) {
   expect(previewSource.includes(marker), `preview inline source must include ${marker}`);
 }
 for (const obsolete of ['ctx.ui.custom', 'onKey', 'handleInput', 'MarkdownPreviewComponent', 'createMarkdownPreviewComponent', 'Original Markdown source']) {
@@ -152,7 +169,8 @@ const inlineResult = await previewTool.execute('preview-2', { markdown: inlineMa
 });
 expect(customCalls === 0, 'inline preview must not open custom UI');
 expect(inlineResult.content[0].text === 'Markdown preview rendered inline.', 'inline preview result must keep LLM content concise');
-expect(inlineResult.details.markdown === inlineMarkdown && inlineResult.details.title === 'Inline example', 'inline preview result must retain source and title details');
+expect(inlineResult.details.markdown === inlineMarkdown && inlineResult.details.title === 'Inline example' && inlineResult.details.theme === 'moon', 'inline preview result must retain source, title, and default Moon theme details');
+expect(!existsSync(previewThemePath), 'missing preview theme config must default to Moon without creating a file');
 const copiedSources = [];
 await previewTest.copyLatestPreviewSource(shortcutContext, async (source) => { copiedSources.push(source); });
 expect(copiedSources.length === 1 && copiedSources[0] === inlineMarkdown, 'shortcut copy must use the exact latest preview source');
@@ -224,6 +242,70 @@ for (const [width, lines] of [[28, renderedPreview.render(28)], [120, renderedLi
 }
 expect(renderedText.includes('\u001b[48;2;47;51;77m\u001b[38;2;192;153;255minline code\u001b[0m\u001b[48;2;34;36;54m'), 'inline code must restore the card surface after a full reset');
 expect(renderedText.includes('\u001b[48;2;25;27;41m\u001b[38;2;195;232;141mconst value = 1;\u001b[0m\u001b[48;2;34;36;54m'), 'code blocks must restore the card surface after a full reset');
+previewThemeSelection = 'Tokyo Night Day';
+await previewThemeCommand.handler('', previewThemeContext);
+expect(previewThemeMenuOptions[0] === 'Tokyo Night Moon (current)' && previewThemeMenuOptions[1] === 'Tokyo Night Day', 'preview-markdown-theme must indicate the current Moon selection');
+expect(JSON.parse(readFileSync(previewThemePath, 'utf8')).theme === 'day', 'Day selection must persist globally in the b-agentic namespace');
+const dayResult = await previewTool.execute('preview-day', { markdown: inlineMarkdown, title: 'Day example' }, undefined, undefined, {
+  mode: 'tui',
+  ui: { custom: async () => { throw new Error('inline preview must not open custom UI'); } },
+});
+expect(dayResult.details.theme === 'day', 'subsequent previews must use the persisted Day theme');
+const renderedDay = previewTool.renderResult(dayResult, { expanded: true, isPartial: false }, fakeTheme, {});
+const renderedDayLines = renderedDay.render(120);
+const renderedDayText = renderedDayLines.join('\n');
+const normalizedDayText = renderedDayLines.map((line) => stripTerminalSequences(line).trimEnd()).join('\n');
+expect(renderedDayText.includes('\u001b[48;2;213;214;219m'), 'Day renderer must use the official Tokyo Night Day page palette');
+expect(renderedDayText.includes('\u001b[48;2;225;226;231m'), 'Day renderer must use the official Tokyo Night Day card palette');
+expect(renderedDayText.includes('\u001b[38;2;137;144;179m'), 'Day renderer must use the official Tokyo Night Day border palette');
+expect(renderedDayText.includes('\u001b[38;2;140;108;62m'), 'Day renderer must use the official Tokyo Night Day heading palette');
+expect(renderedDayText.includes('\u001b[38;2;46;125;233m'), 'Day renderer must use the official Tokyo Night Day accent/link palette');
+expect(renderedDayText.includes('\u001b[38;2;0;113;151m'), 'Day renderer must use the official Tokyo Night Day cyan palette');
+expect(renderedDayText.includes('\u001b[38;2;88;117;57m'), 'Day renderer must use the official Tokyo Night Day code-block palette');
+expect(renderedDayText.includes('\u001b[38;2;152;84;241m'), 'Day renderer must use the official Tokyo Night Day inline-code palette');
+expect(renderedDayText.includes('\u001b[48;2;196;200;218m'), 'Day renderer must use the official Tokyo Night Day deepest palette');
+expect(renderedDayText.includes('\u001b[48;2;220;223;228m'), 'Day renderer must use the official Tokyo Night Day highlight palette');
+expect(normalizedDayText.includes('Original Markdown') && normalizedDayText.includes('nested item'), 'Day renderer must preserve rendered Markdown content');
+for (const [width, lines] of [[28, renderedDay.render(28)], [120, renderedDayLines]]) {
+  const plainLines = lines.map((line) => stripTerminalSequences(line));
+  const plainText = plainLines.join('\n');
+  for (const fragment of syntaxFragments) {
+    expect(plainText.includes(fragment), `Day renderer must visibly render ${fragment} at width ${width}`);
+  }
+  expect(lines.every((line) => stripTerminalSequences(line).length <= width), `Day renderer must keep every line within width ${width}`);
+  expect(lines.every((line) => !stripTerminalSequences(line).includes('\u001b')), `Day renderer must keep ANSI sequences well-formed at width ${width}`);
+}
+const reloadedTools = {};
+const reloadedCommands = {};
+const reloadedHost = {
+  registerShortcut() {},
+  registerCommand(name, definition) { reloadedCommands[name] = definition; },
+  registerTool(definition) { reloadedTools[definition.name] = definition; },
+};
+const reloadedPreviewModule = await import(`${pathToFileURL(path.join(installedRoot, 'b-agentic-preview-markdown.ts')).href}?reload=day`);
+reloadedPreviewModule.default(reloadedHost);
+const reloadedResult = await reloadedTools.preview_markdown.execute('preview-reload', { markdown: '# Reloaded' }, undefined, undefined, { mode: 'tui', ui: {} });
+expect(reloadedResult.details.theme === 'day', 'a reloaded extension must read the persisted global Day theme');
+writeFileSync(previewThemePath, '{malformed json');
+const malformedResult = await previewTool.execute('preview-malformed', { markdown: '# Fallback' }, undefined, undefined, { mode: 'tui', ui: {} });
+expect(malformedResult.details.theme === 'moon', 'malformed preview theme config must fall back to Moon');
+writeFileSync(previewThemePath, JSON.stringify({ theme: 'moon' }));
+previewThemeSelection = undefined;
+await previewThemeCommand.handler('', previewThemeContext);
+expect(previewThemeMenuOptions[0] === 'Tokyo Night Moon (current)' && JSON.parse(readFileSync(previewThemePath, 'utf8')).theme === 'moon', 'Escape must cancel preview theme changes');
+const canceledResult = await previewTool.execute('preview-cancel', { markdown: '# Canceled' }, undefined, undefined, { mode: 'tui', ui: {} });
+expect(canceledResult.details.theme === 'moon', 'canceled preview theme selection must retain Moon');
+const failureAgentDir = path.join(previewAgentDir, 'preview-theme-failure');
+writeFileSync(failureAgentDir, 'not a directory');
+process.env.PI_CODING_AGENT_DIR = failureAgentDir;
+previewThemeSelection = 'Tokyo Night Day';
+previewThemeNotifications.length = 0;
+await previewThemeCommand.handler('', previewThemeContext);
+expect(previewThemeNotifications.at(-1)?.level === 'error' && previewThemeNotifications.at(-1)?.message.includes('Failed to save preview theme'), 'persistence failure must notify without changing behavior');
+const failedSaveResult = await previewTool.execute('preview-failed-save', { markdown: '# Failed save' }, undefined, undefined, { mode: 'tui', ui: {} });
+expect(failedSaveResult.details.theme === 'moon', 'persistence failure must retain the current Moon behavior');
+process.env.PI_CODING_AGENT_DIR = previewAgentDir;
+rmSync(failureAgentDir, { force: true });
 const [autoSessionStartHandler, roleSessionStartHandler] = registrations.session_start;
 const toolCallHandler = handlers.tool_call;
 

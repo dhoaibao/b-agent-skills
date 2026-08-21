@@ -4,6 +4,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 
+bash -n "$ROOT_DIR/pi/scripts/install-preview-markdown.sh"
+
 python3 - <<'PY'
 from pathlib import Path
 import json
@@ -34,8 +36,9 @@ extension_files = [
     root / 'pi/extensions/b-agentic-support/auto.ts',
 ]
 readme = root / 'pi/configs/README.md'
+standalone_preview_installer = root / 'pi/scripts/install-preview-markdown.sh'
 
-for path in [kernel, mcp, *extension_files, readme]:
+for path in [kernel, mcp, *extension_files, readme, standalone_preview_installer]:
     if not path.exists():
         errors.append(f'{path}: missing')
 
@@ -89,6 +92,9 @@ if extension.exists():
             'registerShortcut', 'ctrl+shift+m', 'copyToClipboard',
             'PALETTE', '#1e2030', '#222436', '#191b29', '#2f334d', '#c8d3f5', '#828bb8', '#636da6',
             '#3b4261', '#82aaff', '#86e1fc', '#ffc777', '#c3e88d', '#c099ff', '#65bcff',
+            '#d5d6db', '#e1e2e7', '#c4c8da', '#dcdfe4', '#3760bf', '#6172b0', '#848cb5',
+            '#8990b3', '#2e7de9', '#007197', '#8c6c3e', '#587539', '#9854f1',
+            'getAgentDir', 'preview-markdown-theme', 'Tokyo Night Day', 'preview-theme.json',
             'FIXED_PAGE_BACKGROUND',
             'FIXED_CARD_BACKGROUND', 'MARKDOWN PREVIEW', 'Ctrl+Shift+M  Copy source',
             'Markdown preview rendered inline',
@@ -158,6 +164,18 @@ if extension.exists():
         if not re.search(r'toolName === "write".*toolName === "edit".*toolName === "read"', text, re.DOTALL):
             if 'read' not in text or 'isProtectedPath' not in text:
                 errors.append(f'{extension}: must apply protected-path policy to read')
+
+if standalone_preview_installer.exists():
+    text = standalone_preview_installer.read_text()
+    for marker in [
+        'dhoaibao/b-agentic', 'VERSION', 'invalid version',
+        'pi/extensions/b-agentic-preview-markdown.ts',
+        'PI_CODING_AGENT_DIR', 'registerShortcut("ctrl+shift+m"',
+        'name: "preview_markdown"', 'export default function',
+        'Run /reload', 'AGENTS.md',
+    ]:
+        if marker not in text:
+            errors.append(f'{standalone_preview_installer}: missing installer marker {marker!r}')
 
 if readme.exists():
     text = readme.read_text()
