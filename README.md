@@ -27,6 +27,14 @@ curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agentic/v0.1.0/pi/script
 
 The trailing `v0.1.0` argument must match the tag in the bootstrap URL; the installer accepts only `vX.Y.Z` release refs. That command fetches only the version-pinned preview extension, installs it atomically under `${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/extensions`, preserves unrelated Pi files, and installs no other b-agentic extensions or dependencies. Run `/reload` in Pi afterward. An `AGENTS.md` entry is optional because the extension self-registers its `preview_markdown` tool and prompt metadata; add a local note only if you want an extra workflow reminder. Do not run this command until `v0.1.0` exists publicly.
 
+After the standalone package is published, the same canonical extension can instead be installed through Pi's package manager:
+
+```bash
+pi install npm:@b-agentic/preview-markdown
+```
+
+The npm package is limited to this preview extension and package-facing documentation; the raw GitHub installer remains the version-pinned alternative and does not install the broader b-agentic bundle.
+
 The preview defaults to Tokyo Night Moon. In TUI, use `/preview-markdown:theme` to choose the globally persisted Tokyo Night Moon or Tokyo Night Day palette; changing it immediately refreshes existing visible previews, and restored previews use the current global theme without mutating stored session entries. Use `/preview-markdown:render <prompt>` to request a one-response preview, or `/preview-markdown:list` to copy one of the 20 most recent successful preview sources from the active branch; this cap affects only the selectable list and does not delete session history. Escape cancels, and no `AGENTS.md` entry or Pi `settings.json` change is required. See [REFERENCE.md](REFERENCE.md) for the preference path and fallback behavior.
 
 Pin the bootstrap and source to a reviewed tag or commit with `B_AGENTIC_REF=<tag-or-commit>` and `--ref=<tag-or-commit>`. Use `--dry-run`, `--replace-memory`, `--uninstall`, `--sync`, or `--update` as needed. See [REFERENCE.md](REFERENCE.md) for flags, requirements, readiness checks, and safety details.

@@ -34,6 +34,17 @@ install any other b-agentic extension or dependency. Run `/reload` in the
 current Pi session after installation. The tag is not claimed to be published
 or executable from this repository state; wait until `v0.1.0` exists publicly.
 
+After the package is published, the same canonical extension can also be
+installed through Pi:
+
+```bash
+pi install npm:@b-agentic/preview-markdown
+```
+
+The npm package contains only the preview extension and package-facing
+ documentation; the raw GitHub installer remains the version-pinned alternative
+and does not install the broader b-agentic bundle.
+
 No `AGENTS.md` entry is required because the extension self-registers its
 `preview_markdown` tool and prompt metadata. An optional local `AGENTS.md` note
 may remind future sessions to prefer `preview_markdown` when appropriate.
