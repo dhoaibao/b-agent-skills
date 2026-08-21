@@ -508,9 +508,18 @@ export default function bAgenticPreviewMarkdown(pi: ExtensionAPI): void {
       const colors = colorsForTheme(theme);
       const body = new Box(1, 1, (line) => `${colors.cardBackground}${line}${ANSI_RESET}`);
       body.addChild(
-        new Markdown(details.markdown, 0, 0, theme === DEFAULT_PREVIEW_THEME ? FIXED_MARKDOWN_THEME : markdownTheme(colors), {
-          color: (text: string) => fixedColor(colors.text, text),
-        }),
+        new Markdown(
+          details.markdown,
+          0,
+          0,
+          theme === DEFAULT_PREVIEW_THEME ? FIXED_MARKDOWN_THEME : markdownTheme(colors),
+          {
+            color: (text: string) => fixedColor(colors.text, text),
+          },
+          {
+            preserveOrderedListMarkers: true,
+          },
+        ),
       );
       body.addChild(new Spacer(1));
       body.addChild(new Text(fixedColor(colors.comment, "Ctrl+Shift+M  Copy source"), 0, 0));

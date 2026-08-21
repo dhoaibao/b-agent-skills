@@ -159,7 +159,7 @@ const previewThemeContext = {
   },
 };
 const previewSource = readFileSync(path.join(root, 'pi/packages/preview-markdown/extensions/b-agentic-preview-markdown.ts'), 'utf8');
-for (const marker of ['renderResult', 'new Markdown', 'registerShortcut', 'ctrl+shift+m', 'copyToClipboard', 'PreviewCard', 'PALETTE', '#1e2030', '#222436', '#191b29', '#2f334d', '#c8d3f5', '#828bb8', '#636da6', '#3b4261', '#82aaff', '#86e1fc', '#ffc777', '#c3e88d', '#c099ff', '#65bcff', '#d5d6db', '#e1e2e7', '#c4c8da', '#dcdfe4', '#3760bf', '#6172b0', '#848cb5', '#8990b3', '#2e7de9', '#007197', '#8c6c3e', '#587539', 'getAgentDir', 'preview-markdown:render', 'preview-markdown:theme', 'preview-markdown:list', 'MAX_PREVIEW_HISTORY', 'currentPreviewTheme', 'previewRowInvalidators', 'clearPreviewRowInvalidators', 'loadCurrentPreviewTheme', 'session_shutdown', 'Tokyo Night Day', 'preview-theme.json', 'FIXED_PAGE_BACKGROUND', 'FIXED_CARD_BACKGROUND', 'fixedCodeSurface', 'fixedCodeBlockBorder', 'Ctrl+Shift+M  Copy source', 'Markdown preview rendered inline']) {
+for (const marker of ['renderResult', 'new Markdown', 'preserveOrderedListMarkers', 'registerShortcut', 'ctrl+shift+m', 'copyToClipboard', 'PreviewCard', 'PALETTE', '#1e2030', '#222436', '#191b29', '#2f334d', '#c8d3f5', '#828bb8', '#636da6', '#3b4261', '#82aaff', '#86e1fc', '#ffc777', '#c3e88d', '#c099ff', '#65bcff', '#d5d6db', '#e1e2e7', '#c4c8da', '#dcdfe4', '#3760bf', '#6172b0', '#848cb5', '#8990b3', '#2e7de9', '#007197', '#8c6c3e', '#587539', 'getAgentDir', 'preview-markdown:render', 'preview-markdown:theme', 'preview-markdown:list', 'MAX_PREVIEW_HISTORY', 'currentPreviewTheme', 'previewRowInvalidators', 'clearPreviewRowInvalidators', 'loadCurrentPreviewTheme', 'session_shutdown', 'Tokyo Night Day', 'preview-theme.json', 'FIXED_PAGE_BACKGROUND', 'FIXED_CARD_BACKGROUND', 'fixedCodeSurface', 'fixedCodeBlockBorder', 'Ctrl+Shift+M  Copy source', 'Markdown preview rendered inline']) {
   expect(previewSource.includes(marker), `preview inline source must include ${marker}`);
 }
 for (const obsolete of ['ctx.ui.custom', 'onKey', 'handleInput', 'MarkdownPreviewComponent', 'createMarkdownPreviewComponent', 'Original Markdown source', 'preview-markdown-theme']) {
@@ -297,6 +297,66 @@ for (const [width, lines] of [[28, renderedPreview.render(28)], [120, renderedLi
 }
 expect(renderedText.includes('\u001b[48;2;47;51;77m\u001b[38;2;192;153;255minline code\u001b[0m\u001b[48;2;34;36;54m'), 'inline code must restore the card surface after a full reset');
 expect(renderedText.includes('\u001b[48;2;25;27;41m\u001b[38;2;195;232;141mconst value = 1;\u001b[0m\u001b[48;2;34;36;54m'), 'code blocks must restore the card surface after a full reset');
+const gfmMarkdown = [
+  '# GFM terminal parity',
+  '',
+  '## Supported syntax',
+  '',
+  '**bold**, _italic_, ~~strike~~, `inline code`, [link](https://example.com), <https://example.org>, <user@example.com>.',
+  'Escaped \\*asterisk\\* and \\_underscore\\_.',
+  '',
+  '- [x] done',
+  '- [ ] todo',
+  '  3) nested ordered',
+  '',
+  '> quoted line',
+  '',
+  '---',
+  '',
+  '| H1 | H2 | H3 | H4 | H5 | H6 | H7 | H8 | H9 | H10 |',
+  '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+  '| a | b | c | d | e | f | g | h | i | j |',
+  '',
+  'Inline math $x^2 + y^2$.',
+  '',
+  '<span class="literal">HTML stays literal</span>',
+  '',
+  '![image alt](https://example.com/image.png)',
+  '',
+  '[^note]',
+  '',
+  '[^note]: footnote text',
+  '',
+  '```mermaid',
+  'graph TD',
+  '  A --> B',
+  '```',
+].join('\n');
+const gfmResult = await previewTool.execute('preview-gfm', { markdown: gfmMarkdown, title: 'GFM corpus' }, undefined, undefined, {
+  mode: 'tui',
+  ui: { custom: async () => { throw new Error('GFM preview must not open custom UI'); } },
+});
+const gfmRendered = previewTool.renderResult(gfmResult, { expanded: true, isPartial: false }, fakeTheme, { toolCallId: 'gfm-preview', invalidate() {} }).render(120);
+const gfmNarrowRendered = previewTool.renderResult(gfmResult, { expanded: true, isPartial: false }, fakeTheme, { toolCallId: 'gfm-preview-narrow', invalidate() {} }).render(28);
+const gfmRenderedText = gfmRendered.join('\n');
+const gfmNarrowRenderedText = gfmNarrowRendered.join('\n');
+const gfmPlain = gfmRendered.map(stripTerminalSequences).join('\n');
+const gfmNarrowPlain = gfmNarrowRendered.map(stripTerminalSequences).join('\n');
+for (const fragment of ['GFM terminal parity', 'Supported syntax', 'bold', 'italic', 'strike', 'inline code', 'link', 'https://example.org', 'user@example.com', '[x] done', '[ ] todo', '3) nested ordered', 'quoted line', 'Inline math x² + y²']) {
+  expect(gfmPlain.includes(fragment), `GFM corpus must render ${fragment}`);
+}
+expect(gfmPlain.includes('*asterisk*') && gfmPlain.includes('_underscore_') && !gfmPlain.includes('\\*asterisk\\*') && !gfmPlain.includes('\\_underscore\\_'), 'GFM corpus must render escaped punctuation as literal punctuation');
+expect(gfmRenderedText.includes('\u001b]8;;https://example.com') && gfmRenderedText.includes('\u001b]8;;mailto:user@example.com'), 'GFM corpus must render link and autolink metadata');
+expect(gfmRenderedText.includes('┌') && gfmRenderedText.includes('H10'), 'GFM corpus must render a supported table at normal width');
+expect(!gfmNarrowRenderedText.includes('┌') && gfmNarrowPlain.includes('| H1 | H2 | H3 | H4 | H5'), 'very narrow tables must fall back to raw Markdown');
+expect(gfmPlain.includes('<span class="literal">HTML stays literal</span>'), 'raw HTML must remain literal in the terminal contract');
+expect(gfmPlain.includes('image alt') && !gfmPlain.includes('image.png'), 'images must fall back to visible alt text');
+expect(gfmPlain.includes('[^note]') && gfmPlain.includes('[^note]: footnote text'), 'footnote syntax must remain literal without a plugin renderer');
+expect(gfmPlain.includes('```mermaid') && gfmPlain.includes('graph TD') && gfmPlain.includes('A --> B'), 'Mermaid fences must remain code');
+for (const [width, lines] of [[120, gfmRendered], [28, gfmNarrowRendered]]) {
+  expect(lines.every((line) => stripTerminalSequences(line).length <= width), `GFM corpus must keep every line within width ${width}`);
+  expect(lines.every((line) => !stripTerminalSequences(line).includes('\u001b')), `GFM corpus must keep ANSI sequences well-formed at width ${width}`);
+}
 previewThemeNotifications.length = 0;
 await previewThemeCommand.handler('unexpected', previewThemeContext);
 expect(previewThemeNotifications.at(-1)?.message === 'Usage: /preview-markdown:theme' && previewThemeNotifications.at(-1)?.level === 'error', 'theme command must reject unexpected arguments with concise usage');

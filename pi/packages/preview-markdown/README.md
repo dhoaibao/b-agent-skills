@@ -20,6 +20,17 @@ The package registers the `preview_markdown` tool and these commands:
   previews for exact Markdown source copying.
 - `Ctrl+Shift+M` copies the latest preview source.
 
+## Terminal Markdown support
+
+The preview uses Pi's terminal Markdown renderer, so it supports terminal-native
+headings, emphasis, strikethrough, links and autolinks, inline and fenced code,
+task and nested lists, blockquotes, rules, tables, and supported LaTeX math.
+Raw HTML is shown literally, images fall back to their alt text, Mermaid fences
+remain code, and footnote syntax remains literal because browser-only embeds and
+plugin-based token renderers are not part of the terminal contract. Tables that
+cannot fit a very narrow terminal keep their raw Markdown instead of forcing an
+unstable layout.
+
 ## Raw GitHub alternative
 
 The npm package and the raw installer use the same canonical extension source:
