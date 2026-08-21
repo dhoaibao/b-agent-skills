@@ -9,7 +9,7 @@
 import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { copyToClipboard, getAgentDir, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { Box, Markdown, Text, truncateToWidth, type Component } from "@earendil-works/pi-tui";
+import { Box, Markdown, Spacer, Text, truncateToWidth, type Component } from "@earendil-works/pi-tui";
 
 type PreviewTheme = "moon" | "day";
 type PreviewDetails = {
@@ -467,6 +467,7 @@ export default function bAgenticPreviewMarkdown(pi: ExtensionAPI): void {
           color: (text: string) => fixedColor(colors.text, text),
         }),
       );
+      body.addChild(new Spacer(1));
       body.addChild(new Text(fixedColor(colors.comment, "Ctrl+Shift+M  Copy source"), 0, 0));
       return new PreviewCard(body, colors);
     },

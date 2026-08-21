@@ -239,6 +239,11 @@ const renderedText = renderedLines.join('\n');
 const stripTerminalSequences = (line) => line
   .replace(/\u001b\[[0-9;]*m/g, '')
   .replace(/\u001b\]8;;.*?\u001b\\/g, '');
+const expectFooterSeparator = (lines, label) => {
+  const plainLines = lines.map(stripTerminalSequences);
+  const footerLine = plainLines.findIndex((line) => line.includes('Ctrl+Shift+M'));
+  expect(footerLine > 0 && plainLines[footerLine - 1].replace(/[│]/g, '').trim() === '', `${label} must show a blank line before the copy footer`);
+};
 const normalizedRenderedText = renderedLines
   .map((line) => stripTerminalSequences(line).trimEnd())
   .join('\n');
@@ -251,6 +256,8 @@ for (const fragment of ['Syntax coverage', 'emphasis', 'strong', 'strike', 'nest
 }
 expect(renderedText.includes('\u001b]8;;https://example.com'), 'inline renderer must preserve the link URL in terminal hyperlink metadata');
 expect(renderedText.includes('Ctrl+Shift+M  Copy source'), 'inline renderer must show the copy shortcut hint');
+expectFooterSeparator(renderedLines, 'Moon renderer at normal width');
+expectFooterSeparator(renderedPreview.render(28), 'Moon renderer at narrow width');
 expect(renderedText.includes('\u001b[48;2;30;32;48m'), 'inline renderer must use the Tokyo Night page-dark frame palette');
 expect(renderedText.includes('\u001b[48;2;34;36;54m'), 'inline renderer must use the Tokyo Night card surface palette');
 expect(renderedText.includes('\u001b[38;2;59;66;97m'), 'inline renderer must use the Tokyo Night border palette');
@@ -316,6 +323,8 @@ expect(renderedDayText.includes('\u001b[48;2;196;200;218m'), 'Day renderer must 
 expect(renderedDayText.includes('\u001b[48;2;220;223;228m'), 'Day renderer must use the official Tokyo Night Day highlight palette');
 expect(normalizedDayText.includes('Original Markdown') && normalizedDayText.includes('nested item'), 'Day renderer must preserve rendered Markdown content');
 expect(!renderedDayText.includes('MARKDOWN PREVIEW') && !renderedDayText.includes('Day example') && renderedDayText.includes('Ctrl+Shift+M  Copy source'), 'Day renderer must omit the header and supplied title while keeping the copy footer');
+expectFooterSeparator(renderedDayLines, 'Day renderer at normal width');
+expectFooterSeparator(renderedDay.render(28), 'Day renderer at narrow width');
 for (const [width, lines] of [[28, renderedDay.render(28)], [120, renderedDayLines]]) {
   const plainLines = lines.map((line) => stripTerminalSequences(line));
   const plainText = plainLines.join('\n');
