@@ -20,12 +20,12 @@ All notable shipped revisions of b-agentic are recorded here. Released version h
   - Intended behavior: `b-agentic-audit` runs structural and decision-design traceability checks, compares the decision record with canonical sources, and reports drift; `b-review` remains changed-code-only and the mandatory delegated-diff gate is unchanged.
   - Regression: `tooling/validate/decision_design.py`, routing fixtures, generated-sync validation, and `scripts/b-agentic-audit.sh`.
 - Planner/worker Pi profiles:
-  - Observed failure: prose-only handoffs could not enforce a read-only coordinator, a sole writer, or the worker's assigned skill across Intercom sessions.
-  - Intended behavior: `/b-role planner|worker|off` persists a Pi role overlay; planner mode hard-blocks mutations, worker mode requires a structured assignment and exact skill read, and `send` drives repeated result/review iterations.
+  - Observed failure: prose-only handoffs could not reliably coordinate a planner and a sole worktree writer across Intercom sessions.
+  - Intended behavior: `/b-role planner|worker|off` persists prompt-governed collaboration profiles; role selection preserves normal active tools and shared shell, filesystem, MCP, and approval policies. In two-role workflows, the planner delegates worker-owned execution and the worker is the procedural sole worktree writer; natural-language delegation, results, and review use `send`, while `ask`/`reply` are for blockers and clarifications.
   - Regression: role-mode behavioral fixtures in `pi/tests/smoke.sh`; kernel/extension markers in `pi/scripts/validate.sh`, `tooling/validate/behavior.py`, and `tooling/validate/shared.py`.
 - Intercom delegation protocol:
-  - Observed failure: workers did not reliably activate the handoff skill, delegation duplicated serial work and ran slower than one session, and `reply` failed when neither side had a unique pending `ask`.
-  - Intended behavior: delegate only beneficial parallel work, activate one named worker skill, use `send` for task delegation and worker result/review reporting, and reserve `ask` for worker blockers/clarifications or a planner's quick-answer need from the worker (with `reply` for inbound asks).
+  - Observed failure: workers did not reliably receive handoffs, delegation duplicated serial work and ran slower than one session, and `reply` failed when neither side had a unique pending `ask`.
+  - Intended behavior: delegate worker-owned execution, use `send` for natural-language task delegation and worker result/review reporting, and reserve `ask`/`reply` for blockers and clarifications.
   - Regression: `INTERCOM_DELEGATION_REGRESSION` in `tooling/validate/behavior.py`; Pi integration marker checks in `pi/scripts/validate.sh` and `tooling/validate/shared.py`.
 - Shell/RTK policy (Option B):
   - Observed failure: kernel guidance and permission policy diverged on RTK coverage, while approval guidance implied RTK bypassed asks.

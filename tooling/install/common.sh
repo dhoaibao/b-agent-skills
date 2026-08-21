@@ -1071,7 +1071,7 @@ join_readiness_issues() {
 
 serena_readiness_status() {
   if command -v serena >/dev/null 2>&1; then
-    printf 'ready: serena command found; onboarding requires approval when needed'
+    printf 'ready: serena command found; safe project-local tools and trusted onboarding are auto-approved; outside-project, protected, unsafe, or unclassified operations remain gated'
   else
     printf 'blocked: install serena manually or rerun interactively and accept the prompt; b-agentic cannot onboard without the CLI'
   fi

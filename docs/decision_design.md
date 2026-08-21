@@ -276,12 +276,15 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   Serena/CodeGraph or explicit `mcp__` aliases and concrete safe arguments.
   It blocks or gates unsafe Playwright actions (such as navigation and
   interaction) while permitting policy-classified safe Playwright retrieval;
-  it blocks or gates Serena mutations/lifecycle, auth/connect/UI actions,
-  selector mixtures, unclassified or unmanaged execution, and local/external
-  mutation under normal policy; the explicit persisted `b-auto-mode` opt-in is
-  the exception, auto-allowing approval requests while explicit deny decisions
-  remain blocked. With auto mode off, approval-required actions retain normal
-  UI/fail-closed behavior, and roles do not alter this policy. Narrow
+  safe project-local Serena edits and memory operations use the
+  `conditional-local` class, and trusted Serena lifecycle operations such as
+  onboarding are auto-approved. Outside-project, protected, unsafe, or
+  unclassified Serena operations, selector mixtures, unclassified or unmanaged
+  execution, and local/external mutation remain blocked or gated under normal
+  policy; the explicit persisted `b-auto-mode` opt-in is the exception,
+  auto-allowing approval requests while explicit deny decisions remain blocked.
+  With auto mode off, approval-required actions retain normal UI/fail-closed
+  behavior, and roles do not alter this policy. Narrow
   deterministic regression
   evidence is table-driven classifier, broker, active-tool, shell, Git, and
   CodeGraph allow/deny coverage in `pi/tests/smoke.sh`. Public tool evidence is Linear issues
@@ -290,11 +293,13 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   `pi/scripts/validate.sh`.
 - Auto-approval is exact and least-privilege: read-only/trusted operations are
   allowed; conditional operations require known keys and safe argument values;
-  external mutation, uploads, lifecycle, auth, screenshots, navigation, and
-  other unsafe operations require approval under normal policy. The explicit
-  persisted `b-auto-mode` opt-in auto-allows those approval requests while
-  explicit denies remain blocked. Unmanaged servers and ambiguous
-  gateway selectors are not trusted. Evidence:
+  safe project-local Serena operations use `conditional-local`, and trusted
+  Serena lifecycle operations such as onboarding are auto-approved. Outside-
+  project, protected, unsafe, or unclassified operations, external mutation,
+  uploads, auth, screenshots, navigation, and other unsafe actions require
+  approval under normal policy. The explicit persisted `b-auto-mode` opt-in
+  auto-allows those approval requests while explicit denies remain blocked.
+  Unmanaged servers and ambiguous gateway selectors are not trusted. Evidence:
   `references/mcp_operations.yaml`,
   `pi/extensions/b-agentic-support/mcp.ts`,
   `pi/extensions/b-agentic-mcp-permissions.ts`.
