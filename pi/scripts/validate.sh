@@ -94,7 +94,7 @@ if extension.exists():
             '#3b4261', '#82aaff', '#86e1fc', '#ffc777', '#c3e88d', '#c099ff', '#65bcff',
             '#d5d6db', '#e1e2e7', '#c4c8da', '#dcdfe4', '#3760bf', '#6172b0', '#848cb5',
             '#8990b3', '#2e7de9', '#007197', '#8c6c3e', '#587539', '#9854f1',
-            'getAgentDir', 'preview-markdown:render', 'preview-markdown:theme', 'preview-markdown:list', 'MAX_PREVIEW_HISTORY', 'Tokyo Night Day', 'preview-theme.json',
+            'getAgentDir', 'preview-markdown:render', 'preview-markdown:theme', 'preview-markdown:list', 'MAX_PREVIEW_HISTORY', 'currentPreviewTheme', 'previewRowInvalidators', 'clearPreviewRowInvalidators', 'loadCurrentPreviewTheme', 'session_shutdown', 'Tokyo Night Day', 'preview-theme.json',
             'FIXED_PAGE_BACKGROUND',
             'FIXED_CARD_BACKGROUND', 'PreviewCard', 'Ctrl+Shift+M  Copy source', 'Markdown preview rendered inline',
         ]:

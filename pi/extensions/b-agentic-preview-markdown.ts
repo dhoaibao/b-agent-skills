@@ -161,6 +161,10 @@ const MOON_FIXED_PALETTE: FixedPalette = {
 };
 const DAY_FIXED_PALETTE = fixedPalette(DAY_PALETTE);
 let lastPreviewMarkdown: string | undefined;
+let currentPreviewTheme: PreviewTheme = DEFAULT_PREVIEW_THEME;
+let currentPreviewThemeLoaded = false;
+let currentPreviewThemeLoad: Promise<PreviewTheme> | undefined;
+const previewRowInvalidators = new Map<string, () => void>();
 
 function isPreviewTheme(value: unknown): value is PreviewTheme {
   return value === "moon" || value === "day";
@@ -191,6 +195,42 @@ async function persistPreviewTheme(theme: PreviewTheme): Promise<boolean> {
     await unlink(temporaryPath).catch(() => undefined);
     return false;
   }
+}
+
+function clearPreviewRowInvalidators(): void {
+  previewRowInvalidators.clear();
+}
+
+function invalidatePreviewRows(): void {
+  for (const [toolCallId, invalidate] of previewRowInvalidators) {
+    try {
+      invalidate();
+    } catch {
+      previewRowInvalidators.delete(toolCallId);
+    }
+  }
+}
+
+function rememberPreviewRowInvalidator(context: { toolCallId?: string; invalidate?: () => void }): void {
+  if (!context.toolCallId || typeof context.invalidate !== "function") return;
+  previewRowInvalidators.set(context.toolCallId, context.invalidate);
+}
+
+function setCurrentPreviewTheme(theme: PreviewTheme, invalidateRows: boolean): void {
+  const changed = currentPreviewTheme !== theme;
+  currentPreviewTheme = theme;
+  currentPreviewThemeLoaded = true;
+  if (changed && invalidateRows) invalidatePreviewRows();
+}
+
+function loadCurrentPreviewTheme(): Promise<PreviewTheme> {
+  if (currentPreviewThemeLoaded) return Promise.resolve(currentPreviewTheme);
+  currentPreviewThemeLoad ??= loadPreviewTheme().then((theme) => {
+    currentPreviewThemeLoad = undefined;
+    setCurrentPreviewTheme(theme, true);
+    return theme;
+  });
+  return currentPreviewThemeLoad;
 }
 
 function fixedColor(color: string, text: string): string {
@@ -283,7 +323,7 @@ async function selectPreviewTheme(ctx: ExtensionContext): Promise<void> {
     return;
   }
 
-  const current = await loadPreviewTheme();
+  const current = await loadCurrentPreviewTheme();
   const options = (Object.keys(PREVIEW_THEME_LABELS) as PreviewTheme[]).map((theme) =>
     `${PREVIEW_THEME_LABELS[theme]}${theme === current ? " (current)" : ""}`,
   );
@@ -299,6 +339,7 @@ async function selectPreviewTheme(ctx: ExtensionContext): Promise<void> {
     ctx.ui.notify("Failed to save preview theme; keeping the current theme", "error");
     return;
   }
+  setCurrentPreviewTheme(theme, true);
   ctx.ui.notify(`Preview theme set to ${PREVIEW_THEME_LABELS[theme]}`, "info");
 }
 
@@ -383,6 +424,8 @@ async function copyLatestPreviewSource(
 }
 
 export default function bAgenticPreviewMarkdown(pi: ExtensionAPI): void {
+  pi.on("session_shutdown", clearPreviewRowInvalidators);
+
   pi.registerShortcut("ctrl+shift+m", {
     description: "Copy the latest Markdown preview source",
     handler: (ctx) => copyLatestPreviewSource(ctx),
@@ -444,7 +487,7 @@ export default function bAgenticPreviewMarkdown(pi: ExtensionAPI): void {
       const title = params.title?.trim() || DEFAULT_TITLE;
       if (ctx.mode !== "tui") return fallbackResult(ctx.mode);
 
-      const theme = await loadPreviewTheme();
+      const theme = await loadCurrentPreviewTheme();
       const result = {
         content: [{ type: "text", text: "Markdown preview rendered inline." }],
         details: { markdown: params.markdown, title, theme } satisfies PreviewDetails,
@@ -452,14 +495,16 @@ export default function bAgenticPreviewMarkdown(pi: ExtensionAPI): void {
       lastPreviewMarkdown = params.markdown;
       return result;
     },
-    renderResult(result, _options, _theme) {
+    renderResult(result, _options, _theme, context) {
       const details = result.details as PreviewDetails | undefined;
       if (!details || typeof details.markdown !== "string") {
         const text = result.content[0];
         return new Text(text?.type === "text" ? text.text : "", 0, 0);
       }
 
-      const theme = isPreviewTheme(details.theme) ? details.theme : DEFAULT_PREVIEW_THEME;
+      rememberPreviewRowInvalidator(context);
+      void loadCurrentPreviewTheme();
+      const theme = currentPreviewTheme;
       const colors = colorsForTheme(theme);
       const body = new Box(1, 1, (line) => `${colors.cardBackground}${line}${ANSI_RESET}`);
       body.addChild(
@@ -490,5 +535,6 @@ export const __test__ = {
   fallbackResult,
   isPreviewTheme,
   loadPreviewTheme,
+  loadCurrentPreviewTheme,
   persistPreviewTheme,
 };
