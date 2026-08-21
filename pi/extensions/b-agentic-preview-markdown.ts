@@ -9,7 +9,7 @@
 import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { copyToClipboard, getAgentDir, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { Box, Markdown, Spacer, Text, truncateToWidth, type Component } from "@earendil-works/pi-tui";
+import { Box, Markdown, Text, truncateToWidth, type Component } from "@earendil-works/pi-tui";
 
 type PreviewTheme = "moon" | "day";
 type PreviewDetails = {
@@ -59,6 +59,7 @@ const DEFAULT_PREVIEW_THEME: PreviewTheme = "moon";
 const PREVIEW_RENDER_USAGE = "Usage: /preview-markdown:render <prompt>";
 const PREVIEW_THEME_USAGE = "Usage: /preview-markdown:theme";
 const PREVIEW_LIST_USAGE = "Usage: /preview-markdown:list";
+const MAX_PREVIEW_HISTORY = 20;
 const PREVIEW_THEME_CONFIG = "b-agentic/preview-theme.json";
 const PREVIEW_THEME_LABELS: Record<PreviewTheme, string> = {
   moon: "Tokyo Night Moon",
@@ -304,7 +305,7 @@ async function selectPreviewTheme(ctx: ExtensionContext): Promise<void> {
 function getPreviewHistory(ctx: Pick<ExtensionContext, "sessionManager">): PreviewHistoryItem[] {
   const previews: PreviewHistoryItem[] = [];
   for (const entry of ctx.sessionManager.getBranch()) {
-    if (entry.type !== "message" || entry.message.role !== "toolResult" || entry.message.toolName !== "preview_markdown") continue;
+    if (entry.type !== "message" || entry.message.role !== "toolResult" || entry.message.toolName !== "preview_markdown" || entry.message.isError === true) continue;
     const details = entry.message.details as Partial<PreviewDetails> | undefined;
     if (!details || typeof details.markdown !== "string") continue;
     previews.push({
@@ -312,7 +313,7 @@ function getPreviewHistory(ctx: Pick<ExtensionContext, "sessionManager">): Previ
       title: typeof details.title === "string" && details.title.trim() ? details.title : DEFAULT_TITLE,
     });
   }
-  return previews;
+  return previews.slice(-MAX_PREVIEW_HISTORY);
 }
 
 async function copyPreviewSource(
@@ -453,7 +454,7 @@ export default function bAgenticPreviewMarkdown(pi: ExtensionAPI): void {
     },
     renderResult(result, _options, _theme) {
       const details = result.details as PreviewDetails | undefined;
-      if (!details || typeof details.markdown !== "string" || typeof details.title !== "string") {
+      if (!details || typeof details.markdown !== "string") {
         const text = result.content[0];
         return new Text(text?.type === "text" ? text.text : "", 0, 0);
       }
@@ -461,15 +462,11 @@ export default function bAgenticPreviewMarkdown(pi: ExtensionAPI): void {
       const theme = isPreviewTheme(details.theme) ? details.theme : DEFAULT_PREVIEW_THEME;
       const colors = colorsForTheme(theme);
       const body = new Box(1, 1, (line) => `${colors.cardBackground}${line}${ANSI_RESET}`);
-      body.addChild(new Text(fixedColor(colors.header, "MARKDOWN PREVIEW"), 0, 0));
-      body.addChild(new Text(fixedColor(colors.text, details.title), 0, 0));
-      body.addChild(new Spacer(1));
       body.addChild(
         new Markdown(details.markdown, 0, 0, theme === DEFAULT_PREVIEW_THEME ? FIXED_MARKDOWN_THEME : markdownTheme(colors), {
           color: (text: string) => fixedColor(colors.text, text),
         }),
       );
-      body.addChild(new Spacer(1));
       body.addChild(new Text(fixedColor(colors.comment, "Ctrl+Shift+M  Copy source"), 0, 0));
       return new PreviewCard(body, colors);
     },
@@ -483,6 +480,7 @@ export const __test__ = {
   PREVIEW_RENDER_USAGE,
   PREVIEW_THEME_USAGE,
   PREVIEW_LIST_USAGE,
+  MAX_PREVIEW_HISTORY,
   buildPreviewRenderPrompt,
   copyLatestPreviewSource,
   copyPreviewSource,

@@ -159,7 +159,7 @@ const previewThemeContext = {
   },
 };
 const previewSource = readFileSync(path.join(root, 'pi/extensions/b-agentic-preview-markdown.ts'), 'utf8');
-for (const marker of ['renderResult', 'new Markdown', 'registerShortcut', 'ctrl+shift+m', 'copyToClipboard', 'PreviewCard', 'PALETTE', '#1e2030', '#222436', '#191b29', '#2f334d', '#c8d3f5', '#828bb8', '#636da6', '#3b4261', '#82aaff', '#86e1fc', '#ffc777', '#c3e88d', '#c099ff', '#65bcff', '#d5d6db', '#e1e2e7', '#c4c8da', '#dcdfe4', '#3760bf', '#6172b0', '#848cb5', '#8990b3', '#2e7de9', '#007197', '#8c6c3e', '#587539', 'getAgentDir', 'preview-markdown:render', 'preview-markdown:theme', 'preview-markdown:list', 'Tokyo Night Day', 'preview-theme.json', 'FIXED_PAGE_BACKGROUND', 'FIXED_CARD_BACKGROUND', 'fixedCodeSurface', 'fixedCodeBlockBorder', 'MARKDOWN PREVIEW', 'Ctrl+Shift+M  Copy source', 'Markdown preview rendered inline']) {
+for (const marker of ['renderResult', 'new Markdown', 'registerShortcut', 'ctrl+shift+m', 'copyToClipboard', 'PreviewCard', 'PALETTE', '#1e2030', '#222436', '#191b29', '#2f334d', '#c8d3f5', '#828bb8', '#636da6', '#3b4261', '#82aaff', '#86e1fc', '#ffc777', '#c3e88d', '#c099ff', '#65bcff', '#d5d6db', '#e1e2e7', '#c4c8da', '#dcdfe4', '#3760bf', '#6172b0', '#848cb5', '#8990b3', '#2e7de9', '#007197', '#8c6c3e', '#587539', 'getAgentDir', 'preview-markdown:render', 'preview-markdown:theme', 'preview-markdown:list', 'MAX_PREVIEW_HISTORY', 'Tokyo Night Day', 'preview-theme.json', 'FIXED_PAGE_BACKGROUND', 'FIXED_CARD_BACKGROUND', 'fixedCodeSurface', 'fixedCodeBlockBorder', 'Ctrl+Shift+M  Copy source', 'Markdown preview rendered inline']) {
   expect(previewSource.includes(marker), `preview inline source must include ${marker}`);
 }
 for (const obsolete of ['ctx.ui.custom', 'onKey', 'handleInput', 'MarkdownPreviewComponent', 'createMarkdownPreviewComponent', 'Original Markdown source', 'preview-markdown-theme']) {
@@ -191,11 +191,16 @@ const renderMessage = sentUserMessages.at(-1);
 expect(sentUserMessages.length === sentUserMessageCount + 1 && renderMessage?.content.includes('build a release preview') && renderMessage?.content.includes('preview_markdown') && renderMessage?.options?.deliverAs === 'followUp', 'render command must forward the prompt with safe follow-up delivery and preview instructions');
 await previewRenderCommand.handler('   ', previewRenderContext);
 expect(sentUserMessages.length === sentUserMessageCount + 1 && previewRenderNotifications.at(-1)?.message === 'Usage: /preview-markdown:render <prompt>' && previewRenderNotifications.at(-1)?.level === 'error', 'render command must reject empty prompts with concise usage');
-const exactListSource = '# Saved preview\n\n**exact source**';
-const previewBranch = [{
-  type: 'message',
-  message: { role: 'toolResult', toolName: 'preview_markdown', details: { markdown: exactListSource, title: 'Saved preview', theme: 'moon' } },
-}];
+const previewBranch = [
+  {
+    type: 'message',
+    message: { role: 'toolResult', toolName: 'preview_markdown', isError: true, details: { markdown: '# Failed preview', title: 'Failed preview', theme: 'moon' } },
+  },
+  ...Array.from({ length: previewTest.MAX_PREVIEW_HISTORY + 1 }, (_, index) => ({
+    type: 'message',
+    message: { role: 'toolResult', toolName: 'preview_markdown', isError: false, details: { markdown: `# Preview ${index}`, title: `Preview ${index}`, theme: 'moon' } },
+  })),
+];
 const previewListNotifications = [];
 let previewListTitle;
 let previewListOptions;
@@ -207,17 +212,17 @@ const previewListContext = {
     async select(title, options) {
       previewListTitle = title;
       previewListOptions = [...options];
-      return selectPreview ? options[0] : undefined;
+      return selectPreview ? options.at(-1) : undefined;
     },
     notify(message, level) { previewListNotifications.push({ message, level }); },
   },
 };
 await previewListCommand.handler('', previewListContext);
-expect(previewListTitle === 'Select Markdown preview' && JSON.stringify(previewListOptions) === JSON.stringify(['1. Saved preview']), 'list command must reconstruct rendered previews from the active branch');
+expect(previewTest.MAX_PREVIEW_HISTORY === 20 && previewListTitle === 'Select Markdown preview' && previewListOptions.length === 20 && previewListOptions[0] === '1. Preview 1' && previewListOptions.at(-1) === '20. Preview 20' && !previewListOptions.some((option) => option.includes('Preview 0') || option.includes('Failed preview')), 'list command must cap active-branch history to the 20 most recent successful previews');
 selectPreview = true;
 let selectedListSource;
 await previewTest.listPreviewSources(previewListContext, async (source) => { selectedListSource = source; });
-expect(selectedListSource === exactListSource && previewListNotifications.at(-1)?.message === 'Markdown preview source copied to clipboard' && previewListNotifications.at(-1)?.level === 'info', 'list selection must copy the exact original Markdown and report success');
+expect(selectedListSource === '# Preview 20' && previewListNotifications.at(-1)?.message === 'Markdown preview source copied to clipboard' && previewListNotifications.at(-1)?.level === 'info', 'newest list selection must copy the exact original Markdown and report success');
 await previewTest.listPreviewSources(previewListContext, async () => { throw new Error('clipboard unavailable'); });
 expect(previewListNotifications.at(-1)?.message === 'Failed to copy Markdown preview source to clipboard' && previewListNotifications.at(-1)?.level === 'error', 'list copy failure must report an error');
 previewBranch.length = 0;
@@ -238,8 +243,7 @@ const normalizedRenderedText = renderedLines
   .map((line) => stripTerminalSequences(line).trimEnd())
   .join('\n');
 expect(renderedText.includes('╭') && renderedText.includes('╮') && renderedText.includes('╰') && renderedText.includes('╯'), 'inline renderer must show a complete elevated card border');
-expect(renderedText.includes('MARKDOWN PREVIEW'), 'inline renderer must show the uppercase card header');
-expect(renderedText.includes('Inline example'), 'inline renderer must show the preview title');
+expect(!renderedText.includes('MARKDOWN PREVIEW') && !renderedText.includes('Inline example') && renderedText.includes('Ctrl+Shift+M  Copy source'), 'inline renderer must omit the header and supplied title while keeping the copy footer');
 expect(renderedText.includes('Original Markdown'), 'inline renderer must show rendered Markdown content');
 expect(renderedText.includes('exact source') && renderedText.includes('item'), 'inline renderer must render Markdown syntax content');
 for (const fragment of ['Syntax coverage', 'emphasis', 'strong', 'strike', 'nested item', 'ordered item', 'docs', 'https://example.org', 'quoted line', 'cell one', 'cell two', 'deliberately long paragraph']) {
@@ -252,16 +256,12 @@ expect(renderedText.includes('\u001b[48;2;34;36;54m'), 'inline renderer must use
 expect(renderedText.includes('\u001b[38;2;59;66;97m'), 'inline renderer must use the Tokyo Night border palette');
 expect(renderedText.includes('\u001b[38;2;255;199;119m'), 'inline renderer must use the Tokyo Night heading palette');
 expect(renderedText.includes('\u001b[38;2;101;188;255m'), 'inline renderer must use the Tokyo Night link palette');
-expect(renderedText.includes('\u001b[38;2;130;170;255m'), 'inline renderer must use the Tokyo Night accent palette');
 expect(renderedText.includes('\u001b[38;2;134;225;252m'), 'inline renderer must use the Tokyo Night cyan palette');
 expect(renderedText.includes('\u001b[38;2;195;232;141m'), 'inline renderer must use the Tokyo Night code-block palette');
 expect(renderedText.includes('\u001b[38;2;192;153;255m'), 'inline renderer must use the Tokyo Night inline-code palette');
 expect(renderedText.includes('\u001b[48;2;25;27;41m'), 'inline renderer must use the Tokyo Night deepest code-block background');
 expect(renderedText.includes('\u001b[48;2;25;27;41m\u001b[38;2;99;109;166m'), 'inline renderer must keep the code-block border on the deepest surface');
 expect(renderedText.includes('\u001b[48;2;47;51;77m'), 'inline renderer must use the Tokyo Night inline-code highlight background');
-const headerLine = renderedLines.find((line) => line.includes('MARKDOWN PREVIEW')) ?? '';
-expect(headerLine.includes('\u001b[38;2;130;170;255mMARKDOWN PREVIEW\u001b[39m'), 'card header must use the Tokyo Night accent and foreground-only reset');
-expect(!headerLine.includes('\u001b[38;2;130;170;255mMARKDOWN PREVIEW\u001b[0m'), 'card header must not fully reset the card background');
 const lineLengths = renderedLines.map((line) => line
   .replace(/\u001b\[[0-9;]*m/g, '')
   .replace(/\u001b\]8;;.*?\u001b\\/g, '')
@@ -315,6 +315,7 @@ expect(renderedDayText.includes('\u001b[38;2;152;84;241m'), 'Day renderer must u
 expect(renderedDayText.includes('\u001b[48;2;196;200;218m'), 'Day renderer must use the official Tokyo Night Day deepest palette');
 expect(renderedDayText.includes('\u001b[48;2;220;223;228m'), 'Day renderer must use the official Tokyo Night Day highlight palette');
 expect(normalizedDayText.includes('Original Markdown') && normalizedDayText.includes('nested item'), 'Day renderer must preserve rendered Markdown content');
+expect(!renderedDayText.includes('MARKDOWN PREVIEW') && !renderedDayText.includes('Day example') && renderedDayText.includes('Ctrl+Shift+M  Copy source'), 'Day renderer must omit the header and supplied title while keeping the copy footer');
 for (const [width, lines] of [[28, renderedDay.render(28)], [120, renderedDayLines]]) {
   const plainLines = lines.map((line) => stripTerminalSequences(line));
   const plainText = plainLines.join('\n');
