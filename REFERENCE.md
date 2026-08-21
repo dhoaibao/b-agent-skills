@@ -38,7 +38,7 @@ After the package is published, the same canonical extension can also be
 installed through Pi:
 
 ```bash
-pi install npm:@b-agentic/preview-markdown
+pi install npm:@dhoaibao/preview-markdown
 ```
 
 The npm package contains only the preview extension and package-facing

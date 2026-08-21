@@ -30,7 +30,7 @@ The trailing `v0.1.0` argument must match the tag in the bootstrap URL; the inst
 After the standalone package is published, the same canonical extension can instead be installed through Pi's package manager:
 
 ```bash
-pi install npm:@b-agentic/preview-markdown
+pi install npm:@dhoaibao/preview-markdown
 ```
 
 The npm package is limited to this preview extension and package-facing documentation; the raw GitHub installer remains the version-pinned alternative and does not install the broader b-agentic bundle.

@@ -16,7 +16,7 @@ const manifest = JSON.parse(fs.readFileSync(packagePath, "utf8"));
 const expectedExtension = "./pi/extensions/b-agentic-preview-markdown.ts";
 const errors = [];
 
-if (manifest.name !== "@b-agentic/preview-markdown") errors.push("package name must be @b-agentic/preview-markdown");
+if (manifest.name !== "@dhoaibao/preview-markdown") errors.push("package name must be @dhoaibao/preview-markdown");
 if (manifest.publishConfig?.access !== "public") errors.push("publishConfig.access must be public");
 if (manifest.keywords?.includes("pi-package") !== true) errors.push("keywords must include pi-package");
 if (JSON.stringify(manifest.pi?.extensions) !== JSON.stringify([expectedExtension])) {

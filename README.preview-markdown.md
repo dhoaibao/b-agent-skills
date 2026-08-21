@@ -1,4 +1,4 @@
-# @b-agentic/preview-markdown
+# @dhoaibao/preview-markdown
 
 A standalone Pi package for inline Markdown previews with Tokyo Night Moon/Day
 cards, global theme switching, active-branch preview history, and exact source
@@ -9,7 +9,7 @@ copying.
 After the package is published, install it with Pi:
 
 ```bash
-pi install npm:@b-agentic/preview-markdown
+pi install npm:@dhoaibao/preview-markdown
 ```
 
 The package registers the `preview_markdown` tool and these commands:
