@@ -17,6 +17,10 @@ type PreviewDetails = {
   title: string;
   theme: PreviewTheme;
 };
+type PreviewHistoryItem = {
+  markdown: string;
+  title: string;
+};
 type PreviewPalette = {
   pageBg: string;
   cardBg: string;
@@ -52,6 +56,9 @@ type FixedPalette = {
 
 const DEFAULT_TITLE = "Markdown preview";
 const DEFAULT_PREVIEW_THEME: PreviewTheme = "moon";
+const PREVIEW_RENDER_USAGE = "Usage: /preview-markdown:render <prompt>";
+const PREVIEW_THEME_USAGE = "Usage: /preview-markdown:theme";
+const PREVIEW_LIST_USAGE = "Usage: /preview-markdown:list";
 const PREVIEW_THEME_CONFIG = "b-agentic/preview-theme.json";
 const PREVIEW_THEME_LABELS: Record<PreviewTheme, string> = {
   moon: "Tokyo Night Moon",
@@ -294,6 +301,69 @@ async function selectPreviewTheme(ctx: ExtensionContext): Promise<void> {
   ctx.ui.notify(`Preview theme set to ${PREVIEW_THEME_LABELS[theme]}`, "info");
 }
 
+function getPreviewHistory(ctx: Pick<ExtensionContext, "sessionManager">): PreviewHistoryItem[] {
+  const previews: PreviewHistoryItem[] = [];
+  for (const entry of ctx.sessionManager.getBranch()) {
+    if (entry.type !== "message" || entry.message.role !== "toolResult" || entry.message.toolName !== "preview_markdown") continue;
+    const details = entry.message.details as Partial<PreviewDetails> | undefined;
+    if (!details || typeof details.markdown !== "string") continue;
+    previews.push({
+      markdown: details.markdown,
+      title: typeof details.title === "string" && details.title.trim() ? details.title : DEFAULT_TITLE,
+    });
+  }
+  return previews;
+}
+
+async function copyPreviewSource(
+  ctx: ExtensionContext,
+  preview: PreviewHistoryItem,
+  copy: (markdown: string) => Promise<void> = copyToClipboard,
+): Promise<void> {
+  try {
+    await copy(preview.markdown);
+    ctx.ui.notify("Markdown preview source copied to clipboard", "info");
+  } catch {
+    ctx.ui.notify("Failed to copy Markdown preview source to clipboard", "error");
+  }
+}
+
+async function listPreviewSources(
+  ctx: ExtensionContext,
+  copy: (markdown: string) => Promise<void> = copyToClipboard,
+): Promise<void> {
+  if (!ctx.hasUI) {
+    ctx.ui.notify("Preview list is only available in Pi TUI mode", "warning");
+    return;
+  }
+
+  const previews = getPreviewHistory(ctx);
+  if (previews.length === 0) {
+    ctx.ui.notify("No Markdown previews found on this branch", "warning");
+    return;
+  }
+
+  const options = previews.map((preview, index) => `${index + 1}. ${preview.title}`);
+  const selection = await ctx.ui.select("Select Markdown preview", options);
+  if (selection === undefined) return;
+
+  const index = options.indexOf(selection);
+  if (index < 0) {
+    ctx.ui.notify("Failed to select Markdown preview", "error");
+    return;
+  }
+  await copyPreviewSource(ctx, previews[index], copy);
+}
+
+function buildPreviewRenderPrompt(prompt: string): string {
+  return [
+    "Render a Markdown response for the request below in one response.",
+    "For your final Markdown response, you must invoke the preview_markdown tool exactly once with the complete original Markdown source. Do not write a file or send a separate prose response after the tool call.",
+    "Request:",
+    prompt,
+  ].join("\n\n");
+}
+
 async function copyLatestPreviewSource(
   ctx: ExtensionContext,
   copy: (markdown: string) => Promise<void> = copyToClipboard,
@@ -317,14 +387,37 @@ export default function bAgenticPreviewMarkdown(pi: ExtensionAPI): void {
     handler: (ctx) => copyLatestPreviewSource(ctx),
   });
 
-  pi.registerCommand("preview-markdown-theme", {
+  pi.registerCommand("preview-markdown:render", {
+    description: "Render a one-request Markdown preview",
+    handler: async (args, ctx) => {
+      const prompt = args.trim();
+      if (!prompt) {
+        ctx.ui.notify(PREVIEW_RENDER_USAGE, "error");
+        return;
+      }
+      pi.sendUserMessage(buildPreviewRenderPrompt(prompt), { deliverAs: "followUp" });
+    },
+  });
+
+  pi.registerCommand("preview-markdown:theme", {
     description: "Select the global Tokyo Night preview theme",
     handler: (args, ctx) => {
       if (args.trim()) {
-        ctx.ui.notify("Usage: /preview-markdown-theme", "error");
+        ctx.ui.notify(PREVIEW_THEME_USAGE, "error");
         return;
       }
       return selectPreviewTheme(ctx);
+    },
+  });
+
+  pi.registerCommand("preview-markdown:list", {
+    description: "List Markdown previews on the active branch",
+    handler: async (args, ctx) => {
+      if (args.trim()) {
+        ctx.ui.notify(PREVIEW_LIST_USAGE, "error");
+        return;
+      }
+      await listPreviewSources(ctx);
     },
   });
 
@@ -387,7 +480,14 @@ export const __test__ = {
   DEFAULT_TITLE,
   DEFAULT_PREVIEW_THEME,
   PREVIEW_THEME_CONFIG,
+  PREVIEW_RENDER_USAGE,
+  PREVIEW_THEME_USAGE,
+  PREVIEW_LIST_USAGE,
+  buildPreviewRenderPrompt,
   copyLatestPreviewSource,
+  copyPreviewSource,
+  getPreviewHistory,
+  listPreviewSources,
   fallbackResult,
   isPreviewTheme,
   loadPreviewTheme,

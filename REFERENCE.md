@@ -39,7 +39,7 @@ No `AGENTS.md` entry is required because the extension self-registers its
 may remind future sessions to prefer `preview_markdown` when appropriate.
 
 The preview defaults to Tokyo Night Moon. In a TUI session,
-`/preview-markdown-theme` opens a native Moon/Day selector; the selected theme is persisted globally in
+`/preview-markdown:theme` opens a native Moon/Day selector; `/preview-markdown:render <prompt>` requests a one-response preview, and `/preview-markdown:list` lists previews on the active branch for source copying. The selected theme is persisted globally in
 `<Pi agent dir>/b-agentic/preview-theme.json`, not in a project file or Pi
 `settings.json`. Escape cancels without changing the preference. A malformed
 or missing preference safely falls back to Moon, and a persistence failure is

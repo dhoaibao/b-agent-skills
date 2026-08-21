@@ -70,6 +70,7 @@ let activeThinkingLevel = 'high';
 const roleStatuses = [];
 const roleNotifications = [];
 const sentMessages = [];
+const sentUserMessages = [];
 let mcpApprovalHandler;
 let roleChannelRegistration;
 const executedCommands = [];
@@ -101,6 +102,7 @@ const extensionHost = {
   getThinkingLevel() { return activeThinkingLevel; },
   setThinkingLevel(level) { activeThinkingLevel = level; },
   sendMessage(message, options) { sentMessages.push({ message, options }); },
+  sendUserMessage(content, options) { sentUserMessages.push({ content, options }); },
   appendEntry(customType, data) {
     const entry = { type: 'custom', customType, data };
     persistedEntries.push(entry);
@@ -121,8 +123,10 @@ const previewModule = extensionModules[8];
 const previewTest = previewModule.__test__;
 const previewTool = tools.preview_markdown;
 const previewShortcut = shortcuts['ctrl+shift+m'];
-const previewThemeCommand = commands['preview-markdown-theme'];
-if (!previewTool || !previewTest || !previewShortcut || !previewThemeCommand) throw new Error('preview_markdown extension must register its tool, shortcut, command, and test surface');
+const previewRenderCommand = commands['preview-markdown:render'];
+const previewThemeCommand = commands['preview-markdown:theme'];
+const previewListCommand = commands['preview-markdown:list'];
+if (!previewTool || !previewTest || !previewShortcut || !previewRenderCommand || !previewThemeCommand || !previewListCommand || commands['preview-markdown-theme']) throw new Error('preview_markdown extension must register its tool, shortcut, direct command family, and test surface');
 expect(previewShortcut.description.includes('latest Markdown preview source'), 'preview shortcut must describe latest source copying');
 expect(previewTool.promptSnippet.includes('inline'), 'preview_markdown must advertise inline Markdown previews');
 expect(previewTool.promptGuidelines.some((line) => line.includes('ctrl+shift+m')), 'preview_markdown prompt metadata must describe the source-copy shortcut');
@@ -147,7 +151,7 @@ const previewThemeContext = {
   hasUI: true,
   ui: {
     async select(title, options) {
-      expect(title === 'Select preview theme', 'preview-markdown-theme must use a native selection title');
+      expect(title === 'Select preview theme', 'preview-markdown:theme must use a native selection title');
       previewThemeMenuOptions = [...options];
       return previewThemeSelection;
     },
@@ -155,10 +159,10 @@ const previewThemeContext = {
   },
 };
 const previewSource = readFileSync(path.join(root, 'pi/extensions/b-agentic-preview-markdown.ts'), 'utf8');
-for (const marker of ['renderResult', 'new Markdown', 'registerShortcut', 'ctrl+shift+m', 'copyToClipboard', 'PreviewCard', 'PALETTE', '#1e2030', '#222436', '#191b29', '#2f334d', '#c8d3f5', '#828bb8', '#636da6', '#3b4261', '#82aaff', '#86e1fc', '#ffc777', '#c3e88d', '#c099ff', '#65bcff', '#d5d6db', '#e1e2e7', '#c4c8da', '#dcdfe4', '#3760bf', '#6172b0', '#848cb5', '#8990b3', '#2e7de9', '#007197', '#8c6c3e', '#587539', '#9854f1', 'getAgentDir', 'preview-markdown-theme', 'Tokyo Night Day', 'preview-theme.json', 'FIXED_PAGE_BACKGROUND', 'FIXED_CARD_BACKGROUND', 'fixedCodeSurface', 'fixedCodeBlockBorder', 'MARKDOWN PREVIEW', 'Ctrl+Shift+M  Copy source', 'Markdown preview rendered inline']) {
+for (const marker of ['renderResult', 'new Markdown', 'registerShortcut', 'ctrl+shift+m', 'copyToClipboard', 'PreviewCard', 'PALETTE', '#1e2030', '#222436', '#191b29', '#2f334d', '#c8d3f5', '#828bb8', '#636da6', '#3b4261', '#82aaff', '#86e1fc', '#ffc777', '#c3e88d', '#c099ff', '#65bcff', '#d5d6db', '#e1e2e7', '#c4c8da', '#dcdfe4', '#3760bf', '#6172b0', '#848cb5', '#8990b3', '#2e7de9', '#007197', '#8c6c3e', '#587539', 'getAgentDir', 'preview-markdown:render', 'preview-markdown:theme', 'preview-markdown:list', 'Tokyo Night Day', 'preview-theme.json', 'FIXED_PAGE_BACKGROUND', 'FIXED_CARD_BACKGROUND', 'fixedCodeSurface', 'fixedCodeBlockBorder', 'MARKDOWN PREVIEW', 'Ctrl+Shift+M  Copy source', 'Markdown preview rendered inline']) {
   expect(previewSource.includes(marker), `preview inline source must include ${marker}`);
 }
-for (const obsolete of ['ctx.ui.custom', 'onKey', 'handleInput', 'MarkdownPreviewComponent', 'createMarkdownPreviewComponent', 'Original Markdown source']) {
+for (const obsolete of ['ctx.ui.custom', 'onKey', 'handleInput', 'MarkdownPreviewComponent', 'createMarkdownPreviewComponent', 'Original Markdown source', 'preview-markdown-theme']) {
   expect(!previewSource.includes(obsolete), `preview inline source must not include ${obsolete}`);
 }
 const inlineMarkdown = '# Original Markdown\n\n**exact source**\n\n## Syntax coverage\n\n_emphasis_, **strong**, and ~~strike~~.\n\n- item\n  - nested item\n1. ordered item\n\n[docs](https://example.com) and https://example.org with `inline code`.\n\n> quoted line\n\n---\n\n| Col A | Col B |\n| --- | --- |\n| cell one | cell two |\n\nThis deliberately long paragraph exercises wrapping across narrow and normal preview widths without changing the original source.\n\n```js\nconst value = 1;\nsecond line\n```';
@@ -177,6 +181,48 @@ expect(copiedSources.length === 1 && copiedSources[0] === inlineMarkdown, 'short
 expect(shortcutNotifications.at(-1)?.message === 'Latest Markdown preview source copied to clipboard' && shortcutNotifications.at(-1)?.level === 'info', 'shortcut copy success must notify');
 await previewTest.copyLatestPreviewSource(shortcutContext, async () => { throw new Error('clipboard unavailable'); });
 expect(shortcutNotifications.at(-1)?.message === 'Failed to copy latest Markdown preview source to clipboard' && shortcutNotifications.at(-1)?.level === 'error', 'shortcut copy failure must notify without throwing');
+const previewRenderNotifications = [];
+const previewRenderContext = {
+  ui: { notify(message, level) { previewRenderNotifications.push({ message, level }); } },
+};
+const sentUserMessageCount = sentUserMessages.length;
+await previewRenderCommand.handler('build a release preview', previewRenderContext);
+const renderMessage = sentUserMessages.at(-1);
+expect(sentUserMessages.length === sentUserMessageCount + 1 && renderMessage?.content.includes('build a release preview') && renderMessage?.content.includes('preview_markdown') && renderMessage?.options?.deliverAs === 'followUp', 'render command must forward the prompt with safe follow-up delivery and preview instructions');
+await previewRenderCommand.handler('   ', previewRenderContext);
+expect(sentUserMessages.length === sentUserMessageCount + 1 && previewRenderNotifications.at(-1)?.message === 'Usage: /preview-markdown:render <prompt>' && previewRenderNotifications.at(-1)?.level === 'error', 'render command must reject empty prompts with concise usage');
+const exactListSource = '# Saved preview\n\n**exact source**';
+const previewBranch = [{
+  type: 'message',
+  message: { role: 'toolResult', toolName: 'preview_markdown', details: { markdown: exactListSource, title: 'Saved preview', theme: 'moon' } },
+}];
+const previewListNotifications = [];
+let previewListTitle;
+let previewListOptions;
+let selectPreview = false;
+const previewListContext = {
+  hasUI: true,
+  sessionManager: { getBranch: () => [...previewBranch] },
+  ui: {
+    async select(title, options) {
+      previewListTitle = title;
+      previewListOptions = [...options];
+      return selectPreview ? options[0] : undefined;
+    },
+    notify(message, level) { previewListNotifications.push({ message, level }); },
+  },
+};
+await previewListCommand.handler('', previewListContext);
+expect(previewListTitle === 'Select Markdown preview' && JSON.stringify(previewListOptions) === JSON.stringify(['1. Saved preview']), 'list command must reconstruct rendered previews from the active branch');
+selectPreview = true;
+let selectedListSource;
+await previewTest.listPreviewSources(previewListContext, async (source) => { selectedListSource = source; });
+expect(selectedListSource === exactListSource && previewListNotifications.at(-1)?.message === 'Markdown preview source copied to clipboard' && previewListNotifications.at(-1)?.level === 'info', 'list selection must copy the exact original Markdown and report success');
+await previewTest.listPreviewSources(previewListContext, async () => { throw new Error('clipboard unavailable'); });
+expect(previewListNotifications.at(-1)?.message === 'Failed to copy Markdown preview source to clipboard' && previewListNotifications.at(-1)?.level === 'error', 'list copy failure must report an error');
+previewBranch.length = 0;
+await previewListCommand.handler('', previewListContext);
+expect(previewListNotifications.at(-1)?.message === 'No Markdown previews found on this branch' && previewListNotifications.at(-1)?.level === 'warning', 'list command must report an empty active branch');
 const fakeTheme = {
   fg: (_color, text) => text,
   bold: (text) => text,
@@ -242,9 +288,12 @@ for (const [width, lines] of [[28, renderedPreview.render(28)], [120, renderedLi
 }
 expect(renderedText.includes('\u001b[48;2;47;51;77m\u001b[38;2;192;153;255minline code\u001b[0m\u001b[48;2;34;36;54m'), 'inline code must restore the card surface after a full reset');
 expect(renderedText.includes('\u001b[48;2;25;27;41m\u001b[38;2;195;232;141mconst value = 1;\u001b[0m\u001b[48;2;34;36;54m'), 'code blocks must restore the card surface after a full reset');
+previewThemeNotifications.length = 0;
+await previewThemeCommand.handler('unexpected', previewThemeContext);
+expect(previewThemeNotifications.at(-1)?.message === 'Usage: /preview-markdown:theme' && previewThemeNotifications.at(-1)?.level === 'error', 'theme command must reject unexpected arguments with concise usage');
 previewThemeSelection = 'Tokyo Night Day';
 await previewThemeCommand.handler('', previewThemeContext);
-expect(previewThemeMenuOptions[0] === 'Tokyo Night Moon (current)' && previewThemeMenuOptions[1] === 'Tokyo Night Day', 'preview-markdown-theme must indicate the current Moon selection');
+expect(previewThemeMenuOptions[0] === 'Tokyo Night Moon (current)' && previewThemeMenuOptions[1] === 'Tokyo Night Day', 'preview-markdown:theme must indicate the current Moon selection');
 expect(JSON.parse(readFileSync(previewThemePath, 'utf8')).theme === 'day', 'Day selection must persist globally in the b-agentic namespace');
 const dayResult = await previewTool.execute('preview-day', { markdown: inlineMarkdown, title: 'Day example' }, undefined, undefined, {
   mode: 'tui',
