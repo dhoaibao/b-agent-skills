@@ -445,12 +445,12 @@ export default function bAgenticPreviewMarkdown(pi: ExtensionAPI): void {
 
   pi.registerCommand("preview-markdown:theme", {
     description: "Select the global Tokyo Night preview theme",
-    handler: (args, ctx) => {
+    handler: async (args, ctx) => {
       if (args.trim()) {
         ctx.ui.notify(PREVIEW_THEME_USAGE, "error");
         return;
       }
-      return selectPreviewTheme(ctx);
+      await selectPreviewTheme(ctx);
     },
   });
 
@@ -482,14 +482,14 @@ export default function bAgenticPreviewMarkdown(pi: ExtensionAPI): void {
       },
       required: ["markdown"],
       additionalProperties: false,
-    },
+    } as const,
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
       const title = params.title?.trim() || DEFAULT_TITLE;
       if (ctx.mode !== "tui") return fallbackResult(ctx.mode);
 
       const theme = await loadCurrentPreviewTheme();
       const result = {
-        content: [{ type: "text", text: "Markdown preview rendered inline." }],
+        content: [{ type: "text" as const, text: "Markdown preview rendered inline." }],
         details: { markdown: params.markdown, title, theme } satisfies PreviewDetails,
       };
       lastPreviewMarkdown = params.markdown;

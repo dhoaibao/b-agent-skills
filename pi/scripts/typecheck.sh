@@ -7,7 +7,8 @@ tsc="$pi_dir/node_modules/.bin/tsc"
 
 if [[ ! -x "$tsc" || ! -d "$pi_dir/node_modules/@earendil-works/pi-coding-agent" || ! -d "$pi_dir/node_modules/@types/node" ]]; then
   echo "TypeScript check skipped: install pi dependencies with 'npm install --prefix pi'." >&2
-  exit 0
+else
+  "$tsc" --noEmit --project "$pi_dir/tsconfig.json"
 fi
 
-exec "$tsc" --noEmit --project "$pi_dir/tsconfig.json"
+bash "$script_dir/typecheck-preview-markdown.sh"

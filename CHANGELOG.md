@@ -6,6 +6,11 @@ All notable shipped revisions of b-agentic are recorded here. Released version h
 
 ### Changed
 
+- Preview Markdown type coverage:
+  - Observed failure: the standalone preview package was outside the root Pi TypeScript include, its first package check found five source diagnostics, and `pi-tui` was only available nested under the coding-agent dependency rather than resolvable from the package.
+  - Intended behavior: reuse one Pi install with a direct dev-only `pi-tui` pin, add an unpublished package-local check, keep schema and result literal narrowing type-only and erased from emitted JavaScript, normalize the theme handler to the host's `Promise<void>` contract with observational equivalence under that contract, and have the documented root command run both checks.
+  - Regression: both `bash pi/scripts/typecheck.sh` and `bash pi/scripts/typecheck-preview-markdown.sh` report zero diagnostics after installation; the npm package validator and preview smoke fixture pass, while offline suites skip cleanly without dependencies.
+
 - Diagnostics directory trust skips dependency trees:
   - Observed failure: project-root and directory-scoped `lsp_diagnostics` trust was rejected when `node_modules` contained protected-looking dependency filenames such as `credentials.d.ts`, making the trusted read-only path unusable after installing dependencies.
   - Intended behavior: skip `.git`, `node_modules`, and `.venv` while scanning diagnostics directories, keep protected files elsewhere fail-closed, and leave Serena's write-side descendant guard exhaustive.

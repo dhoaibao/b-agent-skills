@@ -6,6 +6,7 @@ cd "$ROOT_DIR"
 
 bash -n "$ROOT_DIR/pi/scripts/install-preview-markdown.sh"
 bash -n "$ROOT_DIR/pi/scripts/typecheck.sh"
+bash -n "$ROOT_DIR/pi/scripts/typecheck-preview-markdown.sh"
 
 python3 - <<'PY'
 from pathlib import Path

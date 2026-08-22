@@ -43,7 +43,7 @@ npm install --prefix pi
 bash pi/scripts/typecheck.sh
 ```
 
-It is intentionally not part of the offline validation suites.
+This command runs both the root Pi extension check and the standalone Preview Markdown package check. It is intentionally not part of the offline validation suites; `bash pi/scripts/typecheck-preview-markdown.sh` is also available for the package check alone.
 
 ## Codebase Map
 
