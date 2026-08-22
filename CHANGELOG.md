@@ -6,6 +6,11 @@ All notable shipped revisions of b-agentic are recorded here. Released version h
 
 ### Changed
 
+- Checkable CHANGELOG regression claims:
+  - Observed failure: Unreleased entries relied on convention for their three-part shape, repository citations could name missing paths, and regression prose could claim coverage without a concrete artifact or an explicit uncovered status.
+  - Intended behavior: validate colon-terminated structured entries under `## Unreleased` for the exact sub-bullet order, resolve cited tracked paths, and require either a concrete citation or `no automated coverage:`. Released history and legacy bullets remain untouched; this cannot verify that a cited check semantically covers the change it claims to cover.
+  - Regression: `tooling/validate/run.sh` invokes the check through `scripts/validate-skills.sh`; temporary nonexistent-path, missing-sub-bullet, citation-without-artifact-or-`no automated coverage:`, and bare-`no automated coverage:` mutations each fail by naming the affected entry, and the full offline acceptance suite passes.
+
 - Canonical role-prompt assertion markers:
   - Observed failure: planner and worker rule strings were hand-copied across four validators and smoke assertions, so one wording change required synchronized edits and could leave coverage stale or self-matched.
   - Intended behavior: keep one marker mapping in `tooling/generate/registry_sync.py`, generate consumer blocks for each existing target and role split, preserve all per-consumer marker sets, and leave `role.ts` prompt wording unchanged.
@@ -39,7 +44,7 @@ All notable shipped revisions of b-agentic are recorded here. Released version h
 - Kernel/headroom deduplication:
   - Observed failure: the always-loaded kernel spent roughly 40% of its 12,000-byte cap on two-role delegation mechanics duplicated in the injected planner and worker prompts, even though b-agentic defaults to Off.
   - Intended behavior: keep Off/solo role selection, the sole-writer and same-CWD roster boundary, generated skill ownership, and the questionnaire contract in the kernel; keep handoff, Intercom, blocker, delivery, review, and post-approval commit mechanics in the role-specific prompts without weakening active-role behavior.
-  - Regression: kernel size guards, role-prompt marker assertions, planner/worker smoke prompt coverage, generated-sync checks, and role behavior fixtures retain the moved rules and detect kernel/prompt drift.
+  - Regression: no automated coverage: no single check proves the moved rules end-to-end; kernel size guards, role-prompt marker assertions, planner/worker smoke prompt coverage, generated-sync checks, and role behavior fixtures retain the moved rules and detect kernel/prompt drift.
 
 - Optional PR Markdown preview:
   - Observed failure: `b-pr-summary` ended with plain PR copy even though the installed preview capability could provide a formatted read-and-copy workflow.
@@ -49,7 +54,7 @@ All notable shipped revisions of b-agentic are recorded here. Released version h
 - Accurate pi-lsp prerequisites:
   - Observed failure: the reference treated language-server binaries on `PATH` as a footnote and omitted pi-lsp's built-in default map, replacement semantics for custom configuration, and configuration resolution order, making a fresh install's empty diagnostics unclear.
   - Intended behavior: document the default server map, the binary-on-`PATH` prerequisite, replacement rather than merge behavior, and the `PI_LSP_CONFIG`/workspace/user resolution order without writing user-owned configuration.
-  - Regression: documentation-only; no installer or configuration behavior changed, and no automated assertion covers this prose. Accuracy depends on the upstream `@narumitw/pi-lsp@0.32.0` README.
+  - Regression: no automated coverage: documentation-only; no installer or configuration behavior changed, and no automated assertion covers this prose. Accuracy depends on the upstream `@narumitw/pi-lsp@0.32.0` README.
 
 - Preview-Markdown package and standalone installer (commits 31c4c17,
   87ac5aa, faf1f4b, 510dcdc, 875a683):
