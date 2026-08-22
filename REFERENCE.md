@@ -224,14 +224,22 @@ b-agentic installs the `@narumitw/pi-usage` extension automatically.
 
 b-agentic installs `@narumitw/pi-lsp@0.32.0` automatically for optional, on-demand
 `lsp_diagnostics` and `lsp_fix` capabilities and source-action previews. pi-lsp
-starts language servers only when its tools are called and does not install their
-binaries; the language-server commands must already be on `PATH`. The installer
-writes no pi-lsp configuration: user `~/.pi/agent/pi-lsp.json` and trusted project
-`.pi/pi-lsp.json` remain owner-controlled. Validated `lsp_diagnostics` calls with
-project-confined, unprotected paths bypass generic custom-tool approval. `lsp_fix`
-actions (including read-only-looking calls), malformed or unsafe diagnostics
-calls, and other custom LSP calls retain the generic custom-tool approval behavior,
-and authoritative repository validation remains required.
+ships a built-in default server map for roughly 28 languages (including Biome for
+JavaScript/TypeScript/JSON/CSS, ty and Ruff for Python, bash-language-server for
+shell, and yaml-language-server for YAML), so no configuration is required for
+those defaults. It starts servers only when its tools are called and does not
+install their binaries: the actual prerequisite is that the relevant
+language-server command is already on `PATH`; without one, diagnostics have no
+server to route the repository's file types to. Custom configuration replaces,
+rather than merges with, that default map. Resolution is `PI_LSP_CONFIG` (inline
+JSON or a JSON-file path), then `<workspace>/.pi/pi-lsp.json`, then
+`~/.pi/agent/pi-lsp.json`; the installer writes none of these files and leaves
+user and trusted-project configuration owner-controlled. Validated
+`lsp_diagnostics` calls with project-confined, unprotected paths bypass generic
+custom-tool approval. `lsp_fix` actions (including read-only-looking calls),
+malformed or unsafe diagnostics calls, and other custom LSP calls retain the
+generic custom-tool approval behavior, and authoritative repository validation
+remains required.
 
 b-agentic installs `pi-intercom` automatically for its two-role workflow and installs
 `@juicesharp/rpiv-ask-user-question@2.6.2` for structured planner decisions and blockers.

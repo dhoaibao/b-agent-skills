@@ -11,6 +11,16 @@ All notable shipped revisions of b-agentic are recorded here. Released version h
   - Intended behavior: keep Off/solo role selection, the sole-writer and same-CWD roster boundary, generated skill ownership, and the questionnaire contract in the kernel; keep handoff, Intercom, blocker, delivery, review, and post-approval commit mechanics in the role-specific prompts without weakening active-role behavior.
   - Regression: kernel size guards, role-prompt marker assertions, planner/worker smoke prompt coverage, generated-sync checks, and role behavior fixtures retain the moved rules and detect kernel/prompt drift.
 
+- Optional PR Markdown preview:
+  - Observed failure: `b-pr-summary` ended with plain PR copy even though the installed preview capability could provide a formatted read-and-copy workflow.
+  - Intended behavior: after producing a non-BLOCKED PR title and description, optionally offer or render the original Markdown source with `preview_markdown` using only string `markdown` and optional string `title` arguments; keep the preview skippable.
+  - Regression: the `b-pr-summary` prompt regression contract in `tooling/validate/shared.py` asserts the preview guidance, while `python3 tooling/generate/registry_sync.py --check` verifies the generated skill remains synchronized.
+
+- Accurate pi-lsp prerequisites:
+  - Observed failure: the reference treated language-server binaries on `PATH` as a footnote and omitted pi-lsp's built-in default map, replacement semantics for custom configuration, and configuration resolution order, making a fresh install's empty diagnostics unclear.
+  - Intended behavior: document the default server map, the binary-on-`PATH` prerequisite, replacement rather than merge behavior, and the `PI_LSP_CONFIG`/workspace/user resolution order without writing user-owned configuration.
+  - Regression: documentation-only; no installer or configuration behavior changed, and no automated assertion covers this prose. Accuracy depends on the upstream `@narumitw/pi-lsp@0.32.0` README.
+
 - Preview-Markdown package and standalone installer (commits 31c4c17,
   87ac5aa, faf1f4b, 510dcdc, 875a683):
   - Observed failure: users wanting only the inline Markdown preview had to
@@ -67,7 +77,6 @@ All notable shipped revisions of b-agentic are recorded here. Released version h
   - Observed failure: bare triggers such as `add`/`build`/`error`/`docs` over-routed unrelated requests.
   - Intended behavior: prefer multi-word intent phrases; drop bare `docs`.
   - Regression: trigger-tightening fixtures in `tooling/validate/behavior.py` (finish/make/build-the-feature, runtime error, product bug, README approach stays plan, external documentation stays research).
-
 ### Removed
 
 - Remove the unused Python package metadata in `pyproject.toml`; immutable Git tags remain the release version source.

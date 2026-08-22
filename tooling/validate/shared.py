@@ -102,7 +102,10 @@ prompt_regression_contracts = {
     "b-review": ["review of changed code"],
     "b-agentic-audit": ["source-based comparison", "does not mechanically prove all prose semantics"],
     "b-commit": ["Ask before staging or committing; do not push or create a PR."],
-    "b-pr-summary": ["Do not contact remotes, fetch, push, inspect merge bases, or open PR state."],
+    "b-pr-summary": [
+        "Do not contact remotes, fetch, push, inspect merge bases, or open PR state.",
+        "optionally offer or render the finished Markdown source with `preview_markdown`",
+    ],
 }
 for skill_name, markers in prompt_regression_contracts.items():
     text = read_text(ROOT / "skills" / skill_name / "prompt.md")

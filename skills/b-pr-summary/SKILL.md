@@ -69,3 +69,4 @@ BLOCKED: no commits ahead of cached origin to summarize
 - Evidence-only claims. Do not invent root cause, decision, impact, or verification.
 - Do not contact remotes, fetch, push, inspect merge bases, or open PR state.
 - Do not stage, commit, push, or create a PR.
+- After producing the PR title and description, optionally offer or render the finished Markdown source with `preview_markdown` so the user can read it formatted and copy the source with `ctrl+shift+m`. Keep this skippable and never call it for BLOCKED outcomes; pass only an object with string `markdown` and, when included, string `title`; use no extra keys and pass the original Markdown source rather than rendered text.
