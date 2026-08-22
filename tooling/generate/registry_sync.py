@@ -43,6 +43,106 @@ SKILL_OWNERSHIP_CRITERION = (
     "Mixed or uncertain skills are worker-owned."
 )
 
+# Canonical role-prompt assertion markers. Consumer blocks below are generated
+# so prompt wording remains the only runtime source while assertions share one
+# maintained marker set per target prompt surface.
+ROLE_PROMPT_MARKERS = {
+    "common": [
+        "Finish discovery before one bounded handoff",
+        "Use send for task delegation and worker result/review reporting; use ask only for blockers, clarifications, or a planner's quick-answer need—not to wait",
+        "Roster/status only selects or handles",
+        "Before every Intercom send/reply call pending",
+        "Reply to an inbound ask without send/list-cwd",
+        "identifier token verbatim",
+        "authoritative short ID is valid",
+        "never guess, reconstruct, extend, further abbreviate, or reuse stale output",
+        "Delivery makes a handoff, result, finding, or approval real",
+        "one retry only",
+        "applicable observable behavior, scope/non-goals, constraints/invariants",
+        "send a completion/result to the same assigning planner before pausing",
+        "including when no edits were needed or the task ends with a reported gap",
+        "latest approved plan, handoff, and clarifications",
+        "Only delegated worktree-changing tasks require actual b-review",
+        "location, evidence, impact, violated baseline, smallest correction, and regression check",
+        "For audit/review verification you cannot run, request bounded worker evidence",
+        "same worker may b-commit only on explicit user request",
+    ],
+    "behavior": [
+        "Before every Intercom send/reply call pending",
+        "Reply to an inbound ask without send/list-cwd",
+        "identifier token verbatim",
+        "authoritative short ID is valid",
+        "otherwise refresh list-cwd, then ask the assigning planner one focused question using its returned identifier token verbatim",
+        "never guess, reconstruct, extend, further abbreviate, or reuse stale output",
+        "Delivery makes a handoff, result, finding, or approval real",
+        "one retry only",
+        "applicable observable behavior, scope/non-goals, constraints/invariants",
+        "execute the assigned worker-owned work yourself",
+        "never delegate or hand off any part of it to another worker",
+        "send a completion/result to the same assigning planner before pausing",
+        "including when no edits were needed or the task ends with a reported gap",
+        "Only delegated worktree-changing tasks require actual b-review",
+        "location, evidence, impact, violated baseline, smallest correction, and regression check",
+        "For audit/review verification you cannot run, request bounded worker evidence",
+        "same worker may b-commit only on explicit user request",
+    ],
+    "planner": [
+        "Finish discovery before one bounded handoff",
+        "While the worker edits, do not explore or issue new work",
+        "Roster/status only selects or handles",
+        "Before every Intercom send/reply call pending",
+        "Delivery makes a handoff, result, finding, or approval real",
+        "The refresh is not polling; after handoff end the turn and wait for the worker send, with no sleep, timeout, status polling, or ask to wait",
+        "latest approved plan, handoff, and clarifications",
+        "Only delegated worktree-changing tasks require actual b-review",
+        "location, evidence, impact, violated baseline, smallest correction, and regression check",
+        "For audit/review verification you cannot run, request bounded worker evidence",
+    ],
+    "worker": [
+        "worker profile (implementation)",
+        "sole worktree writer",
+        "Your in-scope worker skills are: `b-design`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, `b-commit`",
+        "Delegate these planner-owned skills to the planner: `b-plan`, `b-research`, `b-agentic-audit`, `b-review`, `b-pr-summary`",
+        "planner owns external research",
+        "Planner-owned only when execution is read-only decision/planning",
+        "Mixed or uncertain skills are worker-owned",
+        "Ownership governs execution, not inspection",
+        "Unknown or ambiguous skills fail closed to worker ownership",
+        "For a two-role material blocker",
+        "reply to an inbound ask without list-cwd/send/ask",
+        "ask the assigning planner one focused question using its returned identifier token verbatim",
+        "execute the assigned worker-owned work yourself",
+        "never delegate or hand off any part of it to another worker",
+        "only for a material blocker, scope decision, or external-research decision",
+        "Use send for task and result/review reporting; use ask only for blockers, scope clarifications, or external-research decisions, never to wait",
+        "Before every Intercom send/reply call pending",
+        "Delivery makes a handoff, result, finding, or approval real",
+        "At every terminal outcome in a two-role task",
+        "no edits were needed",
+        "reported gap",
+        "same assigning planner before pausing",
+        "authoritative short ID is valid",
+        "never guess, reconstruct, extend, further abbreviate",
+        "Include implemented behavior (or the no-change outcome), changed paths, acceptance coverage, exact checks/outcomes",
+        "deviations, assumptions, or gaps",
+        "actual b-review against that baseline",
+        "pause all edits",
+        "explicitly requests b-commit",
+        "unchanged reviewed snapshot; any content change reopens review",
+    ],
+}
+
+ROLE_PROMPT_SHARED_START = "# generated:role-prompt-markers:shared:start"
+ROLE_PROMPT_SHARED_END = "# generated:role-prompt-markers:shared:end"
+ROLE_PROMPT_BEHAVIOR_START = "# generated:role-prompt-markers:behavior:start"
+ROLE_PROMPT_BEHAVIOR_END = "# generated:role-prompt-markers:behavior:end"
+ROLE_PROMPT_VALIDATE_START = "# generated:role-prompt-markers:validate:start"
+ROLE_PROMPT_VALIDATE_END = "# generated:role-prompt-markers:validate:end"
+ROLE_PROMPT_SMOKE_PLANNER_START = "// generated:role-prompt-markers:planner:start"
+ROLE_PROMPT_SMOKE_PLANNER_END = "// generated:role-prompt-markers:planner:end"
+ROLE_PROMPT_SMOKE_WORKER_START = "// generated:role-prompt-markers:worker:start"
+ROLE_PROMPT_SMOKE_WORKER_END = "// generated:role-prompt-markers:worker:end"
+
 
 def load_json_subset_yaml(path: Path) -> dict:
     try:
@@ -284,6 +384,10 @@ def render_skill_file(skill: dict) -> str:
     return "\n".join(lines)
 
 
+def render_role_prompt_markers(markers: list[str], indent: str) -> str:
+    return "\n".join(f"{indent}{json.dumps(marker, ensure_ascii=False)}," for marker in markers)
+
+
 def replace_block(text: str, start_marker: str, end_marker: str, body: str) -> str:
     try:
         start = text.index(start_marker) + len(start_marker)
@@ -308,6 +412,41 @@ def render_outputs(skills: list[dict]) -> dict[Path, str]:
     role_extension = ROOT / "pi" / "extensions" / "b-agentic-support" / "role.ts"
     outputs[role_extension] = replace_block(
         role_extension.read_text(), ROLE_SKILL_OWNERSHIP_START, ROLE_SKILL_OWNERSHIP_END, render_role_skill_ownership(skills)
+    )
+    shared_validation = ROOT / "tooling" / "validate" / "shared.py"
+    outputs[shared_validation] = replace_block(
+        shared_validation.read_text(),
+        ROLE_PROMPT_SHARED_START,
+        ROLE_PROMPT_SHARED_END,
+        render_role_prompt_markers(ROLE_PROMPT_MARKERS["common"], "    "),
+    )
+    behavior_validation = ROOT / "tooling" / "validate" / "behavior.py"
+    outputs[behavior_validation] = replace_block(
+        behavior_validation.read_text(),
+        ROLE_PROMPT_BEHAVIOR_START,
+        ROLE_PROMPT_BEHAVIOR_END,
+        render_role_prompt_markers(ROLE_PROMPT_MARKERS["behavior"], "        "),
+    )
+    pi_validation = ROOT / "pi" / "scripts" / "validate.sh"
+    outputs[pi_validation] = replace_block(
+        pi_validation.read_text(),
+        ROLE_PROMPT_VALIDATE_START,
+        ROLE_PROMPT_VALIDATE_END,
+        render_role_prompt_markers(ROLE_PROMPT_MARKERS["common"], "    "),
+    )
+    smoke = ROOT / "pi" / "tests" / "smoke.sh"
+    smoke_text = smoke.read_text()
+    smoke_text = replace_block(
+        smoke_text,
+        ROLE_PROMPT_SMOKE_PLANNER_START,
+        ROLE_PROMPT_SMOKE_PLANNER_END,
+        render_role_prompt_markers(ROLE_PROMPT_MARKERS["planner"], "  "),
+    )
+    outputs[smoke] = replace_block(
+        smoke_text,
+        ROLE_PROMPT_SMOKE_WORKER_START,
+        ROLE_PROMPT_SMOKE_WORKER_END,
+        render_role_prompt_markers(ROLE_PROMPT_MARKERS["worker"], "  "),
     )
     extension = ROOT / "pi" / "extensions" / "b-agentic-support" / "mcp.ts"
     runtime_policy = re.sub(r"^const ", "export const ", render_mcp_runtime_policy(policy), flags=re.MULTILINE)

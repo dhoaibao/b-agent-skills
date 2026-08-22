@@ -6,6 +6,11 @@ All notable shipped revisions of b-agentic are recorded here. Released version h
 
 ### Changed
 
+- Canonical role-prompt assertion markers:
+  - Observed failure: planner and worker rule strings were hand-copied across four validators and smoke assertions, so one wording change required synchronized edits and could leave coverage stale or self-matched.
+  - Intended behavior: keep one marker mapping in `tooling/generate/registry_sync.py`, generate consumer blocks for each existing target and role split, preserve all per-consumer marker sets, and leave `role.ts` prompt wording unchanged.
+  - Regression: the three negative tests passed—an unregenerated canonical edit made `registry_sync.py --check` fail, regeneration made `scripts/validate-skills.sh` fail on the missing role marker, and deleting a `role.ts` sentence made the suite name that marker—followed by the full offline acceptance suite.
+
 - Preview release tag parity:
   - Observed failure: the preview package manifest declared `0.1.2` while the README, reference, and package README documented raw-installer tags and arguments as `v0.1.0`, allowing a future tag to disagree with the shipped package version.
   - Intended behavior: treat the package manifest as authoritative, document the unreleased raw-installer tag as `v0.1.2` without creating or claiming the tag, and validate every bounded preview bootstrap URL and trailing installer argument against that manifest version.

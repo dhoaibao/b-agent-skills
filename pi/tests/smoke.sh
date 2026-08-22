@@ -771,7 +771,20 @@ expect(await toolCallHandler({ toolName: 'mcp', input: { server: 'linear', tool:
 const plannerStart = await handlers.before_agent_start({ systemPrompt: 'base', systemPromptOptions: { skills: [] } }, roleContext);
 expect(plannerStart.systemPrompt.includes('planner profile (read-only coordinator)') && plannerStart.systemPrompt.includes('Your in-scope planner skills are: `b-plan`, `b-research`, `b-agentic-audit`, `b-review`, `b-pr-summary`') && plannerStart.systemPrompt.includes('Delegate these worker-owned skills to a ready same-CWD worker: `b-design`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, `b-commit`'), 'planner prompt must enumerate its skills and its delegation list');
 expect(plannerStart.systemPrompt.includes('The planner keeps external b-research planner-owned and never delegates it.') && plannerStart.systemPrompt.includes("When needed, agree with the worker on the approach before edits begin. Use send for task delegation and worker result/review reporting; use ask only for blockers, clarifications, or a planner's quick-answer need—not to wait for a delegated result.") && plannerStart.systemPrompt.includes('ask_user_question') && plannerStart.systemPrompt.includes('2–4 concrete options') && plannerStart.systemPrompt.includes(' (Recommended)') && plannerStart.systemPrompt.includes('automatic custom-answer row') && plannerStart.systemPrompt.includes('B_AGENTIC_TASK_COMPLETE') && plannerStart.systemPrompt.includes('B_AGENTIC_USER_INPUT_NEEDED'), 'planner prompt must keep research ownership, questionnaire guidance, and both privacy-safe attention signals');
-for (const marker of ['Finish discovery before one bounded handoff', 'While the worker edits, do not explore or issue new work', 'Roster/status only selects or handles', 'Before every Intercom send/reply call pending', 'Delivery makes a handoff, result, finding, or approval real', 'The refresh is not polling; after handoff end the turn and wait for the worker send, with no sleep, timeout, status polling, or ask to wait', 'latest approved plan, handoff, and clarifications', 'Only delegated worktree-changing tasks require actual b-review', 'location, evidence, impact, violated baseline, smallest correction, and regression check', 'For audit/review verification you cannot run, request bounded worker evidence']) {
+for (const marker of [
+  // generated:role-prompt-markers:planner:start
+  "Finish discovery before one bounded handoff",
+  "While the worker edits, do not explore or issue new work",
+  "Roster/status only selects or handles",
+  "Before every Intercom send/reply call pending",
+  "Delivery makes a handoff, result, finding, or approval real",
+  "The refresh is not polling; after handoff end the turn and wait for the worker send, with no sleep, timeout, status polling, or ask to wait",
+  "latest approved plan, handoff, and clarifications",
+  "Only delegated worktree-changing tasks require actual b-review",
+  "location, evidence, impact, violated baseline, smallest correction, and regression check",
+  "For audit/review verification you cannot run, request bounded worker evidence",
+// generated:role-prompt-markers:planner:end
+]) {
   expect(plannerStart.systemPrompt.includes(marker), `planner prompt must retain ${marker}`);
 }
 
@@ -815,7 +828,40 @@ for (const command of ['rtk git status --short', 'fdfind -t f SKILL.md skills', 
   expect(await toolCallHandler({ toolName: 'bash', input: { command } }, roleContext) === undefined, `worker role must preserve local discovery: ${command}`);
 }
 const workerStart = await handlers.before_agent_start({ systemPrompt: 'base', systemPromptOptions: { skills: [] } }, roleContext);
-for (const marker of ['worker profile (implementation)', 'sole worktree writer', 'Your in-scope worker skills are: `b-design`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, `b-commit`', 'Delegate these planner-owned skills to the planner: `b-plan`, `b-research`, `b-agentic-audit`, `b-review`, `b-pr-summary`', 'planner owns external research', 'Planner-owned only when execution is read-only decision/planning', 'Mixed or uncertain skills are worker-owned', 'Ownership governs execution, not inspection', 'Unknown or ambiguous skills fail closed to worker ownership', 'For a two-role material blocker', 'reply to an inbound ask without list-cwd/send/ask', 'ask the assigning planner one focused question using its returned identifier token verbatim', 'execute the assigned worker-owned work yourself', 'never delegate or hand off any part of it to another worker', 'only for a material blocker, scope decision, or external-research decision', 'Use send for task and result/review reporting; use ask only for blockers, scope clarifications, or external-research decisions, never to wait', 'Before every Intercom send/reply call pending', 'Delivery makes a handoff, result, finding, or approval real', 'At every terminal outcome in a two-role task', 'no edits were needed', 'reported gap', 'same assigning planner before pausing', 'authoritative short ID is valid', 'never guess, reconstruct, extend, further abbreviate', 'Include implemented behavior (or the no-change outcome), changed paths, acceptance coverage, exact checks/outcomes', 'deviations, assumptions, or gaps', 'actual b-review against that baseline', 'pause all edits', 'explicitly requests b-commit', 'unchanged reviewed snapshot; any content change reopens review']) {
+for (const marker of [
+  // generated:role-prompt-markers:worker:start
+  "worker profile (implementation)",
+  "sole worktree writer",
+  "Your in-scope worker skills are: `b-design`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, `b-commit`",
+  "Delegate these planner-owned skills to the planner: `b-plan`, `b-research`, `b-agentic-audit`, `b-review`, `b-pr-summary`",
+  "planner owns external research",
+  "Planner-owned only when execution is read-only decision/planning",
+  "Mixed or uncertain skills are worker-owned",
+  "Ownership governs execution, not inspection",
+  "Unknown or ambiguous skills fail closed to worker ownership",
+  "For a two-role material blocker",
+  "reply to an inbound ask without list-cwd/send/ask",
+  "ask the assigning planner one focused question using its returned identifier token verbatim",
+  "execute the assigned worker-owned work yourself",
+  "never delegate or hand off any part of it to another worker",
+  "only for a material blocker, scope decision, or external-research decision",
+  "Use send for task and result/review reporting; use ask only for blockers, scope clarifications, or external-research decisions, never to wait",
+  "Before every Intercom send/reply call pending",
+  "Delivery makes a handoff, result, finding, or approval real",
+  "At every terminal outcome in a two-role task",
+  "no edits were needed",
+  "reported gap",
+  "same assigning planner before pausing",
+  "authoritative short ID is valid",
+  "never guess, reconstruct, extend, further abbreviate",
+  "Include implemented behavior (or the no-change outcome), changed paths, acceptance coverage, exact checks/outcomes",
+  "deviations, assumptions, or gaps",
+  "actual b-review against that baseline",
+  "pause all edits",
+  "explicitly requests b-commit",
+  "unchanged reviewed snapshot; any content change reopens review",
+// generated:role-prompt-markers:worker:end
+]) {
   expect(workerStart.systemPrompt.includes(marker), `worker role must include ${marker}`);
 }
 expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'send', to: 'planner', message: 'Changed README.md; smoke passed; no known gaps.' } }, roleContext) === undefined, 'worker role must allow plain-language results');

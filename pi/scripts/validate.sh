@@ -78,21 +78,26 @@ if kernel.exists():
 
 role_prompt = (root / 'pi/extensions/b-agentic-support/role.ts').read_text()
 for marker in [
-    'Finish discovery before one bounded handoff',
+    # generated:role-prompt-markers:validate:start
+    "Finish discovery before one bounded handoff",
     "Use send for task delegation and worker result/review reporting; use ask only for blockers, clarifications, or a planner's quick-answer need—not to wait",
-    'Roster/status only selects or handles',
-    'Before every Intercom send/reply call pending',
-    'Reply to an inbound ask without send/list-cwd', 'identifier token verbatim',
-    'authoritative short ID is valid', 'never guess, reconstruct, extend, further abbreviate, or reuse stale output',
-    'Delivery makes a handoff, result, finding, or approval real', 'one retry only',
-    'applicable observable behavior, scope/non-goals, constraints/invariants',
-    'send a completion/result to the same assigning planner before pausing',
-    'including when no edits were needed or the task ends with a reported gap',
-    'latest approved plan, handoff, and clarifications',
-    'Only delegated worktree-changing tasks require actual b-review',
-    'location, evidence, impact, violated baseline, smallest correction, and regression check',
-    'For audit/review verification you cannot run, request bounded worker evidence',
-    'same worker may b-commit only on explicit user request',
+    "Roster/status only selects or handles",
+    "Before every Intercom send/reply call pending",
+    "Reply to an inbound ask without send/list-cwd",
+    "identifier token verbatim",
+    "authoritative short ID is valid",
+    "never guess, reconstruct, extend, further abbreviate, or reuse stale output",
+    "Delivery makes a handoff, result, finding, or approval real",
+    "one retry only",
+    "applicable observable behavior, scope/non-goals, constraints/invariants",
+    "send a completion/result to the same assigning planner before pausing",
+    "including when no edits were needed or the task ends with a reported gap",
+    "latest approved plan, handoff, and clarifications",
+    "Only delegated worktree-changing tasks require actual b-review",
+    "location, evidence, impact, violated baseline, smallest correction, and regression check",
+    "For audit/review verification you cannot run, request bounded worker evidence",
+    "same worker may b-commit only on explicit user request",
+# generated:role-prompt-markers:validate:end
 ]:
     if marker not in role_prompt:
         errors.append(f"{root / 'pi/extensions/b-agentic-support/role.ts'}: missing {marker!r}")

@@ -80,11 +80,15 @@ INTERCOM_DELEGATION_REGRESSION = {
         "b-agentic defaults to Off", "external `b-research`", "sole worktree writer",
     ),
     "role_required_clauses": (
-        "Before every Intercom send/reply call pending", "Reply to an inbound ask without send/list-cwd",
-        "identifier token verbatim", "authoritative short ID is valid",
+        # generated:role-prompt-markers:behavior:start
+        "Before every Intercom send/reply call pending",
+        "Reply to an inbound ask without send/list-cwd",
+        "identifier token verbatim",
+        "authoritative short ID is valid",
         "otherwise refresh list-cwd, then ask the assigning planner one focused question using its returned identifier token verbatim",
         "never guess, reconstruct, extend, further abbreviate, or reuse stale output",
-        "Delivery makes a handoff, result, finding, or approval real", "one retry only",
+        "Delivery makes a handoff, result, finding, or approval real",
+        "one retry only",
         "applicable observable behavior, scope/non-goals, constraints/invariants",
         "execute the assigned worker-owned work yourself",
         "never delegate or hand off any part of it to another worker",
@@ -94,6 +98,7 @@ INTERCOM_DELEGATION_REGRESSION = {
         "location, evidence, impact, violated baseline, smallest correction, and regression check",
         "For audit/review verification you cannot run, request bounded worker evidence",
         "same worker may b-commit only on explicit user request",
+# generated:role-prompt-markers:behavior:end
     ),
 }
 
