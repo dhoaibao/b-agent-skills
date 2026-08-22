@@ -182,6 +182,15 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   `references/kernel.template.md`, `pi/configs/README.md`,
   `pi/extensions/b-agentic-support/role.ts`, `tests/behavior/roles.json`,
   `pi/tests/smoke.sh`.
+- The always-loaded kernel carries only role-neutral role selection and Off
+  default, the sole-writer and same-CWD roster boundary, generated skill
+  ownership, and the questionnaire contract. Two-role handoff, Intercom
+  targeting, delivery, blocker, review-gate, and post-approval commit mechanics
+  live in the injected planner and worker prompts, preserving active-role
+  behavior while keeping the kernel within its byte and line caps. Evidence:
+  `references/kernel.template.md`, `pi/extensions/b-agentic-support/role.ts`,
+  `tooling/validate/shared.py`, `tooling/validate/behavior.py`,
+  `pi/scripts/validate.sh`, `pi/tests/smoke.sh`, `tests/behavior/roles.json`.
 - Interactive, user-facing material decisions and blockers use the installed
   `ask_user_question` tool in planner or solo/Off work. Calls group 1–4 related
   questions, provide 2–4 concrete options with concise trade-offs, suffix the

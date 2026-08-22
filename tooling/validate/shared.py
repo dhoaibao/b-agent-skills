@@ -571,24 +571,35 @@ for relative_path, markers in SERENA_WORKFLOW_REGRESSION["anchors"].items():
             )
 
 for intercom_marker in [
-    "b-agentic defaults to Off", "external `b-research`", "sole worktree writer",
-    "Before every Intercom `send` or `reply`, call `pending`", "inbound ask requires its `reply`",
-    "identifier token returned verbatim", "authoritative short ID is valid",
-    "otherwise refresh `list-cwd` then `ask` the assigning planner one focused question using its returned identifier token verbatim",
-    "never guess, reconstruct, extend, further abbreviate, or use a stale token",
-    "Delivery makes a handoff, result, finding, or approval real", "retry once only",
-    "applicable observable behavior, scope/non-goals, constraints/invariants",
-    "Terminal results send to the same assigning planner before pausing",
-    "include no-change and reported-gap outcomes",
-    "Latest approved plan, handoff, and clarifications",
-    "Only delegated worktree-changing tasks require actual `b-review`",
-    "location, evidence, impact, violated baseline, smallest correction, and regression check",
-    "Planner-owned audit/review obtains blocked verification through bounded worker evidence",
-    "same worker may run `b-commit` only on explicit user request",
-]: 
+    "b-agentic defaults to Off", "external `b-research`", "sole worktree writer", "same-CWD roster",
+]:
     if intercom_marker not in kernel_template:
         errors.append(
             f"references/kernel.template.md: Intercom workflow marker missing {intercom_marker!r}"
+        )
+
+role_prompt = read_text(ROOT / "pi/extensions/b-agentic-support/role.ts")
+for intercom_marker in [
+    "Finish discovery before one bounded handoff",
+    "Use send for task delegation and worker result/review reporting; use ask only for blockers, clarifications, or a planner's quick-answer need—not to wait",
+    "Roster/status only selects or handles",
+    "Before every Intercom send/reply call pending",
+    "Reply to an inbound ask without send/list-cwd",
+    "identifier token verbatim", "authoritative short ID is valid",
+    "never guess, reconstruct, extend, further abbreviate, or reuse stale output",
+    "Delivery makes a handoff, result, finding, or approval real", "one retry only",
+    "applicable observable behavior, scope/non-goals, constraints/invariants",
+    "send a completion/result to the same assigning planner before pausing",
+    "including when no edits were needed or the task ends with a reported gap",
+    "latest approved plan, handoff, and clarifications",
+    "Only delegated worktree-changing tasks require actual b-review",
+    "location, evidence, impact, violated baseline, smallest correction, and regression check",
+    "For audit/review verification you cannot run, request bounded worker evidence",
+    "same worker may b-commit only on explicit user request",
+]:
+    if intercom_marker not in role_prompt:
+        errors.append(
+            f"pi/extensions/b-agentic-support/role.ts: Intercom workflow marker missing {intercom_marker!r}"
         )
 
 # The kernel owns the RTK requirement and modern shell-tool preferences.

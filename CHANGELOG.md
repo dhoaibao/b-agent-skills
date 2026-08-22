@@ -6,6 +6,11 @@ All notable shipped revisions of b-agentic are recorded here. Released version h
 
 ### Changed
 
+- Kernel/headroom deduplication:
+  - Observed failure: the always-loaded kernel spent roughly 40% of its 12,000-byte cap on two-role delegation mechanics duplicated in the injected planner and worker prompts, even though b-agentic defaults to Off.
+  - Intended behavior: keep Off/solo role selection, the sole-writer and same-CWD roster boundary, generated skill ownership, and the questionnaire contract in the kernel; keep handoff, Intercom, blocker, delivery, review, and post-approval commit mechanics in the role-specific prompts without weakening active-role behavior.
+  - Regression: kernel size guards, role-prompt marker assertions, planner/worker smoke prompt coverage, generated-sync checks, and role behavior fixtures retain the moved rules and detect kernel/prompt drift.
+
 - Preview-Markdown package and standalone installer (commits 31c4c17,
   87ac5aa, faf1f4b, 510dcdc, 875a683):
   - Observed failure: users wanting only the inline Markdown preview had to

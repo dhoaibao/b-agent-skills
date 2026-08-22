@@ -49,22 +49,33 @@ if kernel.exists():
         'Worker-owned skills: `b-design`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, `b-commit`',
         'Ownership governs execution, not inspection', 'Planner-owned only when execution is read-only decision/planning',
         'Mixed or uncertain skills are worker-owned', 'Unknown or ambiguous skill ownership is worker-owned',
-        'Worker is the sole worktree writer', 'Before every Intercom `send` or `reply`, call `pending`', 'inbound ask requires its `reply`',
-        'identifier token returned verbatim', 'authoritative short ID is valid',
-        'never guess, reconstruct, extend, further abbreviate, or use a stale token',
-        'Delivery makes a handoff, result, finding, or approval real', 'retry once only',
-        'applicable observable behavior, scope/non-goals, constraints/invariants',
-        'Terminal results send to the same assigning planner before pausing', 'include no-change and reported-gap outcomes',
-        'Latest approved plan, handoff, and clarifications',
-        'Only delegated worktree-changing tasks require actual `b-review`',
-        'location, evidence, impact, violated baseline, smallest correction, and regression check',
-        'Planner-owned audit/review obtains blocked verification through bounded worker evidence',
-        'same worker may run `b-commit` only on explicit user request',
+        'Worker is the sole worktree writer', 'same-CWD roster',
         'ask_user_question', '2–4 concrete options', ' (Recommended)', 'automatic custom-answer row',
         'focused plain-text question',
     ]:
         if marker not in text:
             errors.append(f'{kernel}: missing {marker!r}')
+
+role_prompt = (root / 'pi/extensions/b-agentic-support/role.ts').read_text()
+for marker in [
+    'Finish discovery before one bounded handoff',
+    "Use send for task delegation and worker result/review reporting; use ask only for blockers, clarifications, or a planner's quick-answer need—not to wait",
+    'Roster/status only selects or handles',
+    'Before every Intercom send/reply call pending',
+    'Reply to an inbound ask without send/list-cwd', 'identifier token verbatim',
+    'authoritative short ID is valid', 'never guess, reconstruct, extend, further abbreviate, or reuse stale output',
+    'Delivery makes a handoff, result, finding, or approval real', 'one retry only',
+    'applicable observable behavior, scope/non-goals, constraints/invariants',
+    'send a completion/result to the same assigning planner before pausing',
+    'including when no edits were needed or the task ends with a reported gap',
+    'latest approved plan, handoff, and clarifications',
+    'Only delegated worktree-changing tasks require actual b-review',
+    'location, evidence, impact, violated baseline, smallest correction, and regression check',
+    'For audit/review verification you cannot run, request bounded worker evidence',
+    'same worker may b-commit only on explicit user request',
+]:
+    if marker not in role_prompt:
+        errors.append(f"{root / 'pi/extensions/b-agentic-support/role.ts'}: missing {marker!r}")
 
 if mcp.exists():
     data = json.loads(mcp.read_text())

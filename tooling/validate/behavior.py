@@ -78,20 +78,22 @@ INTERCOM_DELEGATION_REGRESSION = {
     ),
     "required_clauses": (
         "b-agentic defaults to Off", "external `b-research`", "sole worktree writer",
-        "Before every Intercom `send` or `reply`, call `pending`", "inbound ask requires its `reply`",
-        "identifier token returned verbatim", "authoritative short ID is valid",
-        "otherwise refresh `list-cwd` then `ask` the assigning planner one focused question using its returned identifier token verbatim",
-        "never guess, reconstruct, extend, further abbreviate, or use a stale token",
-        "Delivery makes a handoff, result, finding, or approval real", "retry once only",
+    ),
+    "role_required_clauses": (
+        "Before every Intercom send/reply call pending", "Reply to an inbound ask without send/list-cwd",
+        "identifier token verbatim", "authoritative short ID is valid",
+        "otherwise refresh list-cwd, then ask the assigning planner one focused question using its returned identifier token verbatim",
+        "never guess, reconstruct, extend, further abbreviate, or reuse stale output",
+        "Delivery makes a handoff, result, finding, or approval real", "one retry only",
         "applicable observable behavior, scope/non-goals, constraints/invariants",
-        "assigned worker executes its worker-owned work itself",
-        "never re-delegates or hands it off to another worker",
-        "Terminal results send to the same assigning planner before pausing",
-        "include no-change and reported-gap outcomes",
-        "Only delegated worktree-changing tasks require actual `b-review`",
+        "execute the assigned worker-owned work yourself",
+        "never delegate or hand off any part of it to another worker",
+        "send a completion/result to the same assigning planner before pausing",
+        "including when no edits were needed or the task ends with a reported gap",
+        "Only delegated worktree-changing tasks require actual b-review",
         "location, evidence, impact, violated baseline, smallest correction, and regression check",
-        "Planner-owned audit/review obtains blocked verification through bounded worker evidence",
-        "same worker may run `b-commit` only on explicit user request",
+        "For audit/review verification you cannot run, request bounded worker evidence",
+        "same worker may b-commit only on explicit user request",
     ),
 }
 
@@ -502,6 +504,13 @@ def validate_intercom_delegation_regression(errors: list[str]) -> None:
         INTERCOM_DELEGATION_REGRESSION,
         errors,
     )
+    role_prompt = (ROOT / "pi/extensions/b-agentic-support/role.ts").read_text()
+    for clause in INTERCOM_DELEGATION_REGRESSION["role_required_clauses"]:
+        if clause not in role_prompt:
+            errors.append(
+                f"Intercom delegation regression: role prompt missing required clause {clause!r}; "
+                f"observed failure: {INTERCOM_DELEGATION_REGRESSION['observed_failure']}"
+            )
 
 
 def main() -> int:
