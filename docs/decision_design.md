@@ -42,8 +42,9 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
 - `references/kernel.template.md` owns the complete always-loaded kernel, and
   `references/mcp_operations.yaml` owns managed MCP classifications.
 - `tooling/generate/registry_sync.py` renders `skills/*/SKILL.md`, the README
-  skill table, kernel generated blocks, and the TypeScript MCP runtime sets.
-  Generated files are delivery artifacts and must not be edited as sources.
+  skill table, kernel generated blocks, `pi/extensions/b-agentic-support/role.ts`,
+  and the TypeScript MCP runtime sets. Generated files are delivery artifacts
+  and must not be edited as sources.
 - The generator uses a JSON-compatible YAML subset so the Python standard
   library can parse registry and policy files without an extra dependency.
   Evidence: `AGENTS.md`, `tooling/generate/registry_sync.py`,
@@ -56,9 +57,20 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   in `pi/extensions/b-agentic-mcp-permissions.ts`, and collaboration roles in
   `pi/extensions/b-agentic-role.ts`, `pi/extensions/b-agentic-planner.ts`, and
   `pi/extensions/b-agentic-worker.ts`.
+- The discovered `pi/extensions/b-agentic-auto-mode.ts` entrypoint owns the
+  persisted `b-auto-mode` opt-in.
 - Shared helpers under `pi/extensions/b-agentic-support/` are not discovered as
   standalone Pi extensions. This keeps Pi's discovered extension set coherent
   while allowing focused policy modules and test exports.
+- The inline Markdown preview ships as a first-party extension installed by
+  default through `pi/scripts/install.sh`, sourced from
+  `pi/packages/preview-markdown/extensions/b-agentic-preview-markdown.ts`, and
+  is separately distributable as the standalone Pi package described by
+  `pi/packages/preview-markdown/package.json`, via the version-pinned raw
+  installer `pi/scripts/install-preview-markdown.sh` or the npm path
+  `npm:@dhoaibao/preview-markdown` documented in
+  `pi/packages/preview-markdown/README.md`, without installing the broader
+  bundle. The publishing procedure is in `docs/publish-preview-markdown.md`.
 - `/b-sync` refreshes managed assets; `/b-update` installs or updates RTK,
   Serena, CodeGraph, Bun, Pi, and extensions without pulling b-agentic. Bun-backed
   MCP packages are resolved and cached by `bunx` on first use. Independent
@@ -350,6 +362,11 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   and Pi extensions, installing missing components without
   pulling b-agentic. Evidence: `install.sh`, `pi/scripts/install.sh`,
   `REFERENCE.md`.
+- The shipped Pi package set is `npm:pi-mcp-adapter`, `npm:pi-intercom`,
+  `npm:pi-observational-memory`, `npm:@narumitw/pi-usage`,
+  `npm:@juicesharp/rpiv-ask-user-question@2.6.2`, and
+  `npm:@narumitw/pi-lsp@0.32.0`; only the last two are version-pinned. Evidence:
+  `pi/scripts/install.sh`.
 - RTK is required; Pi CLI, Serena, CodeGraph, Bun, and Pi packages reconcile
   automatically without prompts or opt-outs. Bun-backed MCP packages are
   resolved and cached by `bunx` on first use. Modern shell tools remain
@@ -391,6 +408,8 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
 
 - Generator/source synchronization: `python3 tooling/generate/registry_sync.py
   --check` (or the refresh command when canonical sources change).
+- The standalone preview package contents are checked with
+  `bash pi/scripts/validate-preview-markdown-package.sh`.
 - Default validation is local and dependency-light: `scripts/validate-skills.sh`
   runs shared prompt/generated checks, routing and behavior fixtures, MCP
   policy/probe self-tests, session-readiness self-tests, prompt input

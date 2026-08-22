@@ -6,6 +6,20 @@ All notable shipped revisions of b-agentic are recorded here. Released version h
 
 ### Changed
 
+- Preview-Markdown package and standalone installer (commits 31c4c17,
+  87ac5aa, faf1f4b, 510dcdc, 875a683):
+  - Observed failure: users wanting only the inline Markdown preview had to
+    install the full b-agentic bundle, and the extension had no independently
+    distributable Pi package.
+  - Intended behavior: ship the preview as a standalone Pi package rooted at
+    `pi/packages/preview-markdown/package.json`, installable via
+    `npm:@dhoaibao/preview-markdown` or the version-pinned raw installer
+    `pi/scripts/install-preview-markdown.sh`, while it remains a default
+    first-party extension in the b-agentic bundle.
+  - Regression: `pi/scripts/validate-preview-markdown-package.sh` checks the
+    exact package contents and `pi/tests/smoke.sh` covers the Pi preview
+    extension and integration behavior.
+
 - Structured interactive user questions:
   - Observed failure: focused planner decisions and blockers relied on a fixed desktop notification rather than presenting actionable choices in Pi, while worker-facing material decisions still prescribed plain chat despite the questionnaire extension being installed.
   - Intended behavior: install and track `npm:@juicesharp/rpiv-ask-user-question@2.6.2`; use `ask_user_question` for any interactive, user-facing material decision or blocker in planner or solo/Off work with 1–4 grouped questions, 2–4 concrete options with concise trade-offs, a recommended first option, and the extension's automatic custom-answer row. Retain the focused plain-text fallback when unavailable/noninteractive; emit exactly one privacy-safe user-input signal only for planner decisions/blockers; keep worker→planner questions in Intercom and native permission prompts for browser/external/privileged actions.
