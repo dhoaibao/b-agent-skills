@@ -227,7 +227,7 @@
         "Keep every delegated worktree-changing task open until the actual b-review skill has passed against the actual diff and verification",
         "Treat a regular or generic review as insufficient",
         "Never bypass the actual b-review gate",
-        "Resolve a worker's blocker via reply when scope or repository evidence can resolve it",
+        "Escalate to the user rather than resolving by reply, because scope and repository evidence cannot resolve the decision",
         "Ask the user one focused question when the blocker or decision cannot be resolved from scope or repository evidence",
         "Keep the task open while waiting for the user's answer",
         "Keep the worker as the sole worktree writer and use natural-language Intercom coordination"
@@ -365,7 +365,7 @@
       "must": [
         "Resolve and read b-review's SKILL.md from its listed/installed location before executing the review gate",
         "Follow b-review's steps and output contract for the actual diff and verification",
-        "End the b-review response with its required standalone Verdict: line",
+        "State that the b-review response must end with its required standalone Verdict: line",
         "Keep the task open and do not approve or emit B_AGENTIC_TASK_COMPLETE until that artifact exists"
       ],
       "avoid": [

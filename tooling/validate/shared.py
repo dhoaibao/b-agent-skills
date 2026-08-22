@@ -179,12 +179,16 @@ MCP_WORKFLOW_REGRESSION = {
         "b-plan": [
             "Do not initialize an absent index in planner mode",
             "Outside planner mode, initialize an absent index only for that question; do not initialize one merely because the task spans files",
+            "In planner mode, do not initialize an absent index; fall back to native inspection and state the resulting gap. Outside planner mode, initialize one only for that question.",
         ],
         "b-debug": ["versioned dependency suspects"],
         "b-test": ["versioned framework semantics"],
         "b-browser": ["existing CI/script evidence; approved navigation"],
         "b-research": ["independent corroboration", "research_*"],
-        "b-review": ["specialized Brave tools"],
+        "b-review": [
+            "specialized Brave tools",
+            "In planner mode, do not initialize an absent index;",
+        ],
     },
 }
 for skill_name, markers in MCP_WORKFLOW_REGRESSION["anchors"].items():

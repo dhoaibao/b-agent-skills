@@ -31,7 +31,7 @@ Figure out what to do when the task is unclear, then turn the chosen path into t
 
 - `bash` - light repo discovery with modern tools, routed through `rtk` whenever that command family is supported, and `rtk git status --short` when needed.
 - `read` - open only the files required to avoid guessing.
-- `codegraph` - only for a concrete repository-wide architecture, dependency/call-flow, or impact question that native inspection cannot settle; do not initialize an absent local index merely because the task spans files.
+- `codegraph` - only for a concrete repository-wide architecture, dependency/call-flow, or impact question that native inspection cannot settle; use an available index for that question. In planner mode, do not initialize an absent index; fall back to native inspection and state the resulting gap. Outside planner mode, initialize one only for that question.
 - `serena` - after native search/read, inspect a specific exact symbol, reference,
   implementation, or diagnostic only when semantic tooling materially improves
   precision; serialize requests rather than parallelizing or batching them.

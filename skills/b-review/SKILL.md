@@ -34,8 +34,10 @@ Flags: `--skip-tests`, `--baseline=<path|url>`, `--range=<ref>..<ref>`.
 - `bash` - `rtk git status`, metadata-only Git path lists, targeted safe-path diffs, logs, and narrow verification; modern discovery routed through `rtk` whenever supported.
 - `read` - open changed files directly.
 - `codegraph` - only for a concrete repository-wide changed-flow, impact, or
-  affected-test question that native inspection cannot settle; do not initialize
-  an absent local index merely because the diff spans files.
+  affected-test question that native inspection cannot settle; use an available
+  index for that question. In planner mode, do not initialize an absent index;
+  fall back to native inspection and state the resulting gap. Outside planner
+  mode, initialize one only for that question.
 - `serena` - after native search/read, inspect a specific changed symbol,
   reference, or diagnostic only when it materially improves review precision;
   use native `read`/`edit`/`write` for routine file work and serialize requests
