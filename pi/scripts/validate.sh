@@ -20,6 +20,24 @@ kernel = root / 'references/kernel.template.md'
 mcp = root / 'pi/configs/mcp.user.template.json'
 extension = root / 'pi/extensions/b-agentic-permissions.ts'
 preview_extension = root / 'pi/packages/preview-markdown/extensions/b-agentic-preview-markdown.ts'
+preview_package = root / 'pi/packages/preview-markdown/package.json'
+preview_tag_sections = [
+    (
+        root / 'README.md',
+        'To install only the inline Markdown preview extension',
+        'After the standalone package is published',
+    ),
+    (
+        root / 'REFERENCE.md',
+        'After the public immutable',
+        'After the package is published',
+    ),
+    (
+        root / 'pi/packages/preview-markdown/README.md',
+        'For a version-pinned GitHub install',
+        '## Scope',
+    ),
+]
 extension_files = [
     extension,
     preview_extension,
@@ -40,7 +58,7 @@ extension_files = [
 readme = root / 'pi/configs/README.md'
 standalone_preview_installer = root / 'pi/scripts/install-preview-markdown.sh'
 
-for path in [kernel, mcp, *extension_files, readme, standalone_preview_installer]:
+for path in [kernel, mcp, *extension_files, readme, standalone_preview_installer, preview_package]:
     if not path.exists():
         errors.append(f'{path}: missing')
 
@@ -188,6 +206,51 @@ if standalone_preview_installer.exists():
     ]:
         if marker not in text:
             errors.append(f'{standalone_preview_installer}: missing installer marker {marker!r}')
+
+if preview_package.exists():
+    manifest = json.loads(preview_package.read_text())
+    package_version = manifest.get('version')
+    version_pattern = r'(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)'
+    if not isinstance(package_version, str) or not re.fullmatch(version_pattern, package_version):
+        errors.append(f'{preview_package}: version must be a numeric semver string')
+    else:
+        expected_tag = f'v{package_version}'
+        tag_pattern = re.compile(r'\bv' + version_pattern + r'\b')
+        command_pattern = re.compile(
+            r'https://raw\.githubusercontent\.com/dhoaibao/b-agentic/'
+            r'(v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*))'
+            r'/pi/scripts/install-preview-markdown\.sh\s*\|\s*bash\s+-s\s+--\s+'
+            r'(v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*))'
+        )
+        for doc, start_marker, end_marker in preview_tag_sections:
+            if not doc.exists():
+                errors.append(f'{doc}: missing preview install documentation')
+                continue
+            text = doc.read_text()
+            start = text.find(start_marker)
+            end = text.find(end_marker, start + len(start_marker)) if start >= 0 else -1
+            if start < 0 or end < 0:
+                errors.append(f'{doc}: cannot locate the bounded preview tag section')
+                continue
+            section = text[start:end]
+            tags = tag_pattern.findall(section)
+            if not tags:
+                errors.append(f'{doc}: missing documented preview release tag')
+            mismatches = sorted({tag for tag in tags if tag != expected_tag})
+            if mismatches:
+                errors.append(
+                    f'{doc}: documented preview tag(s) {", ".join(mismatches)} '
+                    f'do not match package version {package_version!r}; expected {expected_tag}'
+                )
+            commands = command_pattern.findall(section)
+            if not commands:
+                errors.append(f'{doc}: missing preview bootstrap URL and trailing installer argument')
+            for url_tag, argument_tag in commands:
+                if url_tag != expected_tag or argument_tag != expected_tag or url_tag != argument_tag:
+                    errors.append(
+                        f'{doc}: preview bootstrap tag {url_tag} and installer argument {argument_tag} '
+                        f'must both match package version {package_version!r} (expected {expected_tag})'
+                    )
 
 if readme.exists():
     text = readme.read_text()

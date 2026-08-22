@@ -17,22 +17,22 @@ Default install writes b-agentic files and Pi configuration only. Pi CLI install
 
 ### Standalone Markdown preview install
 
-After the public immutable `v0.1.0` tag has been published, a user who wants
+After the public immutable `v0.1.2` tag has been published, a user who wants
 only the inline Markdown preview can run:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agentic/v0.1.0/pi/scripts/install-preview-markdown.sh | bash -s -- v0.1.0
+curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agentic/v0.1.2/pi/scripts/install-preview-markdown.sh | bash -s -- v0.1.2
 ```
 
-The trailing `v0.1.0` argument must match the bootstrap URL tag; the
+The trailing `v0.1.2` argument must match the bootstrap URL tag; the
 installer accepts only `vX.Y.Z` release refs. This exact future command fetches
-only `pi/packages/preview-markdown/extensions/b-agentic-preview-markdown.ts` from the `v0.1.0` tag,
+only `pi/packages/preview-markdown/extensions/b-agentic-preview-markdown.ts` from the `v0.1.2` tag,
 validates it, and atomically installs it as
 `${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/extensions/b-agentic-preview-markdown.ts`.
 It preserves unrelated extension files and Pi configuration and does not
 install any other b-agentic extension or dependency. Run `/reload` in the
 current Pi session after installation. The tag is not claimed to be published
-or executable from this repository state; wait until `v0.1.0` exists publicly.
+or executable from this repository state; wait until `v0.1.2` exists publicly.
 
 After the package is published, the same canonical extension can also be
 installed through Pi:

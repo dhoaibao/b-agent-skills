@@ -40,7 +40,7 @@ For a version-pinned GitHub install without the npm package, use the standalone
 raw installer after the corresponding public release tag exists:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agentic/v0.1.0/pi/scripts/install-preview-markdown.sh | bash -s -- v0.1.0
+curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agentic/v0.1.2/pi/scripts/install-preview-markdown.sh | bash -s -- v0.1.2
 ```
 
 The raw installer preserves unrelated Pi files and installs no other b-agentic

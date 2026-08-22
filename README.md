@@ -19,13 +19,13 @@ Benefits:
 curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agentic/main/install.sh | bash
 ```
 
-To install only the inline Markdown preview extension, use this standalone path after the public immutable `v0.1.0` tag has been published (the tag is not published by this repository state yet):
+To install only the inline Markdown preview extension, use this standalone path after the public immutable `v0.1.2` tag has been published (the tag is not published by this repository state yet):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agentic/v0.1.0/pi/scripts/install-preview-markdown.sh | bash -s -- v0.1.0
+curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agentic/v0.1.2/pi/scripts/install-preview-markdown.sh | bash -s -- v0.1.2
 ```
 
-The trailing `v0.1.0` argument must match the tag in the bootstrap URL; the installer accepts only `vX.Y.Z` release refs. That command fetches only the version-pinned preview extension, installs it atomically under `${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/extensions`, preserves unrelated Pi files, and installs no other b-agentic extensions or dependencies. Run `/reload` in Pi afterward. An `AGENTS.md` entry is optional because the extension self-registers its `preview_markdown` tool and prompt metadata; add a local note only if you want an extra workflow reminder. Do not run this command until `v0.1.0` exists publicly.
+The trailing `v0.1.2` argument must match the tag in the bootstrap URL; the installer accepts only `vX.Y.Z` release refs. That command fetches only the version-pinned preview extension, installs it atomically under `${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/extensions`, preserves unrelated Pi files, and installs no other b-agentic extensions or dependencies. Run `/reload` in Pi afterward. An `AGENTS.md` entry is optional because the extension self-registers its `preview_markdown` tool and prompt metadata; add a local note only if you want an extra workflow reminder. Do not run this command until `v0.1.2` exists publicly.
 
 After the standalone package is published, the same canonical extension can instead be installed through Pi's package manager:
 
