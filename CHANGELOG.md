@@ -11,10 +11,15 @@ All notable shipped revisions of b-agentic are recorded here. Released version h
   - Intended behavior: skip `.git`, `node_modules`, and `.venv` while scanning diagnostics directories, keep protected files elsewhere fail-closed, and leave Serena's write-side descendant guard exhaustive.
   - Regression: `pi/tests/smoke.sh` covers dependency `credentials.d.ts` and `.env` as trusted, top-level and nested `.env` as gated, and the accepted dependency-tree dotenv trade-off; real installed-dependency verification remains an explicit phase check.
 
+- Pi extension typecheck diagnostics resolved:
+  - Observed failure: the first dependency-backed strict check reported five project diagnostics—one missing host-type import and four unnarrowed Firecrawl limit comparisons—and also exposed an assertion-cast gap in the Serena write-memory bound.
+  - Intended behavior: type-check the existing Firecrawl and Serena approval predicates without changing their runtime guards, while importing the host context type as erased type-only metadata and replacing the write-side cast with proof-based narrowing.
+  - Regression: after `npm install --prefix pi`, `bash pi/scripts/typecheck.sh` reports zero diagnostics; `pi/tests/smoke.sh` covers Firecrawl limit boundaries and optional, positive, zero, negative, and string Serena write-memory bounds. The check remains opt-in and is not run by the offline suites.
+
 - Opt-in TypeScript checking for Pi extensions:
   - Observed failure: Pi extensions ran through `node --experimental-strip-types` without compiler checking, leaving annotations in approval-brokering code effectively decorative.
   - Intended behavior: provide a strict TypeScript check under `pi/` without changing runtime behavior or requiring dependencies for the offline validation suites.
-  - Regression: after `npm install --prefix pi`, `bash pi/scripts/typecheck.sh` reports compiler findings; the check remains opt-in and is not run by the offline suites, while `pi/scripts/validate.sh` syntax-checks its entrypoint.
+  - Regression: after `npm install --prefix pi`, `bash pi/scripts/typecheck.sh` reports zero diagnostics; the check remains opt-in and is not run by the offline suites, while `pi/scripts/validate.sh` syntax-checks its entrypoint.
 
 - Kernel/headroom deduplication:
   - Observed failure: the always-loaded kernel spent roughly 40% of its 12,000-byte cap on two-role delegation mechanics duplicated in the injected planner and worker prompts, even though b-agentic defaults to Off.

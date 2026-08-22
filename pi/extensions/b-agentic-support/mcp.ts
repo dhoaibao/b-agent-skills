@@ -3,6 +3,7 @@ import { homedir } from "node:os";
 import { isIP } from "node:net";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 
+import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { isProtectedPath, isProtectedLocalPath, SPECIALIZED_TOOLS } from "./shell.ts";
 import { isAutoModeEnabled } from "./state.ts";
 
@@ -454,6 +455,10 @@ export function hasOnlyKeys(value: Record<string, unknown>, allowed: ReadonlySet
   return Object.keys(value).every((key) => allowed.has(key));
 }
 
+function isInteger(value: unknown): value is number {
+  return Number.isInteger(value);
+}
+
 export function isPublicIpv4(host: string): boolean {
   const octets = host.split(".").map(Number);
   if (octets.length !== 4 || octets.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return false;
@@ -623,7 +628,7 @@ export function isSafeSerenaMemoryOperation(base: string, input: Record<string, 
   if (!isSafeSerenaMemoryName(input.memory_name)) return false;
   if (base === "serena_write_memory") {
     return typeof input.content === "string" &&
-      (input.max_chars === undefined || (Number.isInteger(input.max_chars) && (input.max_chars as number) > 0));
+      (input.max_chars === undefined || (isInteger(input.max_chars) && input.max_chars > 0));
   }
   if (base === "serena_edit_memory") {
     return typeof input.needle === "string" && typeof input.repl === "string" &&
@@ -746,7 +751,7 @@ export function isSafeFirecrawlScrapeOptions(input: Record<string, unknown>): bo
 export function isSafeFirecrawlSearch(input: Record<string, unknown>): boolean {
   return hasOnlyKeys(input, MCP_CONDITIONAL_ARGUMENT_KEY_SETS["firecrawl:firecrawl_search"]) &&
     typeof input.query === "string" && Boolean(input.query.trim()) &&
-    Number.isInteger(input.limit) && input.limit > 0 && input.limit <= 10 &&
+    isInteger(input.limit) && input.limit > 0 && input.limit <= 10 &&
     (input.scrapeOptions === undefined ||
       (isPlainObject(input.scrapeOptions) && isSafeFirecrawlScrapeOptions(input.scrapeOptions)));
 }
@@ -754,7 +759,7 @@ export function isSafeFirecrawlSearch(input: Record<string, unknown>): boolean {
 export function isSafeFirecrawlMap(input: Record<string, unknown>): boolean {
   return hasOnlyKeys(input, MCP_CONDITIONAL_ARGUMENT_KEY_SETS["firecrawl:firecrawl_map"]) &&
     isSafeWebUrl(input.url) &&
-    Number.isInteger(input.limit) && input.limit > 0 && input.limit <= 100 &&
+    isInteger(input.limit) && input.limit > 0 && input.limit <= 100 &&
     input.includeSubdomains !== true;
 }
 

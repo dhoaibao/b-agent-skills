@@ -1850,6 +1850,29 @@ expect(t.isTrustedManagedTool('firecrawl', 'firecrawl_search', { query: 'Pi codi
 expect(t.isTrustedManagedTool('firecrawl', 'firecrawl_map', { url: 'https://example.org', limit: 10 }) === true, 'bounded public Firecrawl map is trusted');
 expect(t.isTrustedManagedTool('firecrawl', 'firecrawl_map', { url: 'http://127.0.0.1', limit: 10 }) === false, 'private Firecrawl map must require approval');
 expect(t.isTrustedManagedTool('firecrawl', 'firecrawl_map', { url: 'https://user:token@example.org', limit: 10 }) === false, 'credential-bearing Firecrawl map must require approval');
+for (const [tool, input, expected, description] of [
+  ['firecrawl_search', { query: 'Pi coding agent', limit: '10' }, false, 'Firecrawl search string bounds require approval'],
+  ['firecrawl_search', { query: 'Pi coding agent', limit: NaN }, false, 'Firecrawl search NaN bounds require approval'],
+  ['firecrawl_search', { query: 'Pi coding agent', limit: 1.5 }, false, 'Firecrawl search fractional bounds require approval'],
+  ['firecrawl_search', { query: 'Pi coding agent', limit: -1 }, false, 'Firecrawl search negative bounds require approval'],
+  ['firecrawl_map', { url: 'https://example.org', limit: 100 }, true, 'Firecrawl map upper boundary is trusted'],
+  ['firecrawl_map', { url: 'https://example.org', limit: 101 }, false, 'Firecrawl map above the local bound requires approval'],
+  ['firecrawl_map', { url: 'https://example.org', limit: '10' }, false, 'Firecrawl map string bounds require approval'],
+  ['firecrawl_map', { url: 'https://example.org', limit: NaN }, false, 'Firecrawl map NaN bounds require approval'],
+  ['firecrawl_map', { url: 'https://example.org', limit: 1.5 }, false, 'Firecrawl map fractional bounds require approval'],
+  ['firecrawl_map', { url: 'https://example.org', limit: -1 }, false, 'Firecrawl map negative bounds require approval'],
+]) {
+  expect(t.isTrustedManagedTool('firecrawl', tool, input) === expected, description);
+}
+for (const [input, expected, description] of [
+  [{ memory_name: 'phase2b', content: 'fixture', max_chars: 1 }, true, 'positive Serena memory bounds are trusted'],
+  [{ memory_name: 'phase2b', content: 'fixture' }, true, 'omitted Serena memory bounds remain trusted'],
+  [{ memory_name: 'phase2b', content: 'fixture', max_chars: 0 }, false, 'zero Serena memory bounds require approval'],
+  [{ memory_name: 'phase2b', content: 'fixture', max_chars: -1 }, false, 'negative Serena memory bounds require approval'],
+  [{ memory_name: 'phase2b', content: 'fixture', max_chars: '1' }, false, 'string Serena memory bounds require approval'],
+]) {
+  expect(t.isTrustedManagedTool('serena', 'serena_write_memory', input) === expected, description);
+}
 expect(t.isTrustedManagedTool('firecrawl', 'firecrawl_extract', { urls: ['https://example.org'], enableWebSearch: false }) === true, 'bounded public Firecrawl extract is trusted');
 expect(t.isTrustedManagedTool('firecrawl', 'firecrawl_extract', { urls: ['https://example.org'], allowExternalLinks: true }) === false, 'unbounded Firecrawl extract must require approval');
 expect(t.isTrustedManagedTool('linear', 'linear_get_issue') === true, 'exact Linear issue tool is trusted');
