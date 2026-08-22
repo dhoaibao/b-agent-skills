@@ -6,6 +6,11 @@ All notable shipped revisions of b-agentic are recorded here. Released version h
 
 ### Changed
 
+- Diagnostics directory trust skips dependency trees:
+  - Observed failure: project-root and directory-scoped `lsp_diagnostics` trust was rejected when `node_modules` contained protected-looking dependency filenames such as `credentials.d.ts`, making the trusted read-only path unusable after installing dependencies.
+  - Intended behavior: skip `.git`, `node_modules`, and `.venv` while scanning diagnostics directories, keep protected files elsewhere fail-closed, and leave Serena's write-side descendant guard exhaustive.
+  - Regression: `pi/tests/smoke.sh` covers dependency `credentials.d.ts` and `.env` as trusted, top-level and nested `.env` as gated, and the accepted dependency-tree dotenv trade-off; real installed-dependency verification remains an explicit phase check.
+
 - Kernel/headroom deduplication:
   - Observed failure: the always-loaded kernel spent roughly 40% of its 12,000-byte cap on two-role delegation mechanics duplicated in the injected planner and worker prompts, even though b-agentic defaults to Off.
   - Intended behavior: keep Off/solo role selection, the sole-writer and same-CWD roster boundary, generated skill ownership, and the questionnaire contract in the kernel; keep handoff, Intercom, blocker, delivery, review, and post-approval commit mechanics in the role-specific prompts without weakening active-role behavior.

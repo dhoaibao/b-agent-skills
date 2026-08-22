@@ -316,10 +316,12 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   preview Markdown: `ask_user_question` is trusted by name because it has no
   filesystem, network, or mutation surface, while `lsp_diagnostics` is trusted
   only when its known schema contains project-confined, unprotected paths;
-  directory arguments and the project-root default additionally fail closed when
-  protected or external descendants are reachable. Unknown keys, invalid types,
-  outside-project or protected paths retain the generic approval gate, and `lsp_fix` remains gated
-  in every form because source actions can write. Evidence:
+  directory arguments and the project-root default skip `.git`, `node_modules`,
+  and `.venv` while scanning, but protected or external descendants elsewhere
+  still fail closed. Serena's write-side descendant guard remains exhaustive.
+  Unknown keys, invalid types, outside-project or protected paths retain the
+  generic approval gate, and `lsp_fix` remains gated in every form because
+  source actions can write. Evidence:
   `references/kernel.template.md`,
   `pi/extensions/b-agentic-support/shell.ts`,
   `pi/extensions/b-agentic-support/mcp.ts`,

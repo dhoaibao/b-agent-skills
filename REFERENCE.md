@@ -236,10 +236,13 @@ JSON or a JSON-file path), then `<workspace>/.pi/pi-lsp.json`, then
 `~/.pi/agent/pi-lsp.json`; the installer writes none of these files and leaves
 user and trusted-project configuration owner-controlled. Validated
 `lsp_diagnostics` calls with project-confined, unprotected paths bypass generic
-custom-tool approval. `lsp_fix` actions (including read-only-looking calls),
-malformed or unsafe diagnostics calls, and other custom LSP calls retain the
-generic custom-tool approval behavior, and authoritative repository validation
-remains required.
+custom-tool approval; for directory arguments and the project-root default,
+`.git`, `node_modules`, and `.venv` are not scanned, while protected files
+elsewhere still fail closed. Serena's write-side descendant guard remains
+exhaustive. `lsp_fix` actions (including read-only-looking calls), malformed or
+unsafe diagnostics calls, and other custom LSP calls retain the generic
+custom-tool approval behavior, and authoritative repository validation remains
+required.
 
 b-agentic installs `pi-intercom` automatically for its two-role workflow and installs
 `@juicesharp/rpiv-ask-user-question@2.6.2` for structured planner decisions and blockers.

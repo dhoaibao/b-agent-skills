@@ -1398,6 +1398,50 @@ try {
     const result = await toolCallHandler({ toolName: name, input }, noUiContext);
     expect((result?.block === true) === gated, `${name} no-UI behavior must ${gated ? 'fail closed' : 'bypass approval'}`);
   }
+  const directoryTrustFixtures = [
+    {
+      name: 'lsp_diagnostics directory skips dependency credentials',
+      gated: false,
+      setup: (directory) => {
+        mkdirSync(path.join(directory, 'node_modules'), { recursive: true });
+        writeFileSync(path.join(directory, 'node_modules', 'credentials.d.ts'), 'declare const dependencySecret: string;\n');
+      },
+    },
+    {
+      name: 'lsp_diagnostics directory gates top-level dotenv',
+      gated: true,
+      setup: (directory) => writeFileSync(path.join(directory, '.env'), 'SECRET=fixture\n'),
+    },
+    {
+      name: 'lsp_diagnostics directory gates nested dotenv',
+      gated: true,
+      setup: (directory) => {
+        mkdirSync(path.join(directory, 'nested', 'sub'), { recursive: true });
+        writeFileSync(path.join(directory, 'nested', 'sub', '.env'), 'SECRET=fixture\n');
+      },
+    },
+    {
+      name: 'lsp_diagnostics directory skips dependency dotenv',
+      gated: false,
+      setup: (directory) => {
+        // Accepted trade-off: dependency trees are not user-authored content.
+        mkdirSync(path.join(directory, 'node_modules'), { recursive: true });
+        writeFileSync(path.join(directory, 'node_modules', '.env'), 'SECRET=dependency-fixture\n');
+      },
+    },
+  ];
+  for (const { name, gated, setup } of directoryTrustFixtures) {
+    const fixtureDirectory = mkdtempSync(path.join(root, '.b-agentic-lsp-directory-'));
+    try {
+      setup(fixtureDirectory);
+      const input = { paths: [fixtureDirectory] };
+      expect(t.isMcpOrCustomTool('lsp_diagnostics', input) === gated, `${name} trust classification must match`);
+      const result = await toolCallHandler({ toolName: 'lsp_diagnostics', input }, noUiContext);
+      expect((result?.block === true) === gated, `${name} no-UI behavior must ${gated ? 'fail closed' : 'bypass approval'}`);
+    } finally {
+      rmSync(fixtureDirectory, { recursive: true, force: true });
+    }
+  }
 } finally {
   rmSync(protectedDiagnosticsDir, { recursive: true, force: true });
 }

@@ -644,9 +644,9 @@ const SERENA_CODE_FILE = /\.(?:[cm]?[jt]sx?|py|rb|go|rs|java|kt|kts|c|cc|cpp|cxx
 const SERENA_SEARCH_SKIP_DIRS = new Set([".git", "node_modules", ".venv"]);
 
 /** Fail closed when a directory operation could reach protected or external descendants. */
-function hasUnsafeSerenaDescendant(pathValue: string, codeOnly: boolean): boolean {
+function hasUnsafeSerenaDescendant(pathValue: string, codeOnly: boolean, skipDependencyDirs = false): boolean {
   const visited = new Set<string>();
-  const skippedDirectories = codeOnly ? SERENA_SEARCH_SKIP_DIRS : undefined;
+  const skippedDirectories = codeOnly || skipDependencyDirs ? SERENA_SEARCH_SKIP_DIRS : undefined;
   let remainingEntries = 20_000;
   const relevantFile = (value: string): boolean => !codeOnly || SERENA_CODE_FILE.test(value);
   const walk = (directory: string): boolean => {
@@ -908,7 +908,7 @@ function isTrustedLspPath(pathValue: unknown, inspectDirectory = false): boolean
   if (!inspectDirectory) return true;
   try {
     const resolvedPath = realpathSync(pathValue);
-    return !statSync(resolvedPath).isDirectory() || !hasUnsafeSerenaDescendant(resolvedPath, false);
+    return !statSync(resolvedPath).isDirectory() || !hasUnsafeSerenaDescendant(resolvedPath, false, true);
   } catch {
     return false;
   }
