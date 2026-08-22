@@ -6,6 +6,11 @@ All notable shipped revisions of b-agentic are recorded here. Released version h
 
 ### Changed
 
+- Shared command citation traceability:
+  - Observed failure: `decision_design.py` skipped every code citation containing whitespace, so the command reference `bash pi/scripts/validate-preview-markdown-package.sh` was not checked against tracked repository paths.
+  - Intended behavior: share citation tokenization, path resolution, wildcard handling, command-prefix parsing, and unique bare-filename resolution between the decision-design and CHANGELOG validators without changing either consumer's scope or error policy.
+  - Regression: `scripts/b-agentic-audit.sh` now reports 65 tracked source references instead of 64; a temporary whitespace-bearing nonexistent command citation made the audit fail naming that path, restoration passed, and `tooling/validate/changelog.py` retained its 21-entry, 19-citation, 2-uncovered, 40-resolved summary.
+
 - Checkable CHANGELOG regression claims:
   - Observed failure: Unreleased entries relied on convention for their three-part shape, repository citations could name missing paths, and regression prose could claim coverage without a concrete artifact or an explicit uncovered status.
   - Intended behavior: validate colon-terminated structured entries under `## Unreleased` for the exact sub-bullet order, resolve cited tracked paths, and require either a concrete citation or `no automated coverage:`. Released history and legacy bullets remain untouched; this cannot verify that a cited check semantically covers the change it claims to cover.

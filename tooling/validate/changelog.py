@@ -16,28 +16,17 @@ from __future__ import annotations
 
 import re
 import shlex
-import subprocess
 import sys
 from pathlib import Path
+
+from citations import CODE_SPAN_RE, path_citations, resolve_path, tracked_paths
 
 
 ROOT = Path(__file__).resolve().parents[2]
 CHANGELOG_PATH = ROOT / "CHANGELOG.md"
 REQUIRED_SUB_BULLETS = ("Observed failure", "Intended behavior", "Regression")
 UNCOVERED_MARKER = "no automated coverage:"
-REPO_SOURCE_SUFFIXES = {".md", ".py", ".ts", ".json", ".yaml", ".yml", ".sh", ".toml"}
-CODE_SPAN_RE = re.compile(r"`([^`]+)`")
-PLAIN_PATH_RE = re.compile(
-    r"(?<![@\w])(?:[A-Za-z0-9_.-]+/)+[A-Za-z0-9_.*@+-]+(?:\.[A-Za-z0-9_-]+)?"
-)
 SUB_BULLET_RE = re.compile(r"^  - (Observed failure|Intended behavior|Regression):")
-
-
-def tracked_paths() -> set[str]:
-    result = subprocess.run(
-        ["git", "ls-files"], cwd=ROOT, check=True, capture_output=True, text=True
-    )
-    return set(result.stdout.splitlines())
 
 
 def unreleased_lines(text: str) -> list[tuple[int, str]]:
@@ -78,61 +67,6 @@ def regression_text(block: list[tuple[int, str]]) -> str:
                 parts.append(continuation.strip())
             return " ".join(part for part in parts if part)
     return ""
-
-
-def candidate_path(token: str) -> str | None:
-    token = token.strip().strip(".,;:!?)]}>")
-    token = token.lstrip("([{<")
-    if not token or token.startswith(("@", "npm:", "http:", "https:")):
-        return None
-    if "*" in token:
-        return token
-    if "/" in token:
-        if not re.fullmatch(r"(?:[A-Za-z0-9_.-]+/)+[A-Za-z0-9_.*@+-]+(?:\.[A-Za-z0-9_-]+)?", token):
-            return None
-        if Path(token).suffix.lower() not in REPO_SOURCE_SUFFIXES:
-            return None
-        return token
-    if Path(token).suffix.lower() in REPO_SOURCE_SUFFIXES:
-        return token
-    return None
-
-
-def path_citations(text: str, tracked: set[str]) -> list[str]:
-    citations: list[str] = []
-    for raw in CODE_SPAN_RE.findall(text):
-        try:
-            tokens = shlex.split(raw)
-        except ValueError:
-            tokens = raw.split()
-        for index, token in enumerate(tokens):
-            if token == "--prefix" and index + 1 < len(tokens):
-                citation = candidate_path(tokens[index + 1]) or tokens[index + 1]
-                if citation and citation not in citations:
-                    citations.append(citation)
-                continue
-            citation = candidate_path(token)
-            if citation and ("/" in citation or resolve_path(citation, tracked)) and citation not in citations:
-                citations.append(citation)
-    for token in PLAIN_PATH_RE.findall(text):
-        citation = candidate_path(token)
-        if citation and citation not in citations:
-            citations.append(citation)
-    return citations
-
-
-def resolve_path(citation: str, tracked: set[str]) -> bool:
-    if "*" in citation:
-        # Wildcard citations are intentionally skipped, following decision_design.py.
-        return True
-    normalized = citation.removeprefix("./")
-    exact = ROOT / normalized
-    if normalized in tracked:
-        return exact.is_file()
-    if exact.is_dir():
-        return any(path.startswith(normalized.rstrip("/") + "/") for path in tracked)
-    suffix_matches = [path for path in tracked if path.endswith("/" + normalized)]
-    return len(suffix_matches) == 1 and (ROOT / suffix_matches[0]).is_file()
 
 
 RUNNABLE_COMMANDS = {"bash", "node", "npm", "python", "python3", "rtk", "sh"}

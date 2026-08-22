@@ -10,14 +10,14 @@ from __future__ import annotations
 
 import argparse
 import re
-import subprocess
 import sys
 from pathlib import Path
+
+from citations import path_citations, tracked_paths
 
 
 ROOT = Path(__file__).resolve().parents[2]
 DECISION_PATH = ROOT / "docs" / "decision_design.md"
-REPO_SOURCE_SUFFIXES = {".md", ".py", ".ts", ".json", ".yaml", ".yml", ".sh", ".toml"}
 REQUIRED_SECTIONS = {
     "Scope and evidence",
     "Product boundary and architecture",
@@ -29,32 +29,14 @@ REQUIRED_SECTIONS = {
     "Intentional non-goals",
 }
 HEADING_RE = re.compile(r"^(#{2,3}) (.+?)\s*$", re.MULTILINE)
-CODE_SPAN_RE = re.compile(r"`([^`]+)`")
-
-
-def tracked_paths() -> set[str]:
-    result = subprocess.run(
-        ["git", "ls-files"], cwd=ROOT, check=True, capture_output=True, text=True
-    )
-    return set(result.stdout.splitlines())
 
 
 def source_references(text: str, tracked: set[str] | None = None) -> list[str]:
-    references: list[str] = []
-    for raw in CODE_SPAN_RE.findall(text):
-        token = raw.strip()
-        if (
-            not token
-            or any(char.isspace() for char in token)
-            or "*" in token
-            or token.endswith("/")
-            or token.startswith(("/", "~/"))
-            or Path(token).suffix.lower() not in REPO_SOURCE_SUFFIXES
-            or ("/" not in token and tracked is not None and token not in tracked)
-        ):
-            continue
-        references.append(token)
-    return references
+    return [
+        reference
+        for reference in path_citations(text, tracked, include_plain=False, include_prefix=False)
+        if "*" not in reference
+    ]
 
 
 def section_bodies(text: str) -> list[tuple[str, str]]:
