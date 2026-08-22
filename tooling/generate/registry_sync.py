@@ -88,6 +88,12 @@ ROLE_PROMPT_MARKERS = {
     ],
     "planner": [
         "Finish discovery before one bounded handoff",
+        "Executing a skill requires first reading its `SKILL.md` at its listed location (installed: `~/.pi/agent/skills/<name>/SKILL.md`)",
+        "Do not cause worktree mutation",
+        "non-mutating validation/audit scripts",
+        "read `b-review`'s `SKILL.md` at its listed location (installed: `~/.pi/agent/skills/b-review/SKILL.md`)",
+        "standalone `Verdict:` line",
+        "Reviewer prose without that artifact is not a passed gate",
         "While the worker edits, do not explore or issue new work",
         "Roster/status only selects or handles",
         "Before every Intercom send/reply call pending",
@@ -100,6 +106,7 @@ ROLE_PROMPT_MARKERS = {
     ],
     "worker": [
         "worker profile (implementation)",
+        "Executing a skill requires first reading its `SKILL.md` at its listed location (installed: `~/.pi/agent/skills/<name>/SKILL.md`)",
         "sole worktree writer",
         "Your in-scope worker skills are: `b-design`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, `b-commit`",
         "Delegate these planner-owned skills to the planner: `b-plan`, `b-research`, `b-agentic-audit`, `b-review`, `b-pr-summary`",

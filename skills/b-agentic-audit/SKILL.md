@@ -68,10 +68,10 @@ This audit supplements the automated checks; it does not mechanically prove all 
    findings. State what was not mechanically proven, then report findings first,
    checked-and-clean areas, verification, residual risk, and follow-up scope.
 7. If findings need code or documentation changes, report them and hand off to
-   **b-implement**; do not edit during this audit. In planner mode, obtain any
-   blocked verification through bounded worker evidence rather than running
-   scripts or tests. A delegated worktree-changing diff requires actual
-   **b-review** afterward.
+   **b-implement**; do not edit during this audit. In planner mode, you may run
+   non-mutating audit or validation scripts; obtain bounded worker evidence for
+   builds, tests, formatters, generators, or any verification that writes. A
+   delegated worktree-changing diff requires actual **b-review** afterward.
 
 ## Output format
 

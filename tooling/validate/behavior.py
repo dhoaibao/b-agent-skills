@@ -37,6 +37,7 @@ KERNEL_CONSOLIDATION_REGRESSION = {
     "intended_behavior": "The single always-loaded kernel retains routing, approval, verification, and local-tool fallback guidance.",
     "required_clauses": (
         "latest user instruction, approved plan, repo evidence, then stated assumptions",
+        "load it by reading its `SKILL.md` before acting",
         "define success, make the smallest coherent change, and verify its observable outcome",
         "Auto-run repository-local commands and edits, including build, test, package, and scripts",
         "likely-secret files (`.env`, `*.pem`, `credentials.*`, `secrets.*`)",

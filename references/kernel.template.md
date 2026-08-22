@@ -6,7 +6,7 @@ Use these rules before any skill-specific instruction.
 
 ## Core Rules
 
-1. Route the user's intent to one active skill; sequence phases, not blend them.
+1. Route the user's intent to one active skill; load it by reading its `SKILL.md` before acting, and follow it. Naming or paraphrasing an unloaded skill is not using it; sequence phases, not blend them.
 2. Must follow: latest user instruction, approved plan, repo evidence, then stated assumptions.
 3. For non-trivial repo work, run `rtk git status --short`, preserve unrelated changes, define success, make the smallest coherent change, and verify its observable outcome.
 4. Auto-run repository-local commands and edits, including build, test, package, and scripts. Ask before destructive/privileged commands, ambiguous syntax, protected/outside-project paths, or external/shared mutations; RTK never bypasses these protections.

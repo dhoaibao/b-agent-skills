@@ -151,9 +151,12 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   coordination; implementation or mutation, runtime diagnosis, builds/tests,
   browser/operational verification, commits, mixed, and uncertain work belong
   to the worker. Unknown ownership defaults to worker while generation rejects
-  missing or invalid owners. Worker mode is the sole worktree writer and the
-  assigned worker executes its worker-owned task itself; it never re-delegates
-  or hands that task to another worker. Independent shared policies still block
+  missing or invalid owners. The planner boundary forbids worktree mutation,
+  including edits, patches, commits, builds, tests, formatters, generators, and
+  commands that write, but permits non-mutating audit/validation scripts and
+  read-only Git. Worker mode is the sole worktree writer and the assigned worker
+  executes its worker-owned task itself; it never re-delegates or hands that
+  task to another worker. Independent shared policies still block
   dangerous commands, protected paths, unclassified or unmanaged MCP execution,
   and local or external mutations. Evidence: `skills/registry.yaml`,
   `tooling/generate/registry_sync.py`, `pi/extensions/b-agentic-planner.ts`,
@@ -173,9 +176,12 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   including no-change and reported-gap outcomes.
 - The latest approved plan, handoff, and clarifications form the delegated review
   baseline. Only delegated worktree-changing tasks require actual `b-review` of
-  diff and verification; findings name location, evidence, impact, violated
-  baseline, smallest correction, and regression check. Planner-owned audit or
-  review requests bounded worker evidence instead of scripts/tests. After
+  diff and verification; actual review loads `skills/b-review/SKILL.md` and
+  follows its output contract, ending with its standalone `Verdict:` line.
+  Findings name location, evidence, impact, violated baseline, smallest
+  correction, and regression check. Planner-owned audit or review may run
+  non-mutating audit/validation scripts, but requests bounded worker evidence
+  for builds, tests, formatters, generators, or verification that writes. After
   approval, the same worker may commit an unchanged reviewed snapshot only on
   explicit user request; content changes reopen review. There are no required
   protocol fields or parsed state machines. Evidence:

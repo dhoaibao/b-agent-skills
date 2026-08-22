@@ -354,6 +354,43 @@
         "Use a bare verdict without the Verdict: prefix",
         "Add bullets, bold, headings, backticks, or trailing explanation after the verdict"
       ]
+    },
+    {
+      "id": "planner-review-requires-loaded-skill-output",
+      "role": "planner",
+      "skill": "b-review",
+      "observed_failure": "A planner approved delegated work after writing reviewer prose from memory without loading b-review, so the mandatory review gate appeared to pass without the skill's observable output.",
+      "intended_behavior": "Before approving a delegated worktree-changing task or emitting B_AGENTIC_TASK_COMPLETE, the planner loads b-review's SKILL.md from its listed/installed location, follows its review steps and output contract, and ends the response with the required standalone Verdict: line; reviewer prose alone is not a passed gate.",
+      "prompt": "A worker returns a worktree-changing result with passing checks. You inspect the diff and write reviewer prose from memory, but have not read b-review's SKILL.md at its listed/installed location. Describe whether you can approve the task or emit B_AGENTIC_TASK_COMPLETE and what you must do first.",
+      "must": [
+        "Resolve and read b-review's SKILL.md from its listed/installed location before executing the review gate",
+        "Follow b-review's steps and output contract for the actual diff and verification",
+        "End the b-review response with its required standalone Verdict: line",
+        "Keep the task open and do not approve or emit B_AGENTIC_TASK_COMPLETE until that artifact exists"
+      ],
+      "avoid": [
+        "Treat reviewer prose written from memory as actual b-review",
+        "Approve or emit B_AGENTIC_TASK_COMPLETE before loading b-review and producing its verdict",
+        "Substitute a generic review for the mandatory gate"
+      ]
+    },
+    {
+      "id": "worker-execution-requires-loaded-skill",
+      "role": "worker",
+      "skill": "b-implement",
+      "observed_failure": "A worker acted on a worker-owned task after naming or paraphrasing its skill without loading the SKILL.md, making the skill contract unenforceable.",
+      "intended_behavior": "Executing a worker-owned skill requires first reading its SKILL.md at its listed/installed location and following its steps and output contract; naming or paraphrasing an unloaded skill is not execution.",
+      "prompt": "You receive a bounded implementation handoff and know how b-implement usually works, but have not read its SKILL.md at its listed/installed location in this task. Describe whether you may start editing and what makes the skill execution valid.",
+      "must": [
+        "Read b-implement's SKILL.md at its listed/installed location before acting on the implementation task",
+        "Follow the loaded skill's steps and output contract",
+        "Keep the worker as the sole worktree writer after loading the skill"
+      ],
+      "avoid": [
+        "Start editing after only naming or paraphrasing b-implement",
+        "Treat memory of a skill as loading its SKILL.md",
+        "Delegate the assigned worker-owned task to another worker"
+      ]
     }
   ]
 }

@@ -71,5 +71,5 @@ For passing completion outcomes (`READY FOR PR` or `READY WITH FOLLOW-UPS`), emi
 - Do not claim `READY FOR PR` without baseline and passing verification evidence.
 - Treat unrelated cleanup, speculative flexibility, and unverified success criteria as review risks.
 - Treat prompt or kernel changes without a concrete failure mode or validation story as review risks.
-- For delegated worktree-changing tasks, actual `b-review` of the diff and verification is mandatory before approval; a generic review cannot substitute.
+- For delegated worktree-changing tasks, actual `b-review` means this `SKILL.md` was loaded and its steps and output contract were followed for the diff and verification; it is mandatory before approval, and a generic review cannot substitute.
 - Treat generated, lockfile, snapshot, vendored, and minified changes as derived unless source generation is clear.
