@@ -383,9 +383,11 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
 - `install.sh` clones or updates a local source checkout, supports reviewed
   `--ref` pins, then sources the shared Pi installer. `--sync` updates only
   managed assets; `--update` reconciles RTK, uv/Serena, CodeGraph, Bun, Pi,
-  and Pi extensions, installing missing components without
-  pulling b-agentic. Evidence: `install.sh`, `pi/scripts/install.sh`,
-  `REFERENCE.md`.
+  and Pi extensions, installing missing components without pulling b-agentic.
+  Both CodeGraph upgrade paths set `CODEGRAPH_NO_INSTALL_REFRESH=1` and
+  report that guard in dry runs; `tests/smoke/install.sh` covers the dry-run
+  marker and propagated guard. Evidence: `install.sh`, `pi/scripts/install.sh`,
+  `tests/smoke/install.sh`, `REFERENCE.md`.
 - The shipped Pi package set is `npm:pi-mcp-adapter`, `npm:pi-intercom`,
   `npm:pi-observational-memory`, `npm:@sreetej510/pi-usage`,
   `npm:@juicesharp/rpiv-ask-user-question@2.6.2`, and
@@ -435,9 +437,12 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
 - The standalone preview package contents are checked with
   `bash pi/scripts/validate-preview-markdown-package.sh`.
 - Default validation is local and dependency-light: `scripts/validate-skills.sh`
-  runs shared prompt/generated checks, routing and behavior fixtures, MCP
-  policy/probe self-tests, session-readiness self-tests, prompt input
-  construction, browser evidence path checks, and Pi integration markers.
+  runs shared prompt/generated checks, CHANGELOG regression-claim validation,
+  routing and behavior fixtures, MCP policy/probe self-tests,
+  session-readiness self-tests, prompt input construction, browser evidence
+  path checks, and Pi integration markers. The CHANGELOG check runs from
+  `tooling/validate/run.sh` and shares citation helpers from
+  `tooling/validate/citations.py`.
 - Release validation adds RTK compatibility and the isolated installer smoke
   matrix: `scripts/validate-skills.sh --release`. CI runs this on Ubuntu and
   macOS and also runs `scripts/b-agentic-audit.sh`. Evidence:
@@ -454,6 +459,14 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   include rubric-backed fixtures. Evidence:
   `pi/tests/prompt_effectiveness.py`, `tests/behavior/principles.json`,
   `tests/behavior/roles.json`, `tests/behavior/routing.json`.
+- Dependency-backed Pi TypeScript checking is opt-in: after `npm install
+  --prefix pi`, `bash pi/scripts/typecheck.sh` runs the root Pi extension
+  check and the standalone Preview Markdown package check;
+  `bash pi/scripts/typecheck-preview-markdown.sh` runs the package check
+  alone. Both checks are intentionally excluded from the offline suites;
+  `pi/scripts/validate.sh` syntax-checks their entrypoints there. Evidence:
+  `pi/scripts/typecheck.sh`, `pi/scripts/typecheck-preview-markdown.sh`,
+  `pi/package.json`, `pi/scripts/validate.sh`.
 - Live MCP schema probing and browser evidence are opt-in because they start
   processes/network activity or write approved evidence artifacts. Neither
   lane is implied by static validation. Evidence:
