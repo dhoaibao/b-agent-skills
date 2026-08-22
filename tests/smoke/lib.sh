@@ -133,7 +133,7 @@ if [ "${1:-}" = "list" ]; then
     found=1
   fi
   if [ -f "$log_dir/pi-usage-installed" ]; then
-    printf 'npm:@narumitw/pi-usage\n'
+    printf 'npm:@sreetej510/pi-usage\n'
     found=1
   fi
   if [ -f "$log_dir/pi-intercom-installed" ]; then
@@ -163,7 +163,7 @@ if [ "${1:-}" = "install" ]; then
   if [ "${2:-}" = "npm:pi-observational-memory" ]; then
     : > "$log_dir/pi-observational-memory-installed"
   fi
-  if [ "${2:-}" = "npm:@narumitw/pi-usage" ]; then
+  if [ "${2:-}" = "npm:@sreetej510/pi-usage" ]; then
     : > "$log_dir/pi-usage-installed"
   fi
   if [ "${2:-}" = "npm:pi-intercom" ]; then

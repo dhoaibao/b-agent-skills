@@ -220,7 +220,7 @@ memory/compaction layer rather than combining it with another such extension.
 Its V3 model does not read V2 settings or memory entries; after upgrading from
 V2, migrate the settings and start a clean Pi session.
 
-b-agentic installs the `@narumitw/pi-usage` extension automatically.
+b-agentic installs the `@sreetej510/pi-usage` extension automatically.
 
 b-agentic installs `@narumitw/pi-lsp@0.32.0` automatically for optional, on-demand
 `lsp_diagnostics` and `lsp_fix` capabilities and source-action previews. pi-lsp

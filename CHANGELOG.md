@@ -6,6 +6,11 @@ All notable shipped revisions of b-agentic are recorded here. Released version h
 
 ### Changed
 
+- Pi usage package source:
+  - Observed failure: The installer sourced Pi usage reporting from `@narumitw/pi-usage`; this directed vendor/package-source change redirects that source rather than addressing a discovered defect.
+  - Intended behavior: source Pi usage reporting from `@sreetej510/pi-usage`, preserving its unpinned status and the existing version pins for pi-lsp and rpiv-ask-user-question.
+  - Regression: `scripts/smoke-install.sh` exercises Pi smoke cases whose install assertions in `pi/tests/smoke.sh` and fake installer handling in `tests/smoke/lib.sh` require `npm:@sreetej510/pi-usage`.
+
 - Shared command citation traceability:
   - Observed failure: `decision_design.py` skipped every code citation containing whitespace, so the command reference `bash pi/scripts/validate-preview-markdown-package.sh` was not checked against tracked repository paths.
   - Intended behavior: share citation tokenization, path resolution, wildcard handling, command-prefix parsing, and unique bare-filename resolution between the decision-design and CHANGELOG validators without changing either consumer's scope or error policy.

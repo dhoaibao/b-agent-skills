@@ -31,8 +31,8 @@ For long-session compaction continuity, b-agentic can install the optional
 `pi-observational-memory` package. `pi install npm:pi-observational-memory`;  Use it as the sole automatic
 memory/compaction layer rather than combining it with another such extension.
 
-b-agentic can also install the optional `@narumitw/pi-usage` extension.
-`pi install npm:@narumitw/pi-usage`;
+b-agentic can also install the optional `@sreetej510/pi-usage` extension.
+`pi install npm:@sreetej510/pi-usage`;
 
 b-agentic installs `@narumitw/pi-lsp@0.32.0` for optional, on-demand
 `lsp_diagnostics` and `lsp_fix` capabilities and source-action previews.

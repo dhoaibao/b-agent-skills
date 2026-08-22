@@ -1997,7 +1997,7 @@ run_pi_smoke_cases() {
 	assert_file "$sandbox/smoke-bin/pi-install.log"
 	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:pi-mcp-adapter'
 	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:pi-observational-memory'
-	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@narumitw/pi-usage'
+	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@sreetej510/pi-usage'
 	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:pi-intercom'
 	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@juicesharp/rpiv-ask-user-question@2.6.2'
 	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@narumitw/pi-lsp@0.32.0'
@@ -2077,7 +2077,7 @@ EOF
 	assert_file "$sandbox_adapter/smoke-bin/pi-install.log"
 	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:pi-mcp-adapter'
 	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:pi-observational-memory'
-	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:@narumitw/pi-usage'
+	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:@sreetej510/pi-usage'
 	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:@juicesharp/rpiv-ask-user-question@2.6.2'
 	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:@narumitw/pi-lsp@0.32.0'
 	assert_contains "$sandbox_adapter/home/.pi/agent/b-agentic/install.json" '"piAskUserQuestionState": "ready"'

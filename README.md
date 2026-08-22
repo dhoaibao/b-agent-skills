@@ -108,7 +108,7 @@ The installer writes all seven recommended entries to Pi's MCP configuration wit
 | `pi-intercom` | Provides planner/worker coordination | Default for the optional two-role workflow | Installed automatically |
 | `@juicesharp/rpiv-ask-user-question` | Structured interactive user decisions and blockers | Required for planner questions | Installed automatically at v2.6.2 |
 | `pi-observational-memory` | Long-session compaction continuity | Optional | Installed automatically |
-| `@narumitw/pi-usage` | Pi usage reporting | Optional | Installed automatically |
+| `@sreetej510/pi-usage` | Pi usage reporting | Optional | Installed automatically |
 | `@narumitw/pi-lsp@0.32.0` | On-demand LSP diagnostics and source-action previews | Optional | Installed automatically at v0.32.0 |
 
 Pi CLI, RTK, Serena, CodeGraph, Bun, and Pi packages install or refresh automatically without prompts. Bun-backed MCP servers use `bunx`, which resolves and caches their packages on first use. Modern shell tools are reported with an install hint because they generally require sudo.

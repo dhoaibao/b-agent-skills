@@ -55,8 +55,8 @@ PI_MCP_ADAPTER_SPEC="npm:pi-mcp-adapter"
 PI_MCP_ADAPTER_PACKAGE="pi-mcp-adapter"
 PI_OBSERVATIONAL_MEMORY_SPEC="npm:pi-observational-memory"
 PI_OBSERVATIONAL_MEMORY_PACKAGE="pi-observational-memory"
-PI_USAGE_SPEC="npm:@narumitw/pi-usage"
-PI_USAGE_PACKAGE="@narumitw/pi-usage"
+PI_USAGE_SPEC="npm:@sreetej510/pi-usage"
+PI_USAGE_PACKAGE="@sreetej510/pi-usage"
 PI_INTERCOM_SPEC="npm:pi-intercom"
 PI_INTERCOM_PACKAGE="pi-intercom"
 PI_ASK_USER_QUESTION_SPEC="npm:@juicesharp/rpiv-ask-user-question@2.6.2"
@@ -117,7 +117,7 @@ runtime_warn_missing_cli() {
 		warn "pi-observational-memory not installed; long-session compaction continuity is unavailable."
 	fi
 	if command -v pi >/dev/null 2>&1 && ! pi_usage_installed; then
-		warn "@narumitw/pi-usage not installed; Pi usage reporting is unavailable."
+		warn "@sreetej510/pi-usage not installed; Pi usage reporting is unavailable."
 	fi
 	if command -v pi >/dev/null 2>&1 && ! pi_ask_user_question_installed; then
 		warn "@juicesharp/rpiv-ask-user-question not installed; interactive user questions are unavailable."
