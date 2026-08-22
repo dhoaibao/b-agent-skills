@@ -58,12 +58,14 @@ This audit supplements the automated checks; it does not mechanically prove all 
    compare the documented behavior, routing, safety, install, tooling, and
    verification statements against current repository behavior. Report drift,
    stale references, unsupported claims, and material omissions with paths.
-5. Use native inspection first. Use CodeGraph only for a distinct concrete
-   repository-wide architecture or impact question the record or a finding
-   requires; do not initialize it merely because the audit spans files. Use
-   Serena only for a distinct exact-symbol or diagnostic question that materially
-   improves precision; do not duplicate ownership queries or parallelize/batch
-   Serena calls.
+5. Use native inspection first. Use an available CodeGraph index only for a
+   distinct concrete repository-wide architecture or impact question the record
+   or a finding requires. Do not initialize an absent index in planner mode;
+   fall back to native inspection and state the resulting gap. Outside planner
+   mode, initialize an absent index only for that question; do not initialize it
+   merely because the audit spans files. Use Serena only for a distinct
+   exact-symbol or diagnostic question that materially improves precision; do
+   not duplicate ownership queries or parallelize/batch Serena calls.
 6. Separate automated traceability/structural results from human semantic
    findings. State what was not mechanically proven, then report findings first,
    checked-and-clean areas, verification, residual risk, and follow-up scope.

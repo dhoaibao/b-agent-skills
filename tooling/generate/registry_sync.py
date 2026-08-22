@@ -90,6 +90,7 @@ ROLE_PROMPT_MARKERS = {
         "Finish discovery before one bounded handoff",
         "Executing a skill requires first reading its `SKILL.md` at its listed location (installed: `~/.pi/agent/skills/<name>/SKILL.md`)",
         "Do not cause worktree mutation",
+        "building or initializing local indexes/caches such as CodeGraph",
         "non-mutating validation/audit scripts",
         "read `b-review`'s `SKILL.md` at its listed location (installed: `~/.pi/agent/skills/b-review/SKILL.md`)",
         "standalone `Verdict:` line",

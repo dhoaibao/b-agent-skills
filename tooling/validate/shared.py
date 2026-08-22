@@ -177,8 +177,8 @@ MCP_WORKFLOW_REGRESSION = {
     ),
     "anchors": {
         "b-plan": [
-            "initialize an absent CodeGraph index",
-            "do not initialize an absent local index merely because the task spans files",
+            "Do not initialize an absent index in planner mode",
+            "Outside planner mode, initialize an absent index only for that question; do not initialize one merely because the task spans files",
         ],
         "b-debug": ["versioned dependency suspects"],
         "b-test": ["versioned framework semantics"],

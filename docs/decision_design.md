@@ -153,7 +153,8 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   to the worker. Unknown ownership defaults to worker while generation rejects
   missing or invalid owners. The planner boundary forbids worktree mutation,
   including edits, patches, commits, builds, tests, formatters, generators, and
-  commands that write, but permits non-mutating audit/validation scripts and
+  commands that write—including building or initializing local indexes/caches
+  such as CodeGraph—but permits non-mutating audit/validation scripts and
   read-only Git. Worker mode is the sole worktree writer and the assigned worker
   executes its worker-owned task itself; it never re-delegates or hands that
   task to another worker. Independent shared policies still block
@@ -357,9 +358,11 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   parallelizing or batching them because concurrency can hang or time out.
 - CodeGraph owns repository-wide architecture, dependency/call flows, impact,
   route-to-handler discovery, and affected-test discovery only when native
-  inspection cannot settle a concrete question; do not initialize its local
-  index merely because work spans files, and initialize it only for that
-  question when absent.
+  inspection cannot settle a concrete question. In planner mode, use an
+  available index for that question but do not initialize an absent one; fall
+  back to native inspection and state the resulting gap. Outside planner mode,
+  initialize an absent index only for that question, never merely because work
+  spans files.
 - Context7 is first for versioned framework/API facts. Firecrawl provides
   bounded primary public research (including `research_*` and developer
   search), and Brave provides independent corroboration or specialized search
