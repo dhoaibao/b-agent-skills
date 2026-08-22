@@ -900,10 +900,41 @@ export function isTrustedPreviewMarkdownCall(input: unknown): boolean {
   return input.title === undefined || typeof input.title === "string";
 }
 
+const LSP_DIAGNOSTICS_FIELDS = new Set(["paths", "root", "limit", "server"]);
+
+function isTrustedLspPath(pathValue: unknown, inspectDirectory = false): boolean {
+  if (typeof pathValue !== "string" || isProtectedPath(pathValue) ||
+    isProtectedLocalPath(pathValue) || !isProjectConfinedPath(pathValue)) return false;
+  if (!inspectDirectory) return true;
+  try {
+    const resolvedPath = realpathSync(pathValue);
+    return !statSync(resolvedPath).isDirectory() || !hasUnsafeSerenaDescendant(resolvedPath, false);
+  } catch {
+    return false;
+  }
+}
+
+/** Return true only for a schema-valid, project-confined lsp_diagnostics call. */
+export function isTrustedLspDiagnosticsCall(input: unknown): boolean {
+  if (!isPlainObject(input) || !hasOnlyKeys(input, LSP_DIAGNOSTICS_FIELDS)) return false;
+  const paths = input.paths;
+  if (paths !== undefined && (!Array.isArray(paths) || paths.some((value) => typeof value !== "string"))) return false;
+  if (input.root !== undefined && typeof input.root !== "string") return false;
+  if (input.limit !== undefined && (typeof input.limit !== "number" || !Number.isFinite(input.limit))) return false;
+  if (input.server !== undefined && typeof input.server !== "string" &&
+    (!Array.isArray(input.server) || input.server.some((value) => typeof value !== "string"))) return false;
+
+  const root = input.root ?? process.cwd();
+  if (!isTrustedLspPath(root)) return false;
+  if (paths === undefined || paths.length === 0) return isTrustedLspPath(root, true);
+  return paths.every((pathValue) => isTrustedLspPath(pathValue, true));
+}
+
 /** Returns true when the top-level tool call needs the custom/MCP approval prompt. */
 export function isMcpOrCustomTool(toolName: string, input?: unknown): boolean {
   if (SPECIALIZED_TOOLS.has(toolName)) return false;
   if (toolName === "preview_markdown" && isTrustedPreviewMarkdownCall(input)) return false;
+  if (toolName === "lsp_diagnostics" && isTrustedLspDiagnosticsCall(input)) return false;
   // Only explicit adapter proxy executions reach the broker; metadata and
   // lifecycle selectors remain behind the generic custom-tool approval gate.
   if (toolName === "mcp") return !isMcpProxyToolExecution(input);

@@ -303,6 +303,19 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   [#1028](https://github.com/linear/linear/issues/1028), [#1060](https://github.com/linear/linear/issues/1060), and [#747](https://github.com/linear/linear/issues/747); no authenticated live inventory was available for this change. Separately, the observed routing failure was that a bare Linear-style ID could be treated as generic implementation or research rather than planning; the intended behavior routes it to `b-plan`. Regression evidence is the human-scored `linear-issue-plan-routing` scenario in `tests/behavior/routing.json`, structurally validated with `python3 pi/tests/prompt_effectiveness.py --routing --validate-inputs --scenario=linear-issue-plan-routing`. Evidence:
   `references/mcp_operations.yaml`, `pi/configs/mcp.user.template.json`,
   `pi/scripts/validate.sh`.
+- First-party local tools receive the same exact, least-privilege treatment as
+  preview Markdown: `ask_user_question` is trusted by name because it has no
+  filesystem, network, or mutation surface, while `lsp_diagnostics` is trusted
+  only when its known schema contains project-confined, unprotected paths;
+  directory arguments and the project-root default additionally fail closed when
+  protected or external descendants are reachable. Unknown keys, invalid types,
+  outside-project or protected paths retain the generic approval gate, and `lsp_fix` remains gated
+  in every form because source actions can write. Evidence:
+  `references/kernel.template.md`,
+  `pi/extensions/b-agentic-support/shell.ts`,
+  `pi/extensions/b-agentic-support/mcp.ts`,
+  `pi/extensions/b-agentic-mcp-permissions.ts`, `pi/scripts/install.sh`,
+  `pi/tests/smoke.sh`.
 - Auto-approval is exact and least-privilege: read-only/trusted operations are
   allowed; conditional operations require known keys and safe argument values;
   safe project-local Serena operations use `conditional-local`, and trusted

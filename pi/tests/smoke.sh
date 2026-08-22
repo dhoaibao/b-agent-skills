@@ -1367,8 +1367,37 @@ for (const command of [...rtkRequiredCommands, ...rtkDiscoveryCommands]) {
 }
 expect(t.RTK_OPTIONAL_COMMANDS.size === 0, 'RTK-supported command families retain a single documentation list');
 expect(t.SPECIALIZED_TOOLS.has('recall'), 'recall must be a first-party specialized tool');
+expect(t.SPECIALIZED_TOOLS.has('ask_user_question'), 'ask_user_question must be a first-party specialized tool');
 expect(t.SPECIALIZED_TOOLS.has('mcpScript'), 'mcpScript must be a trusted container whose nested calls retain policy');
 expect(t.isMcpOrCustomTool('recall', { id: 'aaaaaaaaaaaa' }) === false, 'recall must not require custom-tool approval');
+const protectedDiagnosticsDir = mkdtempSync(path.join(root, '.b-agentic-lsp-diagnostics-'));
+writeFileSync(path.join(protectedDiagnosticsDir, '.env'), 'SECRET=fixture\n');
+const trustedLocalToolCases = [
+  { name: 'ask_user_question', input: { questions: [] }, gated: false },
+  { name: 'lsp_diagnostics', input: { paths: ['README.md'] }, gated: false },
+  { name: 'lsp_diagnostics', input: { paths: ['pi'] }, gated: false },
+  { name: 'lsp_diagnostics', input: {}, gated: true },
+  { name: 'lsp_diagnostics', input: { paths: [] }, gated: true },
+  { name: 'lsp_diagnostics', input: { paths: [os.tmpdir()] }, gated: true },
+  { name: 'lsp_diagnostics', input: { root: os.tmpdir(), paths: ['README.md'] }, gated: true },
+  { name: 'lsp_diagnostics', input: { paths: ['.env'] }, gated: true },
+  { name: 'lsp_diagnostics', input: { paths: [protectedDiagnosticsDir] }, gated: true },
+  { name: 'lsp_diagnostics', input: { root: protectedDiagnosticsDir }, gated: true },
+  { name: 'lsp_diagnostics', input: { paths: ['README.md'], extra: true }, gated: true },
+  { name: 'lsp_diagnostics', input: { paths: [42] }, gated: true },
+  { name: 'lsp_fix', input: { path: 'README.md' }, gated: true },
+  { name: 'lsp_fix', input: { path: 'README.md', write: false }, gated: true },
+  { name: 'lsp_fix', input: { path: 'README.md', root }, gated: true },
+];
+try {
+  for (const { name, input, gated } of trustedLocalToolCases) {
+    expect(t.isMcpOrCustomTool(name, input) === gated, `${name} trust classification must match the validated argument shape`);
+    const result = await toolCallHandler({ toolName: name, input }, noUiContext);
+    expect((result?.block === true) === gated, `${name} no-UI behavior must ${gated ? 'fail closed' : 'bypass approval'}`);
+  }
+} finally {
+  rmSync(protectedDiagnosticsDir, { recursive: true, force: true });
+}
 expect(t.commandDecision('pip show requests').decision === 'allow', 'regular package metadata reads must not require RTK');
 for (const command of ['poetry show', 'printf x']) {
   expect(t.commandDecision(command).decision === 'allow', `${command} must allow when RTK does not support it`);

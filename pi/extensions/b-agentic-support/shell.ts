@@ -77,6 +77,7 @@ export const SPECIALIZED_TOOLS = new Set([
   "edit",
   "read",
   "recall",
+  "ask_user_question",
   "mcpScript",
   "grep",
   "find",

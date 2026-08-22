@@ -113,7 +113,7 @@ The installer writes all seven recommended entries to Pi's MCP configuration wit
 
 Pi CLI, RTK, Serena, CodeGraph, Bun, and Pi packages install or refresh automatically without prompts. Bun-backed MCP servers use `bunx`, which resolves and caches their packages on first use. Modern shell tools are reported with an install hint because they generally require sudo.
 
-`pi-lsp` provides optional, on-demand `lsp_diagnostics` and `lsp_fix` capabilities and source-action previews. It does not install language-server binaries: the commands for the language servers you use must already be on `PATH`. b-agentic writes no pi-lsp configuration; user `~/.pi/agent/pi-lsp.json` and trusted project `.pi/pi-lsp.json` remain owner-controlled. `lsp_fix` write actions and custom LSP calls retain the generic custom-tool approval behavior, and authoritative repository validation remains required.
+`pi-lsp` provides optional, on-demand `lsp_diagnostics` and `lsp_fix` capabilities and source-action previews. It does not install language-server binaries: the commands for the language servers you use must already be on `PATH`. b-agentic writes no pi-lsp configuration; user `~/.pi/agent/pi-lsp.json` and trusted project `.pi/pi-lsp.json` remain owner-controlled. Validated `lsp_diagnostics` calls with project-confined, unprotected paths bypass generic custom-tool approval. `lsp_fix` actions (including read-only-looking calls), malformed or unsafe diagnostics calls, and other custom LSP calls retain the generic custom-tool approval behavior, and authoritative repository validation remains required.
 
 ## First-party extensions
 
