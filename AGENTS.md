@@ -36,7 +36,14 @@ bash pi/scripts/validate-preview-markdown-package.sh
 rtk git diff --check
 ```
 
-For install, Pi integration, or release-readiness changes, also run `scripts/validate-skills.sh --release` and the relevant `scripts/skill-doctor.sh` or `scripts/mcp-doctor.sh` checks. Installer syntax checks use `bash -n install.sh tests/smoke/install.sh`; the standalone preview installer is checked by `bash -n pi/scripts/install-preview-markdown.sh`. Prompt-effectiveness model calls are opt-in; `pi/tests/prompt_effectiveness.py --validate-inputs` is the non-networked alternative. Live MCP schema probing and browser evidence are separate opt-in checks.
+For install, Pi integration, or release-readiness changes, also run `scripts/validate-skills.sh --release` and the relevant `scripts/skill-doctor.sh` or `scripts/mcp-doctor.sh` checks. Installer syntax checks use `bash -n install.sh tests/smoke/install.sh`; the standalone preview installer is checked by `bash -n pi/scripts/install-preview-markdown.sh`. Prompt-effectiveness model calls are opt-in; `pi/tests/prompt_effectiveness.py --validate-inputs` is the non-networked alternative. Live MCP schema probing and browser evidence are separate opt-in checks. The Pi extension TypeScript check is also opt-in and dependency-backed; run it with:
+
+```bash
+npm install --prefix pi
+bash pi/scripts/typecheck.sh
+```
+
+It is intentionally not part of the offline validation suites.
 
 ## Codebase Map
 

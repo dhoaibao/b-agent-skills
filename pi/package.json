@@ -1,0 +1,10 @@
+{
+  "name": "@dhoaibao/b-agentic-pi-tooling",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "0.84.2",
+    "@types/node": "26.2.0",
+    "typescript": "7.0.2"
+  }
+}

@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 
 bash -n "$ROOT_DIR/pi/scripts/install-preview-markdown.sh"
+bash -n "$ROOT_DIR/pi/scripts/typecheck.sh"
 
 python3 - <<'PY'
 from pathlib import Path
