@@ -139,6 +139,8 @@ INTERACTIVE_DECISION_REGRESSION = {
         "pi/extensions/b-agentic-support/role.ts": [
             "any interactive, user-facing material decision or blocker",
             "Solo/Off workers do not emit planner signals",
+            "If the package reports that it is unavailable or the UI is noninteractive",
+            "B_AGENTIC_TASK_COMPLETE",
         ],
         "skills/b-commit/prompt.md": [
             "Approve (Recommended)",

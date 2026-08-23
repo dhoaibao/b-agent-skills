@@ -221,6 +221,15 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   `references/kernel.template.md`, `pi/extensions/b-agentic-support/role.ts`,
   `tooling/validate/shared.py`, `tooling/validate/behavior.py`,
   `pi/scripts/validate.sh`, `pi/tests/smoke.sh`, `tests/behavior/roles.json`.
+- Planner prompt addendum de-duplication keeps the always-loaded kernel
+  authoritative for shared ownership and generic questionnaire guidance. The
+  injected planner prompt retains only planner-specific application of those
+  rules: read-only execution/delegation, external b-research ownership,
+  bounded handoff, Intercom delivery and targeting, review gating,
+  planner-only attention timing, and the unavailable/noninteractive question
+  fallback. Evidence and regression check: `pi/extensions/b-agentic-support/role.ts`,
+  `tooling/generate/registry_sync.py`, `tooling/validate/shared.py`,
+  `pi/tests/smoke.sh`.
 - Interactive, user-facing material decisions and blockers use the installed
   `ask_user_question` tool in planner or solo/Off work. Calls group 1–4 related
   questions, provide 2–4 concrete options with concise trade-offs, suffix the

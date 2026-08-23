@@ -6,6 +6,11 @@ All notable shipped revisions of b-agentic are recorded here. Released version h
 
 ### Changed
 
+- Planner prompt addendum deduplication:
+  - Observed failure: the always-loaded kernel preceded the planner role addendum, but the addendum repeated generated ownership lists and criterion plus the generic questionnaire contract, increasing every planner start without adding planner-specific behavior.
+  - Intended behavior: keep shared ownership mapping/criterion and the generic questionnaire contract authoritative in the kernel while retaining the planner-specific read-only delegation boundary, external b-research ownership, handoff/Intercom/review mechanics, planner-only signals, and questionnaire fallback; do not alter the worker prompt, kernel rules, or runtime policy.
+  - Regression: `pi/tests/smoke.sh` measures the planner addendum below its measured pre-deduplication byte count and checks kernel ownership plus planner behavior anchors; `python3 tooling/generate/registry_sync.py --check`, `scripts/validate-skills.sh`, and `rtk git diff --check` provide synchronization and structural coverage.
+
 - Pi usage package source:
   - Observed failure: The installer sourced Pi usage reporting from `@narumitw/pi-usage`; this directed vendor/package-source change redirects that source rather than addressing a discovered defect.
   - Intended behavior: source Pi usage reporting from `@sreetej510/pi-usage`, preserving its unpinned status and the existing version pins for pi-lsp and rpiv-ask-user-question.
