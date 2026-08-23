@@ -267,6 +267,7 @@ purpose-specific `tool_call` extensions under `~/.pi/agent/extensions/`:
 - `b-agentic-planner.ts` and `b-agentic-worker.ts` for collaboration profiles.
 - `b-agentic-planner-notify.ts` for privacy-safe desktop notifications from explicit planner task-complete and user-input attention signals.
 - `b-agentic-sync.ts` for in-session refresh commands.
+- `b-agentic-consult.ts` for the bounded, isolated, read-only `b_consult` advisory tool and `/b-consult-model` preference command.
 
 Helpers under `pi/extensions/b-agentic-support/` are not discovered as
 standalone Pi extensions. Pi enforces managed MCP and RTK policy from
@@ -303,6 +304,15 @@ with `/b-role planner` and `/b-role worker`, or `pi --b-role planner|worker`.
 Use `/b-role off` to return to solo work. Role selection does not open a model
 picker; explicit startup selections and `/model` changes can update per-role
 preferences under `~/.pi/agent/b-agentic/role-models.json` without credentials.
+The optional `/b-consult-model` command independently selects a consultant
+provider/model and thinking level in `~/.pi/agent/b-agentic/consult-model.json`.
+`b_consult` is enforced planner-only. Planner calls are one-shot and advisory
+only: they use only bounded caller-provided question/context/plan text, no Pi
+tools or project discovery, no worktree edits, and no Intercom or roster changes.
+Each consultation still uses
+the normal per-call custom-tool approval and fails closed without approval UI.
+Missing or unavailable consultant configuration returns setup guidance without
+silently using the active model.
 
 `/b-auto-mode` is an explicit opt-in that warns and requires an interactive Y/N
 confirmation before enabling. While enabled it auto-allows every `ask` decision,

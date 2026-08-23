@@ -48,10 +48,12 @@ extension_files = [
     root / 'pi/extensions/b-agentic-planner-notify.ts',
     root / 'pi/extensions/b-agentic-worker.ts',
     root / 'pi/extensions/b-agentic-sync.ts',
+    root / 'pi/extensions/b-agentic-consult.ts',
     root / 'pi/extensions/b-agentic-support/shell.ts',
     root / 'pi/extensions/b-agentic-support/mcp.ts',
     root / 'pi/extensions/b-agentic-support/role.ts',
     root / 'pi/extensions/b-agentic-support/role-models.ts',
+    root / 'pi/extensions/b-agentic-support/consult.ts',
     root / 'pi/extensions/b-agentic-support/worker.ts',
     root / 'pi/extensions/b-agentic-support/auto.ts',
 ]

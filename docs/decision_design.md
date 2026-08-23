@@ -163,6 +163,18 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   `tooling/generate/registry_sync.py`, `pi/extensions/b-agentic-planner.ts`,
   `pi/extensions/b-agentic-role.ts`, `pi/extensions/b-agentic-support/role.ts`,
   `pi/extensions/b-agentic-support/mcp.ts`.
+- The consultant tool exposed a gap: tool-level guidance alone gave the injected
+  planner profile no selection criterion, so `b_consult` could be omitted when
+  useful or overused. After bounded local discovery, the planner may optionally
+  use the isolated, planner-only consultant for a hard decision or plan review
+  when independent advice materially improves decision quality (competing viable
+  alternatives, consequential or risky trade-offs, or unresolved evidence or
+  assumptions); it is not for routine or obvious work, replacing repository
+  evidence, or while a worker edits. The call remains bounded to minimal
+  caller-supplied context, requires normal per-call approval, returns advisory
+  output rather than evidence, and is not required for every plan. Evidence and
+  regression check: `pi/extensions/b-agentic-support/role.ts`,
+  `pi/tests/smoke.sh`.
 - The planner settles a context-complete, bounded natural-language handoff before
   the worker edits. Both roles use `pending` before `send`/`reply`; an inbound
   ask requires `reply`, otherwise a fresh `list-cwd` supplies the verbatim

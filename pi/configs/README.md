@@ -13,13 +13,14 @@ Adapter-owned layout for Pi.
   `~/.pi/agent/extensions/b-agentic-permissions.ts`, `b-agentic-mcp-permissions.ts`,
   `b-agentic-auto-mode.ts`,
   `b-agentic-role.ts`, `b-agentic-planner.ts`, `b-agentic-planner-notify.ts`,
-  `b-agentic-worker.ts`, and `b-agentic-sync.ts`
+  `b-agentic-worker.ts`, `b-agentic-sync.ts`, and `b-agentic-consult.ts`
 - Extension snapshots: `~/.pi/agent/b-agentic/extensions/` (one snapshot per
   installed extension; legacy manifests with only `permissionsExtension` remain supported)
 - Theme: `~/.pi/agent/themes/dracula.json` (symlink to b-agentic cached copy)
 - Theme cache: `~/.pi/agent/b-agentic/themes/dracula.json` (cloned from Dracula Pi theme repo)
 - Shared extension helpers live under the non-discovered
-  `pi/extensions/b-agentic-support/` source directory
+  `pi/extensions/b-agentic-support/` source directory, including the consultant
+  preference at `~/.pi/agent/b-agentic/consult-model.json`
 
 ## Optional Pi Packages
 
@@ -51,6 +52,8 @@ b-agentic installs `pi-intercom` by default for its two-role workflow; the permi
 b-agentic also installs `@juicesharp/rpiv-ask-user-question@2.6.2` for interactive, user-facing material decisions and blockers in planner or solo/Off work (`pi install npm:@juicesharp/rpiv-ask-user-question@2.6.2`).
 
 b-agentic defaults to Off for a single-session workflow; the first same-CWD session is not automatically promoted to planner. For the two-role workflow, explicitly run `/b-role planner` and `/b-role worker` in the two sessions, or start them with `pi --b-role planner|worker`. Run `/b-role off` to return to solo work; tab completion supports all three role names. The role persists with the session and appears in Pi's status bar. `/b-role` selects only a role and does not open a model picker. Explicit `pi --b-role` startup selections and later `/model` changes can update the per-role provider, model, and thinking-level preference under `~/.pi/agent/b-agentic/role-models.json` without credentials.
+
+`/b-consult-model` separately selects the on-demand consultant provider, model, and thinking level; it persists only that preference in `~/.pi/agent/b-agentic/consult-model.json` and never changes the active planner model. Planner use of `b_consult` is enforced planner-only and one-shot/advisory: it receives only bounded caller-provided text, has no filesystem/shell/edit/write/browser/MCP/Intercom tools, does not inspect the worktree, and never delegates or changes the planner/worker roster. Each consultation still uses the normal per-call custom-tool approval and fails closed without approval UI. If the preference is missing, unavailable, or unauthenticated, `b_consult` reports setup guidance and does not fall back to another model.
 
 `/b-auto-mode` enables an explicit opt-in automatic approval mode. Enabling it always shows a warning and requires an interactive Y/N confirmation; disabling it does not. While enabled, every `ask` decision is auto-allowed, but explicit `deny` decisions remain blocked. User changes persist across Pi restarts and `/new` sessions in `~/.pi/agent/b-agentic/auto-mode.json`; legacy session entries remain compatible. `pi --b-auto-mode` requests one-session startup enablement and still requires confirmation. The setting appears as red `b-auto-mode` in Pi's footer. If no interactive UI is available, enabling fails closed.
 
