@@ -56,8 +56,8 @@ The preview defaults to Tokyo Night Moon. In a TUI session,
 `<Pi agent dir>/b-agentic/preview-theme.json`, not in a project file or Pi
 `settings.json`. Escape cancels without changing the preference. A malformed
 or missing preference safely falls back to Moon, and a persistence failure is
-reported without changing the active behavior. Existing rendered entries keep
-their stored palette while later previews use the current global selection.
+reported without changing the active behavior. Preview entries do not retain a
+stored palette.
 
 For professional or shared environments, pin both the bootstrap script and
 installed source to a reviewed tag or commit instead of consuming whatever is
