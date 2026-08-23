@@ -530,9 +530,11 @@ expect(t.isMcpOrCustomTool('b_consult', { ...validConsultInput, extra: true }) =
 expect((await toolCallHandler({ toolName: 'preview_markdown', input: { markdown: '# Preview', extra: true } }, noUiContext))?.block === true, 'malformed preview_markdown calls must remain approval-gated');
 let rolePickerCalls = 0;
 let modelPickerCalls = 0;
+const consultantSelectionTitles = [];
 const roleContext = {
   get model() { return activeModel; },
   cwd: root,
+  mode: 'rpc',
   hasUI: true,
   ui: {
     confirm: async () => true,
@@ -545,7 +547,10 @@ const roleContext = {
         modelPickerCalls += 1;
         return 'anthropic/claude-sonnet-4-5';
       }
-      if (title === 'Select consultant model') return 'anthropic/claude-sonnet-4-5';
+      if (title.startsWith('Select consultant model')) {
+        consultantSelectionTitles.push(title);
+        return 'anthropic/claude-sonnet-4-5';
+      }
       if (title === 'Select consultant thinking level') return 'high';
       return 'Allow once';
     },
@@ -557,7 +562,10 @@ const roleContext = {
   },
   modelRegistry: {
     find: (provider, id) => provider === 'anthropic' && id === 'claude-sonnet-4-5' || provider === 'openrouter' && id === 'anthropic/claude-3.5-sonnet' ? { provider, id } : undefined,
-    getAvailable: () => [{ provider: 'anthropic', id: 'claude-sonnet-4-5' }],
+    getAvailable: () => [
+      { provider: 'anthropic', id: 'claude-sonnet-4-5' },
+      { provider: 'openrouter', id: 'anthropic/claude-3.5-sonnet' },
+    ],
     hasConfiguredAuth: () => true,
     getProvider: (provider) => provider === 'anthropic' ? consultantProvider : undefined,
     getApiKeyAndHeaders: async () => {
@@ -570,9 +578,59 @@ const roleContext = {
     getBranch: () => [...branchEntries],
   },
 };
+writeFileSync(path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic/consult-model.json'), JSON.stringify({ provider: 'anthropic', model: 'claude-sonnet-4-5', thinkingLevel: 'medium' }));
 await consultCommand.handler('', roleContext);
 const selectedConsultPreference = JSON.parse(readFileSync(path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic/consult-model.json'), 'utf8'));
+expect(consultantSelectionTitles.at(-1)?.includes('Current consultant: anthropic/claude-sonnet-4-5 (thinking: medium)'), 'RPC consultant picker must show the current model and thinking level');
 expect(selectedConsultPreference.provider === 'anthropic' && selectedConsultPreference.model === 'claude-sonnet-4-5' && selectedConsultPreference.thinkingLevel === 'high', '/b-consult-model must persist the explicitly selected provider/model/thinking level');
+const tuiConsultSnapshots = [];
+let tuiConsultPickerCalls = 0;
+const tuiConsultContext = {
+  ...roleContext,
+  mode: 'tui',
+  ui: {
+    ...roleContext.ui,
+    async custom(factory) {
+      let selected;
+      const component = factory(
+        { requestRender() {} },
+        roleContext.ui.theme,
+        {
+          matches(data, binding) {
+            if (binding === 'tui.select.confirm') return data === '\r' || data === '\n';
+            if (binding === 'tui.select.cancel') return data === '\x1b';
+            if (binding === 'tui.select.up') return data === '\x1b[A';
+            if (binding === 'tui.select.down') return data === '\x1b[B';
+            if (binding === 'tui.select.pageUp') return data === '\x1b[5~';
+            if (binding === 'tui.select.pageDown') return data === '\x1b[6~';
+            return false;
+          },
+        },
+        (value) => { selected = value; },
+      );
+      const initial = component.render(140).join('\n');
+      tuiConsultSnapshots.push(initial);
+      if (tuiConsultPickerCalls === 0) {
+        expect(initial.includes('Current consultant: anthropic/claude-sonnet-4-5 (thinking: high)'), 'TUI consultant picker must show the current model and thinking level');
+        expect(initial.split('\n').some((line) => line.includes('> ') && line.includes('anthropic/claude-sonnet-4-5')), 'TUI consultant picker must visibly mark the current available model');
+        component.handleInput('OPENROUTER');
+        const filtered = component.render(140).join('\n');
+        expect(filtered.includes('openrouter/anthropic/claude-3.5-sonnet') && filtered.split('\n').filter((line) => line.includes('anthropic/claude-sonnet-4-5')).length === 1, 'TUI consultant picker must case-insensitively filter the complete provider/model label');
+      } else {
+        expect(initial.includes('Current consultant: missing/missing (thinking: high) (unavailable)'), 'TUI consultant picker must show unavailable current selections');
+      }
+      tuiConsultPickerCalls += 1;
+      component.handleInput('\r');
+      return selected;
+    },
+  },
+};
+await consultCommand.handler('', tuiConsultContext);
+const filteredConsultPreference = JSON.parse(readFileSync(path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic/consult-model.json'), 'utf8'));
+expect(filteredConsultPreference.provider === 'openrouter' && filteredConsultPreference.model === 'anthropic/claude-3.5-sonnet' && filteredConsultPreference.thinkingLevel === 'high' && tuiConsultPickerCalls === 1, 'TUI consultant picker must persist a model chosen after filtering');
+writeFileSync(path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic/consult-model.json'), JSON.stringify({ provider: 'missing', model: 'missing', thinkingLevel: 'high' }));
+await consultCommand.handler('', tuiConsultContext);
+expect(JSON.parse(readFileSync(path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic/consult-model.json'), 'utf8')).provider === 'anthropic' && tuiConsultPickerCalls === 2 && tuiConsultSnapshots.at(-1)?.includes('(unavailable)'), 'TUI consultant picker must recover from an unavailable current model');
 const consultationResult = await consultTool.execute('consult-1', validConsultInput, new AbortController().signal, undefined, roleContext);
 expect(consultationResult.details.status === 'ok' && consultationResult.details.recommendation.includes('smallest reversible') && consultationResult.details.findings.length === 1, 'configured b_consult must return structured advisory fields including plan-review findings');
 expect(consultantCalls.at(-1)?.context.tools === undefined, 'consultant requests must contain no tools');

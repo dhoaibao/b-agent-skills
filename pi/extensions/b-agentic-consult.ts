@@ -1,5 +1,6 @@
 /** On-demand, isolated, read-only consultation for planner decisions and plan reviews. */
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { DynamicBorder, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { Container, Input, SelectList, Text, type Focusable, type Keybinding, type SelectItem } from "@earendil-works/pi-tui";
 import {
   CONSULT_INPUT_LIMITS,
   CONSULT_THINKING_LEVELS,
@@ -48,6 +49,170 @@ type ConsultRequestContext = {
     timestamp: number;
   }>;
 };
+
+type ConsultantModelChoice = {
+  provider: string;
+  model: string;
+  label: string;
+};
+
+type ConsultantPickerStyle = {
+  accent: (text: string) => string;
+  muted: (text: string) => string;
+  dim: (text: string) => string;
+  warning: (text: string) => string;
+};
+
+type ConsultantKeybindingMatcher = (data: string, binding: Keybinding) => boolean;
+
+function currentConsultantSelection(preference: ConsultModelPreference | undefined, available: ConsultantModelChoice[] = []): string {
+  if (!preference) return "Current consultant: not configured";
+  const label = `${preference.provider}/${preference.model}`;
+  const unavailable = available.length > 0 && !available.some((item) => item.label === label);
+  return `Current consultant: ${label} (thinking: ${preference.thinkingLevel})${unavailable ? " (unavailable)" : ""}`;
+}
+
+class ConsultantModelPicker extends Container implements Focusable {
+  private readonly searchInput: Input;
+  private readonly listContainer: Container;
+  private readonly items: SelectItem[];
+  private readonly listTheme: {
+    selectedPrefix: (text: string) => string;
+    selectedText: (text: string) => string;
+    description: (text: string) => string;
+    scrollInfo: (text: string) => string;
+    noMatch: (text: string) => string;
+  };
+  private selectList: SelectList;
+  private readonly matches: ConsultantKeybindingMatcher;
+  private readonly requestRender: () => void;
+  private readonly done: (value: string | null) => void;
+  private _focused = false;
+
+  constructor(
+    items: SelectItem[],
+    currentSelection: string,
+    currentIndex: number,
+    style: ConsultantPickerStyle,
+    matches: ConsultantKeybindingMatcher,
+    requestRender: () => void,
+    done: (value: string | null) => void,
+  ) {
+    super();
+    this.items = items;
+    this.matches = matches;
+    this.requestRender = requestRender;
+    this.done = done;
+    this.searchInput = new Input();
+    this.listTheme = {
+      selectedPrefix: (text) => style.accent(text),
+      selectedText: (text) => style.accent(text),
+      description: (text) => style.muted(text),
+      scrollInfo: (text) => style.dim(text),
+      noMatch: (text) => style.warning(text),
+    };
+    this.selectList = this.createSelectList(items);
+    if (currentIndex >= 0) this.selectList.setSelectedIndex(currentIndex);
+    this.listContainer = new Container();
+    this.listContainer.addChild(this.selectList);
+
+    this.addChild(new DynamicBorder((text: string) => style.accent(text)));
+    this.addChild(new Text(style.accent("Select consultant model"), 1, 0));
+    this.addChild(new Text(style.muted(currentSelection), 1, 0));
+    this.addChild(new Text(style.dim("Search provider/model (case-insensitive):"), 1, 0));
+    this.addChild(this.searchInput);
+    this.addChild(this.listContainer);
+    this.addChild(new Text(style.dim("Type to filter • ↑↓ navigate • Enter select • Esc cancel"), 1, 0));
+    this.addChild(new DynamicBorder((text: string) => style.accent(text)));
+  }
+
+  get focused(): boolean {
+    return this._focused;
+  }
+
+  set focused(value: boolean) {
+    this._focused = value;
+    this.searchInput.focused = value;
+  }
+
+  private createSelectList(items: SelectItem[]): SelectList {
+    const selectList = new SelectList(items, Math.min(items.length, 10), this.listTheme);
+    selectList.onSelect = (item) => this.done(item.value);
+    selectList.onCancel = () => this.done(null);
+    return selectList;
+  }
+
+  private applySearch(query: string): void {
+    const normalized = query.trim().toLowerCase();
+    const filteredItems = normalized
+      ? this.items.filter((item) => item.label.toLowerCase().includes(normalized))
+      : this.items;
+    this.selectList = this.createSelectList(filteredItems);
+    this.listContainer.clear();
+    this.listContainer.addChild(this.selectList);
+  }
+
+  handleInput(data: string): void {
+    const selectionBindings: Keybinding[] = [
+      "tui.select.up",
+      "tui.select.down",
+      "tui.select.pageUp",
+      "tui.select.pageDown",
+      "tui.select.confirm",
+      "tui.select.cancel",
+    ];
+    if (selectionBindings.some((binding) => this.matches(data, binding))) {
+      this.selectList.handleInput(data);
+    } else {
+      this.searchInput.handleInput(data);
+      this.applySearch(this.searchInput.getValue());
+    }
+    this.requestRender();
+  }
+}
+
+function availableConsultantModels(ctx: ExtensionContext): ConsultantModelChoice[] {
+  return ctx.modelRegistry
+    .getAvailable()
+    .map((model) => ({ provider: model.provider, model: model.id, label: `${model.provider}/${model.id}` }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
+async function selectConsultantModel(
+  ctx: ExtensionContext,
+  choices: ConsultantModelChoice[],
+  preference: ConsultModelPreference | undefined,
+): Promise<ConsultantModelChoice | undefined> {
+  const currentSelection = currentConsultantSelection(preference, choices);
+  const items: SelectItem[] = choices.map((choice) => ({
+    value: choice.label,
+    label: choice.label,
+    description: choice.label === (preference ? `${preference.provider}/${preference.model}` : "") ? "Current selection" : undefined,
+  }));
+  const currentIndex = preference ? choices.findIndex((choice) => choice.label === `${preference.provider}/${preference.model}`) : -1;
+  let selected: string | null | undefined;
+
+  if (ctx.mode === "tui") {
+    selected = await ctx.ui.custom<string | null>((tui, theme, keybindings, done) => new ConsultantModelPicker(
+      items,
+      currentSelection,
+      currentIndex,
+      {
+        accent: (text) => theme.fg("accent", text),
+        muted: (text) => theme.fg("muted", text),
+        dim: (text) => theme.fg("dim", text),
+        warning: (text) => theme.fg("warning", text),
+      },
+      (data, binding) => keybindings.matches(data, binding),
+      () => tui.requestRender(),
+      done,
+    ));
+  } else {
+    selected = await ctx.ui.select(`Select consultant model\n${currentSelection}`, items.map((item) => item.label));
+  }
+
+  return selected ? choices.find((choice) => choice.label === selected) : undefined;
+}
 
 // Keep the public tool schema dependency-free; Pi validates this JSON-schema shape.
 const ConsultToolSchema = {
@@ -179,10 +344,6 @@ function parseModelSpec(value: string): { provider: string; model: string } | un
   return provider && model ? { provider, model } : undefined;
 }
 
-function modelLabel(model: { provider: string; id: string }): string {
-  return `${model.provider}/${model.id}`;
-}
-
 async function chooseThinkingLevel(ctx: ExtensionContext): Promise<ConsultModelPreference["thinkingLevel"] | undefined> {
   if (!ctx.hasUI) return undefined;
   const selected = await ctx.ui.select("Select consultant thinking level", [...CONSULT_THINKING_LEVELS]);
@@ -285,7 +446,7 @@ export default function bAgenticConsult(pi: ExtensionAPI): void {
       }
       const existing = loadConsultModelPreference();
       if (tokens.length === 0 && !ctx.hasUI) {
-        ctx.ui.notify(existing ? `Consultant model: ${existing.provider}/${existing.model} (thinking: ${existing.thinkingLevel})` : "Usage: /b-consult-model provider/model thinking-level", existing ? "info" : "error");
+        ctx.ui.notify(existing ? `${currentConsultantSelection(existing)}. Usage: /b-consult-model provider/model thinking-level` : "Usage: /b-consult-model provider/model thinking-level", existing ? "info" : "error");
         return;
       }
 
@@ -297,24 +458,17 @@ export default function bAgenticConsult(pi: ExtensionAPI): void {
           return;
         }
       } else {
-        const available = ctx.modelRegistry.getAvailable()
-          .map((model) => ({ provider: model.provider, model: model.id, label: modelLabel(model) }))
-          .sort((a, b) => a.label.localeCompare(b.label));
+        const available = availableConsultantModels(ctx);
         if (available.length === 0) {
-          ctx.ui.notify("No available models. Configure a provider, then run /b-consult-model provider/model thinking-level.", "error");
+          ctx.ui.notify(`No available models. ${currentConsultantSelection(existing)}. Configure a provider, then run /b-consult-model provider/model thinking-level.`, "error");
           return;
         }
-        const selected = await ctx.ui.select("Select consultant model", available.map((item) => item.label));
+        const selected = await selectConsultantModel(ctx, available, existing);
         if (!selected) {
           ctx.ui.notify("Consultant model selection cancelled", "info");
           return;
         }
-        const match = available.find((item) => item.label === selected);
-        if (!match) {
-          ctx.ui.notify("Consultant model selection was invalid", "error");
-          return;
-        }
-        selectedModel = { provider: match.provider, model: match.model };
+        selectedModel = { provider: selected.provider, model: selected.model };
       }
       if (!selectedModel) {
         ctx.ui.notify("Consultant model selection was cancelled", "info");

@@ -306,6 +306,9 @@ picker; explicit startup selections and `/model` changes can update per-role
 preferences under `~/.pi/agent/b-agentic/role-models.json` without credentials.
 The optional `/b-consult-model` command independently selects a consultant
 provider/model and thinking level in `~/.pi/agent/b-agentic/consult-model.json`.
+In the TUI, its model picker shows the current selection and supports
+case-insensitive search across complete provider/model labels; RPC uses a safe
+selection dialog with the current selection shown.
 `b_consult` is enforced planner-only. Planner calls are one-shot and advisory
 only: they use only bounded caller-provided question/context/plan text, no Pi
 tools or project discovery, no worktree edits, and no Intercom or roster changes.
