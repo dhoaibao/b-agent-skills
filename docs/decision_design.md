@@ -412,9 +412,12 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   `tests/smoke/install.sh`.
 - The template installs managed assets under `~/.pi/agent`, stores snapshots,
   backups, references, templates, and an install manifest under
-  `~/.pi/agent/b-agentic`, and keeps user-owned kernel/config/extension/skill
-  changes rather than overwriting or deleting them silently. Evidence:
-  `pi/scripts/install.sh`, `tooling/install/common.sh`,
+  `~/.pi/agent/b-agentic`, and keeps user-owned kernel/config/skill changes
+  rather than overwriting or deleting them silently. When a managed Pi
+  extension collides with an existing file, installation backs it up and
+  replaces it; uninstall restores that backup only when the installed
+  extension is unchanged, while modified or symlinked extensions are
+  preserved. Evidence: `pi/scripts/install.sh`, `tooling/install/common.sh`,
   `tooling/install/manifest_uninstall.py`.
 - MCP configuration is merged rather than replaced: unrelated user servers
   survive, prompted secrets are written only to user config through a private
