@@ -519,6 +519,29 @@ try_manifest_only_uninstall() {
 	return 1
 }
 
+prepare_user_bin_paths() {
+	local -a candidates=()
+	local path index
+
+	[ -n "${UV_INSTALL_DIR:-}" ] && candidates+=("$UV_INSTALL_DIR")
+	[ -n "${UV_TOOL_BIN_DIR:-}" ] && candidates+=("$UV_TOOL_BIN_DIR")
+	[ -n "${XDG_BIN_HOME:-}" ] && candidates+=("$XDG_BIN_HOME")
+	if [ -n "${XDG_DATA_HOME:-}" ]; then
+		candidates+=("${XDG_DATA_HOME%/}/../bin")
+	fi
+	candidates+=("$HOME/.local/bin" "$HOME/.cargo/bin" "$HOME/.bun/bin")
+
+	for ((index = ${#candidates[@]} - 1; index >= 0; index--)); do
+		path="${candidates[$index]}"
+		[ -n "$path" ] || continue
+		case ":${PATH:-}:" in
+		*":$path:"*) ;;
+		*) PATH="$path:${PATH:-}" ;;
+		esac
+	done
+	export PATH
+}
+
 install_rtk() {
 	if command -v rtk >/dev/null 2>&1; then
 		if dry_run_enabled; then
@@ -544,7 +567,11 @@ install_rtk() {
 
 	log "Installing RTK"
 	if curl -fsSL "https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh" | sh; then
-		log "RTK installed"
+		if command -v rtk >/dev/null 2>&1; then
+			log "RTK installed"
+		else
+			die "RTK installed but not found on PATH; b-agentic requires RTK"
+		fi
 	else
 		die "RTK installation failed; b-agentic requires RTK"
 	fi
@@ -614,7 +641,12 @@ install_serena() {
 
 	log "Installing Serena"
 	if uv tool install -p 3.13 serena-agent; then
-		log "Serena installed"
+		if command -v serena >/dev/null 2>&1; then
+			log "Serena installed"
+		else
+			warn "Serena installed but not found on PATH"
+			return 1
+		fi
 	else
 		warn "Serena installation failed"
 		return 1
@@ -788,7 +820,12 @@ install_codegraph() {
 
 	log "Installing CodeGraph"
 	if curl -fsSL https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh | sh; then
-		log "CodeGraph installed"
+		if command -v codegraph >/dev/null 2>&1; then
+			log "CodeGraph installed"
+		else
+			warn "CodeGraph installed but not found on PATH"
+			return 1
+		fi
 	else
 		warn "CodeGraph installation failed"
 		return 1
@@ -831,6 +868,7 @@ main() {
 	run_ui_stage "Checking prerequisites" check_dependencies || return 1
 	run_ui_stage "Preparing source" install_app || return 1
 	run_ui_stage "Loading Pi installer" load_installer_sources || return 1
+	prepare_user_bin_paths
 	run_ui_stage "Checking optional shell tooling" install_shell_tools || return 1
 
 	if uninstall_enabled; then

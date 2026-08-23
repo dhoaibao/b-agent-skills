@@ -600,6 +600,126 @@ PY
 	assert_contains "$invalid_suggestions_json" '"policy_change_applied": false'
 }
 
+run_fresh_dependency_install_case() {
+	local snapshot_repo="$1"
+	local sandbox="$WORK_DIR/fresh-dependency-install"
+	local bin_dir="$sandbox/smoke-bin"
+	local minimal_bin="$sandbox/minimal-bin"
+	local install_log="$sandbox/install.log"
+	local smoke_path command_path name
+	local rc=0
+
+	mkdir -p "$sandbox/home" "$minimal_bin"
+	smoke_path="$(smoke_runtime_cli_path "$sandbox")"
+	for command_path in /usr/bin/* /bin/*; do
+		[ -f "$command_path" ] || continue
+		name="${command_path##*/}"
+		case "$name" in
+			rg | fd | fdfind | bat | batcat | eza | exa | sd | jq) continue ;;
+		esac
+		ln -s "$command_path" "$minimal_bin/$name" 2>/dev/null || true
+	done
+	smoke_path="$bin_dir:$minimal_bin"
+	for name in rtk uv serena codegraph rg fd bat eza sd jq; do
+		rm -f "$bin_dir/$name"
+	done
+	cat >"$bin_dir/curl" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+case "$*" in
+  *rtk-ai/rtk*)
+    cat <<'SH'
+mkdir -p "$HOME/.local/bin"
+printf '#!/usr/bin/env bash\nexit 0\n' >"$HOME/.local/bin/rtk"
+chmod +x "$HOME/.local/bin/rtk"
+SH
+    ;;
+  *astral.sh/uv/install.sh*)
+    cat <<'SH'
+mkdir -p "$HOME/.local/bin"
+cat >"$HOME/.local/bin/uv" <<'UV'
+#!/usr/bin/env bash
+set -euo pipefail
+if [ "${1:-}" = "tool" ] && [ "${2:-}" = "install" ]; then
+  printf '#!/usr/bin/env bash\nexit 0\n' >"$HOME/.local/bin/serena"
+  chmod +x "$HOME/.local/bin/serena"
+fi
+UV
+chmod +x "$HOME/.local/bin/uv"
+SH
+    ;;
+  *colbymchenry/codegraph*)
+    cat <<'SH'
+mkdir -p "$HOME/.local/bin"
+printf '#!/usr/bin/env bash\nexit 0\n' >"$HOME/.local/bin/codegraph"
+chmod +x "$HOME/.local/bin/codegraph"
+SH
+    ;;
+  *)
+    printf 'exit 0\n'
+    ;;
+esac
+EOF
+	chmod +x "$bin_dir/curl"
+
+	set +e
+	python3 - "$sandbox" "$snapshot_repo" "$smoke_path" "$install_log" "$ROOT_DIR/install.sh" <<'PY'
+import os, pty, select, sys
+
+sandbox, repo_snapshot, smoke_path, log_path, install_script = sys.argv[1:6]
+env = dict(os.environ)
+env["HOME"] = os.path.join(sandbox, "home")
+env["PATH"] = smoke_path
+env["B_AGENTIC_REPO"] = repo_snapshot
+env["B_AGENTIC_DIR"] = os.path.join(sandbox, "source")
+env["B_AGENTIC_PROMPT_API_KEYS"] = "N"
+env["B_AGENTIC_SHELL_RECOMMEND_MANAGER"] = "apt-get"
+
+pid, fd = pty.fork()
+if pid == 0:
+    os.environ.update(env)
+    os.execv("/bin/bash", ["bash", install_script])
+
+status = None
+with open(log_path, "wb") as log:
+    while True:
+        try:
+            result, status = os.waitpid(pid, os.WNOHANG)
+            if result:
+                break
+            ready, _, _ = select.select([fd], [], [], 0.1)
+            if ready:
+                chunk = os.read(fd, 4096)
+                if not chunk:
+                    _, status = os.waitpid(pid, 0)
+                    break
+                log.write(chunk)
+                log.flush()
+        except (OSError, select.error):
+            break
+
+os.close(fd)
+if status is None:
+    _, status = os.waitpid(pid, 0)
+if os.WIFEXITED(status):
+    sys.exit(os.WEXITSTATUS(status))
+if os.WIFSIGNALED(status):
+    sys.exit(128 + os.WTERMSIG(status))
+sys.exit(1)
+PY
+	rc=$?
+	set -e
+	[ "$rc" -eq 0 ] || fail "expected fresh dependency install exit 0, got $rc"
+	for name in rtk uv serena codegraph; do
+		assert_file "$sandbox/home/.local/bin/$name"
+	done
+	assert_contains "$install_log" 'Shell tooling hint: sudo apt-get install -y ripgrep fd-find bat eza sd jq'
+	assert_contains "$install_log" 'Readiness:'
+	assert_not_contains "$install_log" '  serena:'
+	assert_not_contains "$install_log" '  codegraph:'
+	assert_not_contains "$install_log" '  rtk:'
+}
+
 run_existing_tool_upgrade_case() {
 	local snapshot_repo="$1"
 	local sandbox="$WORK_DIR/existing-tool-upgrade"
@@ -1593,6 +1713,7 @@ run_base_smoke_cases() {
 		run_runtime_cli_update_failure_case
 		run_existing_tool_upgrade_case
 		run_existing_tool_default_skip_case
+		run_fresh_dependency_install_case
 		run_bun_mcp_package_lifecycle_case
 		run_pi_lsp_package_lifecycle_case
 		run_pi_anthropic_auth_package_lifecycle_case

@@ -1025,7 +1025,7 @@ install_shell_tools() {
     log "Shell tooling already installed"
     return 0
   fi
-  log "Shell tooling hint: $install_command"
+  installer_summary_log "Shell tooling hint: $install_command"
   return 0
 }
 
