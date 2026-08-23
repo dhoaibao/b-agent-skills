@@ -175,6 +175,17 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   output rather than evidence, and is not required for every plan. Evidence and
   regression check: `pi/extensions/b-agentic-support/role.ts`,
   `pi/tests/smoke.sh`.
+- A live incomplete or malformed consultant response exposed a reliability gap:
+  permissive parsing could surface lower-confidence raw advice as a successful
+  result. The intended contract is compact, complete JSON; malformed, incomplete,
+  or truncated advice is now a sanitized actionable retry error, never usable
+  consultation output. A successful structurally valid consultation may be cited
+  only when it materially changes a hard decision, as one optional minimal
+  `Consultation` note in the plan or worker handoff covering the question,
+  recommendation or trade-off, risks or missing evidence, and how repository
+  evidence was weighed. Evidence and narrow regression checks:
+  `pi/extensions/b-agentic-support/role.ts`,
+  `pi/extensions/b-agentic-consult.ts`, `pi/tests/smoke.sh`.
 - The planner settles a context-complete, bounded natural-language handoff before
   the worker edits. Both roles use `pending` before `send`/`reply`; an inbound
   ask requires `reply`, otherwise a fresh `list-cwd` supplies the verbatim

@@ -24,7 +24,7 @@ Safety and scope:
 - Do not provide patches, exact file edits, shell commands, delegation instructions, or other operational steps. Give decision-level reasoning, trade-offs, and evidence requests instead.
 - State uncertainty plainly. Do not invent repository facts, compatibility, test results, or missing evidence.
 
-Return JSON only, with this shape:
+Return one compact, complete JSON object only—no Markdown fences, prose, or omitted fields—with this exact shape:
 {
   "recommendation": "one concise recommendation with its rationale",
   "alternatives": [{ "option": "alternative", "tradeoff": "what it gains and costs" }],
@@ -32,7 +32,7 @@ Return JSON only, with this shape:
   "missingEvidence": ["evidence that would change confidence"],
   "findings": ["plan-review finding; use an empty array when mode is solve"]
 }
-For a plan review, put concrete findings before the recommendation. Keep each list bounded and concise.`;
+Every field must have the shown type, including empty arrays when there is nothing to report. Stay compact so the JSON is complete before the output limit; never stop mid-object. For a plan review, put concrete findings before the recommendation. Keep each list bounded and concise.`;
 
 type ConsultToolParams = ConsultToolInput;
 type ConsultAssistantMessage = {
@@ -261,38 +261,42 @@ function stringValue(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? trimBounded(value.trim(), MAX_OUTPUT_CHARS) : undefined;
 }
 
-function stringList(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  return value.map(stringValue).filter((item): item is string => Boolean(item)).slice(0, 12);
+function stringList(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const items = value.map(stringValue);
+  return items.every((item): item is string => Boolean(item)) ? items.slice(0, 12) : undefined;
 }
 
-function alternativesList(value: unknown): Alternative[] {
-  if (!Array.isArray(value)) return [];
-  return value.map((item): Alternative | undefined => {
+function alternativesList(value: unknown): Alternative[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const items = value.map((item): Alternative | undefined => {
     if (!item || typeof item !== "object" || Array.isArray(item)) return undefined;
     const option = stringValue((item as Record<string, unknown>).option);
     const tradeoff = stringValue((item as Record<string, unknown>).tradeoff);
     return option && tradeoff ? { option, tradeoff } : undefined;
-  }).filter((item): item is Alternative => Boolean(item)).slice(0, 8);
+  });
+  return items.every((item): item is Alternative => Boolean(item)) ? items.slice(0, 8) : undefined;
 }
 
-function parseAdvice(raw: string, mode: ConsultMode): ConsultationAdvice {
-  const withoutFence = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
-  let parsed: Record<string, unknown> | undefined;
+function parseAdvice(raw: string, mode: ConsultMode): ConsultationAdvice | undefined {
+  const trimmed = raw.trim();
+  if (!trimmed) return undefined;
+  let parsed: Record<string, unknown>;
   try {
-    const candidate = JSON.parse(withoutFence);
-    if (candidate && typeof candidate === "object" && !Array.isArray(candidate)) parsed = candidate as Record<string, unknown>;
+    const candidate = JSON.parse(trimmed);
+    if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return undefined;
+    parsed = candidate as Record<string, unknown>;
   } catch {
-    // The fallback below preserves advisory text while making the result shape stable.
+    return undefined;
   }
 
-  const recommendation = stringValue(parsed?.recommendation) ?? (trimBounded(raw.trim(), MAX_OUTPUT_CHARS) || "No recommendation was returned.");
-  const alternatives = alternativesList(parsed?.alternatives);
-  const risks = stringList(parsed?.risks);
-  const missingEvidence = stringList(parsed?.missingEvidence);
-  const findings = mode === "review-plan" ? stringList(parsed?.findings) : [];
-  if (!parsed && raw.trim()) risks.unshift("The consultant response was not valid structured JSON; treat the preserved advisory text as lower-confidence.");
-  return { recommendation, alternatives, risks: risks.slice(0, 12), missingEvidence, findings };
+  const recommendation = stringValue(parsed.recommendation);
+  const alternatives = alternativesList(parsed.alternatives);
+  const risks = stringList(parsed.risks);
+  const missingEvidence = stringList(parsed.missingEvidence);
+  const findings = stringList(parsed.findings);
+  if (!recommendation || !alternatives || !risks || !missingEvidence || !findings) return undefined;
+  return { recommendation, alternatives, risks, missingEvidence, findings: mode === "review-plan" ? findings : [] };
 }
 
 function formatAdvice(details: ConsultationDetails): string {
@@ -410,9 +414,12 @@ async function executeConsultation(params: ConsultToolInput, signal: AbortSignal
     const typedResponse = response as ConsultAssistantMessage;
     if (signal?.aborted || typedResponse.stopReason === "aborted") return cancelled(mode);
     if (typedResponse.stopReason === "error") throw new Error(typedResponse.errorMessage || "the provider returned an error");
-    const raw = trimBounded(assistantText(typedResponse), MAX_OUTPUT_CHARS);
-    if (!raw) return failure(mode, `Consultant ${preference.provider}/${preference.model} returned no advisory text. Retry the consultation; no fallback is attempted.`, { provider: preference.provider, model: preference.model, thinkingLevel: preference.thinkingLevel });
-    const advice = parseAdvice(raw, mode);
+    const rawResponse = assistantText(typedResponse);
+    if (!rawResponse) return failure(mode, `Consultant ${preference.provider}/${preference.model} returned no advisory text. Retry the consultation; no fallback is attempted.`, { provider: preference.provider, model: preference.model, thinkingLevel: preference.thinkingLevel });
+    const outputTruncated = rawResponse.length > MAX_OUTPUT_CHARS || typedResponse.stopReason === "length" || typedResponse.stopReason === "max_tokens";
+    const advice = outputTruncated ? undefined : parseAdvice(rawResponse, mode);
+    if (!advice) return failure(mode, `Consultant returned malformed or incomplete structured advice for ${preference.provider}/${preference.model}. Retry the consultation; no fallback is attempted.`, { provider: preference.provider, model: preference.model, thinkingLevel: preference.thinkingLevel });
+    const raw = trimBounded(rawResponse, MAX_OUTPUT_CHARS);
     const details: ConsultationDetails = {
       status: "ok",
       mode,
