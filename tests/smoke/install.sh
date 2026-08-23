@@ -606,18 +606,24 @@ run_fresh_dependency_install_case() {
 	local bin_dir="$sandbox/smoke-bin"
 	local minimal_bin="$sandbox/minimal-bin"
 	local install_log="$sandbox/install.log"
-	local smoke_path command_path name
+	local smoke_path command_path name path_entry
+	local -a host_path_entries=()
 	local rc=0
 
 	mkdir -p "$sandbox/home" "$minimal_bin"
 	smoke_path="$(smoke_runtime_cli_path "$sandbox")"
-	for command_path in /usr/bin/* /bin/*; do
-		[ -f "$command_path" ] || continue
-		name="${command_path##*/}"
-		case "$name" in
-			rg | fd | fdfind | bat | batcat | eza | exa | sd | jq) continue ;;
-		esac
-		ln -s "$command_path" "$minimal_bin/$name" 2>/dev/null || true
+	IFS=: read -r -a host_path_entries <<<"${PATH:-}"
+	for path_entry in "${host_path_entries[@]}"; do
+		[ -d "$path_entry" ] || continue
+		for command_path in "$path_entry"/*; do
+			[ -x "$command_path" ] || continue
+			name="${command_path##*/}"
+			case "$name" in
+				rg | fd | fdfind | bat | batcat | eza | exa | sd | jq | rtk | uv | serena | codegraph) continue ;;
+			esac
+			[ -e "$minimal_bin/$name" ] && continue
+			ln -s "$command_path" "$minimal_bin/$name" 2>/dev/null || true
+		done
 	done
 	smoke_path="$bin_dir:$minimal_bin"
 	for name in rtk uv serena codegraph rg fd bat eza sd jq; do
