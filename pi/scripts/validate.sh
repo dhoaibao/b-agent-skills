@@ -270,7 +270,7 @@ if readme.exists():
 if readme.exists():
     text = readme.read_text()
     for marker in [
-        'pi-mcp-adapter', 'pi-observational-memory', '@sreetej510/pi-usage', '@narumitw/pi-lsp@0.32.0', '@juicesharp/rpiv-ask-user-question',
+        'pi-mcp-adapter', 'pi-observational-memory', '@sreetej510/pi-usage', '@gotgenes/pi-anthropic-auth', '@narumitw/pi-lsp@0.32.0', '@juicesharp/rpiv-ask-user-question',
         'extensions/b-agentic-permissions.ts', 'mcp.json', '/b-role planner',
         'pi --b-role planner|worker', '/b-auto-mode', '/b-sync', '/b-update',
         'Planner mode is prompt-governed rather than tool-gated', 'generated ownership mapping gives the planner',

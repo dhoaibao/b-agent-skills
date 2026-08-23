@@ -222,6 +222,8 @@ V2, migrate the settings and start a clean Pi session.
 
 b-agentic installs the `@sreetej510/pi-usage` extension automatically.
 
+b-agentic installs `@gotgenes/pi-anthropic-auth` automatically for Anthropic authentication support.
+
 b-agentic installs `@narumitw/pi-lsp@0.32.0` automatically for optional, on-demand
 `lsp_diagnostics` and `lsp_fix` capabilities and source-action previews. pi-lsp
 ships a built-in default server map for roughly 28 languages (including Biome for
@@ -291,7 +293,7 @@ repository, validates `dracula.json`, copies it to the theme cache, and links
 settings or selection. User files and unrelated symlinks at the theme destination
 are preserved with a warning. Uninstall removes only unchanged managed content
 and symlinks, restores recorded user backups, preserves modified or
-symlinked files, and never removes installed packages, including `@narumitw/pi-lsp`.
+symlinked files, and never removes installed packages, including `@gotgenes/pi-anthropic-auth` and `@narumitw/pi-lsp`.
 
 ## Roles and coordination
 

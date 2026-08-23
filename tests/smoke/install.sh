@@ -493,11 +493,14 @@ run_mcp_doctor_case() {
 #!/usr/bin/env bash
 log_dir="$(cd "$(dirname "$0")" && pwd)"
 if [ "${1:-}" = "list" ]; then
-  [ -f "$log_dir/pi-adapter-installed" ] && printf 'npm:pi-mcp-adapter\n' || printf '(no packages)\n'
+  [ -f "$log_dir/pi-adapter-installed" ] && printf 'npm:pi-mcp-adapter\n' || true
+  [ -f "$log_dir/pi-anthropic-auth-installed" ] && printf 'npm:@gotgenes/pi-anthropic-auth\n' || true
+  [ -f "$log_dir/pi-adapter-installed" ] || [ -f "$log_dir/pi-anthropic-auth-installed" ] || printf '(no packages)\n'
   exit 0
 fi
 if [ "${1:-}" = "install" ]; then
   [ "${2:-}" = "npm:pi-mcp-adapter" ] && : > "$log_dir/pi-adapter-installed"
+  [ "${2:-}" = "npm:@gotgenes/pi-anthropic-auth" ] && : > "$log_dir/pi-anthropic-auth-installed"
   exit 0
 fi
 exit 0
@@ -909,6 +912,44 @@ run_pi_lsp_package_lifecycle_case() {
 
 	expect_install_status 0 "$sandbox" "$snapshot_repo" --uninstall
 	assert_file "$sandbox/smoke-bin/pi-lsp-installed"
+	assert_no_path "$sandbox/home/.pi/agent/b-agentic/install.json"
+}
+
+run_pi_anthropic_auth_package_lifecycle_case() {
+	local snapshot_repo="$1"
+	local sandbox="$WORK_DIR/pi-anthropic-auth-package-lifecycle"
+	local install_log="$sandbox/install.log"
+	local package_log="$sandbox/smoke-bin/pi-install.log"
+	local package_count
+	local rc=0
+
+	mkdir -p "$sandbox/home"
+	set +e
+	HOME="$sandbox/home" PATH="$(smoke_runtime_cli_path "$sandbox")" \
+		B_AGENTIC_REPO="$snapshot_repo" B_AGENTIC_DIR="$sandbox/source" \
+		B_AGENTIC_PROMPT_API_KEYS=N bash "$ROOT_DIR/install.sh" --dry-run >"$install_log" 2>&1
+	rc=$?
+	set -e
+	[ "$rc" -eq 0 ] || fail "expected pi-anthropic-auth dry-run exit 0, got $rc"
+	assert_contains "$install_log" '[dry-run] pi install npm:@gotgenes/pi-anthropic-auth'
+	assert_contains "$install_log" 'anthropic-auth:'
+	assert_no_path "$sandbox/smoke-bin/pi-anthropic-auth-installed"
+
+	expect_install_status 0 "$sandbox" "$snapshot_repo"
+	assert_contains "$package_log" 'npm:@gotgenes/pi-anthropic-auth'
+	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piAnthropicAuthAction": "install"'
+	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piAnthropicAuthState": "ready"'
+	package_count="$(grep -Fc 'npm:@gotgenes/pi-anthropic-auth' "$package_log")"
+	[ "$package_count" -eq 1 ] || fail "expected initial pi-anthropic-auth install exactly once"
+
+	expect_install_status 0 "$sandbox" "$snapshot_repo"
+	expect_install_status 0 "$sandbox" "$snapshot_repo" --update
+	[ "$(grep -Fc 'npm:@gotgenes/pi-anthropic-auth' "$package_log")" -eq "$package_count" ] || fail "pi-anthropic-auth was reinstalled after package detection"
+	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piAnthropicAuthAction": "present"'
+	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piAnthropicAuthState": "ready"'
+
+	expect_install_status 0 "$sandbox" "$snapshot_repo" --uninstall
+	assert_file "$sandbox/smoke-bin/pi-anthropic-auth-installed"
 	assert_no_path "$sandbox/home/.pi/agent/b-agentic/install.json"
 }
 
@@ -1554,6 +1595,7 @@ run_base_smoke_cases() {
 		run_existing_tool_default_skip_case
 		run_bun_mcp_package_lifecycle_case
 		run_pi_lsp_package_lifecycle_case
+		run_pi_anthropic_auth_package_lifecycle_case
 		run_parallel_chain_output_case
 		run_uninstall_skips_dependency_reconciliation_case
 		run_skill_doctor_case

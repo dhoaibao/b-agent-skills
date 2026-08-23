@@ -2006,12 +2006,15 @@ run_pi_smoke_cases() {
 	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:pi-mcp-adapter'
 	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:pi-observational-memory'
 	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@sreetej510/pi-usage'
+	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@gotgenes/pi-anthropic-auth'
 	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:pi-intercom'
 	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@juicesharp/rpiv-ask-user-question@2.6.2'
 	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@narumitw/pi-lsp@0.32.0'
 	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piAskUserQuestionState": "ready"'
+	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piAnthropicAuthState": "ready"'
 	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piLspState": "ready"'
-	local initial_lsp_install_count
+	local initial_anthropic_auth_install_count initial_lsp_install_count
+	initial_anthropic_auth_install_count="$(grep -Fc 'npm:@gotgenes/pi-anthropic-auth' "$sandbox/smoke-bin/pi-install.log")"
 	initial_lsp_install_count="$(grep -Fc 'npm:@narumitw/pi-lsp@0.32.0' "$sandbox/smoke-bin/pi-install.log")"
 
 	# Split in-session modes: sync pulls/assets only; update uses installed source without Git.
@@ -2060,6 +2063,7 @@ EOF
 	mv "$sandbox/source/.git-without-pull" "$sandbox/source/.git"
 	assert_contains "$sandbox/smoke-bin/pi-install.log" 'update'
 	assert_contains "$sandbox/smoke-bin/pi-install.log" 'update --extensions'
+	[ "$(grep -Fc 'npm:@gotgenes/pi-anthropic-auth' "$sandbox/smoke-bin/pi-install.log")" -eq "$initial_anthropic_auth_install_count" ] || fail "Pi update reinstalled pi-anthropic-auth despite package being present"
 	[ "$(grep -Fc 'npm:@narumitw/pi-lsp@0.32.0' "$sandbox/smoke-bin/pi-install.log")" -eq "$initial_lsp_install_count" ] || fail "Pi update reinstalled pi-lsp despite package being present"
 
 	local behavioral_pid
@@ -2082,10 +2086,12 @@ EOF
 	assert_contains "$sandbox_adapter/home/.pi/agent/b-agentic/install.json" '"mcpAdapterState": "ready"'
 	assert_contains "$sandbox_adapter/home/.pi/agent/b-agentic/install.json" '"piObservationalMemoryState": "ready"'
 	assert_contains "$sandbox_adapter/home/.pi/agent/b-agentic/install.json" '"piUsageState": "ready"'
+	assert_contains "$sandbox_adapter/home/.pi/agent/b-agentic/install.json" '"piAnthropicAuthState": "ready"'
 	assert_file "$sandbox_adapter/smoke-bin/pi-install.log"
 	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:pi-mcp-adapter'
 	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:pi-observational-memory'
 	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:@sreetej510/pi-usage'
+	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:@gotgenes/pi-anthropic-auth'
 	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:@juicesharp/rpiv-ask-user-question@2.6.2'
 	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:@narumitw/pi-lsp@0.32.0'
 	assert_contains "$sandbox_adapter/home/.pi/agent/b-agentic/install.json" '"piAskUserQuestionState": "ready"'

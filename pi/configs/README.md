@@ -34,6 +34,9 @@ memory/compaction layer rather than combining it with another such extension.
 b-agentic can also install the optional `@sreetej510/pi-usage` extension.
 `pi install npm:@sreetej510/pi-usage`;
 
+b-agentic installs `@gotgenes/pi-anthropic-auth` automatically for Anthropic authentication support.
+`pi install npm:@gotgenes/pi-anthropic-auth`;
+
 b-agentic installs `@narumitw/pi-lsp@0.32.0` for optional, on-demand
 `lsp_diagnostics` and `lsp_fix` capabilities and source-action previews.
 pi-lsp starts servers only when called, does not install language-server binaries,
@@ -78,7 +81,7 @@ Uninstall removes b-agentic-managed MCP config, unchanged permission
 extensions, and the unchanged managed Dracula theme symlink. Modified files,
 symlinks, and user-owned theme entries are preserved; legacy manifests with
 only `permissionsExtension` are restored using the original compatibility path.
-It does not remove any of these packages, including `@juicesharp/rpiv-ask-user-question` and `@narumitw/pi-lsp`.
+It does not remove any of these packages, including `@gotgenes/pi-anthropic-auth`, `@juicesharp/rpiv-ask-user-question`, and `@narumitw/pi-lsp`.
 
 Servers default to lazy lifecycle through the adapter's proxy tool so schemas
 are not eagerly injected into context. Linear is configured for deferred OAuth and exposes only `get_issue`; it does not authenticate during install, and its authentication state remains unverified until the adapter needs it. The template sets the adapter's global

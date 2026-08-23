@@ -136,6 +136,10 @@ if [ "${1:-}" = "list" ]; then
     printf 'npm:@sreetej510/pi-usage\n'
     found=1
   fi
+  if [ -f "$log_dir/pi-anthropic-auth-installed" ]; then
+    printf 'npm:@gotgenes/pi-anthropic-auth\n'
+    found=1
+  fi
   if [ -f "$log_dir/pi-intercom-installed" ]; then
     printf 'npm:pi-intercom\n'
     found=1
@@ -165,6 +169,9 @@ if [ "${1:-}" = "install" ]; then
   fi
   if [ "${2:-}" = "npm:@sreetej510/pi-usage" ]; then
     : > "$log_dir/pi-usage-installed"
+  fi
+  if [ "${2:-}" = "npm:@gotgenes/pi-anthropic-auth" ]; then
+    : > "$log_dir/pi-anthropic-auth-installed"
   fi
   if [ "${2:-}" = "npm:pi-intercom" ]; then
     : > "$log_dir/pi-intercom-installed"

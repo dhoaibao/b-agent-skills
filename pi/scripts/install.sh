@@ -57,6 +57,8 @@ PI_OBSERVATIONAL_MEMORY_SPEC="npm:pi-observational-memory"
 PI_OBSERVATIONAL_MEMORY_PACKAGE="pi-observational-memory"
 PI_USAGE_SPEC="npm:@sreetej510/pi-usage"
 PI_USAGE_PACKAGE="@sreetej510/pi-usage"
+PI_ANTHROPIC_AUTH_SPEC="npm:@gotgenes/pi-anthropic-auth"
+PI_ANTHROPIC_AUTH_PACKAGE="@gotgenes/pi-anthropic-auth"
 PI_INTERCOM_SPEC="npm:pi-intercom"
 PI_INTERCOM_PACKAGE="pi-intercom"
 PI_ASK_USER_QUESTION_SPEC="npm:@juicesharp/rpiv-ask-user-question@2.6.2"
@@ -78,8 +80,8 @@ set_pi_readonly \
 	EXTENSION_NAMES EXTENSION_DST EXTENSION_SNAPSHOT_DST EXTENSION_SRC \
 	PI_MCP_ADAPTER_SPEC PI_MCP_ADAPTER_PACKAGE PI_OBSERVATIONAL_MEMORY_SPEC \
 	PI_OBSERVATIONAL_MEMORY_PACKAGE PI_USAGE_SPEC PI_USAGE_PACKAGE \
-	PI_INTERCOM_SPEC PI_INTERCOM_PACKAGE PI_ASK_USER_QUESTION_SPEC \
-	PI_ASK_USER_QUESTION_PACKAGE PI_LSP_SPEC PI_LSP_PACKAGE MCP_ROOT_KEY MCP_PLACEHOLDER_STYLE \
+	PI_ANTHROPIC_AUTH_SPEC PI_ANTHROPIC_AUTH_PACKAGE PI_INTERCOM_SPEC PI_INTERCOM_PACKAGE \
+	PI_ASK_USER_QUESTION_SPEC PI_ASK_USER_QUESTION_PACKAGE PI_LSP_SPEC PI_LSP_PACKAGE MCP_ROOT_KEY MCP_PLACEHOLDER_STYLE \
 	MCP_CONTEXT7_SECTION MCP_BRAVE_SECTION MCP_FIRECRAWL_SECTION MCP_BACKUP_KEY \
 	EXTENSION_BACKUP_KEY THEMES_DST THEME_DST THEMES_SNAPSHOT_DST THEME_CACHED_DST \
 	DRACULA_REPO_URL
@@ -97,6 +99,8 @@ INSTALL_PI_OBSERVATIONAL_MEMORY_ACTION="skip"
 INSTALL_PI_OBSERVATIONAL_MEMORY_STATE="missing"
 INSTALL_PI_USAGE_ACTION="skip"
 INSTALL_PI_USAGE_STATE="missing"
+INSTALL_PI_ANTHROPIC_AUTH_ACTION="skip"
+INSTALL_PI_ANTHROPIC_AUTH_STATE="missing"
 INSTALL_PI_INTERCOM_ACTION="skip"
 INSTALL_PI_INTERCOM_STATE="missing"
 INSTALL_PI_ASK_USER_QUESTION_ACTION="skip"
@@ -118,6 +122,9 @@ runtime_warn_missing_cli() {
 	fi
 	if command -v pi >/dev/null 2>&1 && ! pi_usage_installed; then
 		warn "@sreetej510/pi-usage not installed; Pi usage reporting is unavailable."
+	fi
+	if command -v pi >/dev/null 2>&1 && ! pi_anthropic_auth_installed; then
+		warn "@gotgenes/pi-anthropic-auth not installed; Anthropic authentication support is unavailable."
 	fi
 	if command -v pi >/dev/null 2>&1 && ! pi_ask_user_question_installed; then
 		warn "@juicesharp/rpiv-ask-user-question not installed; interactive user questions are unavailable."
@@ -206,6 +213,10 @@ pi_usage_installed() {
 	pi_package_installed "$PI_USAGE_PACKAGE"
 }
 
+pi_anthropic_auth_installed() {
+	pi_package_installed "$PI_ANTHROPIC_AUTH_PACKAGE"
+}
+
 pi_intercom_installed() {
 	pi_package_installed "$PI_INTERCOM_PACKAGE"
 }
@@ -282,6 +293,39 @@ maybe_install_pi_usage() {
 		INSTALL_PI_USAGE_ACTION="failed"
 		INSTALL_PI_USAGE_STATE="missing"
 		warn "Failed to install $PI_USAGE_PACKAGE"
+		return 1
+	fi
+}
+
+maybe_install_pi_anthropic_auth() {
+	if pi_anthropic_auth_installed; then
+		INSTALL_PI_ANTHROPIC_AUTH_ACTION="present"
+		INSTALL_PI_ANTHROPIC_AUTH_STATE="ready"
+		log "Pi Anthropic auth $PI_ANTHROPIC_AUTH_PACKAGE already installed"
+		return 0
+	fi
+
+	if ! command -v pi >/dev/null 2>&1 && ! dry_run_enabled; then
+		warn "Pi CLI missing; cannot install $PI_ANTHROPIC_AUTH_PACKAGE"
+		return 1
+	fi
+
+	if dry_run_enabled; then
+		printf '[dry-run] pi install %s\n' "$PI_ANTHROPIC_AUTH_SPEC" >&2
+		INSTALL_PI_ANTHROPIC_AUTH_ACTION="install"
+		INSTALL_PI_ANTHROPIC_AUTH_STATE="dry-run"
+		return 0
+	fi
+
+	log "Installing $PI_ANTHROPIC_AUTH_PACKAGE"
+	if pi install "$PI_ANTHROPIC_AUTH_SPEC"; then
+		INSTALL_PI_ANTHROPIC_AUTH_ACTION="install"
+		INSTALL_PI_ANTHROPIC_AUTH_STATE="ready"
+		log "Installed $PI_ANTHROPIC_AUTH_PACKAGE"
+	else
+		INSTALL_PI_ANTHROPIC_AUTH_ACTION="failed"
+		INSTALL_PI_ANTHROPIC_AUTH_STATE="missing"
+		warn "Failed to install $PI_ANTHROPIC_AUTH_PACKAGE"
 		return 1
 	fi
 }
@@ -597,6 +641,7 @@ runtime_install_configs() {
 	maybe_install_pi_mcp_adapter || return $?
 	maybe_install_pi_observational_memory || return $?
 	maybe_install_pi_usage || return $?
+	maybe_install_pi_anthropic_auth || return $?
 	maybe_install_pi_intercom || return $?
 	maybe_install_pi_ask_user_question || return $?
 	maybe_install_pi_lsp || return $?
@@ -637,6 +682,8 @@ runtime_write_manifest() {
 		PI_OBSERVATIONAL_MEMORY_STATE="$INSTALL_PI_OBSERVATIONAL_MEMORY_STATE" \
 		PI_USAGE_ACTION="$INSTALL_PI_USAGE_ACTION" \
 		PI_USAGE_STATE="$INSTALL_PI_USAGE_STATE" \
+		PI_ANTHROPIC_AUTH_ACTION="$INSTALL_PI_ANTHROPIC_AUTH_ACTION" \
+		PI_ANTHROPIC_AUTH_STATE="$INSTALL_PI_ANTHROPIC_AUTH_STATE" \
 		PI_INTERCOM_ACTION="$INSTALL_PI_INTERCOM_ACTION" \
 		PI_INTERCOM_STATE="$INSTALL_PI_INTERCOM_STATE" \
 		PI_ASK_USER_QUESTION_ACTION="$INSTALL_PI_ASK_USER_QUESTION_ACTION" \
@@ -693,6 +740,8 @@ manifest = {
     'piObservationalMemoryState': os.environ['PI_OBSERVATIONAL_MEMORY_STATE'],
     'piUsageAction': os.environ['PI_USAGE_ACTION'],
     'piUsageState': os.environ['PI_USAGE_STATE'],
+    'piAnthropicAuthAction': os.environ['PI_ANTHROPIC_AUTH_ACTION'],
+    'piAnthropicAuthState': os.environ['PI_ANTHROPIC_AUTH_STATE'],
     'piIntercomAction': os.environ['PI_INTERCOM_ACTION'],
     'piIntercomState': os.environ['PI_INTERCOM_STATE'],
     'piAskUserQuestionAction': os.environ['PI_ASK_USER_QUESTION_ACTION'],
@@ -767,6 +816,7 @@ runtime_print_install_report() {
 	[ "$INSTALL_PI_MCP_ADAPTER_STATE" = "ready" ] || attention+=("mcp-adapter: install $PI_MCP_ADAPTER_PACKAGE with 'pi install $PI_MCP_ADAPTER_SPEC'")
 	[ "$INSTALL_PI_OBSERVATIONAL_MEMORY_STATE" = "ready" ] || attention+=("observational-memory: install $PI_OBSERVATIONAL_MEMORY_PACKAGE with 'pi install $PI_OBSERVATIONAL_MEMORY_SPEC'")
 	[ "$INSTALL_PI_USAGE_STATE" = "ready" ] || attention+=("pi-usage: install $PI_USAGE_PACKAGE with 'pi install $PI_USAGE_SPEC'")
+	[ "$INSTALL_PI_ANTHROPIC_AUTH_STATE" = "ready" ] || attention+=("anthropic-auth: install $PI_ANTHROPIC_AUTH_PACKAGE with 'pi install $PI_ANTHROPIC_AUTH_SPEC'")
 	[ "$INSTALL_PI_INTERCOM_STATE" = "ready" ] || attention+=("pi-intercom: install $PI_INTERCOM_PACKAGE with 'pi install $PI_INTERCOM_SPEC'")
 	[ "$INSTALL_PI_ASK_USER_QUESTION_STATE" = "ready" ] || attention+=("ask-user-question: install $PI_ASK_USER_QUESTION_PACKAGE with 'pi install $PI_ASK_USER_QUESTION_SPEC'")
 	[ "$INSTALL_PI_LSP_STATE" = "ready" ] || attention+=("pi-lsp: install $PI_LSP_PACKAGE with 'pi install $PI_LSP_SPEC'")
@@ -852,7 +902,7 @@ PY
 	elif [ -e "$theme_path" ]; then
 		warn "preserving modified Pi theme: $theme_path"
 	fi
-	# Intentionally leave Pi packages installed, including pi-lsp and the ask-user-question extension.
+	# Intentionally leave Pi packages installed, including pi-lsp, pi-anthropic-auth, and the ask-user-question extension.
 }
 
 
@@ -865,11 +915,12 @@ pi_sync() {
 }
 
 pi_update() {
-	set_install_stage_total 10
+	set_install_stage_total 11
 	run_stage "Updating Pi CLI" runtime_upgrade_cli || return $?
 	run_stage "Installing Pi MCP adapter" maybe_install_pi_mcp_adapter || return $?
 	run_stage "Installing observational memory" maybe_install_pi_observational_memory || return $?
 	run_stage "Installing Pi usage" maybe_install_pi_usage || return $?
+	run_stage "Installing Anthropic auth" maybe_install_pi_anthropic_auth || return $?
 	run_stage "Installing Pi intercom" maybe_install_pi_intercom || return $?
 	run_stage "Installing ask-user-question extension" maybe_install_pi_ask_user_question || return $?
 	run_stage "Installing Pi LSP" maybe_install_pi_lsp || return $?
