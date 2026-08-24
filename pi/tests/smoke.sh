@@ -38,7 +38,7 @@ if (process.env.PI_PACKAGE_ROOT) {
 const extensionModules = await Promise.all([
   'b-agentic-permissions.ts', 'b-agentic-mcp-permissions.ts', 'b-agentic-auto-mode.ts', 'b-agentic-role.ts',
   'b-agentic-planner.ts', 'b-agentic-worker.ts', 'b-agentic-sync.ts', 'b-agentic-planner-notify.ts',
-  'b-agentic-preview-markdown.ts', 'b-agentic-consult.ts',
+  'b-agentic-preview-markdown.ts', 'b-agentic-consult.ts', 'b-agentic-rule-guard.ts',
 ].map((name) => import(pathToFileURL(path.join(installedRoot, name)).href)));
 for (const name of ['shell.ts', 'mcp.ts', 'role.ts', 'role-models.ts', 'consult.ts', 'worker.ts', 'state.ts', 'auto.ts']) {
   await import(pathToFileURL(path.join(installedRoot, 'b-agentic-support', name)).href);
@@ -53,7 +53,8 @@ const t = mod.__test__;
 const roleTest = extensionModules[3].__test__;
 const plannerTest = extensionModules[4].__test__;
 const plannerNotifyTest = extensionModules[7].__test__;
-if (!t || !plannerTest || !plannerNotifyTest) {
+const ruleGuardTest = extensionModules[10].__test__;
+if (!t || !plannerTest || !plannerNotifyTest || !ruleGuardTest) {
   console.error('permission extension missing __test__ exports');
   process.exit(1);
 }
@@ -463,6 +464,7 @@ process.env.PI_CODING_AGENT_DIR = previewAgentDir;
 rmSync(failureAgentDir, { force: true });
 const [autoSessionStartHandler, roleSessionStartHandler] = registrations.session_start;
 const toolCallHandler = handlers.tool_call;
+const ruleGuardHandler = registrations.tool_call.at(-1);
 
 function expect(cond, msg) {
   if (!cond) throw new Error(msg);
@@ -490,6 +492,25 @@ expect(t.isAutoApprovedIntercomCall('intercom', { action: 'cancel', messageId: 1
 expect(t.isAutoApprovedIntercomCall('intercom', { action: 'reply', replyTo: 'message-1' }) === true, 'targetless schema-valid Intercom replies remain auto-approved');
 
 expect(typeof toolCallHandler === 'function', 'permission extension must register a tool_call handler');
+expect(typeof ruleGuardHandler === 'function', 'rule guard extension must register a tool_call handler');
+const ruleViolation = (command) => ruleGuardTest.detectRuleViolations('bash', JSON.stringify({ command }));
+expect(ruleViolation('git push origin').some((value) => value.includes('git push')), 'rule guard must flag git push');
+expect(ruleViolation('git add .\ngit push').some((value) => value.includes('git push')), 'rule guard must flag git push after a newline');
+expect(ruleViolation('git reset --hard').some((value) => value.includes('git reset --hard')), 'rule guard must flag git reset --hard');
+expect(ruleViolation('git clean -fd').some((value) => value.includes('git clean')), 'rule guard must flag bundled git clean flags');
+expect(ruleViolation('cat .env').some((value) => value.includes('.env')), 'rule guard must flag .env reads');
+expect(ruleViolation('cat .env.local').some((value) => value.includes('.env.local')), 'rule guard must flag dotenv variants');
+expect(ruleViolation('cat server.pem').some((value) => value.includes('server.pem')), 'rule guard must flag PEM reads');
+expect(ruleViolation('cat src/main.ts\ncat .env').some((value) => value.includes('.env')), 'rule guard must flag secret reads after a newline');
+expect(ruleViolation('git status').length === 0, 'rule guard must not flag git status');
+expect(ruleViolation('echo git push').length === 0, 'rule guard must not flag echoed git commands');
+expect(ruleViolation('cat .env.example').length === 0, 'rule guard must not flag .env.example');
+expect(ruleViolation('cat src/main.ts').length === 0, 'rule guard must not flag ordinary source reads');
+const ruleGuardNotifications = [];
+const ruleGuardResult = await ruleGuardHandler({ toolName: 'bash', input: { command: 'git push origin' } }, {
+  ui: { notify(message, level) { ruleGuardNotifications.push({ message, level }); } },
+});
+expect(ruleGuardResult === undefined && ruleGuardNotifications.length === 1 && ruleGuardNotifications[0].level === 'warning' && ruleGuardNotifications[0].message.includes('git push'), 'rule guard must warn without blocking');
 expect(typeof mcpApprovalHandler === 'function', 'permission extension must register the MCP approval broker');
 expect(t.isTrustedPreviewMarkdownCall({ markdown: '# Preview' }) === true, 'preview_markdown policy must trust the required Markdown-only shape');
 expect(t.isTrustedPreviewMarkdownCall({ markdown: '# Preview', title: 'Example' }) === true, 'preview_markdown policy must trust an optional string title');

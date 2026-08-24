@@ -41,6 +41,7 @@ EXTENSION_NAMES=(
 	b-agentic-worker.ts
 	b-agentic-sync.ts
 	b-agentic-consult.ts
+	b-agentic-rule-guard.ts
 	b-agentic-support/shell.ts
 	b-agentic-support/mcp.ts
 	b-agentic-support/role.ts
