@@ -528,6 +528,20 @@ expect(t.isMcpOrCustomTool('b_consult', validConsultInput) === true, 'schema-val
 expect((await toolCallHandler({ toolName: 'b_consult', input: validConsultInput }, noUiContext))?.block === true, 'b_consult calls must fail closed without approval UI');
 expect(t.isMcpOrCustomTool('b_consult', { ...validConsultInput, extra: true }) === true, 'malformed b_consult calls must remain approval-gated');
 expect((await toolCallHandler({ toolName: 'preview_markdown', input: { markdown: '# Preview', extra: true } }, noUiContext))?.block === true, 'malformed preview_markdown calls must remain approval-gated');
+const cyclicCustomInput = {};
+cyclicCustomInput.self = cyclicCustomInput;
+let cyclicCustomConfirmation;
+const cyclicCustomUiContext = {
+  hasUI: true,
+  ui: {
+    confirm: async (title, message) => {
+      cyclicCustomConfirmation = { title, message };
+      return true;
+    },
+  },
+};
+expect(await toolCallHandler({ toolName: 'some-extension-tool', input: cyclicCustomInput }, cyclicCustomUiContext) === undefined, 'cyclic custom-tool approval must not throw or block when approved');
+expect(cyclicCustomConfirmation?.message.includes(t.approvalPreview(cyclicCustomInput)) && cyclicCustomConfirmation.message.includes('[unserializable arguments]'), 'cyclic custom-tool approval must use the safe unserializable-arguments preview');
 let rolePickerCalls = 0;
 let modelPickerCalls = 0;
 const consultantSelectionTitles = [];

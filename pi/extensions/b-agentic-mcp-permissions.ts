@@ -13,7 +13,7 @@ export default function bAgenticMcpPermissions(pi: ExtensionAPI): void {
     if (policy.isMcpOrCustomTool(event.toolName, input)) {
       if (isAutoModeEnabled()) return undefined;
       if (!ctx.hasUI) return { block: true, reason: `Requires approval: custom/MCP tool ${event.toolName} (no UI; fail-closed)` };
-      const preview = JSON.stringify(input ?? {}).slice(0, 400);
+      const preview = policy.approvalPreview(input).slice(0, 400);
       const allowed = await ctx.ui.confirm(
         "b-agentic approval",
         `Requires approval: tool "${event.toolName}" may perform external or side-effecting work.\n\nInput:\n${preview}\n\nAllow this tool call?`,
