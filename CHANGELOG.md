@@ -6,6 +6,11 @@ All notable shipped revisions of b-agentic are recorded here. Released version h
 
 ### Changed
 
+- Consultant status chip uses the cyan `mdLink` theme color:
+  - Observed failure: `accent` is purple in the active Dracula theme and is already overloaded by the border, logo, and custom message label, making the consultant chip indistinct.
+  - Intended behavior: render only the consultant status chip with `mdLink` (cyan); leave planner success and worker warning chips unchanged.
+  - Regression: `pi/tests/smoke.sh` asserts the `<mdLink>b-agentic: consultant</mdLink>` status and saved consultant model, with `pi/extensions/b-agentic-role.ts` as the implementation source.
+
 - Consultant role sessions replace one-shot consultation:
   - Observed failure: the one-shot structured `b_consult` consultant provided low value for this workflow and frequently failed its structural response contract, while planners needed a simpler independent-advice path.
   - Intended behavior: add a third `consultant` role session as a read-only advisory peer for the planner over Intercom; remove the `b_consult` tool, command, files, installer entries, and active documentation, preserve worker-claim uniqueness among workers, and leave any existing `~/.pi/agent/b-agentic/consult-model.json` orphan untouched rather than migrating it.

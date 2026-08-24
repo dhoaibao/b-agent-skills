@@ -591,7 +591,7 @@ const consultantRolePreferences = JSON.parse(readFileSync(path.join(process.env.
 expect(consultantRolePreferences.consultant.model === 'claude-sonnet-4-5' && consultantRolePreferences.consultant.thinkingLevel === 'medium', 'consultant role-model preference must persist in role-models.json');
 activeModel = { provider: 'other', id: 'other-model' };
 await commands['b-role'].handler('consultant', roleContext);
-expect(roleStatuses.at(-1)?.value === '<accent>b-agentic: consultant</accent>' && activeModel.provider === 'anthropic' && activeModel.id === 'claude-sonnet-4-5', 'consultant selection must use the accent status color and saved role model');
+expect(roleStatuses.at(-1)?.value === '<mdLink>b-agentic: consultant</mdLink>' && activeModel.provider === 'anthropic' && activeModel.id === 'claude-sonnet-4-5', 'consultant selection must use the mdLink status color and saved role model');
 const consultantStart = await handlers.before_agent_start({ systemPrompt: 'base' }, roleContext);
 expect(consultantStart.systemPrompt.includes('consultant profile (read-only advisory peer') && consultantStart.systemPrompt.includes('Communicate only with the planner over Intercom') && !consultantStart.systemPrompt.includes('worker profile (implementation)'), 'consultant prompt must inject only for the consultant role');
 for (const marker of [

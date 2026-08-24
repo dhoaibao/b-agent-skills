@@ -48,7 +48,7 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
       : role === "worker"
         ? ctx.ui.theme.fg("warning", "b-agentic: worker")
         : role === "consultant"
-          ? ctx.ui.theme.fg("accent", "b-agentic: consultant")
+          ? ctx.ui.theme.fg("mdLink", "b-agentic: consultant")
           : undefined;
     ctx.ui.setStatus("b-agentic-role", status);
   };
