@@ -20,8 +20,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: npm
+          cache-dependency-path: pi/package-lock.json
       - name: Install Pi runtime for extension smoke tests
         run: npm install --global --no-fund --no-audit @earendil-works/pi-coding-agent@0.84.2
+      - name: Install locked Pi TypeScript dependencies
+        run: npm ci --prefix pi --no-fund --no-audit
+      - name: Run Pi TypeScript checks
+        run: bash pi/scripts/typecheck.sh
       - name: Check generated assets are in sync
         run: python3 tooling/generate/registry_sync.py --check
       - name: Run validation suite
