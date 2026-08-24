@@ -647,6 +647,12 @@ await consultCommand.handler('', tuiConsultContext);
 expect(JSON.parse(readFileSync(path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic/consult-model.json'), 'utf8')).provider === 'anthropic' && tuiConsultPickerCalls === 2 && tuiConsultSnapshots.at(-1)?.includes('(unavailable)'), 'TUI consultant picker must recover from an unavailable current model');
 const consultationResult = await consultTool.execute('consult-1', validConsultInput, new AbortController().signal, undefined, roleContext);
 expect(consultationResult.details.status === 'ok' && consultationResult.details.recommendation.includes('smallest reversible') && consultationResult.details.findings.length === 1, 'configured b_consult must return structured advisory fields including plan-review findings');
+consultantText = ['```json', JSON.stringify({ recommendation: 'Use the smallest reversible design.', alternatives: [{ option: 'Broader redesign', tradeoff: 'More flexibility but higher migration risk.' }], risks: ['The evidence is limited.'], missingEvidence: ['A compatibility check would increase confidence.'], findings: ['The plan lacks an explicit rollback boundary.'] }), '```'].join('\n');
+const fencedConsultationResult = await consultTool.execute('consult-fenced', validConsultInput, new AbortController().signal, undefined, roleContext);
+expect(fencedConsultationResult.details.status === 'ok' && fencedConsultationResult.details.findings.length === 1, 'complete consultant advice in a single JSON Markdown fence must be accepted');
+consultantText = JSON.stringify({ recommendation: 'Use the smallest reversible design.' });
+const minimalConsultationResult = await consultTool.execute('consult-omitted-lists', { question: 'Which approach should the planner choose?' }, new AbortController().signal, undefined, roleContext);
+expect(minimalConsultationResult.details.status === 'ok' && minimalConsultationResult.details.alternatives.length === 0 && minimalConsultationResult.details.risks.length === 0 && minimalConsultationResult.details.missingEvidence.length === 0 && minimalConsultationResult.details.findings.length === 0, 'valid consultant advice may omit empty list fields, which must normalize to empty arrays');
 expect(consultantCalls.at(-1)?.context.tools === undefined, 'consultant requests must contain no tools');
 expect(consultantCalls.at(-1)?.context.systemPrompt.includes('no tools') && consultantCalls.at(-1)?.context.systemPrompt.includes('Never claim') && consultantCalls.at(-1)?.context.systemPrompt.includes('compact, complete JSON') && consultantCalls.at(-1)?.context.systemPrompt.includes('never stop mid-object'), 'consultant requests must use the fixed isolated safety prompt');
 consultantText = '{"recommendation":"Choose the smallest reversible design.';
@@ -654,6 +660,8 @@ const malformedConsultationResult = await consultTool.execute('consult-malformed
 expect(malformedConsultationResult.details.status === 'error' && malformedConsultationResult.details.raw === undefined && malformedConsultationResult.content[0].text.includes('malformed or incomplete structured advice') && malformedConsultationResult.content[0].text.includes('Retry') && !malformedConsultationResult.content[0].text.includes('Choose the smallest reversible design'), 'malformed or truncated consultant advice must be rejected without exposing raw advice');
 expect(consultTest.parseAdvice(JSON.stringify({ alternatives: [], risks: [], missingEvidence: [], findings: [] }), 'solve') === undefined, 'consultant advice missing its recommendation must be unusable');
 expect(consultTest.parseAdvice(JSON.stringify({ recommendation: 'Choose the smallest reversible design.', alternatives: [{ option: 'Only one field' }], risks: [], missingEvidence: [], findings: [] }), 'solve') === undefined, 'consultant advice with a malformed alternative must be unusable');
+expect(consultTest.parseAdvice(JSON.stringify({ recommendation: 'Choose the smallest reversible design.', risks: 'not an array' }), 'solve') === undefined, 'consultant advice with a wrong-typed supplied list must be unusable');
+expect(consultTest.parseAdvice('```json\n{"recommendation":"Choose the smallest reversible design."\n```', 'solve') === undefined, 'truncated fenced consultant advice must be unusable');
 consultantText = JSON.stringify({
   recommendation: 'Choose the smallest reversible design.',
   alternatives: [{ option: 'Broader redesign', tradeoff: 'More flexibility but higher migration risk.' }],
@@ -663,7 +671,7 @@ consultantText = JSON.stringify({
 });
 rmSync(path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic/consult-model.json'), { force: true });
 const unconfiguredResult = await consultTool.execute('consult-unconfigured', { question: 'Can this be improved?' }, new AbortController().signal, undefined, roleContext);
-expect(unconfiguredResult.details.status === 'error' && unconfiguredResult.content[0].text.includes('/b-consult-model') && consultantCalls.length === 2, 'unconfigured b_consult must return setup guidance without falling back');
+expect(unconfiguredResult.details.status === 'error' && unconfiguredResult.content[0].text.includes('/b-consult-model') && consultantCalls.length === 4, 'unconfigured b_consult must return setup guidance without falling back');
 writeFileSync(path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic/consult-model.json'), JSON.stringify({ provider: 'missing', model: 'missing', thinkingLevel: 'high' }));
 const unavailableResult = await consultTool.execute('consult-unavailable', { question: 'Can this be improved?' }, new AbortController().signal, undefined, roleContext);
 expect(unavailableResult.details.status === 'error' && unavailableResult.content[0].text.includes('unavailable'), 'unavailable consultant models must return actionable setup guidance');

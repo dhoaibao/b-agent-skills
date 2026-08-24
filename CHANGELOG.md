@@ -6,6 +6,11 @@ All notable shipped revisions of b-agentic are recorded here. Released version h
 
 ### Changed
 
+- Robust structured `b_consult` response parsing:
+  - Observed failure: complete consultant JSON wrapped in a JSON Markdown fence or omitting empty advisory list fields was rejected as malformed, while malformed/truncated output still needed to remain rejected without exposing raw consultant text.
+  - Intended behavior: accept only one complete JSON object, optionally wrapped solely in a JSON Markdown fence; normalize absent optional `alternatives`, `risks`, `missingEvidence`, and `findings` fields to empty arrays while preserving strict recommendation, supplied-field type, malformed-alternative, invalid-JSON, and truncation rejection, isolation, and no-retry behavior.
+  - Regression: `pi/extensions/b-agentic-consult.ts` implements the bounded parser and compact output contract; `pi/tests/smoke.sh` covers fenced advice, omitted-list normalization, malformed/truncated JSON, wrong-typed supplied lists, malformed alternatives, and sanitized failures; `docs/decision_design.md` records the structured-advice boundary.
+
 - Four-dimension b-agentic audit:
   - Observed failure: `b-agentic-audit` focused on source/design conformance and did not explicitly assess whole-project and first-party-extension health, canonical skill/kernel quality, or currentness/MCP compatibility.
   - Intended behavior: keep audits strictly read-only across all four dimensions; require concrete evidence for defects and integration gaps, measured or explicitly algorithmic/safety/complexity evidence for performance findings, local pin/installed-version resolution plus bounded primary upstream evidence for currentness, approval-gated live MCP probing, and verdicts of `NEEDS FIXES` for actual source/safety/semantic drift, `READY WITH FOLLOW-UPS` when required evidence is unavailable, or `READY FOR PR` only when all required dimensions are verified.

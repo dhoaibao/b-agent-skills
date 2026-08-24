@@ -24,7 +24,7 @@ Safety and scope:
 - Do not provide patches, exact file edits, shell commands, delegation instructions, or other operational steps. Give decision-level reasoning, trade-offs, and evidence requests instead.
 - State uncertainty plainly. Do not invent repository facts, compatibility, test results, or missing evidence.
 
-Return one compact, complete JSON object only—no Markdown fences, prose, or omitted fields—with this exact shape:
+Return one compact, complete JSON object only. It may be wrapped in one Markdown JSON fence, but never include prose before or after it. Use this shape:
 {
   "recommendation": "one concise recommendation with its rationale",
   "alternatives": [{ "option": "alternative", "tradeoff": "what it gains and costs" }],
@@ -32,7 +32,7 @@ Return one compact, complete JSON object only—no Markdown fences, prose, or om
   "missingEvidence": ["evidence that would change confidence"],
   "findings": ["plan-review finding; use an empty array when mode is solve"]
 }
-Every field must have the shown type, including empty arrays when there is nothing to report. Stay compact so the JSON is complete before the output limit; never stop mid-object. For a plan review, put concrete findings before the recommendation. Keep each list bounded and concise.`;
+The list fields may be omitted when empty; if present, they must have the shown types. In solve mode, findings are ignored. Stay compact so the JSON is complete before the output limit; never stop mid-object. For a plan review, put concrete findings before the recommendation. Keep each list bounded and concise.`;
 
 type ConsultToolParams = ConsultToolInput;
 type ConsultAssistantMessage = {
@@ -281,9 +281,11 @@ function alternativesList(value: unknown): Alternative[] | undefined {
 function parseAdvice(raw: string, mode: ConsultMode): ConsultationAdvice | undefined {
   const trimmed = raw.trim();
   if (!trimmed) return undefined;
+  const fenced = /^```json[ \t]*\r?\n([\s\S]*?)\r?\n```[ \t]*$/i.exec(trimmed);
+  const json = fenced ? fenced[1].trim() : trimmed;
   let parsed: Record<string, unknown>;
   try {
-    const candidate = JSON.parse(trimmed);
+    const candidate = JSON.parse(json);
     if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return undefined;
     parsed = candidate as Record<string, unknown>;
   } catch {
@@ -291,10 +293,10 @@ function parseAdvice(raw: string, mode: ConsultMode): ConsultationAdvice | undef
   }
 
   const recommendation = stringValue(parsed.recommendation);
-  const alternatives = alternativesList(parsed.alternatives);
-  const risks = stringList(parsed.risks);
-  const missingEvidence = stringList(parsed.missingEvidence);
-  const findings = stringList(parsed.findings);
+  const alternatives = parsed.alternatives === undefined ? [] : alternativesList(parsed.alternatives);
+  const risks = parsed.risks === undefined ? [] : stringList(parsed.risks);
+  const missingEvidence = parsed.missingEvidence === undefined ? [] : stringList(parsed.missingEvidence);
+  const findings = parsed.findings === undefined ? [] : stringList(parsed.findings);
   if (!recommendation || !alternatives || !risks || !missingEvidence || !findings) return undefined;
   return { recommendation, alternatives, risks, missingEvidence, findings: mode === "review-plan" ? findings : [] };
 }
