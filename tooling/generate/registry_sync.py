@@ -137,6 +137,20 @@ ROLE_PROMPT_MARKERS = {
         "explicitly requests b-commit",
         "unchanged reviewed snapshot; any content change reopens review",
     ],
+    "consultant": [
+        "consultant profile (read-only advisory peer)",
+        "Read repository evidence and run only non-mutating checks",
+        "never edit, patch, write, commit, build, test, run a formatter or generator",
+        "natural-language advice only, never evidence",
+        "Communicate only with the planner over Intercom",
+        "reply to an inbound planner ask without list-cwd",
+        "Before every send, call pending",
+        "returned planner identifier verbatim",
+        "Never contact workers directly, join the worker roster, or delegate",
+        "Do not emit any `B_AGENTIC_*` attention signal",
+        "owns no skills",
+        "Never mutate the worktree or claim that checks, edits, tests, or implementation were performed by you",
+    ],
 }
 
 ROLE_PROMPT_SHARED_START = "# generated:role-prompt-markers:shared:start"
@@ -149,6 +163,8 @@ ROLE_PROMPT_SMOKE_PLANNER_START = "// generated:role-prompt-markers:planner:star
 ROLE_PROMPT_SMOKE_PLANNER_END = "// generated:role-prompt-markers:planner:end"
 ROLE_PROMPT_SMOKE_WORKER_START = "// generated:role-prompt-markers:worker:start"
 ROLE_PROMPT_SMOKE_WORKER_END = "// generated:role-prompt-markers:worker:end"
+ROLE_PROMPT_SMOKE_CONSULTANT_START = "// generated:role-prompt-markers:consultant:start"
+ROLE_PROMPT_SMOKE_CONSULTANT_END = "// generated:role-prompt-markers:consultant:end"
 
 
 def load_json_subset_yaml(path: Path) -> dict:
@@ -449,11 +465,17 @@ def render_outputs(skills: list[dict]) -> dict[Path, str]:
         ROLE_PROMPT_SMOKE_PLANNER_END,
         render_role_prompt_markers(ROLE_PROMPT_MARKERS["planner"], "  "),
     )
-    outputs[smoke] = replace_block(
+    smoke_text = replace_block(
         smoke_text,
         ROLE_PROMPT_SMOKE_WORKER_START,
         ROLE_PROMPT_SMOKE_WORKER_END,
         render_role_prompt_markers(ROLE_PROMPT_MARKERS["worker"], "  "),
+    )
+    outputs[smoke] = replace_block(
+        smoke_text,
+        ROLE_PROMPT_SMOKE_CONSULTANT_START,
+        ROLE_PROMPT_SMOKE_CONSULTANT_END,
+        render_role_prompt_markers(ROLE_PROMPT_MARKERS["consultant"], "  "),
     )
     extension = ROOT / "pi" / "extensions" / "b-agentic-support" / "mcp.ts"
     runtime_policy = re.sub(r"^const ", "export const ", render_mcp_runtime_policy(policy), flags=re.MULTILINE)

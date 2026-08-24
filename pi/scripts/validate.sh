@@ -47,13 +47,12 @@ extension_files = [
     root / 'pi/extensions/b-agentic-planner.ts',
     root / 'pi/extensions/b-agentic-planner-notify.ts',
     root / 'pi/extensions/b-agentic-worker.ts',
+    root / 'pi/extensions/b-agentic-consultant.ts',
     root / 'pi/extensions/b-agentic-sync.ts',
-    root / 'pi/extensions/b-agentic-consult.ts',
     root / 'pi/extensions/b-agentic-support/shell.ts',
     root / 'pi/extensions/b-agentic-support/mcp.ts',
     root / 'pi/extensions/b-agentic-support/role.ts',
     root / 'pi/extensions/b-agentic-support/role-models.ts',
-    root / 'pi/extensions/b-agentic-support/consult.ts',
     root / 'pi/extensions/b-agentic-support/worker.ts',
     root / 'pi/extensions/b-agentic-support/auto.ts',
 ]
@@ -139,7 +138,7 @@ if extension.exists():
             if marker not in preview_text:
                 errors.append(f'{preview_extension}: missing preview marker {marker!r}')
     for marker in [
-        'tool_call', 'isAutoApprovedIntercomCall', 'PLANNER_PROMPT', 'workerPrompt',
+        'tool_call', 'isAutoApprovedIntercomCall', 'PLANNER_PROMPT', 'CONSULTANT_PROMPT', 'workerPrompt',
         'planner profile (read-only coordinator)', 'worker profile (implementation)',
         'SKILL_OWNERS', 'skillOwner', 'SKILL_OWNERSHIP_CRITERION', 'sole worktree writer', 'external b-research',
         'Planner-owned only when execution is read-only decision/planning', 'Mixed or uncertain skills are worker-owned',
@@ -154,7 +153,7 @@ if extension.exists():
         'actual b-review', 'latest approved plan, handoff, and clarifications',
         'unchanged reviewed snapshot', 'isDirectClassifiedManagedTool',
         'isSafeSerenaSymbolRead', 'mcpScript', 'serena_onboarding',
-        'Planner task delegation remains prompt-governed', 'Roles guide skill execution through their prompts',
+        'Planner task delegation remains prompt-governed', 'Roles guide skill execution through their prompts', 'consultant profile (read-only advisory peer)', 'Consultants:'
     ]:
         if marker not in text:
             errors.append(f'{extension}: missing policy marker {marker!r}')

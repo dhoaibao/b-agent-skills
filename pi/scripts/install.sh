@@ -39,17 +39,20 @@ EXTENSION_NAMES=(
 	b-agentic-planner.ts
 	b-agentic-planner-notify.ts
 	b-agentic-worker.ts
+	b-agentic-consultant.ts
 	b-agentic-sync.ts
-	b-agentic-consult.ts
 	b-agentic-rule-guard.ts
 	b-agentic-support/shell.ts
 	b-agentic-support/mcp.ts
 	b-agentic-support/role.ts
 	b-agentic-support/role-models.ts
-	b-agentic-support/consult.ts
 	b-agentic-support/worker.ts
 	b-agentic-support/state.ts
 	b-agentic-support/auto.ts
+)
+LEGACY_EXTENSION_NAMES=(
+	b-agentic-consult.ts
+	b-agentic-support/consult.ts
 )
 EXTENSION_DST="$EXTENSIONS_DST/b-agentic-permissions.ts"
 EXTENSION_SNAPSHOT_DST="$METADATA_DIR/extensions/b-agentic-permissions.ts"
@@ -80,7 +83,7 @@ set_pi_readonly \
 	RUNTIME_UNINSTALL_LABEL RUNTIME_PRESERVE_LABEL PI_AGENT_DIR METADATA_DIR \
 	BACKUPS_DIR SKILLS_DST SKILLS_SNAPSHOT_DST KERNEL_DST KERNEL_SNAPSHOT_DST \
 	REFERENCES_DST TEMPLATES_DST MANIFEST_DST MCP_CONFIG_DST EXTENSIONS_DST \
-	EXTENSION_NAMES EXTENSION_DST EXTENSION_SNAPSHOT_DST EXTENSION_SRC \
+	EXTENSION_NAMES LEGACY_EXTENSION_NAMES EXTENSION_DST EXTENSION_SNAPSHOT_DST EXTENSION_SRC \
 	PI_MCP_ADAPTER_SPEC PI_MCP_ADAPTER_PACKAGE PI_OBSERVATIONAL_MEMORY_SPEC \
 	PI_OBSERVATIONAL_MEMORY_PACKAGE PI_USAGE_SPEC PI_USAGE_PACKAGE \
 	PI_ANTHROPIC_AUTH_SPEC PI_ANTHROPIC_AUTH_PACKAGE PI_INTERCOM_SPEC PI_INTERCOM_PACKAGE \
@@ -565,8 +568,26 @@ PY
 	return 0
 }
 
+remove_legacy_extensions() {
+	local name dst snapshot
+	for name in "${LEGACY_EXTENSION_NAMES[@]}"; do
+		dst="$EXTENSIONS_DST/$name"
+		snapshot="$METADATA_DIR/extensions/$name"
+		if dry_run_enabled; then
+			printf '[dry-run] remove legacy extension if managed %s\n' "$dst" >&2
+			continue
+		fi
+		if [ -f "$dst" ] && [ -f "$snapshot" ] && cmp -s "$dst" "$snapshot"; then
+			run_cmd rm -f "$dst" "$snapshot"
+		elif [ -e "$dst" ]; then
+			warn "preserving user-modified legacy extension: $dst"
+		fi
+	done
+}
+
 install_permissions_extension() {
 	local name src dst snapshot previous_backup backup action="skip" state="active" backups=()
+	remove_legacy_extensions
 	for name in "${EXTENSION_NAMES[@]}"; do
 		if [ "$name" = "b-agentic-preview-markdown.ts" ]; then
 			src="$SOURCE_DIR/pi/packages/preview-markdown/extensions/$name"

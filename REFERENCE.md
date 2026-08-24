@@ -246,7 +246,7 @@ unsafe diagnostics calls, and other custom LSP calls retain the generic
 custom-tool approval behavior, and authoritative repository validation remains
 required.
 
-b-agentic installs `pi-intercom` automatically for its two-role workflow and installs
+b-agentic installs `pi-intercom` automatically for its planner/worker/consultant workflow and installs
 `@juicesharp/rpiv-ask-user-question@2.7.0` for structured planner decisions and blockers.
 Planner questions group 1–4 related questions, offer 2–4 concrete options with
 concise trade-offs, suffix the first recommended option with ` (Recommended)`,
@@ -264,10 +264,9 @@ purpose-specific `tool_call` extensions under `~/.pi/agent/extensions/`:
 - `b-agentic-mcp-permissions.ts` for managed MCP and custom-tool approval.
 - `b-agentic-auto-mode.ts` for confirmed automatic approval with explicit-deny protection.
 - `b-agentic-role.ts` for role selection and persistence.
-- `b-agentic-planner.ts` and `b-agentic-worker.ts` for collaboration profiles.
+- `b-agentic-planner.ts`, `b-agentic-worker.ts`, and `b-agentic-consultant.ts` for collaboration profiles.
 - `b-agentic-planner-notify.ts` for privacy-safe desktop notifications from explicit planner task-complete and user-input attention signals.
 - `b-agentic-sync.ts` for in-session refresh commands.
-- `b-agentic-consult.ts` for the bounded, isolated, read-only `b_consult` advisory tool and `/b-consult-model` preference command.
 
 Helpers under `pi/extensions/b-agentic-support/` are not discovered as
 standalone Pi extensions. Pi enforces managed MCP and RTK policy from
@@ -299,23 +298,20 @@ symlinked files, and never removes installed packages, including `@gotgenes/pi-a
 ## Roles and coordination
 
 b-agentic defaults to Off for a single-session workflow; the first same-CWD
-session is not automatically promoted to planner. Explicitly start two sessions
-with `/b-role planner` and `/b-role worker`, or `pi --b-role planner|worker`.
-Use `/b-role off` to return to solo work. Role selection does not open a model
-picker; explicit startup selections and `/model` changes can update per-role
-preferences under `~/.pi/agent/b-agentic/role-models.json` without credentials.
-The optional `/b-consult-model` command independently selects a consultant
-provider/model and thinking level in `~/.pi/agent/b-agentic/consult-model.json`.
-In the TUI, its model picker shows the current selection and supports
-case-insensitive search across complete provider/model labels; RPC uses a safe
-selection dialog with the current selection shown.
-`b_consult` is enforced planner-only. Planner calls are one-shot and advisory
-only: they use only bounded caller-provided question/context/plan text, no Pi
-tools or project discovery, no worktree edits, and no Intercom or roster changes.
-Each consultation still uses
-the normal per-call custom-tool approval and fails closed without approval UI.
-Missing or unavailable consultant configuration returns setup guidance without
-silently using the active model.
+session is not automatically promoted to planner. Explicitly start a planner,
+worker, and optional consultant session with `/b-role planner|worker|consultant`,
+or `pi --b-role planner|worker|consultant`. Use `/b-role off` to return to solo
+work. Role selection does not open a model picker; explicit startup selections and
+`/model` changes update per-role preferences under
+`~/.pi/agent/b-agentic/role-models.json` without credentials. The consultant is a
+read-only advisory peer for the planner: it reads repository evidence, runs only
+non-mutating checks, and communicates only with the planner over Intercom. It
+never writes, claims worktree work, joins the worker roster, or contacts workers.
+The planner consults it selectively for hard decisions or plan reviews, not for
+routine work, instead of repository evidence, or while a worker edits; advice is
+natural-language and advisory, never evidence. The old one-shot consultant
+configuration is not migrated; an existing `~/.pi/agent/b-agentic/consult-model.json`
+file is left untouched as an orphan.
 
 `/b-auto-mode` is an explicit opt-in that warns and requires an interactive Y/N
 confirmation before enabling. While enabled it auto-allows every `ask` decision,

@@ -17,7 +17,7 @@ Use these rules before any skill-specific instruction.
 
 ## Intercom roles
 
-- b-agentic defaults to Off; select `planner`/`worker` with `/b-role` or `pi --b-role`. The Worker is the sole worktree writer; use same-CWD roster.
+- b-agentic defaults to Off; select `planner`/`worker`/`consultant` with `/b-role` or `pi --b-role`. The Worker is the sole worktree writer; the Consultant is a read-only advisory peer for the planner; use same-CWD roster.
 
 <!-- generated:skill-ownership:start -->
 - Planner-owned skills: `b-plan`, external `b-research`, `b-agentic-audit`, `b-review`, `b-pr-summary`. The planner may execute these only inside its read-only coordinator boundary.

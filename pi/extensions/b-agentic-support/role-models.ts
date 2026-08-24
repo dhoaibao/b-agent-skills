@@ -38,6 +38,7 @@ export function loadRoleModelPreferences(path = roleModelsPath()): RoleModelPref
     return {
       ...(parsePreference(parsed.planner) ? { planner: parsePreference(parsed.planner) } : {}),
       ...(parsePreference(parsed.worker) ? { worker: parsePreference(parsed.worker) } : {}),
+      ...(parsePreference(parsed.consultant) ? { consultant: parsePreference(parsed.consultant) } : {}),
     };
   } catch {
     return {};

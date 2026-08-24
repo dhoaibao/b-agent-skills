@@ -185,6 +185,29 @@ run_manifest_only_extension_restore_case() {
 	assert_contains "$support_path" 'user-owned shell support'
 }
 
+run_legacy_consult_extension_removal_case() {
+	local snapshot_repo="$1"
+	local sandbox="$WORK_DIR/legacy-consult-extension-removal"
+	local extensions_dir="$sandbox/home/.pi/agent/extensions"
+	local snapshots_dir="$sandbox/home/.pi/agent/b-agentic/extensions"
+	local old_extension="$extensions_dir/b-agentic-consult.ts"
+	local old_support="$extensions_dir/b-agentic-support/consult.ts"
+	local old_extension_snapshot="$snapshots_dir/b-agentic-consult.ts"
+	local old_support_snapshot="$snapshots_dir/b-agentic-support/consult.ts"
+
+	expect_install_status 0 "$sandbox" "$snapshot_repo"
+	mkdir -p "$(dirname "$old_support")" "$(dirname "$old_support_snapshot")"
+	printf 'legacy managed consultant\n' >"$old_extension"
+	printf 'legacy managed support\n' >"$old_support"
+	cp "$old_extension" "$old_extension_snapshot"
+	cp "$old_support" "$old_support_snapshot"
+	expect_install_status 0 "$sandbox" "$snapshot_repo"
+	assert_no_path "$old_extension"
+	assert_no_path "$old_support"
+	assert_no_path "$old_extension_snapshot"
+	assert_no_path "$old_support_snapshot"
+}
+
 run_manifest_only_extension_symlink_case() {
 	local snapshot_repo="$1"
 	local sandbox="$WORK_DIR/manifest-only-extension-symlink"
@@ -1703,6 +1726,7 @@ run_base_smoke_cases() {
 		run_manifest_only_merged_config_case
 		run_user_owned_linear_readiness_case
 		run_manifest_only_extension_restore_case
+		run_legacy_consult_extension_removal_case
 		run_manifest_only_extension_symlink_case
 		run_invalid_skill_payload_case
 		run_skill_collision_smoke_case

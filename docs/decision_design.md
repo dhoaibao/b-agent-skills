@@ -186,8 +186,8 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   hard decision, as one optional minimal `Consultation` note in the plan or worker
   handoff covering the question, recommendation or trade-off, risks or missing
   evidence, and how repository evidence was weighed. Evidence and narrow regression
-  checks: `pi/extensions/b-agentic-support/role.ts`,
-  `pi/extensions/b-agentic-consult.ts`, `pi/tests/smoke.sh`.
+  checks: superseded by the final “Superseding decision: consultant role sessions”
+  section below; the removed parser and parser-specific tests are no longer active.
 - The planner settles a context-complete, bounded natural-language handoff before
   the worker edits. Both roles use `pending` before `send`/`reply`; an inbound
   ask requires `reply`, otherwise a fresh `list-cwd` supplies the verbatim
@@ -572,3 +572,26 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   `learn`/`manage_skill` pattern (external inspiration,
   https://github.com/can1357/oh-my-pi); b-agentic uses prompt-governed promotion
   through b-implement plus `registry_sync` instead of runtime skill management.
+
+## Superseding decision: consultant role sessions
+
+- Observed failure: the one-shot structured `b_consult` consultant had low value
+  for this workflow and frequent structural failures, while the planner needed
+  a simpler way to obtain independent advice without another tool, model
+  preference, or isolated call contract.
+- Intended behavior: replace the one-shot consultant with a third `consultant`
+  role session. The consultant is a read-only advisory peer that reads repository
+  evidence, runs only non-mutating checks, and communicates only with the
+  planner over Intercom; it never writes, joins the worker roster, contacts
+  workers, delegates, emits attention signals, or claims worktree work. The
+  planner uses a ready same-CWD consultant selectively for hard decisions or
+  plan reviews, treating replies as advisory rather than evidence; `b_consult`
+  and its command/configuration are removed without migrating an existing orphan
+  legacy consultant configuration file.
+- Regression: `pi/extensions/b-agentic-support/role.ts`,
+  `pi/extensions/b-agentic-role.ts`, `pi/tests/smoke.sh`,
+  `pi/scripts/install.sh`, and
+  `pi/scripts/validate.sh` cover consultant selection, prompt injection,
+  role-model preferences, planner roster visibility, worker-claim arbitration,
+  removal of the one-shot surface, and managed legacy-file cleanup; generated
+  synchronization and the offline validation suite remain required.

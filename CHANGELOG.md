@@ -6,10 +6,15 @@ All notable shipped revisions of b-agentic are recorded here. Released version h
 
 ### Changed
 
+- Consultant role sessions replace one-shot consultation:
+  - Observed failure: the one-shot structured `b_consult` consultant provided low value for this workflow and frequently failed its structural response contract, while planners needed a simpler independent-advice path.
+  - Intended behavior: add a third `consultant` role session as a read-only advisory peer for the planner over Intercom; remove the `b_consult` tool, command, files, installer entries, and active documentation, preserve worker-claim uniqueness among workers, and leave any existing `~/.pi/agent/b-agentic/consult-model.json` orphan untouched rather than migrating it.
+  - Regression: `pi/extensions/b-agentic-role.ts`, `pi/extensions/b-agentic-support/role.ts`, `pi/tests/smoke.sh`, `pi/scripts/install.sh`, and `pi/scripts/validate.sh` cover role selection, prompt injection, consultant roster visibility, role-model preferences, worker arbitration, one-shot-surface removal, and managed legacy-file cleanup.
+
 - Robust structured `b_consult` response parsing:
   - Observed failure: complete consultant JSON wrapped in a JSON Markdown fence or omitting empty advisory list fields was rejected as malformed, while malformed/truncated output still needed to remain rejected without exposing raw consultant text.
   - Intended behavior: accept only one complete JSON object, optionally wrapped solely in a JSON Markdown fence; normalize absent optional `alternatives`, `risks`, `missingEvidence`, and `findings` fields to empty arrays while preserving strict recommendation, supplied-field type, malformed-alternative, invalid-JSON, and truncation rejection, isolation, and no-retry behavior.
-  - Regression: `pi/extensions/b-agentic-consult.ts` implements the bounded parser and compact output contract; `pi/tests/smoke.sh` covers fenced advice, omitted-list normalization, malformed/truncated JSON, wrong-typed supplied lists, malformed alternatives, and sanitized failures; `docs/decision_design.md` records the structured-advice boundary.
+  - Regression: no automated coverage: the removed parser is superseded by the “Consultant role sessions replace one-shot consultation” entry above; current consultant-role coverage is listed there.
 
 - Four-dimension b-agentic audit:
   - Observed failure: `b-agentic-audit` focused on source/design conformance and did not explicitly assess whole-project and first-party-extension health, canonical skill/kernel quality, or currentness/MCP compatibility.

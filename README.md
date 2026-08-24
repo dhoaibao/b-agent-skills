@@ -98,14 +98,14 @@ The installer writes all seven recommended entries to Pi's MCP configuration wit
 | `read`, `edit`, `write` | Routine file reads and edits | Required; Pi native default | Available in Pi sessions |
 | `recall` | Optional observational-memory continuity | Optional | Available when the memory layer supplies it |
 | `mcp` / `mcpScript` | Managed MCP gateway and bounded metadata/read orchestration | Optional; MCP adapter required to use configured servers | Configured through Pi MCP entries and policy |
-| `intercom` | Explicit planner/worker coordination | Optional workflow; package default | Enabled by `pi-intercom` unless disabled |
+| `intercom` | Explicit planner/worker/consultant coordination | Optional workflow; package default | Enabled by `pi-intercom` unless disabled |
 
 ## Pi packages
 
 | Package | Purpose | Status | Installer behavior |
 |---|---|---|---|
 | `pi-mcp-adapter` | Loads Pi MCP configuration | Required for MCP use | Installed automatically |
-| `pi-intercom` | Provides planner/worker coordination | Default for the optional two-role workflow | Installed automatically |
+| `pi-intercom` | Provides planner/worker/consultant coordination | Default for the optional multi-role workflow | Installed automatically |
 | `@juicesharp/rpiv-ask-user-question` | Structured interactive user decisions and blockers | Required for planner questions | Installed automatically at v2.7.0 |
 | `pi-observational-memory` | Long-session compaction continuity | Optional | Installed automatically |
 | `@sreetej510/pi-usage` | Pi usage reporting | Optional | Installed automatically |
@@ -124,12 +124,12 @@ Pi CLI, RTK, Serena, CodeGraph, Bun, and Pi packages install or refresh automati
 | `b-agentic-permissions.ts` | Shell, filesystem, and dangerous-command policy | Default; installed and configured by b-agentic |
 | `b-agentic-mcp-permissions.ts` | Managed MCP and custom-tool approval | Default; installed and configured by b-agentic |
 | `b-agentic-auto-mode.ts` | Confirmed automatic approval mode with explicit-deny protection | Default; installed and configured by b-agentic |
-| `b-agentic-role.ts` | Explicit solo/planner/worker role selection | Default; installed and configured by b-agentic |
+| `b-agentic-role.ts` | Explicit solo/planner/worker/consultant role selection and same-CWD coordination | Default; installed and configured by b-agentic |
 | `b-agentic-planner.ts` | Planner prompt-governed collaboration profile | Default; installed and configured by b-agentic |
 | `b-agentic-planner-notify.ts` | Privacy-safe desktop notifications for explicit planner task-complete and user-input attention signals | Default; installed and configured by b-agentic |
 | `b-agentic-worker.ts` | Worker collaboration profile | Default; installed and configured by b-agentic |
+| `b-agentic-consultant.ts` | Read-only advisory peer profile for planner Intercom consultations | Default; installed and configured by b-agentic |
 | `b-agentic-sync.ts` | In-session `/b-sync` and `/b-update` refresh commands | Default; installed and configured by b-agentic |
-| `b-agentic-consult.ts` | One-shot isolated advisory consultant via `b_consult` and `/b-consult-model` | Default; installed and configured by b-agentic |
 
 Policy helpers under `pi/extensions/b-agentic-support/` are shipped with the bundle but are not standalone discovered extensions.
 

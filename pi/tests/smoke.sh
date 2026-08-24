@@ -38,9 +38,9 @@ if (process.env.PI_PACKAGE_ROOT) {
 const extensionModules = await Promise.all([
   'b-agentic-permissions.ts', 'b-agentic-mcp-permissions.ts', 'b-agentic-auto-mode.ts', 'b-agentic-role.ts',
   'b-agentic-planner.ts', 'b-agentic-worker.ts', 'b-agentic-sync.ts', 'b-agentic-planner-notify.ts',
-  'b-agentic-preview-markdown.ts', 'b-agentic-consult.ts', 'b-agentic-rule-guard.ts',
+  'b-agentic-preview-markdown.ts', 'b-agentic-consultant.ts', 'b-agentic-rule-guard.ts',
 ].map((name) => import(pathToFileURL(path.join(installedRoot, name)).href)));
-for (const name of ['shell.ts', 'mcp.ts', 'role.ts', 'role-models.ts', 'consult.ts', 'worker.ts', 'state.ts', 'auto.ts']) {
+for (const name of ['shell.ts', 'mcp.ts', 'role.ts', 'role-models.ts', 'worker.ts', 'state.ts', 'auto.ts']) {
   await import(pathToFileURL(path.join(installedRoot, 'b-agentic-support', name)).href);
 }
 const autoStateTest = await import(pathToFileURL(path.join(installedRoot, 'b-agentic-support', 'state.ts')).href);
@@ -122,11 +122,9 @@ const extensionHost = {
   },
 };
 for (const extension of extensionModules) extension.default(extensionHost);
-const consultModule = extensionModules[9];
-const consultTest = consultModule.__test__;
-const consultTool = tools.b_consult;
-const consultCommand = commands['b-consult-model'];
-if (!consultTest || !consultTool || !consultCommand) throw new Error('consult extension missing tool, command, or test surface');
+const consultantModule = extensionModules[9];
+const consultantTest = consultantModule.__test__;
+if (!consultantTest || tools.b_consult || commands['b-consult-model']) throw new Error('one-shot consultant surface must be removed');
 const previewModule = extensionModules[8];
 const previewTest = previewModule.__test__;
 const previewTool = tools.preview_markdown;
@@ -517,55 +515,8 @@ expect(t.isTrustedPreviewMarkdownCall({ markdown: '# Preview', title: 'Example' 
 expect(t.isTrustedPreviewMarkdownCall({ markdown: '# Preview', extra: true }) === false, 'preview_markdown policy must reject extra fields');
 expect(t.isTrustedPreviewMarkdownCall({ markdown: 42 }) === false, 'preview_markdown policy must reject non-string Markdown');
 const noUiContext = { hasUI: false, ui: { select: async () => 'Approve' } };
-const consultantCalls = [];
-let consultantText = JSON.stringify({
-  recommendation: 'Choose the smallest reversible design.',
-  alternatives: [{ option: 'Broader redesign', tradeoff: 'More flexibility but higher migration risk.' }],
-  risks: ['The evidence is limited.'],
-  missingEvidence: ['A compatibility check would increase confidence.'],
-  findings: ['The plan lacks an explicit rollback boundary.'],
-});
-let consultantAuthError;
-let consultantStreamError;
-const consultantProvider = {
-  streamSimple(model, context, options) {
-    consultantCalls.push({ model, context, options });
-    if (consultantStreamError) throw new Error(consultantStreamError);
-    return { result: async () => ({ content: [{ type: 'text', text: consultantText }], stopReason: 'stop' }) };
-  },
-};
-expect(await toolCallHandler({ toolName: 'preview_markdown', input: { markdown: '# Preview', title: 'Example' } }, noUiContext) === undefined, 'safe preview_markdown calls must bypass approval without UI');
-const validConsultInput = { question: 'Which approach should the planner choose?', mode: 'review-plan', context: 'Only this supplied context is available.', plan: 'Use the smallest reversible design.' };
-expect(consultTest.isValidConsultToolInput(validConsultInput) === true, 'consultant input helper must accept bounded question/context/plan text');
-expect(consultTest.parseModelSpec('openrouter/anthropic/claude-3.5-sonnet')?.provider === 'openrouter' && consultTest.parseModelSpec('openrouter/anthropic/claude-3.5-sonnet')?.model === 'anthropic/claude-3.5-sonnet', 'consultant model specs must preserve provider model ids containing slashes');
-autoStateTest.setRole('off');
-const offConsultResult = await consultTool.execute('consult-off', validConsultInput, new AbortController().signal, undefined, {});
-expect(offConsultResult.details.status === 'error' && offConsultResult.content[0].text.includes('only in planner role') && consultantCalls.length === 0, 'off-role b_consult calls must fail before provider work');
-autoStateTest.setRole('worker');
-const workerConsultResult = await consultTool.execute('consult-worker', validConsultInput, new AbortController().signal, undefined, {});
-expect(workerConsultResult.details.status === 'error' && workerConsultResult.content[0].text.includes('only in planner role') && consultantCalls.length === 0, 'worker-role b_consult calls must fail before provider work');
-autoStateTest.setRole('planner');
-expect(t.isMcpOrCustomTool('b_consult', validConsultInput) === true, 'schema-valid b_consult calls must require explicit per-call approval');
-expect((await toolCallHandler({ toolName: 'b_consult', input: validConsultInput }, noUiContext))?.block === true, 'b_consult calls must fail closed without approval UI');
-expect(t.isMcpOrCustomTool('b_consult', { ...validConsultInput, extra: true }) === true, 'malformed b_consult calls must remain approval-gated');
-expect((await toolCallHandler({ toolName: 'preview_markdown', input: { markdown: '# Preview', extra: true } }, noUiContext))?.block === true, 'malformed preview_markdown calls must remain approval-gated');
-const cyclicCustomInput = {};
-cyclicCustomInput.self = cyclicCustomInput;
-let cyclicCustomConfirmation;
-const cyclicCustomUiContext = {
-  hasUI: true,
-  ui: {
-    confirm: async (title, message) => {
-      cyclicCustomConfirmation = { title, message };
-      return true;
-    },
-  },
-};
-expect(await toolCallHandler({ toolName: 'some-extension-tool', input: cyclicCustomInput }, cyclicCustomUiContext) === undefined, 'cyclic custom-tool approval must not throw or block when approved');
-expect(cyclicCustomConfirmation?.message.includes(t.approvalPreview(cyclicCustomInput)) && cyclicCustomConfirmation.message.includes('[unserializable arguments]'), 'cyclic custom-tool approval must use the safe unserializable-arguments preview');
 let rolePickerCalls = 0;
 let modelPickerCalls = 0;
-const consultantSelectionTitles = [];
 const roleContext = {
   get model() { return activeModel; },
   cwd: root,
@@ -582,11 +533,6 @@ const roleContext = {
         modelPickerCalls += 1;
         return 'anthropic/claude-sonnet-4-5';
       }
-      if (title.startsWith('Select consultant model')) {
-        consultantSelectionTitles.push(title);
-        return 'anthropic/claude-sonnet-4-5';
-      }
-      if (title === 'Select consultant thinking level') return 'high';
       return 'Allow once';
     },
     notify(message, level) { roleNotifications.push({ message, level }); },
@@ -596,126 +542,17 @@ const roleContext = {
     setStatus(key, value) { roleStatuses.push({ key, value }); },
   },
   modelRegistry: {
-    find: (provider, id) => provider === 'anthropic' && id === 'claude-sonnet-4-5' || provider === 'openrouter' && id === 'anthropic/claude-3.5-sonnet' ? { provider, id } : undefined,
+    find: (provider, id) => provider === 'anthropic' && id === 'claude-sonnet-4-5' ? { provider, id } : undefined,
     getAvailable: () => [
       { provider: 'anthropic', id: 'claude-sonnet-4-5' },
       { provider: 'openrouter', id: 'anthropic/claude-3.5-sonnet' },
     ],
-    hasConfiguredAuth: () => true,
-    getProvider: (provider) => provider === 'anthropic' ? consultantProvider : undefined,
-    getApiKeyAndHeaders: async () => {
-      if (consultantAuthError) throw new Error(consultantAuthError);
-      return { ok: true, apiKey: 'test-key' };
-    },
   },
   scopedModels: [],
   sessionManager: {
     getBranch: () => [...branchEntries],
   },
 };
-writeFileSync(path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic/consult-model.json'), JSON.stringify({ provider: 'anthropic', model: 'claude-sonnet-4-5', thinkingLevel: 'medium' }));
-await consultCommand.handler('', roleContext);
-const selectedConsultPreference = JSON.parse(readFileSync(path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic/consult-model.json'), 'utf8'));
-expect(consultantSelectionTitles.at(-1)?.includes('Current consultant: anthropic/claude-sonnet-4-5 (thinking: medium)'), 'RPC consultant picker must show the current model and thinking level');
-expect(selectedConsultPreference.provider === 'anthropic' && selectedConsultPreference.model === 'claude-sonnet-4-5' && selectedConsultPreference.thinkingLevel === 'high', '/b-consult-model must persist the explicitly selected provider/model/thinking level');
-const tuiConsultSnapshots = [];
-let tuiConsultPickerCalls = 0;
-const tuiConsultContext = {
-  ...roleContext,
-  mode: 'tui',
-  ui: {
-    ...roleContext.ui,
-    async custom(factory) {
-      let selected;
-      const component = factory(
-        { requestRender() {} },
-        roleContext.ui.theme,
-        {
-          matches(data, binding) {
-            if (binding === 'tui.select.confirm') return data === '\r' || data === '\n';
-            if (binding === 'tui.select.cancel') return data === '\x1b';
-            if (binding === 'tui.select.up') return data === '\x1b[A';
-            if (binding === 'tui.select.down') return data === '\x1b[B';
-            if (binding === 'tui.select.pageUp') return data === '\x1b[5~';
-            if (binding === 'tui.select.pageDown') return data === '\x1b[6~';
-            return false;
-          },
-        },
-        (value) => { selected = value; },
-      );
-      const initial = component.render(140).join('\n');
-      tuiConsultSnapshots.push(initial);
-      if (tuiConsultPickerCalls === 0) {
-        expect(initial.includes('Current consultant: anthropic/claude-sonnet-4-5 (thinking: high)'), 'TUI consultant picker must show the current model and thinking level');
-        expect(initial.split('\n').some((line) => line.includes('> ') && line.includes('anthropic/claude-sonnet-4-5')), 'TUI consultant picker must visibly mark the current available model');
-        component.handleInput('OPENROUTER');
-        const filtered = component.render(140).join('\n');
-        expect(filtered.includes('openrouter/anthropic/claude-3.5-sonnet') && filtered.split('\n').filter((line) => line.includes('anthropic/claude-sonnet-4-5')).length === 1, 'TUI consultant picker must case-insensitively filter the complete provider/model label');
-      } else {
-        expect(initial.includes('Current consultant: missing/missing (thinking: high) (unavailable)'), 'TUI consultant picker must show unavailable current selections');
-      }
-      tuiConsultPickerCalls += 1;
-      component.handleInput('\r');
-      return selected;
-    },
-  },
-};
-await consultCommand.handler('', tuiConsultContext);
-const filteredConsultPreference = JSON.parse(readFileSync(path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic/consult-model.json'), 'utf8'));
-expect(filteredConsultPreference.provider === 'openrouter' && filteredConsultPreference.model === 'anthropic/claude-3.5-sonnet' && filteredConsultPreference.thinkingLevel === 'high' && tuiConsultPickerCalls === 1, 'TUI consultant picker must persist a model chosen after filtering');
-writeFileSync(path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic/consult-model.json'), JSON.stringify({ provider: 'missing', model: 'missing', thinkingLevel: 'high' }));
-await consultCommand.handler('', tuiConsultContext);
-expect(JSON.parse(readFileSync(path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic/consult-model.json'), 'utf8')).provider === 'anthropic' && tuiConsultPickerCalls === 2 && tuiConsultSnapshots.at(-1)?.includes('(unavailable)'), 'TUI consultant picker must recover from an unavailable current model');
-const consultationResult = await consultTool.execute('consult-1', validConsultInput, new AbortController().signal, undefined, roleContext);
-expect(consultationResult.details.status === 'ok' && consultationResult.details.recommendation.includes('smallest reversible') && consultationResult.details.findings.length === 1, 'configured b_consult must return structured advisory fields including plan-review findings');
-consultantText = ['```json', JSON.stringify({ recommendation: 'Use the smallest reversible design.', alternatives: [{ option: 'Broader redesign', tradeoff: 'More flexibility but higher migration risk.' }], risks: ['The evidence is limited.'], missingEvidence: ['A compatibility check would increase confidence.'], findings: ['The plan lacks an explicit rollback boundary.'] }), '```'].join('\n');
-const fencedConsultationResult = await consultTool.execute('consult-fenced', validConsultInput, new AbortController().signal, undefined, roleContext);
-expect(fencedConsultationResult.details.status === 'ok' && fencedConsultationResult.details.findings.length === 1, 'complete consultant advice in a single JSON Markdown fence must be accepted');
-consultantText = JSON.stringify({ recommendation: 'Use the smallest reversible design.' });
-const minimalConsultationResult = await consultTool.execute('consult-omitted-lists', { question: 'Which approach should the planner choose?' }, new AbortController().signal, undefined, roleContext);
-expect(minimalConsultationResult.details.status === 'ok' && minimalConsultationResult.details.alternatives.length === 0 && minimalConsultationResult.details.risks.length === 0 && minimalConsultationResult.details.missingEvidence.length === 0 && minimalConsultationResult.details.findings.length === 0, 'valid consultant advice may omit empty list fields, which must normalize to empty arrays');
-expect(consultantCalls.at(-1)?.context.tools === undefined, 'consultant requests must contain no tools');
-expect(consultantCalls.at(-1)?.context.systemPrompt.includes('no tools') && consultantCalls.at(-1)?.context.systemPrompt.includes('Never claim') && consultantCalls.at(-1)?.context.systemPrompt.includes('compact, complete JSON') && consultantCalls.at(-1)?.context.systemPrompt.includes('never stop mid-object'), 'consultant requests must use the fixed isolated safety prompt');
-consultantText = '{"recommendation":"Choose the smallest reversible design.';
-const malformedConsultationResult = await consultTool.execute('consult-malformed', validConsultInput, new AbortController().signal, undefined, roleContext);
-expect(malformedConsultationResult.details.status === 'error' && malformedConsultationResult.details.raw === undefined && malformedConsultationResult.content[0].text.includes('malformed or incomplete structured advice') && malformedConsultationResult.content[0].text.includes('Retry') && !malformedConsultationResult.content[0].text.includes('Choose the smallest reversible design'), 'malformed or truncated consultant advice must be rejected without exposing raw advice');
-expect(consultTest.parseAdvice(JSON.stringify({ alternatives: [], risks: [], missingEvidence: [], findings: [] }), 'solve') === undefined, 'consultant advice missing its recommendation must be unusable');
-expect(consultTest.parseAdvice(JSON.stringify({ recommendation: 'Choose the smallest reversible design.', alternatives: [{ option: 'Only one field' }], risks: [], missingEvidence: [], findings: [] }), 'solve') === undefined, 'consultant advice with a malformed alternative must be unusable');
-expect(consultTest.parseAdvice(JSON.stringify({ recommendation: 'Choose the smallest reversible design.', risks: 'not an array' }), 'solve') === undefined, 'consultant advice with a wrong-typed supplied list must be unusable');
-expect(consultTest.parseAdvice('```json\n{"recommendation":"Choose the smallest reversible design."\n```', 'solve') === undefined, 'truncated fenced consultant advice must be unusable');
-consultantText = JSON.stringify({
-  recommendation: 'Choose the smallest reversible design.',
-  alternatives: [{ option: 'Broader redesign', tradeoff: 'More flexibility but higher migration risk.' }],
-  risks: ['The evidence is limited.'],
-  missingEvidence: ['A compatibility check would increase confidence.'],
-  findings: ['The plan lacks an explicit rollback boundary.'],
-});
-rmSync(path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic/consult-model.json'), { force: true });
-const unconfiguredResult = await consultTool.execute('consult-unconfigured', { question: 'Can this be improved?' }, new AbortController().signal, undefined, roleContext);
-expect(unconfiguredResult.details.status === 'error' && unconfiguredResult.content[0].text.includes('/b-consult-model') && consultantCalls.length === 4, 'unconfigured b_consult must return setup guidance without falling back');
-writeFileSync(path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic/consult-model.json'), JSON.stringify({ provider: 'missing', model: 'missing', thinkingLevel: 'high' }));
-const unavailableResult = await consultTool.execute('consult-unavailable', { question: 'Can this be improved?' }, new AbortController().signal, undefined, roleContext);
-expect(unavailableResult.details.status === 'error' && unavailableResult.content[0].text.includes('unavailable'), 'unavailable consultant models must return actionable setup guidance');
-const abortedController = new AbortController();
-abortedController.abort();
-const abortedResult = await consultTool.execute('consult-aborted', { question: 'Can this be improved?' }, abortedController.signal, undefined, roleContext);
-expect(abortedResult.details.status === 'cancelled', 'aborted b_consult calls must return a cancellation result');
-const invalidConsultResult = await consultTool.execute('consult-invalid', { question: '', extra: true }, new AbortController().signal, undefined, roleContext);
-expect(invalidConsultResult.details.status === 'error' && invalidConsultResult.content[0].text.includes('Invalid b_consult input'), 'invalid consultant input must be rejected clearly');
-await consultCommand.handler('anthropic/claude-sonnet-4-5 high', roleContext);
-expect(JSON.parse(readFileSync(path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic/consult-model.json'), 'utf8')).model === 'claude-sonnet-4-5', 'explicit /b-consult-model arguments must be testable without changing the active model');
-await consultCommand.handler('openrouter/anthropic/claude-3.5-sonnet high', roleContext);
-const multiSlashPreference = JSON.parse(readFileSync(path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic/consult-model.json'), 'utf8'));
-expect(multiSlashPreference.provider === 'openrouter' && multiSlashPreference.model === 'anthropic/claude-3.5-sonnet', 'explicit consultant model selection must save and resolve model ids containing slashes');
-await consultCommand.handler('anthropic/claude-sonnet-4-5 high', roleContext);
-consultantAuthError = 'secret-api-key Authorization: Bearer internal-token https://private.example.invalid';
-const authFailureResult = await consultTool.execute('consult-auth-failure', { question: 'Can this be improved?' }, new AbortController().signal, undefined, roleContext);
-expect(authFailureResult.details.status === 'error' && authFailureResult.content[0].text.includes('authentication could not be resolved') && !authFailureResult.content[0].text.includes('secret-api-key') && !authFailureResult.content[0].text.includes('internal-token') && !authFailureResult.content[0].text.includes('private.example.invalid'), 'consultant auth failures must be structured, actionable, and redact external error details');
-consultantAuthError = undefined;
-consultantStreamError = 'stream-secret Authorization: Bearer stream-token https://private.example.invalid';
-const streamFailureResult = await consultTool.execute('consult-stream-failure', { question: 'Can this be improved?' }, new AbortController().signal, undefined, roleContext);
-expect(streamFailureResult.details.status === 'error' && streamFailureResult.content[0].text.includes('Consultant request failed') && !streamFailureResult.content[0].text.includes('stream-secret') && !streamFailureResult.content[0].text.includes('stream-token') && !streamFailureResult.content[0].text.includes('private.example.invalid'), 'consultant stream failures must be structured, actionable, and redact external error details');
-consultantStreamError = undefined;
 expect(typeof roleSessionStartHandler === 'function', 'role extension must register session startup handling');
 await roleSessionStartHandler({}, roleContext);
 expect(activeTools.length === 8 && activeTools.includes('edit') && activeTools.includes('write'), 'Off role application must preserve normal active tools');
@@ -747,7 +584,35 @@ await roleChannelRegistration.onEvent({ type: 'connection', connected: true, sup
 expect(publishedRoles.some((payload) => payload.role === 'planner'), 'role channel must publish its role after Intercom connects');
 expect(publishedRoles.some((payload) => payload.type === 'b-agentic-role-request'), 'role channel must request existing peer roles after Intercom connects');
 const roster = await registrations.before_agent_start[0]({ systemPrompt: 'base' }, roleContext);
-expect(roster.systemPrompt.includes('Ready same-CWD workers: none'), 'planner roster must use the ready Intercom channel');
+expect(roster.systemPrompt.includes('Ready same-CWD workers: none') && roster.systemPrompt.includes('Consultants: none'), 'planner roster must use the ready Intercom channel');
+expect(roleTest.parseRole(' consultant ') === 'consultant' && roleTest.isRole('consultant') === true && roleTest.parseRole('unknown') === undefined, 'consultant role must parse through the shared role machinery');
+roleTest.saveRoleModelPreference('consultant', { provider: 'anthropic', model: 'claude-sonnet-4-5', thinkingLevel: 'medium' });
+const consultantRolePreferences = JSON.parse(readFileSync(path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic', 'role-models.json'), 'utf8'));
+expect(consultantRolePreferences.consultant.model === 'claude-sonnet-4-5' && consultantRolePreferences.consultant.thinkingLevel === 'medium', 'consultant role-model preference must persist in role-models.json');
+activeModel = { provider: 'other', id: 'other-model' };
+await commands['b-role'].handler('consultant', roleContext);
+expect(roleStatuses.at(-1)?.value === '<accent>b-agentic: consultant</accent>' && activeModel.provider === 'anthropic' && activeModel.id === 'claude-sonnet-4-5', 'consultant selection must use the accent status color and saved role model');
+const consultantStart = await handlers.before_agent_start({ systemPrompt: 'base' }, roleContext);
+expect(consultantStart.systemPrompt.includes('consultant profile (read-only advisory peer') && consultantStart.systemPrompt.includes('Communicate only with the planner over Intercom') && !consultantStart.systemPrompt.includes('worker profile (implementation)'), 'consultant prompt must inject only for the consultant role');
+for (const marker of [
+  // generated:role-prompt-markers:consultant:start
+  "consultant profile (read-only advisory peer)",
+  "Read repository evidence and run only non-mutating checks",
+  "never edit, patch, write, commit, build, test, run a formatter or generator",
+  "natural-language advice only, never evidence",
+  "Communicate only with the planner over Intercom",
+  "reply to an inbound planner ask without list-cwd",
+  "Before every send, call pending",
+  "returned planner identifier verbatim",
+  "Never contact workers directly, join the worker roster, or delegate",
+  "Do not emit any `B_AGENTIC_*` attention signal",
+  "owns no skills",
+  "Never mutate the worktree or claim that checks, edits, tests, or implementation were performed by you",
+// generated:role-prompt-markers:consultant:end
+]) {
+  expect(consultantStart.systemPrompt.includes(marker), `consultant prompt must retain ${marker}`);
+}
+await commands['b-role'].handler('planner', roleContext);
 const plannerAndWorker = [
   { id: 'planner', cwd: root, pid: 101, startedAt: 1 },
   { id: 'worker', cwd: root, pid: 202, startedAt: 2 },
@@ -763,6 +628,8 @@ const plannerAndWorkerClaim = [
 ];
 expect(roleTest.canClaimWorker(plannerAndWorkerClaim, root) === true, 'a two-role session may claim its explicit worker');
 expect(roleTest.canClaimWorker([...plannerAndWorkerClaim, { id: 'other', cwd: root, pid: 303, startedAt: 3 }], root) === false, 'a third same-CWD session must not claim another worker');
+const plannerWorkerConsultant = [...plannerAndWorkerClaim, { id: 'consultant', cwd: root, pid: 303, startedAt: 3 }];
+expect(roleTest.canClaimWorker(plannerWorkerConsultant, root, new Map([['consultant', 'consultant']])) === true, 'a same-CWD consultant must not consume the worker session cap');
 expect(activeTools.length === 2 && activeTools.includes('read') && activeTools.includes('bash'), 'persisted planner role must preserve the current active tools');
 activeTools = ['read', 'bash'];
 await handlers.session_start({}, roleContext);
@@ -888,6 +755,7 @@ await handlers.agent_start({});
 await handlers.agent_end({ messages: [{ role: 'assistant', content: [{ type: 'text', text: userInputSignal }], timestamp: 13 }] });
 await handlers.agent_settled({});
 expect(executedCommands.length === notificationCommandStart + 2, 'off role must remain silent after an explicit signal');
+activeThinkingLevel = 'high';
 await commands['b-role'].handler('', roleContext);
 expect(rolePickerCalls === 1, '/b-role without an argument must open a role picker');
 expect(modelPickerCalls === 0, '/b-role must not open a model picker');
@@ -965,8 +833,8 @@ const measuredPreDedupPlannerPromptBytes = 6711;
 expect(plannerPromptBytes < measuredPreDedupPlannerPromptBytes, `planner prompt addendum must be smaller than the measured pre-dedup baseline (got ${plannerPromptBytes} bytes)`);
 expect(!plannerTest.PLANNER_PROMPT.includes('Your in-scope planner skills are:') && !plannerTest.PLANNER_PROMPT.includes('Group 1–4 related questions per call'), 'planner prompt must defer shared ownership and questionnaire guidance to the kernel');
 expect(plannerStart.systemPrompt.includes('The planner keeps external b-research planner-owned and never delegates it.') && plannerStart.systemPrompt.includes("When needed, agree with the worker on the approach before edits begin. Use send for task delegation and worker result/review reporting; use ask only for blockers, clarifications, or a planner's quick-answer need—not to wait for a delegated result.") && plannerStart.systemPrompt.includes('ask_user_question') && plannerStart.systemPrompt.includes('B_AGENTIC_TASK_COMPLETE') && plannerStart.systemPrompt.includes('B_AGENTIC_USER_INPUT_NEEDED') && plannerStart.systemPrompt.includes('2–4 concrete options') && plannerStart.systemPrompt.includes(' (Recommended)') && plannerStart.systemPrompt.includes('automatic custom-answer row'), 'planner system prompt must combine composed kernel questionnaire guidance with planner signals');
-expect(plannerStart.systemPrompt.includes('After bounded local discovery, use b_consult selectively only for a hard decision or plan review') && plannerStart.systemPrompt.includes('Do not use it for routine or obvious work') && plannerStart.systemPrompt.includes('not evidence') && plannerStart.systemPrompt.includes('optional rather than required for every plan'), 'planner prompt must explain selective optional b_consult use and its advisory boundary');
-expect(plannerStart.systemPrompt.includes('successful, structurally valid consultation materially changes a hard decision') && plannerStart.systemPrompt.includes('`Consultation` note') && plannerStart.systemPrompt.includes('question, recommendation or trade-off, risks or missing evidence') && plannerStart.systemPrompt.includes('how repository evidence was weighed') && plannerStart.systemPrompt.includes('no artifact, store, command, or template'), 'planner prompt must constrain optional Consultation notes to material, advisory decisions');
+expect(plannerStart.systemPrompt.includes('Use a ready same-CWD consultant selectively for a hard decision or plan review') && plannerStart.systemPrompt.includes('Do not use the consultant for routine or obvious work') && plannerStart.systemPrompt.includes('never evidence'), 'planner prompt must explain selective optional consultant use and its advisory boundary');
+expect(plannerStart.systemPrompt.includes('If consultant advice materially changes a hard decision') && plannerStart.systemPrompt.includes('`Consultation` note') && plannerStart.systemPrompt.includes('question, recommendation or trade-off, risks or missing evidence') && plannerStart.systemPrompt.includes('how repository evidence was weighed') && plannerStart.systemPrompt.includes('no artifact, store, command, or template'), 'planner prompt must constrain optional Consultation notes to material, advisory decisions');
 for (const marker of [
   // generated:role-prompt-markers:planner:start
   "Finish discovery before one bounded handoff",
@@ -996,11 +864,15 @@ roleChannelRegistration.onReady({
   listSessions: async () => [
     { id: 'self', cwd: root, pid: process.pid, startedAt: 1 },
     ...(activePeerWorker ? [{ id: 'active-worker', cwd: root, pid: 202, startedAt: 2 }] : []),
+    { id: 'active-consultant', cwd: root, pid: 303, startedAt: 3 },
   ],
 });
 await roleChannelRegistration.onEvent({ type: 'connection', connected: true, supported: true });
 await roleChannelRegistration.onEvent({ type: 'message', fromSessionId: 'active-worker', payload: { type: 'b-agentic-role', role: 'worker' } });
+await roleChannelRegistration.onEvent({ type: 'message', fromSessionId: 'active-consultant', payload: { type: 'b-agentic-role', role: 'consultant' } });
 await roleChannelRegistration.onEvent({ type: 'message', fromSessionId: 'self', payload: { type: 'b-agentic-role', role: 'worker' } });
+const rosterWithConsultant = await registrations.before_agent_start[0]({ systemPrompt: 'base' }, roleContext);
+expect(rosterWithConsultant.systemPrompt.includes('active-consultant (active-consultant)'), 'planner roster must list a ready same-CWD consultant');
 roleNotifications.length = 0;
 await commands['b-role'].handler('worker', roleContext);
 expect(roleStatuses.at(-1)?.value === '<success>b-agentic: planner</success>', 'an explicit worker request must remain planner when a second writer is active without filtering tools');
@@ -2177,11 +2049,11 @@ run_pi_smoke_cases() {
 	assert_file "$sandbox/home/.pi/agent/b-agentic/references/mcp_operations.yaml"
 	assert_no_path "$sandbox/home/.pi/agent/b-agentic/references/contract"
 	assert_file "$sandbox/home/.pi/agent/mcp.json"
-	for extension in b-agentic-permissions.ts b-agentic-mcp-permissions.ts b-agentic-auto-mode.ts b-agentic-role.ts b-agentic-planner.ts b-agentic-planner-notify.ts b-agentic-worker.ts b-agentic-sync.ts b-agentic-consult.ts; do
+	for extension in b-agentic-permissions.ts b-agentic-mcp-permissions.ts b-agentic-auto-mode.ts b-agentic-role.ts b-agentic-planner.ts b-agentic-planner-notify.ts b-agentic-worker.ts b-agentic-consultant.ts b-agentic-sync.ts; do
 		assert_file "$sandbox/home/.pi/agent/extensions/$extension"
 		assert_file "$sandbox/home/.pi/agent/b-agentic/extensions/$extension"
 	done
-	for support in shell.ts mcp.ts role.ts role-models.ts worker.ts state.ts auto.ts consult.ts; do
+	for support in shell.ts mcp.ts role.ts role-models.ts worker.ts state.ts auto.ts; do
 		assert_file "$sandbox/home/.pi/agent/extensions/b-agentic-support/$support"
 		assert_file "$sandbox/home/.pi/agent/b-agentic/extensions/b-agentic-support/$support"
 	done
