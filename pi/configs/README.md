@@ -38,7 +38,7 @@ b-agentic can also install the optional `@sreetej510/pi-usage` extension.
 b-agentic installs `@gotgenes/pi-anthropic-auth` automatically for Anthropic authentication support.
 `pi install npm:@gotgenes/pi-anthropic-auth`;
 
-b-agentic installs `@narumitw/pi-lsp@0.32.0` for optional, on-demand
+b-agentic installs `@narumitw/pi-lsp` at the latest release for optional, on-demand
 `lsp_diagnostics` and `lsp_fix` capabilities and source-action previews.
 pi-lsp starts servers only when called, does not install language-server binaries,
 and requires those commands to already be on `PATH`. No pi-lsp configuration is
@@ -49,7 +49,7 @@ remains required.
 
 b-agentic installs `pi-intercom` by default for its planner/worker/consultant workflow; the permission extension auto-approves schema-valid Intercom actions (`list`, `list-cwd`, `status`, `pending`, `send`, `ask`, `reply`, and `cancel`), including supported optional string fields and attachment arrays; invalid actions, unknown fields, and malformed optional values remain approval-gated.
 
-b-agentic also installs `@juicesharp/rpiv-ask-user-question@2.7.0` for interactive, user-facing material decisions and blockers in planner or solo/Off work (`pi install npm:@juicesharp/rpiv-ask-user-question@2.7.0`).
+b-agentic also installs `@juicesharp/rpiv-ask-user-question` at the latest release for interactive, user-facing material decisions and blockers in planner or solo/Off work (`pi install npm:@juicesharp/rpiv-ask-user-question`).
 
 b-agentic defaults to Off for a single-session workflow; the first same-CWD session is not automatically promoted to planner. Explicitly run `/b-role planner`, `/b-role worker`, and optionally `/b-role consultant` in separate sessions, or start them with `pi --b-role planner|worker|consultant`. Run `/b-role off` to return to solo work; tab completion supports all four role names. The role persists with the session and appears in Pi's status bar. `/b-role` selects only a role and does not open a model picker. Explicit `pi --b-role` startup selections and later `/model` changes update the per-role provider, model, and thinking-level preference under `~/.pi/agent/b-agentic/role-models.json` without credentials. Consultant sessions are read-only advisory peers: they inspect repository evidence, run only non-mutating checks, and communicate only with the planner over Intercom. They never write, claim worktree work, join the worker roster, contact workers, or emit attention signals. An existing legacy `consult-model.json` file is left untouched and is not migrated.
 

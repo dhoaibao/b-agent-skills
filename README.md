@@ -106,11 +106,11 @@ The installer writes all seven recommended entries to Pi's MCP configuration wit
 |---|---|---|---|
 | `pi-mcp-adapter` | Loads Pi MCP configuration | Required for MCP use | Installed automatically |
 | `pi-intercom` | Provides planner/worker/consultant coordination | Default for the optional multi-role workflow | Installed automatically |
-| `@juicesharp/rpiv-ask-user-question` | Structured interactive user decisions and blockers | Required for planner questions | Installed automatically at v2.7.0 |
+| `@juicesharp/rpiv-ask-user-question` | Structured interactive user decisions and blockers | Required for planner questions | Installed automatically at the latest release |
 | `pi-observational-memory` | Long-session compaction continuity | Optional | Installed automatically |
 | `@sreetej510/pi-usage` | Pi usage reporting | Optional | Installed automatically |
 | `@gotgenes/pi-anthropic-auth` | Anthropic authentication support | Optional | Installed automatically |
-| `@narumitw/pi-lsp@0.32.0` | On-demand LSP diagnostics and source-action previews | Optional | Installed automatically at v0.32.0 |
+| `@narumitw/pi-lsp` | On-demand LSP diagnostics and source-action previews | Optional | Installed automatically at the latest release |
 
 Pi CLI, RTK, Serena, CodeGraph, Bun, and Pi packages install or refresh automatically without prompts. Bun-backed MCP servers use `bunx`, which resolves and caches their packages on first use. Modern shell tools are reported with an install hint because they generally require sudo.
 

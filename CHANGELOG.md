@@ -33,7 +33,7 @@ All notable shipped revisions of b-agentic are recorded here. Released version h
 
 - Pi usage package source:
   - Observed failure: The installer sourced Pi usage reporting from `@narumitw/pi-usage`; this directed vendor/package-source change redirects that source rather than addressing a discovered defect.
-  - Intended behavior: source Pi usage reporting from `@sreetej510/pi-usage`, preserving its unpinned status and the existing version pins for pi-lsp and rpiv-ask-user-question.
+  - Intended behavior: source Pi usage reporting from `@sreetej510/pi-usage`, preserving unpinned latest-release behavior for pi-lsp and rpiv-ask-user-question.
   - Regression: `scripts/smoke-install.sh` exercises Pi smoke cases whose install assertions in `pi/tests/smoke.sh` and fake installer handling in `tests/smoke/lib.sh` require `npm:@sreetej510/pi-usage`.
 
 - Shared command citation traceability:
@@ -89,7 +89,7 @@ All notable shipped revisions of b-agentic are recorded here. Released version h
 - Accurate pi-lsp prerequisites:
   - Observed failure: the reference treated language-server binaries on `PATH` as a footnote and omitted pi-lsp's built-in default map, replacement semantics for custom configuration, and configuration resolution order, making a fresh install's empty diagnostics unclear.
   - Intended behavior: document the default server map, the binary-on-`PATH` prerequisite, replacement rather than merge behavior, and the `PI_LSP_CONFIG`/workspace/user resolution order without writing user-owned configuration.
-  - Regression: no automated coverage: documentation-only; no installer or configuration behavior changed, and no automated assertion covers this prose. Accuracy depends on the upstream `@narumitw/pi-lsp@0.32.0` README.
+  - Regression: no automated coverage: documentation-only; no installer or configuration behavior changed, and no automated assertion covers this prose. Accuracy depends on the upstream pi-lsp README.
 
 - Preview-Markdown package and standalone installer (commits 31c4c17,
   87ac5aa, faf1f4b, 510dcdc, 875a683):
@@ -106,8 +106,8 @@ All notable shipped revisions of b-agentic are recorded here. Released version h
     extension and integration behavior.
 
 - Structured interactive user questions:
-  - Observed failure: the current installer and documentation still described the structured-question package as 2.6.2, so the approved 2.7.0 upgrade was not represented consistently across fresh installs and support guidance.
-  - Intended behavior: install and track `npm:@juicesharp/rpiv-ask-user-question@2.7.0`; use `ask_user_question` for any interactive, user-facing material decision or blocker in planner or solo/Off work with 1–4 grouped questions, 2–4 concrete options with concise trade-offs, a recommended first option, and the extension's automatic custom-answer row. Retain the focused plain-text fallback when unavailable/noninteractive; emit exactly one privacy-safe user-input signal only for planner decisions/blockers; keep worker→planner questions in Intercom and native permission prompts for browser/external/privileged actions.
+  - Observed failure: the current installer and documentation still described the structured-question package as an older pinned release, so the approved latest-release behavior was not represented consistently across fresh installs and support guidance.
+  - Intended behavior: install and track the latest `npm:@juicesharp/rpiv-ask-user-question` release; use `ask_user_question` for any interactive, user-facing material decision or blocker in planner or solo/Off work with 1–4 grouped questions, 2–4 concrete options with concise trade-offs, a recommended first option, and the extension's automatic custom-answer row. Retain the focused plain-text fallback when unavailable/noninteractive; emit exactly one privacy-safe user-input signal only for planner decisions/blockers; keep worker→planner questions in Intercom and native permission prompts for browser/external/privileged actions.
   - Regression: generated planner/worker guidance and b-commit structured approval wording are checked by `tooling/validate/shared.py`; `pi/tests/smoke.sh` covers retained task-complete/user-input notification behavior and package install/manifest state; installer package lifecycle is covered by `tests/smoke/lib.sh`; current package references in `README.md`, `REFERENCE.md`, `pi/configs/README.md`, and `docs/decision_design.md` stay aligned.
 
 - Trusted local diagnostics and questions:

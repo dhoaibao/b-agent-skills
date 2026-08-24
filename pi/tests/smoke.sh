@@ -10,8 +10,29 @@ run_pi_permission_behavioral_fixture() {
 	local pi_package_root=""
 	if command -v pi >/dev/null 2>&1; then
 		local pi_path
-		pi_path="$(readlink -f "$(command -v pi)")"
-		pi_package_root="$(dirname "$(dirname "$pi_path")")"
+		pi_path="$(command -v pi)"
+		# Resolve the CLI symlink and walk to the package manifest instead of
+		# assuming a fixed dist/ layout or relying on GNU readlink -f.
+		pi_package_root="$(node --input-type=module -e '
+import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { dirname, join } from "node:path";
+
+let directory = dirname(realpathSync(process.argv[1]));
+while (true) {
+  const packagePath = join(directory, "package.json");
+  if (existsSync(packagePath)) {
+    try {
+      if (JSON.parse(readFileSync(packagePath, "utf8")).name === "@earendil-works/pi-coding-agent") {
+        process.stdout.write(directory);
+        break;
+      }
+    } catch {}
+  }
+  const parent = dirname(directory);
+  if (parent === directory) break;
+  directory = parent;
+}
+' "$pi_path" 2>/dev/null || true)"
 	fi
 	ROOT_DIR="$ROOT_DIR" PI_TEST_HOME="$sandbox/home" PI_CODING_AGENT_DIR="$sandbox/home/.pi/agent" PI_PACKAGE_ROOT="$pi_package_root" node --experimental-strip-types --input-type=module - <<'NODE'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
@@ -2075,14 +2096,16 @@ run_pi_smoke_cases() {
 	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@sreetej510/pi-usage'
 	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@gotgenes/pi-anthropic-auth'
 	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:pi-intercom'
-	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@juicesharp/rpiv-ask-user-question@2.7.0'
-	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@narumitw/pi-lsp@0.32.0'
+	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@juicesharp/rpiv-ask-user-question'
+	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@narumitw/pi-lsp'
+	assert_not_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@juicesharp/rpiv-ask-user-question@'
+	assert_not_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@narumitw/pi-lsp@'
 	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piAskUserQuestionState": "ready"'
 	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piAnthropicAuthState": "ready"'
 	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piLspState": "ready"'
 	local initial_anthropic_auth_install_count initial_lsp_install_count
 	initial_anthropic_auth_install_count="$(grep -Fc 'npm:@gotgenes/pi-anthropic-auth' "$sandbox/smoke-bin/pi-install.log")"
-	initial_lsp_install_count="$(grep -Fc 'npm:@narumitw/pi-lsp@0.32.0' "$sandbox/smoke-bin/pi-install.log")"
+	initial_lsp_install_count="$(grep -Fc 'npm:@narumitw/pi-lsp' "$sandbox/smoke-bin/pi-install.log")"
 
 	# Split in-session modes: sync pulls/assets only; update uses installed source without Git.
 	# Exercise sync with the default environment so package, Pi CLI, and MCP setup
@@ -2131,7 +2154,8 @@ EOF
 	assert_contains "$sandbox/smoke-bin/pi-install.log" 'update'
 	assert_contains "$sandbox/smoke-bin/pi-install.log" 'update --extensions'
 	[ "$(grep -Fc 'npm:@gotgenes/pi-anthropic-auth' "$sandbox/smoke-bin/pi-install.log")" -eq "$initial_anthropic_auth_install_count" ] || fail "Pi update reinstalled pi-anthropic-auth despite package being present"
-	[ "$(grep -Fc 'npm:@narumitw/pi-lsp@0.32.0' "$sandbox/smoke-bin/pi-install.log")" -eq "$initial_lsp_install_count" ] || fail "Pi update reinstalled pi-lsp despite package being present"
+	[ "$(grep -Fc 'npm:@narumitw/pi-lsp' "$sandbox/smoke-bin/pi-install.log")" -eq "$initial_lsp_install_count" ] || fail "Pi update reinstalled pi-lsp despite package being present"
+	assert_not_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@narumitw/pi-lsp@'
 
 	local behavioral_pid
 	run_pi_permission_behavioral_fixture "$sandbox" &
@@ -2159,8 +2183,10 @@ EOF
 	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:pi-observational-memory'
 	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:@sreetej510/pi-usage'
 	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:@gotgenes/pi-anthropic-auth'
-	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:@juicesharp/rpiv-ask-user-question@2.7.0'
-	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:@narumitw/pi-lsp@0.32.0'
+	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:@juicesharp/rpiv-ask-user-question'
+	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:@narumitw/pi-lsp'
+	assert_not_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:@juicesharp/rpiv-ask-user-question@'
+	assert_not_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:@narumitw/pi-lsp@'
 	assert_contains "$sandbox_adapter/home/.pi/agent/b-agentic/install.json" '"piAskUserQuestionState": "ready"'
 	assert_contains "$sandbox_adapter/home/.pi/agent/b-agentic/install.json" '"piLspState": "ready"'
 	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'update --extensions'

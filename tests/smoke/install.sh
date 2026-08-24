@@ -1032,32 +1032,54 @@ run_pi_lsp_package_lifecycle_case() {
 	local sandbox="$WORK_DIR/pi-lsp-package-lifecycle"
 	local install_log="$sandbox/install.log"
 	local package_log="$sandbox/smoke-bin/pi-install.log"
-	local package_count
+	local package_count ask_package_count smoke_path
 	local rc=0
 
 	mkdir -p "$sandbox/home"
+	smoke_path="$(smoke_runtime_cli_path "$sandbox")"
+	: >"$sandbox/smoke-bin/pi-ask-user-question-versioned-installed"
+	: >"$sandbox/smoke-bin/pi-lsp-ranged-installed"
 	set +e
-	HOME="$sandbox/home" PATH="$(smoke_runtime_cli_path "$sandbox")" \
+	HOME="$sandbox/home" PATH="$smoke_path" \
 		B_AGENTIC_REPO="$snapshot_repo" B_AGENTIC_DIR="$sandbox/source" \
 		B_AGENTIC_PROMPT_API_KEYS=N bash "$ROOT_DIR/install.sh" --dry-run >"$install_log" 2>&1
 	rc=$?
 	set -e
-	[ "$rc" -eq 0 ] || fail "expected pi-lsp dry-run exit 0, got $rc"
-	assert_contains "$install_log" '[dry-run] pi install npm:@narumitw/pi-lsp@0.32.0'
+	[ "$rc" -eq 0 ] || fail "expected optional Pi package dry-run exit 0, got $rc"
+	assert_contains "$install_log" '[dry-run] pi install npm:@juicesharp/rpiv-ask-user-question'
+	assert_contains "$install_log" '[dry-run] pi install npm:@narumitw/pi-lsp'
+	assert_not_contains "$install_log" 'npm:@juicesharp/rpiv-ask-user-question@'
+	assert_not_contains "$install_log" 'npm:@narumitw/pi-lsp@'
+	assert_no_path "$sandbox/smoke-bin/pi-ask-user-question-installed"
 	assert_no_path "$sandbox/smoke-bin/pi-lsp-installed"
+	assert_file "$sandbox/smoke-bin/pi-ask-user-question-versioned-installed"
+	assert_file "$sandbox/smoke-bin/pi-lsp-ranged-installed"
 
 	expect_install_status 0 "$sandbox" "$snapshot_repo"
-	assert_contains "$package_log" 'npm:@narumitw/pi-lsp@0.32.0'
+	assert_contains "$package_log" 'npm:@juicesharp/rpiv-ask-user-question'
+	assert_contains "$package_log" 'npm:@narumitw/pi-lsp'
+	assert_not_contains "$package_log" 'npm:@juicesharp/rpiv-ask-user-question@'
+	assert_not_contains "$package_log" 'npm:@narumitw/pi-lsp@'
+	assert_no_path "$sandbox/smoke-bin/pi-ask-user-question-versioned-installed"
+	assert_no_path "$sandbox/smoke-bin/pi-lsp-ranged-installed"
+	assert_file "$sandbox/smoke-bin/pi-ask-user-question-installed"
+	assert_file "$sandbox/smoke-bin/pi-lsp-installed"
+	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piAskUserQuestionAction": "install"'
+	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piAskUserQuestionState": "ready"'
 	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piLspAction": "install"'
 	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piLspState": "ready"'
-	package_count="$(grep -Fc 'npm:@narumitw/pi-lsp@0.32.0' "$package_log")"
+	package_count="$(grep -Fc 'npm:@narumitw/pi-lsp' "$package_log")"
+	ask_package_count="$(grep -Fc 'npm:@juicesharp/rpiv-ask-user-question' "$package_log")"
 	[ "$package_count" -eq 1 ] || fail "expected initial pi-lsp install exactly once"
-	assert_contains "$install_log" 'pi-lsp'
+	[ "$ask_package_count" -eq 1 ] || fail "expected initial ask-user-question install exactly once"
+	assert_contains "$install_log" 'update --extensions'
 
 	expect_install_status 0 "$sandbox" "$snapshot_repo"
 	expect_install_status 0 "$sandbox" "$snapshot_repo" --update
-	[ "$(grep -Fc 'npm:@narumitw/pi-lsp@0.32.0' "$package_log")" -eq "$package_count" ] || fail "pi-lsp was reinstalled after package detection"
+	[ "$(grep -Fc 'npm:@narumitw/pi-lsp' "$package_log")" -eq "$package_count" ] || fail "pi-lsp was reinstalled after package detection"
+	[ "$(grep -Fc 'npm:@juicesharp/rpiv-ask-user-question' "$package_log")" -eq "$ask_package_count" ] || fail "ask-user-question was reinstalled after package detection"
 	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piLspState": "ready"'
+	assert_contains "$sandbox/smoke-bin/pi-install.log" 'update --extensions'
 
 	expect_install_status 0 "$sandbox" "$snapshot_repo" --uninstall
 	assert_file "$sandbox/smoke-bin/pi-lsp-installed"

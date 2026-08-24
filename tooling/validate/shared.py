@@ -727,6 +727,23 @@ def pi_gate_severity(tokens: list[str], extension_text: str) -> int:
 
 
 pi_extension = read_text(ROOT / "pi" / "extensions" / "b-agentic-support" / "shell.ts")
+skill_roster_match = re.search(
+    r"export const B_AGENTIC_SKILL_NAMES = new Set\(\[(.*?)\]\);",
+    pi_extension,
+    re.DOTALL,
+)
+if not skill_roster_match:
+    errors.append(
+        "pi/extensions/b-agentic-support/shell.ts: missing B_AGENTIC_SKILL_NAMES roster"
+    )
+else:
+    pi_skill_names = re.findall(r'\"([^\"]+)\"', skill_roster_match.group(1))
+    if pi_skill_names != skill_names:
+        errors.append(
+            "pi/extensions/b-agentic-support/shell.ts: B_AGENTIC_SKILL_NAMES must match "
+            f"skills/registry.yaml (roster={pi_skill_names!r}, registry={skill_names!r})"
+        )
+
 for tokens, min_severity in SAFETY_GATES:
     if pi_gate_severity(tokens, pi_extension) < SEVERITY_RANK[min_severity]:
         errors.append(

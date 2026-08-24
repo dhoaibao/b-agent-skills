@@ -144,12 +144,18 @@ if [ "${1:-}" = "list" ]; then
     printf 'npm:pi-intercom\n'
     found=1
   fi
-  if [ -f "$log_dir/pi-ask-user-question-installed" ]; then
-    printf 'npm:@juicesharp/rpiv-ask-user-question@2.7.0\n'
+  if [ -f "$log_dir/pi-ask-user-question-versioned-installed" ]; then
+    printf 'npm:@juicesharp/rpiv-ask-user-question@1.0.0\n'
+    found=1
+  elif [ -f "$log_dir/pi-ask-user-question-installed" ]; then
+    printf 'npm:@juicesharp/rpiv-ask-user-question\n'
     found=1
   fi
-  if [ -f "$log_dir/pi-lsp-installed" ]; then
-    printf 'npm:@narumitw/pi-lsp@0.32.0\n'
+  if [ -f "$log_dir/pi-lsp-ranged-installed" ]; then
+    printf 'npm:@narumitw/pi-lsp@^1.0.0\n'
+    found=1
+  elif [ -f "$log_dir/pi-lsp-installed" ]; then
+    printf 'npm:@narumitw/pi-lsp\n'
     found=1
   fi
   [ "$found" -eq 1 ] || printf 'No packages installed.\n'
@@ -176,10 +182,12 @@ if [ "${1:-}" = "install" ]; then
   if [ "${2:-}" = "npm:pi-intercom" ]; then
     : > "$log_dir/pi-intercom-installed"
   fi
-  if [ "${2:-}" = "npm:@juicesharp/rpiv-ask-user-question@2.7.0" ]; then
+  if [ "${2:-}" = "npm:@juicesharp/rpiv-ask-user-question" ]; then
+    rm -f "$log_dir/pi-ask-user-question-versioned-installed"
     : > "$log_dir/pi-ask-user-question-installed"
   fi
-  if [ "${2:-}" = "npm:@narumitw/pi-lsp@0.32.0" ]; then
+  if [ "${2:-}" = "npm:@narumitw/pi-lsp" ]; then
+    rm -f "$log_dir/pi-lsp-ranged-installed"
     : > "$log_dir/pi-lsp-installed"
   fi
   exit 0

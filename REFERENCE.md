@@ -224,7 +224,7 @@ b-agentic installs the `@sreetej510/pi-usage` extension automatically.
 
 b-agentic installs `@gotgenes/pi-anthropic-auth` automatically for Anthropic authentication support.
 
-b-agentic installs `@narumitw/pi-lsp@0.32.0` automatically for optional, on-demand
+b-agentic installs `@narumitw/pi-lsp` automatically at the latest release for optional, on-demand
 `lsp_diagnostics` and `lsp_fix` capabilities and source-action previews. pi-lsp
 ships a built-in default server map for roughly 28 languages (including Biome for
 JavaScript/TypeScript/JSON/CSS, ty and Ruff for Python, bash-language-server for
@@ -247,7 +247,7 @@ custom-tool approval behavior, and authoritative repository validation remains
 required.
 
 b-agentic installs `pi-intercom` automatically for its planner/worker/consultant workflow and installs
-`@juicesharp/rpiv-ask-user-question@2.7.0` for structured planner decisions and blockers.
+`@juicesharp/rpiv-ask-user-question` at the latest release for structured planner decisions and blockers.
 Planner questions group 1–4 related questions, offer 2–4 concrete options with
 concise trade-offs, suffix the first recommended option with ` (Recommended)`,
 and rely on the extension's automatic custom-answer row. Do not author `Other`,

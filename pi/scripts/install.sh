@@ -67,9 +67,9 @@ PI_ANTHROPIC_AUTH_SPEC="npm:@gotgenes/pi-anthropic-auth"
 PI_ANTHROPIC_AUTH_PACKAGE="@gotgenes/pi-anthropic-auth"
 PI_INTERCOM_SPEC="npm:pi-intercom"
 PI_INTERCOM_PACKAGE="pi-intercom"
-PI_ASK_USER_QUESTION_SPEC="npm:@juicesharp/rpiv-ask-user-question@2.7.0"
+PI_ASK_USER_QUESTION_SPEC="npm:@juicesharp/rpiv-ask-user-question"
 PI_ASK_USER_QUESTION_PACKAGE="@juicesharp/rpiv-ask-user-question"
-PI_LSP_SPEC="npm:@narumitw/pi-lsp@0.32.0"
+PI_LSP_SPEC="npm:@narumitw/pi-lsp"
 PI_LSP_PACKAGE="@narumitw/pi-lsp"
 MCP_ROOT_KEY="mcpServers"
 MCP_PLACEHOLDER_STYLE="env-brace"
@@ -191,10 +191,11 @@ runtime_upgrade_cli() {
 	return 0
 }
 
-pi_package_installed() {
+pi_package_state() {
 	local package="$1"
 	if ! command -v pi >/dev/null 2>&1; then
-		return 1
+		printf 'missing\n'
+		return 0
 	fi
 	local listing
 	# Bind to current HOME so sandbox / alternate-home installs do not
@@ -204,7 +205,17 @@ pi_package_installed() {
 			PI_CODING_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}" \
 			pi list 2>/dev/null || true
 	)"
-	printf '%s\n' "$listing" | grep -Eq "${package}(@| )|npm:${package}"
+	if printf '%s\n' "$listing" | grep -Eq "(^|[[:space:]])npm:${package}([[:space:]]|$)|(^|[[:space:]])${package}([[:space:]]|$)"; then
+		printf 'present\n'
+	elif printf '%s\n' "$listing" | grep -Eq "(^|[[:space:]])npm:${package}@|(^|[[:space:]])${package}@"; then
+		printf 'versioned\n'
+	else
+		printf 'missing\n'
+	fi
+}
+
+pi_package_installed() {
+	[ "$(pi_package_state "$1")" != "missing" ]
 }
 
 pi_mcp_adapter_installed() {
@@ -353,7 +364,9 @@ maybe_install_pi_intercom() {
 }
 
 maybe_install_pi_ask_user_question() {
-	if pi_ask_user_question_installed; then
+	local package_state
+	package_state="$(pi_package_state "$PI_ASK_USER_QUESTION_PACKAGE")"
+	if [ "$package_state" = "present" ]; then
 		INSTALL_PI_ASK_USER_QUESTION_ACTION="present"
 		INSTALL_PI_ASK_USER_QUESTION_STATE="ready"
 		log "Pi Ask User Question $PI_ASK_USER_QUESTION_PACKAGE already installed"
@@ -372,7 +385,11 @@ maybe_install_pi_ask_user_question() {
 		return 0
 	fi
 
-	log "Installing $PI_ASK_USER_QUESTION_PACKAGE"
+	if [ "$package_state" = "versioned" ]; then
+		log "Migrating $PI_ASK_USER_QUESTION_PACKAGE to its latest unpinned release"
+	else
+		log "Installing $PI_ASK_USER_QUESTION_PACKAGE"
+	fi
 	if pi install "$PI_ASK_USER_QUESTION_SPEC"; then
 		INSTALL_PI_ASK_USER_QUESTION_ACTION="install"
 		INSTALL_PI_ASK_USER_QUESTION_STATE="ready"
@@ -386,7 +403,9 @@ maybe_install_pi_ask_user_question() {
 }
 
 maybe_install_pi_lsp() {
-	if pi_lsp_installed; then
+	local package_state
+	package_state="$(pi_package_state "$PI_LSP_PACKAGE")"
+	if [ "$package_state" = "present" ]; then
 		INSTALL_PI_LSP_ACTION="present"
 		INSTALL_PI_LSP_STATE="ready"
 		log "Pi LSP $PI_LSP_PACKAGE already installed"
@@ -405,7 +424,11 @@ maybe_install_pi_lsp() {
 		return 0
 	fi
 
-	log "Installing $PI_LSP_PACKAGE"
+	if [ "$package_state" = "versioned" ]; then
+		log "Migrating $PI_LSP_PACKAGE to its latest unpinned release"
+	else
+		log "Installing $PI_LSP_PACKAGE"
+	fi
 	if pi install "$PI_LSP_SPEC"; then
 		INSTALL_PI_LSP_ACTION="install"
 		INSTALL_PI_LSP_STATE="ready"
