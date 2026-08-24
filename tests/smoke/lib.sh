@@ -145,7 +145,7 @@ if [ "${1:-}" = "list" ]; then
     found=1
   fi
   if [ -f "$log_dir/pi-ask-user-question-installed" ]; then
-    printf 'npm:@juicesharp/rpiv-ask-user-question@2.6.2\n'
+    printf 'npm:@juicesharp/rpiv-ask-user-question@2.7.0\n'
     found=1
   fi
   if [ -f "$log_dir/pi-lsp-installed" ]; then
@@ -176,7 +176,7 @@ if [ "${1:-}" = "install" ]; then
   if [ "${2:-}" = "npm:pi-intercom" ]; then
     : > "$log_dir/pi-intercom-installed"
   fi
-  if [ "${2:-}" = "npm:@juicesharp/rpiv-ask-user-question@2.6.2" ]; then
+  if [ "${2:-}" = "npm:@juicesharp/rpiv-ask-user-question@2.7.0" ]; then
     : > "$log_dir/pi-ask-user-question-installed"
   fi
   if [ "${2:-}" = "npm:@narumitw/pi-lsp@0.32.0" ]; then

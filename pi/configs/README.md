@@ -49,7 +49,7 @@ remains required.
 
 b-agentic installs `pi-intercom` by default for its two-role workflow; the permission extension auto-approves schema-valid Intercom actions (`list`, `list-cwd`, `status`, `pending`, `send`, `ask`, `reply`, and `cancel`), including supported optional string fields and attachment arrays; invalid actions, unknown fields, and malformed optional values remain approval-gated.
 
-b-agentic also installs `@juicesharp/rpiv-ask-user-question@2.6.2` for interactive, user-facing material decisions and blockers in planner or solo/Off work (`pi install npm:@juicesharp/rpiv-ask-user-question@2.6.2`).
+b-agentic also installs `@juicesharp/rpiv-ask-user-question@2.7.0` for interactive, user-facing material decisions and blockers in planner or solo/Off work (`pi install npm:@juicesharp/rpiv-ask-user-question@2.7.0`).
 
 b-agentic defaults to Off for a single-session workflow; the first same-CWD session is not automatically promoted to planner. For the two-role workflow, explicitly run `/b-role planner` and `/b-role worker` in the two sessions, or start them with `pi --b-role planner|worker`. Run `/b-role off` to return to solo work; tab completion supports all three role names. The role persists with the session and appears in Pi's status bar. `/b-role` selects only a role and does not open a model picker. Explicit `pi --b-role` startup selections and later `/model` changes can update the per-role provider, model, and thinking-level preference under `~/.pi/agent/b-agentic/role-models.json` without credentials.
 

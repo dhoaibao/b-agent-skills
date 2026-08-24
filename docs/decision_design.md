@@ -432,7 +432,7 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
 - The shipped Pi package set is `npm:pi-mcp-adapter`, `npm:pi-intercom`,
   `npm:pi-observational-memory`, `npm:@sreetej510/pi-usage`,
   `npm:@gotgenes/pi-anthropic-auth`,
-  `npm:@juicesharp/rpiv-ask-user-question@2.6.2`, and
+  `npm:@juicesharp/rpiv-ask-user-question@2.7.0`, and
   `npm:@narumitw/pi-lsp@0.32.0`; only the last two are version-pinned. Evidence:
   `pi/scripts/install.sh`.
 - RTK is required; Pi CLI, Serena, CodeGraph, Bun, and Pi packages reconcile

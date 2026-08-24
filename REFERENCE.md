@@ -247,7 +247,7 @@ custom-tool approval behavior, and authoritative repository validation remains
 required.
 
 b-agentic installs `pi-intercom` automatically for its two-role workflow and installs
-`@juicesharp/rpiv-ask-user-question@2.6.2` for structured planner decisions and blockers.
+`@juicesharp/rpiv-ask-user-question@2.7.0` for structured planner decisions and blockers.
 Planner questions group 1–4 related questions, offer 2–4 concrete options with
 concise trade-offs, suffix the first recommended option with ` (Recommended)`,
 and rely on the extension's automatic custom-answer row. Do not author `Other`,

@@ -106,7 +106,7 @@ The installer writes all seven recommended entries to Pi's MCP configuration wit
 |---|---|---|---|
 | `pi-mcp-adapter` | Loads Pi MCP configuration | Required for MCP use | Installed automatically |
 | `pi-intercom` | Provides planner/worker coordination | Default for the optional two-role workflow | Installed automatically |
-| `@juicesharp/rpiv-ask-user-question` | Structured interactive user decisions and blockers | Required for planner questions | Installed automatically at v2.6.2 |
+| `@juicesharp/rpiv-ask-user-question` | Structured interactive user decisions and blockers | Required for planner questions | Installed automatically at v2.7.0 |
 | `pi-observational-memory` | Long-session compaction continuity | Optional | Installed automatically |
 | `@sreetej510/pi-usage` | Pi usage reporting | Optional | Installed automatically |
 | `@gotgenes/pi-anthropic-auth` | Anthropic authentication support | Optional | Installed automatically |
