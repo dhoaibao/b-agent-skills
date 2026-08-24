@@ -88,6 +88,12 @@
       "forbidden_skills": ["b-review", "b-implement"]
     },
     {
+      "id": "b-agentic-full-currentness-audit",
+      "prompt": "Run a full b-agentic audit covering source and design conformance, whole-project and first-party-extension health, canonical skill/kernel quality, and currentness/MCP compatibility; keep it read-only and report unavailable live evidence.",
+      "expected_skill": "b-agentic-audit",
+      "forbidden_skills": ["b-review", "b-implement", "b-research"]
+    },
+    {
       "id": "pr-summary",
       "prompt": "Use b-pr-summary 3 to draft PR copy for my latest three commits.",
       "expected_skill": "b-pr-summary",

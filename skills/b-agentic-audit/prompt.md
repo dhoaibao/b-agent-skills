@@ -1,24 +1,44 @@
 # b-agentic-audit
 
-Run a source-based b-agentic repository and design-conformance audit, reporting
-structural failures and drift between documented decisions and canonical sources.
-This audit supplements the automated checks; it does not mechanically prove all prose semantics and it never substitutes for changed-code `b-review`.
+Run a read-only, source-based b-agentic audit across four dimensions:
+
+1. **Existing source/design conformance** — compare the evidence-backed decision
+   record with canonical sources, generated assets, workflow, safety, install,
+   tooling, and verification behavior; report actual source, safety, or semantic
+   drift.
+2. **Whole-project and first-party-extension health** — inspect for concrete
+   defects, integration gaps, harmful duplication, maintainability friction, and
+   performance candidates. Performance evidence threshold: measured hotspot or explicit algorithmic, safety, or complexity evidence. Never infer a problem from file size or export count alone.
+3. **Canonical skill/kernel quality** — assess skill boundaries, evidence
+   thresholds, routing, safety/privacy rules, read-only handoffs, prompt
+   maintainability, and generated synchronization against the canonical prompt,
+   registry, and kernel sources.
+4. **Currentness/MCP compatibility** — resolve local package pins and installed
+   versions, then use bounded primary upstream evidence for version/API
+   compatibility without transmitting repository or private data. Live MCP schema probing is approval-gated because it may start configured processes,
+   use authentication, or populate caches; if it is not approved or unavailable,
+   report currentness/live evidence as unverified.
+
+This audit supplements deterministic checks; it does not mechanically prove all
+prose semantics and never substitutes for changed-code `b-review`.
 
 ## When to use
 
 - The user requests a b-agentic repository audit, suite audit, maintainer audit,
   or design-conformance audit.
-- The repository decision record may have drifted from the implementation,
-  generated assets, workflow, safety, install, or verification behavior.
-- A maintainer needs evidence-backed conformance findings before a release.
+- The repository decision record, canonical skills/kernel, generated assets,
+  workflow, safety, install, tooling, or verification behavior may have drifted.
+- A maintainer needs evidence-backed whole-project health, skill/kernel quality,
+  or currentness/MCP compatibility findings before a release.
 
 ## When NOT to use
 
 - Reviewing a working-tree, staged, checkpoint, or commit-range code diff -> use
   **b-review**.
-- Implementing an audit finding -> use **b-implement** after the audit.
+- Implementing an audit finding -> use **b-implement** or **b-refactor** after
+  the audit, depending on whether the fix is behavioral or mechanical.
 - Planning an ambiguous audit scope -> use **b-plan**.
-- General UI/design review or external research -> use **b-browser**,
+- General UI/design review or broad external research -> use **b-browser**,
   **b-design**, or **b-research** as appropriate.
 
 ## Tool guidance
@@ -27,55 +47,70 @@ This audit supplements the automated checks; it does not mechanically prove all 
   `scripts/b-agentic-audit.sh` entrypoint, and narrow repository checks.
 - `read` - inspect `docs/decision_design.md` and the canonical source files it
   cites; prefer sources over generated assets when comparing behavior.
-- `codegraph` - use only for repository-wide architecture, impact, or affected
-  test questions that the decision record makes relevant.
-- `serena` - after native search/read, use only when a concrete exact-symbol,
-  reference, implementation, diagnostic, or boundary question materially
-  improves safety or precision; use native `read`/`edit`/`write` for routine file
-  work and serialize requests rather than parallelizing or batching them.
+- `context7` or bounded primary upstream documentation/release metadata - verify
+  versioned package/API currentness only when needed; do not upload local files,
+  repository content, credentials, or private URLs.
+- `codegraph` - use only for a concrete repository-wide architecture, impact, or
+  affected-test question that the audit evidence makes relevant.
+- `serena` - after native search/read, use only for a distinct exact-symbol or
+  diagnostic question that materially improves safety or precision; serialize
+  requests and never parallelize or batch them.
 
 ## Steps
 
-1. Define the audit surface from the user request and run `rtk git status --short`;
-   preserve unrelated changes and classify protected paths before reading them.
-2. Read the decision record and identify its relevant decisions, evidence
-   markers, referenced sources, generated surfaces, and explicit non-goals.
-3. Use `bash` to run `scripts/b-agentic-audit.sh` and record structural,
-   generated-sync, behavioral, and decision-design traceability results. Treat a
-   passing script as evidence for those checks only.
-4. Perform the source-based comparison: read the cited canonical sources and
-   compare the documented behavior, routing, safety, install, tooling, and
-   verification statements against current repository behavior. Report drift,
-   stale references, unsupported claims, and material omissions with paths.
-5. Use native inspection first. Use an available CodeGraph index only for a
-   distinct concrete repository-wide architecture or impact question the record
-   or a finding requires. Do not initialize an absent index in planner mode;
-   fall back to native inspection and state the resulting gap. Outside planner
-   mode, initialize an absent index only for that question; do not initialize it
-   merely because the audit spans files. Use Serena only for a distinct
-   exact-symbol or diagnostic question that materially improves precision; do
-   not duplicate ownership queries or parallelize/batch Serena calls.
-6. Separate automated traceability/structural results from human semantic
-   findings. State what was not mechanically proven, then report findings first,
-   checked-and-clean areas, verification, residual risk, and follow-up scope.
-7. If findings need code or documentation changes, report them and hand off to
-   **b-implement**; do not edit during this audit. In planner mode, you may run
-   non-mutating audit or validation scripts; obtain bounded worker evidence for
-   builds, tests, formatters, generators, or any verification that writes. A
-   delegated worktree-changing diff requires actual **b-review** afterward.
+1. Define the four-dimension audit surface from the user request and run
+   `rtk git status --short`; preserve unrelated changes and classify protected
+   paths before reading them.
+2. Read the decision record and identify relevant decisions, evidence markers,
+   referenced sources, generated surfaces, explicit non-goals, and local pins.
+3. Use `bash` to run `scripts/b-agentic-audit.sh` and record structural, generated-sync,
+   behavioral, and decision-design traceability results. Treat a passing script
+   as evidence for those checks only.
+4. Perform the source-based comparison for conformance and health: read cited
+   canonical sources, inspect first-party extensions and integration seams, and
+   report concrete defects, gaps, duplication, maintainability friction, and
+   measured or explicitly evidenced performance candidates. Do not turn broad
+   suspicion into a finding.
+5. Assess canonical skill/kernel quality by checking routing boundaries,
+   evidence thresholds, safety/privacy guidance, no-edit handoffs, prompt
+   cohesion, generated assets, and kernel headroom against the source record.
+6. Assess currentness/MCP compatibility from local pins and installed versions.
+   Use `context7` or bounded primary upstream evidence for compatibility claims. A live MCP
+   schema probe is an explicit operational step: obtain approval before running
+   it, and if approval or a usable environment is missing, report the limitation
+   rather than guessing or exposing raw errors.
+7. Use native inspection first. Use CodeGraph only for a distinct concrete
+   architecture/impact/affected-test question; do not initialize an absent
+   index merely because the audit spans files. Use Serena only for a distinct
+   exact-symbol or diagnostic question and keep calls serialized.
+8. Separate deterministic results from semantic findings. Order findings by
+   severity and cite repository-relative paths, evidence, impact, and the
+   smallest follow-up route. State what was not mechanically proven.
+9. Keep the audit read-only. If a finding needs a change, route it to
+   **b-implement** or **b-refactor**; do not edit during the audit.
 
 ## Output format
 
-Findings (ordered by severity), source-based comparison, automated checks,
-checked-and-clean areas, residual limitations, and follow-up. Verdict:
-`READY FOR PR`, `READY WITH FOLLOW-UPS`, or `NEEDS FIXES`.
+Findings (ordered by severity), four-dimension source-based comparison,
+automated checks, checked-and-clean areas, currentness/live-evidence status,
+residual limitations, and follow-up. Verdict:
+
+- `NEEDS FIXES` when there is actual source, safety, or semantic drift.
+- `READY WITH FOLLOW-UPS` when no finding exists but required external,
+  currentness, or live MCP evidence is unavailable or unverified.
+- `READY FOR PR` only when all required dimensions and evidence are verified.
 
 ## Rules
 
-- Keep the audit read-only: do not edit, stage, commit, push, or apply fixes.
+- Keep the audit strictly read-only: do not edit, stage, commit, push, or apply
+  fixes. Route fixes to **b-implement** or **b-refactor**.
 - Prefer repository evidence over assumptions and cite repository-relative paths.
 - Do not claim that passing structural or traceability checks proves all prose
-  semantics, production readiness, or the absence of drift.
+  semantics, production readiness, health, currentness, or the absence of drift.
 - Do not treat generated assets as canonical when a source file exists.
+- Do not transmit repository/private data or credentials for currentness checks.
+- Do not use live MCP schema probing without approval; report it unverified when
+  unavailable. Do not expose credentials, token values, private URLs, or raw
+  operational errors.
 - Do not use this skill as a generic code-diff review; changed diffs belong to
   **b-review**, including the mandatory delegated-task review gate.

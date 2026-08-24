@@ -6,6 +6,11 @@ All notable shipped revisions of b-agentic are recorded here. Released version h
 
 ### Changed
 
+- Four-dimension b-agentic audit:
+  - Observed failure: `b-agentic-audit` focused on source/design conformance and did not explicitly assess whole-project and first-party-extension health, canonical skill/kernel quality, or currentness/MCP compatibility.
+  - Intended behavior: keep audits strictly read-only across all four dimensions; require concrete evidence for defects and integration gaps, measured or explicitly algorithmic/safety/complexity evidence for performance findings, local pin/installed-version resolution plus bounded primary upstream evidence for currentness, approval-gated live MCP probing, and verdicts of `NEEDS FIXES` for actual source/safety/semantic drift, `READY WITH FOLLOW-UPS` when required evidence is unavailable, or `READY FOR PR` only when all required dimensions are verified.
+  - Regression: `skills/b-agentic-audit/prompt.md` carries the contract anchors, `tooling/validate/shared.py` checks the distinctive prompt behavior, `tests/behavior/routing.json` covers full currentness audit routing, `python3 tooling/generate/registry_sync.py --check` checks generated surfaces, and `scripts/b-agentic-audit.sh` remains deterministic structural/traceability coverage.
+
 - Planner prompt addendum deduplication:
   - Observed failure: the always-loaded kernel preceded the planner role addendum, but the addendum repeated generated ownership lists and criterion plus the generic questionnaire contract, increasing every planner start without adding planner-specific behavior.
   - Intended behavior: keep shared ownership mapping/criterion and the generic questionnaire contract authoritative in the kernel while retaining the planner-specific read-only delegation boundary, external b-research ownership, handoff/Intercom/review mechanics, planner-only signals, and questionnaire fallback; do not alter the worker prompt, kernel rules, or runtime policy.

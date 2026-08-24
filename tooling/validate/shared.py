@@ -100,7 +100,17 @@ prompt_regression_contracts = {
     "b-plan": ["For plans spanning more than 3 files", "In planner mode, instead keep the approved plan"],
     "b-research": ["resolved lockfiles", "go.mod"],
     "b-review": ["review of changed code"],
-    "b-agentic-audit": ["source-based comparison", "does not mechanically prove all prose semantics"],
+    "b-agentic-audit": [
+        "Existing source/design conformance",
+        "Whole-project and first-party-extension health",
+        "Canonical skill/kernel quality",
+        "Currentness/MCP compatibility",
+        "measured hotspot or explicit algorithmic, safety, or complexity evidence",
+        "Live MCP schema probing is approval-gated",
+        "NEEDS FIXES",
+        "READY WITH FOLLOW-UPS",
+        "READY FOR PR",
+    ],
     "b-commit": ["Ask before staging or committing; do not push or create a PR."],
     "b-pr-summary": [
         "Do not contact remotes, fetch, push, inspect merge bases, or open PR state.",

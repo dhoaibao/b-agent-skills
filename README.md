@@ -64,7 +64,7 @@ In a solo session, workflow is **Off**: one session routes and executes the need
 | `b-debug` | Validate | Find the real runtime root cause and fix it only when authorized |
 | `b-test` | Validate | Write or fix unit, integration, contract, and simulated-DOM tests |
 | `b-browser` | Validate | Collect real-browser, visual, screenshot, live UI, or e2e evidence |
-| `b-agentic-audit` | Validate | Audit b-agentic repository and design conformance, reporting source drift |
+| `b-agentic-audit` | Validate | Audit b-agentic repository conformance, health, skill/kernel quality, and currentness |
 | `b-review` | Validate | Review changed code |
 | `b-commit` | Ship | Split working-tree changes into approved cohesive commits |
 | `b-pr-summary` | Ship | Write general PR copy for recent commits or commits ahead of cached origin |

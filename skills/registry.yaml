@@ -212,7 +212,7 @@
       "name": "b-agentic-audit",
       "owner": "planner",
       "phase": "Validate",
-      "use": "Audit b-agentic repository and design conformance, reporting source drift",
+      "use": "Audit b-agentic repository conformance, health, skill/kernel quality, and currentness",
       "routing": {
         "intent": "b-agentic repository and design-conformance audit",
         "triggers": [
@@ -224,7 +224,7 @@
         ]
       },
       "prompt": {
-        "description": "Repository and design-conformance audit for b-agentic. Compares the evidence-backed decision record with canonical sources, generated assets, workflow, safety, install, tooling, and verification behavior, and reports drift without replacing separate diff checks."
+        "description": "Four-dimension read-only b-agentic audit covering source/design conformance, whole-project and first-party-extension health, canonical skill/kernel quality, and currentness/MCP compatibility, with evidence thresholds and approval-gated live probing."
       }
     },
     {

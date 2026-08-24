@@ -518,11 +518,20 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   `tooling/validate/mcp_doctor.py`, `skills/b-browser/prompt.md`,
   `REFERENCE.md`.
 - Repository/design-conformance auditing is separate from changed-code review:
-  `scripts/b-agentic-audit.sh` runs structural and decision-design traceability
-  checks, while `b-agentic-audit` reads canonical sources and reports semantic
-  drift. The automated traceability check does not mechanically prove all
-  prose semantics. Evidence: `AGENTS.md`, `CHANGELOG.md`,
-  `scripts/b-agentic-audit.sh`.
+  `b-agentic-audit` remains strictly read-only and assesses four dimensions—source
+  and design conformance; whole-project and first-party-extension health;
+  canonical skill/kernel quality; and currentness/MCP compatibility. Health
+  findings require concrete evidence, and performance findings require a measured
+  hotspot or explicit algorithmic, safety, or complexity evidence rather than
+  file size or export count. Currentness resolves local pins and installed
+  versions, uses bounded primary upstream evidence, and treats live MCP schema
+  probing as approval-gated; unavailable required evidence yields follow-up
+  rather than a clean PR verdict. Actual source, safety, or semantic drift is
+  `NEEDS FIXES`; `READY FOR PR` requires all dimensions to be verified.
+  `scripts/b-agentic-audit.sh` remains deterministic structural and traceability
+  coverage only. Evidence: `skills/b-agentic-audit/prompt.md`,
+  `tooling/validate/shared.py`, `tests/behavior/routing.json`,
+  `scripts/b-agentic-audit.sh`, `scripts/mcp-doctor.sh`.
 
 ## Intentional non-goals
 
