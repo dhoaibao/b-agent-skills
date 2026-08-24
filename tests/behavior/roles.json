@@ -411,6 +411,23 @@
         "Treat memory of a skill as loading its SKILL.md",
         "Delegate the assigned worker-owned task to another worker"
       ]
+    },
+    {
+      "id": "worker-result-contract",
+      "role": "worker",
+      "skill": "b-implement",
+      "observed_failure": "freeform delegated worker reports made planner review-gating parse prose to reconstruct what changed and what was verified.",
+      "intended_behavior": "worker reports under the five fixed headings so the planner can verify diff and evidence without re-deriving structure.",
+      "prompt": "You completed a delegated implementation task. Describe the result report you send to the planner, including the required fixed headings and what each contains.",
+      "must": [
+        "Report under the five fixed headings Changed, Verification, Coverage, Deviations, and Gaps",
+        "Include changed paths and brief descriptions under Changed",
+        "Include exact commands and outcomes under Verification",
+        "Include acceptance criteria, scope changes or assumptions, and remaining gaps under the corresponding headings"
+      ],
+      "avoid": [
+        "Freeform report without headings"
+      ]
     }
   ]
 }

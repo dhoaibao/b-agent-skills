@@ -56,7 +56,7 @@ Make the scoped change in the smallest coherent step, and hand back to planning 
 
 ## Planner/worker sequencing
 
-For planner-assigned work, treat the handoff as bounded. Resolve ambiguity and agree on the final approach with the planner before editing; once editing starts, do not expand scope from exploratory requests. The result must concisely report implemented behavior, changed paths, acceptance coverage, exact checks/outcomes, and deviations, assumptions, or gaps. Ask the planner to invoke actual **b-review** and pause all edits. Only delegated worktree-changing tasks require this review gate; its baseline is the latest approved plan, handoff, and clarifications.
+For planner-assigned work, treat the handoff as bounded. Resolve ambiguity and agree on the final approach with the planner before editing; once editing starts, do not expand scope from exploratory requests. Delegated results must report under five fixed headings: "Changed" (paths + brief what), "Verification" (exact commands + outcomes), "Coverage" (acceptance criteria met), "Deviations" (scope changes, assumptions, or "none"), and "Gaps" (unverified/remaining or "none"). Prose may accompany the headings, but every heading must be present. Ask the planner to invoke actual **b-review** and pause all edits. Only delegated worktree-changing tasks require this review gate; its baseline is the latest approved plan, handoff, and clarifications.
 
 ## Output format
 
@@ -65,6 +65,7 @@ Changes, verification, acceptance coverage, and deviations, assumptions, or gaps
 ## Rules
 
 - Stay within approved scope.
+- When an edit anchor (oldText) fails to match, re-read the target region and re-anchor the edit from current content; never blind-retry the same anchor or widen context speculatively.
 - Every changed line should trace to the approved scope or cleanup made necessary by this change.
 - Remove imports or helpers made unused by the change; leave pre-existing dead code and adjacent comments or formatting untouched.
 - Auto-run regular repository-local commands, including routine build, test, package, dependency, and script automation; ask before explicit destructive or privileged commands, ambiguous shell syntax, protected or outside-project paths, external/shared mutations, PRs, or broad refactors.

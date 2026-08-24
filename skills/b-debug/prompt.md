@@ -38,6 +38,10 @@ Find the real cause of broken behavior, then fix it minimally only when the user
 8. After a fix, run the original feedback loop or narrowest check proving the intended symptom changed. For perf, measure before and after.
 9. If the issue is not yet a confirmed bug, say whether the next step belongs in **b-plan**, **b-research**, or **b-test**.
 
+## Planner/worker sequencing
+
+Delegated results must report under five fixed headings: "Changed" (paths + brief what), "Verification" (exact commands + outcomes), "Coverage" (acceptance criteria met), "Deviations" (scope changes, assumptions, or "none"), and "Gaps" (unverified/remaining or "none"). Prose may accompany the headings, but every heading must be present.
+
 ## Output format
 
 Symptom, root cause, and evidence. When a fix was authorized, also include the fix, verification, and cleanup state. Include a handoff only when the work should continue in another skill.
@@ -45,6 +49,7 @@ Symptom, root cause, and evidence. When a fix was authorized, also include the f
 ## Rules
 
 - Do not patch speculatively.
+- When an edit anchor (oldText) fails to match, re-read the target region and re-anchor the edit from current content; never blind-retry the same anchor or widen context speculatively.
 - Do not bundle redesign or cleanup.
 - If no trustworthy feedback loop can be built, report what you tried and what artifact/access is needed instead of guessing.
 - Verify probe removal before reporting success.

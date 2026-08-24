@@ -38,6 +38,10 @@ Run concrete behavior-preserving transforms: rename, extract, move, inline, simp
 
 When the refactor target is architectural, use concise design vocabulary: interface, seam, adapter, locality, leverage, shallow abstraction, and deletion test. Stop if the work becomes redesign.
 
+## Planner/worker sequencing
+
+Delegated results must report under five fixed headings: "Changed" (paths + brief what), "Verification" (exact commands + outcomes), "Coverage" (acceptance criteria met), "Deviations" (scope changes, assumptions, or "none"), and "Gaps" (unverified/remaining or "none"). Prose may accompany the headings, but every heading must be present.
+
 ## Output format
 
 Target, impact, changes, verification, and follow-up risk.
@@ -45,6 +49,7 @@ Target, impact, changes, verification, and follow-up risk.
 ## Rules
 
 - Preserve behavior.
+- When an edit anchor (oldText) fails to match, re-read the target region and re-anchor the edit from current content; never blind-retry the same anchor or widen context speculatively.
 - Use symbol-aware tools only when a concrete precision or safety benefit remains after native inspection.
 - Ask before broad moves or cascading ecosystem changes when they are an unresolved material user-facing choice. In planner or solo/Off work, use `ask_user_question` with 2–4 concrete options, the recommended option first, and the automatic custom-answer row; if unavailable or noninteractive, ask one focused plain-text question. In a two-role worker, ask the assigning planner through Intercom. Planner mode emits exactly one `B_AGENTIC_USER_INPUT_NEEDED` signal; solo/Off workers emit no planner signal. Do not use the questionnaire for routine updates or no-choice confirmations.
 - Stop if redesign or behavior change appears.
