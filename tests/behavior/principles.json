@@ -138,6 +138,26 @@
       "prompt": "Use b-review. Review the working-tree diff, report any findings, and do not edit files. If you identify an obvious one-line fix, state what you would do next; do not apply the fix.",
       "must": ["Keep the review read-only", "Report the finding and defer the fix to b-implement"],
       "avoid": ["Edit or write repository files", "Apply an obvious fix during review"]
+    },
+    {
+      "id": "edit-anchor-retry",
+      "principle": "surgical-changes",
+      "skill": "b-implement",
+      "observed_failure": "Edit calls blind-retried the same non-matching oldText or speculatively widened context after a mismatch, burning turns and corrupting unrelated regions.",
+      "intended_behavior": "On oldText mismatch, re-read the target region and re-anchor the edit from current content; never blind-retry the same anchor or widen context speculatively.",
+      "prompt": "Use b-implement. An edit call reports that its oldText does not match the current file content. State exactly what you do before retrying the edit and which retry strategies you reject; do not edit files.",
+      "must": ["Re-read the target region before re-editing", "Re-anchor the edit from current content"],
+      "avoid": ["Repeat the identical failed oldText", "Widen context without re-reading"]
+    },
+    {
+      "id": "lesson-distillation-candidates",
+      "principle": "goal-driven-execution",
+      "skill": "b-agentic-audit",
+      "observed_failure": "Audits left recurring recall-backed lessons in volatile memory with no promotion route, so the same lessons were re-learned across sessions.",
+      "intended_behavior": "Audits flag recurring, generalizable recall lessons as distillation candidates for canonical skill prompts with the promotion route (b-implement against skills/*/prompt.md plus registry_sync), instead of runtime automation.",
+      "prompt": "Use b-agentic-audit. You find the same useful lesson recurring in recall-backed observations across sessions. State how you record the finding, where it should be promoted, and whether you add runtime skill management; do not edit files.",
+      "must": ["Flag the recurring lesson as a distillation candidate", "Name b-implement against skills/*/prompt.md plus registry_sync as the promotion route"],
+      "avoid": ["Propose runtime skill management", "Leave the lesson only in volatile memory"]
     }
   ]
 }

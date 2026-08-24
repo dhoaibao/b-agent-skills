@@ -563,3 +563,12 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   behavior; prompts and maintainer guidance require the smallest coherent
   change and evidence-backed follow-up only. Evidence: `AGENTS.md`,
   `skills/b-implement/prompt.md`, `tests/behavior/principles.json`.
+
+### Lesson distillation
+
+- Recurring recall-backed lessons should be promoted into canonical skill
+  prompts during maintenance; memory stays volatile context, skills stay the
+  durable capability store, and no new automation is added. Evidence: oh-my-pi's
+  `learn`/`manage_skill` pattern (external inspiration,
+  https://github.com/can1357/oh-my-pi); b-agentic uses prompt-governed promotion
+  through b-implement plus `registry_sync` instead of runtime skill management.
