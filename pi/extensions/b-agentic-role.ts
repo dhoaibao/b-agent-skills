@@ -44,7 +44,9 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
     const status = role === "planner"
       ? ctx.ui.theme.fg("success", "b-agentic: planner")
       : role === "worker"
-        ? ctx.ui.theme.fg("borderAccent", "b-agentic: worker")
+        ? ctx.ui.theme.getColorMode() === "truecolor"
+          ? "\x1b[38;2;0;215;255mb-agentic: worker\x1b[39m"
+          : "\x1b[38;5;45mb-agentic: worker\x1b[39m"
         : undefined;
     ctx.ui.setStatus("b-agentic-role", status);
   };

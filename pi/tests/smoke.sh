@@ -553,6 +553,7 @@ const consultantProvider = {
 };
 let rolePickerCalls = 0;
 let modelPickerCalls = 0;
+let roleColorMode = 'truecolor';
 const roleContext = {
   get model() { return activeModel; },
   cwd: root,
@@ -574,6 +575,7 @@ const roleContext = {
     notify(message, level) { roleNotifications.push({ message, level }); },
     theme: {
       fg(color, text) { return `<${color}>${text}</${color}>`; },
+      getColorMode() { return roleColorMode; },
     },
     setStatus(key, value) { roleStatuses.push({ key, value }); },
   },
@@ -720,7 +722,7 @@ branchEntries.length = 0;
 branchEntries.push({ type: 'custom', customType: 'b-agentic-role', data: { role: 'worker' } });
 activeTools = ['read', 'bash', 'edit', 'write'];
 await roleSessionStartHandler({}, roleContext);
-expect(roleStatuses.at(-1)?.value === '<borderAccent>b-agentic: worker</borderAccent>' && activeTools.includes('edit') && activeTools.includes('write'), 'persisted worker restoration must preserve normal active tools after stale planner state');
+expect(roleStatuses.at(-1)?.value === '\u001b[38;2;0;215;255mb-agentic: worker\u001b[39m' && !roleStatuses.at(-1)?.value.includes('<borderAccent>') && activeTools.includes('edit') && activeTools.includes('write'), 'persisted worker restoration must use the literal truecolor cyan status without a theme token');
 activeTools = ['read', 'bash', 'edit', 'write', 'recall', 'intercom', 'mcp', 'mcpScript'];
 expect(commands['b-role'], 'permission extension must register /b-role');
 expect(commands['b-sync'] && commands['b-update'], 'refresh extension must register /b-sync and /b-update');
@@ -955,8 +957,9 @@ expect(roleNotifications.some(({ level }) => level === 'warning'), 'a real same-
 activePeerWorker = false;
 await roleChannelRegistration.onEvent({ type: 'session_left', sessionId: 'active-worker' });
 roleNotifications.length = 0;
+roleColorMode = '256color';
 await commands['b-role'].handler('worker', roleContext);
-expect(roleStatuses.at(-1)?.value === '<borderAccent>b-agentic: worker</borderAccent>', 'worker status must use the cyan border-accent color');
+expect(roleStatuses.at(-1)?.value === '\u001b[38;5;45mb-agentic: worker\u001b[39m' && !roleStatuses.at(-1)?.value.includes('<borderAccent>'), 'worker status must use the literal 256-color cyan fallback without a theme token');
 expect(roleNotifications.at(-1)?.level === 'info', 'a self worker announcement must not trigger a duplicate-worker warning');
 expect(activeTools.includes('edit') && activeTools.includes('write') && activeTools.includes('bash'), 'worker role must restore normal tools');
 await handlers.model_select({ model: { provider: 'anthropic', id: 'claude-sonnet-4-5' } }, roleContext);
