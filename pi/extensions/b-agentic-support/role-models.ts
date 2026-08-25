@@ -9,7 +9,8 @@ export type RoleModelPreference = {
   model: string;
   thinkingLevel?: ThinkingLevel;
 };
-export type RoleModelPreferences = Partial<Record<Exclude<BAgenticRole, "off">, RoleModelPreference>>;
+export type RoleModelKey = Exclude<BAgenticRole, "off"> | "consultant";
+export type RoleModelPreferences = Partial<Record<RoleModelKey, RoleModelPreference>>;
 
 const THINKING_LEVELS = new Set<ThinkingLevel>(["off", "minimal", "low", "medium", "high", "xhigh", "max"]);
 
@@ -45,7 +46,7 @@ export function loadRoleModelPreferences(path = roleModelsPath()): RoleModelPref
   }
 }
 
-export function saveRoleModelPreference(role: BAgenticRole, preference: RoleModelPreference, path = roleModelsPath()): void {
+export function saveRoleModelPreference(role: RoleModelKey | "off", preference: RoleModelPreference, path = roleModelsPath()): void {
   if (role === "off") return;
   const preferences = loadRoleModelPreferences(path);
   preferences[role] = preference;

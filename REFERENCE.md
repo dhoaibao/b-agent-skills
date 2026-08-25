@@ -246,7 +246,7 @@ unsafe diagnostics calls, and other custom LSP calls retain the generic
 custom-tool approval behavior, and authoritative repository validation remains
 required.
 
-b-agentic installs `pi-intercom` automatically for its planner/worker/consultant workflow and installs
+b-agentic installs `pi-intercom` automatically for its planner/worker workflow and installs
 `@juicesharp/rpiv-ask-user-question` at the latest release for structured planner decisions and blockers.
 Planner questions group 1–4 related questions, offer 2–4 concrete options with
 concise trade-offs, suffix the first recommended option with ` (Recommended)`,
@@ -264,7 +264,7 @@ purpose-specific `tool_call` extensions under `~/.pi/agent/extensions/`:
 - `b-agentic-mcp-permissions.ts` for managed MCP and custom-tool approval.
 - `b-agentic-auto-mode.ts` for confirmed automatic approval with explicit-deny protection.
 - `b-agentic-role.ts` for role selection and persistence.
-- `b-agentic-planner.ts`, `b-agentic-worker.ts`, and `b-agentic-consultant.ts` for collaboration profiles.
+- `b-agentic-planner.ts`, `b-agentic-worker.ts`, and `b-agentic-consult.ts` for planner collaboration and on-demand consultation.
 - `b-agentic-planner-notify.ts` for privacy-safe desktop notifications from explicit planner task-complete and user-input attention signals.
 - `b-agentic-sync.ts` for in-session refresh commands.
 
@@ -298,20 +298,17 @@ symlinked files, and never removes installed packages, including `@gotgenes/pi-a
 ## Roles and coordination
 
 b-agentic defaults to Off for a single-session workflow; the first same-CWD
-session is not automatically promoted to planner. Explicitly start a planner,
-worker, and optional consultant session with `/b-role planner|worker|consultant`,
-or `pi --b-role planner|worker|consultant`. Use `/b-role off` to return to solo
-work. Role selection does not open a model picker; explicit startup selections and
-`/model` changes update per-role preferences under
-`~/.pi/agent/b-agentic/role-models.json` without credentials. The consultant is a
-read-only advisory peer for the planner: it reads repository evidence, runs only
-non-mutating checks, and communicates only with the planner over Intercom. It
-never writes, claims worktree work, joins the worker roster, or contacts workers.
-The planner consults it selectively for hard decisions or plan reviews, not for
-routine work, instead of repository evidence, or while a worker edits; advice is
-natural-language and advisory, never evidence. The old one-shot consultant
-configuration is not migrated; an existing `~/.pi/agent/b-agentic/consult-model.json`
-file is left untouched as an orphan.
+session is not automatically promoted to planner. Explicitly start a planner or worker session with `/b-role planner|worker`,
+or `pi --b-role planner|worker`. Use `/b-role off` to return to solo work. Role
+selection does not open a model picker; explicit startup selections and `/model`
+changes update planner/worker preferences under
+`~/.pi/agent/b-agentic/role-models.json` without credentials. Use the planner-only
+`b_consult` tool for a hard decision or plan review when independent advice is
+useful; choose its provider, model, and thinking level with `/b-consult-model`.
+The isolated call receives only caller-supplied text, has no tools or repository
+access, returns bounded natural-language advice, and is advisory rather than
+evidence. An existing legacy `~/.pi/agent/b-agentic/consult-model.json` file is
+left untouched and is not migrated or read.
 
 `/b-auto-mode` is an explicit opt-in that warns and requires an interactive Y/N
 confirmation before enabling. While enabled it auto-allows every `ask` decision,
@@ -331,12 +328,11 @@ normal repository-local automation and is the sole worktree writer.
 
 The planner finishes discovery and settles one bounded handoff that identifies
 expected paths/symbols, scope/non-goals, invariants, and checks. If agreement is
-needed, roles resolve it before edits. Once the worker starts, planner and
-consultant work is limited to independent read-only work outside that expected
-set, such as independent research, acceptance drafting, or a hard unrelated
-decision: they must not mutate, revise in-flight scope, issue another
-implementation task, or review the in-flight diff before the worker's terminal
-result. After that result, the planner re-reads the actual changed paths before
+needed, roles resolve it before edits. Once the worker starts, planner work is limited to independent read-only work
+outside that expected set, such as independent research, acceptance drafting,
+or a hard unrelated decision: it must not mutate, revise in-flight scope, issue
+another implementation task, or review the in-flight diff before the worker's
+terminal result. After that result, the planner re-reads the actual changed paths before
 review. Its generated ownership mapping permits read-only execution only of
 `b-plan`, external `b-research`, `b-agentic-audit`, `b-review`, and
 `b-pr-summary`; it delegates `b-design`, `b-implement`, `b-init`, `b-refactor`,

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "source": "b-agentic planner/worker collaboration regressions",
-  "description": "Human-scored scenarios for adaptive planner/worker/consultant coordination, single-writer delegation, targeted review requests, findings iterations, and approval pauses.",
+  "description": "Human-scored scenarios for adaptive planner/worker coordination, single-writer delegation, targeted review requests, findings iterations, and approval pauses.",
   "scenarios": [
     {
       "id": "intercom-pending-selects-reply-or-send",
@@ -9,7 +9,7 @@
       "skill": "b-plan",
       "observed_failure": "Planner and worker coordination sent messages without checking pending asks first and used ambiguous session-ID prefixes instead of retrieving exact IDs.",
       "intended_behavior": "All roles call pending first before every outbound send or ask. If it reports an inbound ask, reply to that ask immediately without calling send, ask, list-cwd, or another pending first; only when it reports no inbound ask may the role immediately call list-cwd, then send or ask using the identifier token returned verbatim by that immediately preceding authoritative list-cwd result (including an authoritative short ID); guessed, reconstructed, extended, further-abbreviated, stale, display-name, alias, and otherwise altered targets are forbidden.",
-      "prompt": "You are the planner, worker, or consultant coordinating with a peer. Describe the Intercom check before a send or ask, and the immediate action when pending reports an inbound ask versus when it reports none, including how you retrieve the exact target.",
+      "prompt": "You are the planner or worker coordinating with a peer. Describe the Intercom check before a send or ask, and the immediate action when pending reports an inbound ask versus when it reports none, including how you retrieve the exact target.",
       "must": [
         "Call Intercom pending first before every outbound send or ask",
         "Reply immediately when pending reports an inbound ask",
@@ -71,7 +71,7 @@
       "role": "planner",
       "skill": "b-plan",
       "observed_failure": "Planner handed off before finishing discovery, then continued exploring and issued new implementation requests while the worker edited, causing scope drift.",
-      "intended_behavior": "The planner finishes discovery and settles one bounded approach before handoff; the handoff names expected paths/symbols, scope/non-goals, invariants, and checks. While the worker edits, planner and consultant work is limited to independent read-only work outside that set; they do not mutate, revise in-flight scope, issue another implementation request, or review the in-flight diff before the worker's terminal result. After the result, the planner re-reads actual changed paths before review.",
+      "intended_behavior": "The planner finishes discovery and settles one bounded approach before handoff; the handoff names expected paths/symbols, scope/non-goals, invariants, and checks. While the worker edits, planner work is limited to independent read-only work outside that set; it does not mutate, revise in-flight scope, issue another implementation request, or review the in-flight diff before the worker's terminal result. After the result, the planner re-reads actual changed paths before review.",
       "prompt": "A same-directory worker is available for a feature that needs repository exploration before implementation. Describe how you sequence discovery, the expected paths/symbols in the handoff, any approach agreement, independent work while editing, and review after the worker's terminal result.",
       "must": [
         "Finish the necessary discovery and settle the approach before one bounded handoff",
@@ -433,27 +433,6 @@
       ]
     },
     {
-      "id": "consultant-intercom-pending-first",
-      "role": "consultant",
-      "skill": "b-agentic-audit",
-      "observed_failure": "The consultant's advisory prompt only described pending-first behavior for sends, leaving asks and replies able to bypass the authoritative target sequence.",
-      "intended_behavior": "The consultant calls pending before every outbound send or ask; if it reports an inbound ask, reply immediately without send, ask, list-cwd, or another pending first, while no inbound ask requires an immediate list-cwd and a verbatim planner target.",
-      "prompt": "As the read-only consultant, you need to send advice, ask one focused quick question, or reply to a planner. Describe the pending-first sequence before send or ask and the exact immediate action for an inbound ask versus no inbound ask.",
-      "must": [
-        "Call pending before every outbound send or ask",
-        "Reply immediately to an inbound planner ask without calling send, ask, list-cwd, or another pending",
-        "When no inbound ask exists, immediately call list-cwd",
-        "Use only the planner identifier token returned verbatim by that authoritative list-cwd result",
-        "Keep advice advisory and communicate only with the planner"
-      ],
-      "avoid": [
-        "Ask or send without pending-first",
-        "Call pending again before replying to an inbound ask",
-        "Call list-cwd after pending reports an inbound ask",
-        "Contact a worker directly or use a guessed or stale target"
-      ]
-    },
-    {
       "id": "worker-intercom-pending-first-for-ask-and-send",
       "role": "worker",
       "skill": "b-implement",
@@ -480,7 +459,7 @@
       "skill": "b-plan",
       "observed_failure": "Coordination prompts did not distinguish a quick answer from a material request, so ask was used for delegated work, review findings, or questions that required investigation and waiting.",
       "intended_behavior": "Ask is limited to one focused question whose answer needs no substantial investigation, implementation, or waiting. Send handles delegation, terminal results, review requests/findings, and any question or request needing material work; ask is never a wait mechanism.",
-      "prompt": "You are coordinating a worker and consultant. Compare the Intercom action for a single focused quick-answer question, a material scope decision needing investigation, a task delegation, a terminal result, and a review finding.",
+      "prompt": "You are coordinating a worker. Compare the Intercom action for a single focused quick-answer question, a material scope decision needing investigation, a task delegation, a terminal result, and a review finding.",
       "must": [
         "Use ask only for one focused question whose answer needs no substantial investigation, implementation, or waiting",
         "Use send for task delegation, terminal results, review requests/findings, and any question or request needing material work",
@@ -490,26 +469,26 @@
       "avoid": [
         "Use ask for delegation, terminal reporting, review findings, or material investigation",
         "Use ask as a task wait or progress poll",
-        "Treat a quick question as permission to transfer work to the consultant or worker"
+        "Treat a quick question as permission to transfer work to the worker"
       ]
     },
     {
       "id": "planner-material-consultation-uses-send",
       "role": "planner",
       "skill": "b-plan",
-      "observed_failure": "The planner used ask for a hard decision or plan review even though the consultant's advice required material investigation and waiting.",
-      "intended_behavior": "For a hard decision or plan review involving competing options, consequential trade-offs, or unresolved evidence, the planner sends the consultant a bounded question with minimal caller-supplied context and waits for its send response; ask remains limited to one genuinely quick focused question.",
-      "prompt": "You face a hard decision or plan review with competing viable options, consequential risk, or unresolved evidence. Explain how you consult the optional read-only consultant, which Intercom action you use, what context you provide, and when you wait.",
+      "observed_failure": "The planner used ask for a hard decision or plan review even though b_consult's advice required material investigation and waiting.",
+      "intended_behavior": "For a hard decision or plan review involving competing options, consequential trade-offs, or unresolved evidence, the planner calls b_consult with a bounded question and minimal caller-supplied context; ask remains limited to one genuinely quick focused question.",
+      "prompt": "You face a hard decision or plan review with competing viable options, consequential risk, or unresolved evidence. Explain how you use the optional isolated b_consult tool, what context you provide, and how you treat its result.",
       "must": [
-        "Use send for a hard decision or plan review needing material advice",
-        "Send a bounded question with minimal caller-supplied context",
-        "Wait for the consultant's send response rather than using ask to wait",
+        "Call b_consult for a hard decision or plan review needing material advice",
+        "Provide a bounded question with minimal caller-supplied context",
+        "Treat b_consult output as advisory rather than repository evidence",
         "Reserve ask for one focused question needing no substantial investigation, implementation, or waiting"
       ],
       "avoid": [
         "Use ask for hard-decision or plan-review consultation",
-        "Treat consultant advice as evidence",
-        "Use the consultant for routine or obvious work"
+        "Treat b_consult advice as repository evidence",
+        "Use b_consult for routine or obvious work"
       ]
     },
     {

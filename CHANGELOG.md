@@ -6,20 +6,10 @@ All notable shipped revisions of b-agentic are recorded here. Released version h
 
 ### Changed
 
-- Consultant status chip uses the cyan `mdLink` theme color:
-  - Observed failure: `accent` is purple in the active Dracula theme and is already overloaded by the border, logo, and custom message label, making the consultant chip indistinct.
-  - Intended behavior: render only the consultant status chip with `mdLink` (cyan); leave planner success and worker warning chips unchanged.
-  - Regression: `pi/tests/smoke.sh` asserts the `<mdLink>b-agentic: consultant</mdLink>` status and saved consultant model, with `pi/extensions/b-agentic-role.ts` as the implementation source.
-
-- Consultant role sessions replace one-shot consultation:
-  - Observed failure: the one-shot structured `b_consult` consultant provided low value for this workflow and frequently failed its structural response contract, while planners needed a simpler independent-advice path.
-  - Intended behavior: add a third `consultant` role session as a read-only advisory peer for the planner over Intercom; remove the `b_consult` tool, command, files, installer entries, and active documentation, preserve worker-claim uniqueness among workers, and leave any existing `~/.pi/agent/b-agentic/consult-model.json` orphan untouched rather than migrating it.
-  - Regression: `pi/extensions/b-agentic-role.ts`, `pi/extensions/b-agentic-support/role.ts`, `pi/tests/smoke.sh`, `pi/scripts/install.sh`, and `pi/scripts/validate.sh` cover role selection, prompt injection, consultant roster visibility, role-model preferences, worker arbitration, one-shot-surface removal, and managed legacy-file cleanup.
-
-- Robust structured `b_consult` response parsing:
-  - Observed failure: complete consultant JSON wrapped in a JSON Markdown fence or omitting empty advisory list fields was rejected as malformed, while malformed/truncated output still needed to remain rejected without exposing raw consultant text.
-  - Intended behavior: accept only one complete JSON object, optionally wrapped solely in a JSON Markdown fence; normalize absent optional `alternatives`, `risks`, `missingEvidence`, and `findings` fields to empty arrays while preserving strict recommendation, supplied-field type, malformed-alternative, invalid-JSON, and truncation rejection, isolation, and no-retry behavior.
-  - Regression: no automated coverage: the removed parser is superseded by the “Consultant role sessions replace one-shot consultation” entry above; current consultant-role coverage is listed there.
+- One-shot `b_consult` replaces persistent consultant sessions:
+  - Observed failure: needing a separately provisioned consultant session made occasional independent consultation unavailable or frictional, and the former strict JSON contract made some provider replies unusable.
+  - Intended behavior: provide a planner-only in-process `b_consult` call with `streamSimple`, structural no-tools isolation, selected shared consultant model/thinking preference, caller abort, bounded timeout, zero retries, no fallback, bounded natural-language output, and sanitized failures; remove consultant role/session status, roster, prompt, and configuration behavior while leaving legacy `consult-model.json` untouched.
+  - Regression: `pi/tests/smoke.sh` covers tool registration, planner-only gating, shared model-preference default/error paths, request isolation/options, sanitized provider failure, legacy config non-revival, and consultant-role surface removal; `pi/extensions/b-agentic-role.ts`, `pi/extensions/b-agentic-support/role-models.ts`, and `pi/scripts/validate.sh` cover the retained role and installation surfaces.
 
 - Four-dimension b-agentic audit:
   - Observed failure: `b-agentic-audit` focused on source/design conformance and did not explicitly assess whole-project and first-party-extension health, canonical skill/kernel quality, or currentness/MCP compatibility.

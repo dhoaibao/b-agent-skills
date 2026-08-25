@@ -163,31 +163,27 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   `tooling/generate/registry_sync.py`, `pi/extensions/b-agentic-planner.ts`,
   `pi/extensions/b-agentic-role.ts`, `pi/extensions/b-agentic-support/role.ts`,
   `pi/extensions/b-agentic-support/mcp.ts`.
-- The consultant tool exposed a gap: tool-level guidance alone gave the injected
-  planner profile no selection criterion, so `b_consult` could be omitted when
-  useful or overused. After bounded local discovery, the planner may optionally
-  use the isolated, planner-only consultant for a hard decision or plan review
-  when independent advice materially improves decision quality (competing viable
-  alternatives, consequential or risky trade-offs, or unresolved evidence or
-  assumptions); it is not for routine or obvious work, replacing repository
-  evidence, or while a worker edits. The call remains bounded to minimal
-  caller-supplied context, requires normal per-call approval, returns advisory
-  output rather than evidence, and is not required for every plan. Evidence and
-  regression check: `pi/extensions/b-agentic-support/role.ts`,
-  `pi/tests/smoke.sh`.
-- A live incomplete or malformed consultant response exposed a reliability gap:
-  permissive parsing could surface lower-confidence raw advice as a successful
-  result. The intended contract is one complete JSON object, optionally wrapped
-  only in a JSON Markdown fence; absent optional advisory list fields normalize to
-  empty arrays, including findings (which solve mode ignores). Malformed,
-  incomplete, truncated, or wrong-typed supplied fields remain rejected as a
-  sanitized actionable retry error, never usable consultation output. A successful
-  structurally valid consultation may be cited only when it materially changes a
-  hard decision, as one optional minimal `Consultation` note in the plan or worker
-  handoff covering the question, recommendation or trade-off, risks or missing
-  evidence, and how repository evidence was weighed. Evidence and narrow regression
-  checks: superseded by the final “Superseding decision: consultant role sessions”
-  section below; the removed parser and parser-specific tests are no longer active.
+- Tool-level guidance alone did not give the planner a reliable selection criterion
+  for `b_consult`, and the original structured response contract made occasional
+  independent advice unavailable when the provider returned incomplete or
+  non-JSON text. The replacement keeps `b_consult` planner-only and optional for
+  hard decisions or plan reviews after bounded local discovery; it accepts only
+  caller-supplied text, structurally supplies no tools/history/extensions/cwd,
+  returns bounded natural-language advice, and frames the result as advisory
+  rather than repository evidence. Evidence and regression check:
+  `pi/extensions/b-agentic-role.ts`,
+  `pi/extensions/b-agentic-support/role-models.ts`, `pi/tests/smoke.sh`.
+- The consultation response is intentionally not parsed as strict JSON or split into
+  response modes. Natural-language output is truncated to a bounded size and
+  returned with an explicit advisory-not-evidence frame. Timeout, caller abort,
+  missing configuration, unavailable model/provider, authentication, empty output,
+  and provider failures return clear sanitized errors without model fallback or
+  retry. A successful consultation may be cited only when it materially changes a
+  hard decision, as one optional minimal `Consultation` note covering the question,
+  recommendation or trade-off, risks or missing evidence, and how repository
+  evidence was weighed. Evidence and narrow regression checks:
+  `pi/extensions/b-agentic-role.ts`, `pi/extensions/b-agentic-support/role-models.ts`,
+  and `pi/tests/smoke.sh`.
 - The planner settles a context-complete, bounded natural-language handoff before
   the worker edits. Both roles use `pending` before `send`/`reply`; an inbound
   ask requires `reply`, otherwise a fresh `list-cwd` supplies the verbatim
@@ -573,42 +569,42 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   https://github.com/can1357/oh-my-pi); b-agentic uses prompt-governed promotion
   through b-implement plus `registry_sync` instead of runtime skill management.
 
-## Superseding decision: consultant role sessions
+## Superseding decision: one-shot consultant tool replacement
 
-- Observed failure: the one-shot structured `b_consult` consultant had low value
-  for this workflow and frequent structural failures, while the planner needed
-  a simpler way to obtain independent advice without another tool, model
-  preference, or isolated call contract.
-- Intended behavior: replace the one-shot consultant with a third `consultant`
-  role session. The consultant is a read-only advisory peer that reads repository
-  evidence, runs only non-mutating checks, and communicates only with the
-  planner over Intercom; it never writes, joins the worker roster, contacts
-  workers, delegates, emits attention signals, or claims worktree work. The
-  planner uses a ready same-CWD consultant selectively for hard decisions or
-  plan reviews, treating replies as advisory rather than evidence; `b_consult`
-  and its command/configuration are removed without migrating an existing orphan
-  legacy consultant configuration file.
-- Regression: `pi/extensions/b-agentic-support/role.ts`,
-  `pi/extensions/b-agentic-role.ts`, `pi/tests/smoke.sh`,
-  `pi/scripts/install.sh`, and
-  `pi/scripts/validate.sh` cover consultant selection, prompt injection,
-  role-model preferences, planner roster visibility, worker-claim arbitration,
-  removal of the one-shot surface, and managed legacy-file cleanup; generated
+- Observed failure: a separately provisioned consultant session was an operational
+  dependency; when no independent session was available, occasional consultation
+  was unavailable or added friction to ordinary planner work. The earlier strict
+  JSON response contract also made some provider replies unusable.
+- Intended behavior: immediately replace the persistent consultant role/session
+  with the planner-only one-shot `b_consult` tool. Rebuild the call in-process
+  through `ctx.modelRegistry` and the selected provider's `streamSimple`, with an
+  empty isolated context, structural `tools: []`, caller `AbortSignal`, a bounded
+  timeout, `maxRetries: 0`, no model fallback, and bounded natural-language output.
+  The call uses the shared consultant preference store; `/b-consult-model`
+  selects and persists provider, model, and thinking level. Existing legacy
+  consultant configuration remains untouched, unread, and unmanaged. Advice is
+  advisory rather than repository evidence, and sanitized timeout, abort, auth,
+  configuration, and provider errors are returned without strict JSON parsing.
+- Regression: `pi/extensions/b-agentic-role.ts`,
+  `pi/extensions/b-agentic-support/role-models.ts`, `pi/tests/smoke.sh`,
+  `pi/scripts/install.sh`, and `pi/scripts/validate.sh` cover
+  the tool surface, planner-only gate, shared model preference/default/error paths,
+  no-tools isolation, bounded request options, legacy config non-revival, and
+  removal of consultant role/status/roster/prompt behavior; generated
   synchronization and the offline validation suite remain required.
 
 ## Superseding decision: adaptive bounded concurrency and Intercom sequencing
 
-- Observed failure: the adaptive planner/worker/consultant workflow described
+- Observed failure: the adaptive planner/worker workflow described
   one writer but left the worker's expected edit surface, in-flight read-only
   boundary, quick-versus-material `ask` choice, and terminal reporting edge
   cases implicit. Prompts could therefore allow scope revision, a second
   implementation request, or in-flight review, and a worker could pause after
   a no-change, blocked, or gap outcome without delivering the result.
 - Intended behavior: a bounded worker handoff names expected paths/symbols,
-  scope, invariants, and checks. While edits are in flight, the planner and
-  consultant may do only independent read-only work outside that set; they do
-  not mutate, revise scope, issue another implementation task, or review the
-  in-flight diff. After the worker terminal result, the planner re-reads actual
+  scope, invariants, and checks. While edits are in flight, the planner may do
+  only independent read-only work outside that set; it does not mutate, revise
+  scope, issue another implementation task, or review the in-flight diff. After the worker terminal result, the planner re-reads actual
   changed paths before review. Before every outbound Intercom `send` or `ask`,
   every role calls `pending`; if it reports an inbound ask, the role replies
   immediately without `send`, `ask`, `list-cwd`, or another `pending` first,
@@ -622,9 +618,9 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
 - Regression: `pi/extensions/b-agentic-support/role.ts`, generated role-prompt
   assertions from `tooling/generate/registry_sync.py`, `tests/behavior/roles.json`,
   `pi/tests/prompt_effectiveness.py`, `REFERENCE.md`, and generated
-  `pi/tests/smoke.sh` cover all-role pending-first sequencing, immediate inbound-
-  ask replies without a second `pending`, quick-versus-material `ask` routing,
-  bounded in-flight scope, post-terminal changed-path
-  rereads, selective consultant advice, and worker terminal reporting. Run the
+  `pi/tests/smoke.sh` cover planner/worker pending-first sequencing, immediate
+  inbound-ask replies without a second `pending`, quick-versus-material `ask`
+  routing, bounded in-flight scope, post-terminal changed-path rereads,
+  optional `b_consult` advice, and worker terminal reporting. Run the
   registry synchronization and offline skill/audit checks, plus the focused
   behavior fixture validation and diff check.

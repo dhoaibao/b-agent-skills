@@ -374,7 +374,7 @@ else:
         else:
             role_ids.append(scenario_id)
         role = scenario.get("role")
-        if role not in {"planner", "worker", "consultant"}:
+        if role not in {"planner", "worker"}:
             errors.append(f"{label} has unknown role {role!r}")
         else:
             covered_roles.add(role)
@@ -389,8 +389,8 @@ else:
                 errors.append(f"{label} {field} must be a non-empty string array")
     if len(role_ids) != len(set(role_ids)):
         errors.append(f"{rel(roles_path)}: scenario ids must be unique")
-    if covered_roles != {"planner", "worker", "consultant"}:
-        errors.append(f"{rel(roles_path)}: scenarios must cover planner, worker, and consultant")
+    if covered_roles != {"planner", "worker"}:
+        errors.append(f"{rel(roles_path)}: scenarios must cover planner and worker")
 
 prompt_runner_path = ROOT / "pi" / "tests" / "prompt_effectiveness.py"
 prompt_runner = read_text(prompt_runner_path)

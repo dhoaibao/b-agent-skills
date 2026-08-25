@@ -39,19 +39,20 @@ EXTENSION_NAMES=(
 	b-agentic-planner.ts
 	b-agentic-planner-notify.ts
 	b-agentic-worker.ts
-	b-agentic-consultant.ts
+	b-agentic-consult.ts
 	b-agentic-sync.ts
 	b-agentic-rule-guard.ts
 	b-agentic-support/shell.ts
 	b-agentic-support/mcp.ts
 	b-agentic-support/role.ts
 	b-agentic-support/role-models.ts
+	b-agentic-support/consult.ts
 	b-agentic-support/worker.ts
 	b-agentic-support/state.ts
 	b-agentic-support/auto.ts
 )
 LEGACY_EXTENSION_NAMES=(
-	b-agentic-consult.ts
+	b-agentic-consultant.ts
 	b-agentic-support/consult.ts
 )
 EXTENSION_DST="$EXTENSIONS_DST/b-agentic-permissions.ts"

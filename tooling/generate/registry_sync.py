@@ -110,7 +110,7 @@ ROLE_PROMPT_MARKERS = {
         "standalone `Verdict:` line",
         "Reviewer prose without that artifact is not a passed gate",
         "Use send for task delegation, terminal results, review requests/findings, and any question/request needing material work",
-        "Send the consultant over Intercom a bounded question with minimal caller-supplied context",
+        "use `b_consult` selectively for a hard decision or plan review",
         "one focused question whose answer needs no substantial investigation, implementation, or waiting",
         "never use ask to wait",
         "Before every outbound Intercom send or ask",
@@ -136,7 +136,7 @@ ROLE_PROMPT_MARKERS = {
         "Unknown or ambiguous skills fail closed to worker ownership",
         "expected paths/symbols",
         "independent read-only work outside those expected paths/symbols",
-        "they must not mutate, revise in-flight scope, issue another implementation task, or review the in-flight diff",
+        "it must not mutate, revise in-flight scope, issue another implementation task, or review the in-flight diff",
         "the planner re-reads the actual changed paths before review",
         "For a quick two-role blocker or scope question",
         "if it reports an inbound ask, reply immediately without send, ask, list-cwd, or another pending",
@@ -165,30 +165,6 @@ ROLE_PROMPT_MARKERS = {
         "explicitly requests b-commit",
         "unchanged reviewed snapshot; any content change reopens review",
     ],
-    "consultant": [
-        "consultant profile (read-only advisory peer)",
-        "Read repository evidence and run only non-mutating checks",
-        "never edit, patch, write, commit, build, test, run a formatter or generator",
-        "natural-language advice only, never evidence",
-        "Communicate only with the planner over Intercom",
-        "expected paths/symbols",
-        "independent read-only work outside the handoff's expected paths/symbols",
-        "never mutate, revise in-flight scope, issue an implementation task, or review the in-flight diff",
-        "re-read the actual changed paths before offering review advice",
-        "Before every outbound Intercom send or ask",
-        "If it reports an inbound ask, reply to that ask immediately—do not call send, ask, list-cwd, or another pending first",
-        "If none exists, immediately call list-cwd",
-        "one focused question whose answer needs no substantial investigation, implementation, or waiting",
-        "use send for material advice, terminal results, or any request needing material work",
-        "never use ask to wait",
-        "On delivery failure, do not continue or claim advice was delivered",
-        "one retry only",
-        "The refresh is not polling; do not sleep, timeout, or status-poll",
-        "Never contact workers directly, join the worker roster, or delegate",
-        "Do not emit any `B_AGENTIC_*` attention signal",
-        "owns no skills",
-        "Never mutate the worktree or claim that checks, edits, tests, or implementation were performed by you",
-    ],
 }
 
 ROLE_PROMPT_SHARED_START = "# generated:role-prompt-markers:shared:start"
@@ -201,8 +177,6 @@ ROLE_PROMPT_SMOKE_PLANNER_START = "// generated:role-prompt-markers:planner:star
 ROLE_PROMPT_SMOKE_PLANNER_END = "// generated:role-prompt-markers:planner:end"
 ROLE_PROMPT_SMOKE_WORKER_START = "// generated:role-prompt-markers:worker:start"
 ROLE_PROMPT_SMOKE_WORKER_END = "// generated:role-prompt-markers:worker:end"
-ROLE_PROMPT_SMOKE_CONSULTANT_START = "// generated:role-prompt-markers:consultant:start"
-ROLE_PROMPT_SMOKE_CONSULTANT_END = "// generated:role-prompt-markers:consultant:end"
 
 
 def load_json_subset_yaml(path: Path) -> dict:
@@ -509,12 +483,7 @@ def render_outputs(skills: list[dict]) -> dict[Path, str]:
         ROLE_PROMPT_SMOKE_WORKER_END,
         render_role_prompt_markers(ROLE_PROMPT_MARKERS["worker"], "  "),
     )
-    outputs[smoke] = replace_block(
-        smoke_text,
-        ROLE_PROMPT_SMOKE_CONSULTANT_START,
-        ROLE_PROMPT_SMOKE_CONSULTANT_END,
-        render_role_prompt_markers(ROLE_PROMPT_MARKERS["consultant"], "  "),
-    )
+    outputs[smoke] = smoke_text
     extension = ROOT / "pi" / "extensions" / "b-agentic-support" / "mcp.ts"
     runtime_policy = re.sub(r"^const ", "export const ", render_mcp_runtime_policy(policy), flags=re.MULTILINE)
     outputs[extension] = replace_block(
