@@ -595,3 +595,36 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   role-model preferences, planner roster visibility, worker-claim arbitration,
   removal of the one-shot surface, and managed legacy-file cleanup; generated
   synchronization and the offline validation suite remain required.
+
+## Superseding decision: adaptive bounded concurrency and Intercom sequencing
+
+- Observed failure: the adaptive planner/worker/consultant workflow described
+  one writer but left the worker's expected edit surface, in-flight read-only
+  boundary, quick-versus-material `ask` choice, and terminal reporting edge
+  cases implicit. Prompts could therefore allow scope revision, a second
+  implementation request, or in-flight review, and a worker could pause after
+  a no-change, blocked, or gap outcome without delivering the result.
+- Intended behavior: a bounded worker handoff names expected paths/symbols,
+  scope, invariants, and checks. While edits are in flight, the planner and
+  consultant may do only independent read-only work outside that set; they do
+  not mutate, revise scope, issue another implementation task, or review the
+  in-flight diff. After the worker terminal result, the planner re-reads actual
+  changed paths before review. Before every outbound Intercom `send` or `ask`,
+  every role calls `pending`; if it reports an inbound ask, the role replies
+  immediately without `send`, `ask`, `list-cwd`, or another `pending` first,
+  otherwise an immediate `list-cwd` supplies the verbatim target. `ask` is reserved for one
+  focused question needing no substantial investigation, implementation, or
+  waiting; material requests use `send`. Every worker terminal outcome,
+  including completed, no-change, blocked, and reported-gap outcomes, is
+  successfully sent to the assigning planner before pausing. This remains
+  prompt-and-fixture guidance only: no runtime blocking, state store, lock, or
+  new configuration is introduced.
+- Regression: `pi/extensions/b-agentic-support/role.ts`, generated role-prompt
+  assertions from `tooling/generate/registry_sync.py`, `tests/behavior/roles.json`,
+  `pi/tests/prompt_effectiveness.py`, `REFERENCE.md`, and generated
+  `pi/tests/smoke.sh` cover all-role pending-first sequencing, immediate inbound-
+  ask replies without a second `pending`, quick-versus-material `ask` routing,
+  bounded in-flight scope, post-terminal changed-path
+  rereads, selective consultant advice, and worker terminal reporting. Run the
+  registry synchronization and offline skill/audit checks, plus the focused
+  behavior fixture validation and diff check.

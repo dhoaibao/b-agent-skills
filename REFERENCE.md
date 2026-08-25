@@ -329,57 +329,53 @@ extensions still protect sensitive paths, dangerous commands, unclassified MCP
 calls, and local or external mutations regardless of role. Worker mode retains
 normal repository-local automation and is the sole worktree writer.
 
-The planner finishes discovery and settles one bounded handoff. If agreement is
-needed, roles resolve it before edits; once the worker starts, the planner stops
-exploring and issuing implementation requests. Its generated ownership mapping
-permits read-only execution only of `b-plan`, external `b-research`,
-`b-agentic-audit`, `b-review`, and `b-pr-summary`; it delegates `b-design`,
-`b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, and
-`b-commit` to the explicitly selected same-directory worker. Ownership governs
-execution, not inspection, so the planner may read any skill for planning,
-delegation, audit, or review. Planner ownership is limited to read-only
-decision/planning, external research, audit/review, or release-summary
-coordination; implementation or mutation, runtime diagnosis, builds/tests,
-browser/operational verification, commits, mixed, and uncertain work belong to
-the worker. Direct user wording and an unavailable worker do not permit planner
-implementation; unknown ownership fails closed to worker ownership, while
-registry validation rejects missing or invalid owners. The assigned worker
-executes its worker-owned task itself and never re-delegates or hands it off to
-another worker; it may ask the assigning planner only about blockers, scope, or
-external-research decisions.
+The planner finishes discovery and settles one bounded handoff that identifies
+expected paths/symbols, scope/non-goals, invariants, and checks. If agreement is
+needed, roles resolve it before edits. Once the worker starts, planner and
+consultant work is limited to independent read-only work outside that expected
+set, such as independent research, acceptance drafting, or a hard unrelated
+decision: they must not mutate, revise in-flight scope, issue another
+implementation task, or review the in-flight diff before the worker's terminal
+result. After that result, the planner re-reads the actual changed paths before
+review. Its generated ownership mapping permits read-only execution only of
+`b-plan`, external `b-research`, `b-agentic-audit`, `b-review`, and
+`b-pr-summary`; it delegates `b-design`, `b-implement`, `b-init`, `b-refactor`,
+`b-debug`, `b-test`, `b-browser`, and `b-commit` to the explicitly selected
+same-directory worker. Ownership governs execution, not inspection, so the
+planner may read any skill for planning, delegation, audit, or review. Planner
+ownership is limited to read-only decision/planning, external research,
+audit/review, or release-summary coordination; implementation or mutation,
+runtime diagnosis, builds/tests, browser/operational verification, commits,
+mixed, and uncertain work belong to the worker. Direct user wording and an
+unavailable worker do not permit planner implementation; unknown ownership
+fails closed to worker ownership, while registry validation rejects missing or
+invalid owners. The assigned worker executes its worker-owned task itself and
+never re-delegates or hands it off to another worker.
 
-Before every planner/worker Intercom `send` or `reply`, call `pending` first;
-if `pending` reports an inbound ask, the response must use `reply` for that ask
-and must not call `send` or `list-cwd`; only when `pending` reports no inbound
-ask may `list-cwd` retrieve the exact target ID before `send`. The `to` value must be
-the identifier token returned verbatim by the immediately preceding
-authoritative `list-cwd` output. An authoritative short ID is valid; never guess,
+Before every outbound Intercom `send` or `ask`, call `pending` first. If it
+reports an inbound ask, reply to that ask immediately—do not call `send`, `ask`,
+`list-cwd`, or another `pending` first. Otherwise immediately call `list-cwd`;
+use only the identifier token returned verbatim by that authoritative output for
+the intended `send` or `ask`. An authoritative short ID is valid; never guess,
 reconstruct, extend, further abbreviate, or use a stale token, display name, or
-alias. Treat a handoff, result, finding, or approval as sent only
-after Intercom reports successful delivery. If `send` delivery fails, do not
-retry the stale target or continue, commit, or close: call `pending` first; if
-an inbound ask exists, use `reply` and do not call `send` or `list-cwd`; otherwise
-call a fresh `list-cwd`; retry exactly once only if the intended peer is still live,
-otherwise pause and surface the unavailable peer as the blocker. After
-assigning a task, the planner waits for the worker's `send` result rather than
-polling. The worker sends every terminal result to the same assigning planner
-before pausing, including no-change and reported-gap outcomes; it reports
-changed paths, verification outcomes, and gaps with `send`. Use `send` for task
-delegation and worker result/review reporting. Reserve `ask` for a worker's
-blocker or clarification question to the planner, or a planner's quick-answer
-need from the worker; never use it to
-wait for a delegated result. If the worker encounters an unresolved issue or
-blocker, after `pending` reports no inbound ask it uses `list-cwd` to retrieve the
-assigning planner's identifier token returned verbatim by the immediately
-preceding authoritative `list-cwd` output and uses Intercom `ask` addressed to
-that token with one focused question and waits; if `pending` reports an
-inbound ask, it uses `reply` for it and does not call `send` or `list-cwd`. It
-must not ask the user directly, stop midway, or send a premature
-completion/review message while the planner waits. The planner resolves the
-blocker via `reply` when possible; otherwise it escalates to the user and keeps
-the task open. Every delegated worktree-changing task must pass the actual
-`b-review` skill against the actual diff and verification before it is complete. Findings return to the
-same worker for a verified fix and another review.
+alias. Treat a handoff, terminal result, finding, or approval as sent only after
+Intercom reports successful delivery. If delivery fails, do not retry the stale
+target or continue, commit, or close: call `pending`; if it reports an inbound
+ask, reply immediately under the same rule; otherwise fresh `list-cwd`; retry
+exactly once only if the intended peer remains live, otherwise pause and surface
+the unavailable peer as the blocker. After assigning a task, the planner waits
+for the worker's `send` result rather than polling.
+The worker sends every terminal outcome for any assigned task—completed,
+no-change, blocked, or reported gap—to the same assigning planner before
+pausing, with changed paths, verification outcomes, acceptance coverage, and
+gaps. Use `send` for task delegation, terminal results, review requests/findings,
+and any question/request needing material work. Use `ask` only for one focused
+question whose answer needs no substantial investigation, implementation, or
+waiting; never use it to wait for a delegated result. A quick worker scope or
+blocker question follows the pending-first target sequence; a material request
+uses `send` instead. Every delegated worktree-changing task must pass the actual
+`b-review` skill against the actual diff and verification before it is complete.
+Findings return to the same worker for a verified fix and another review.
 
 ## In-session refresh
 

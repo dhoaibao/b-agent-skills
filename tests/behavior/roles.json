@@ -1,24 +1,25 @@
 {
   "version": 1,
   "source": "b-agentic planner/worker collaboration regressions",
-  "description": "Human-scored scenarios for single-writer delegation, targeted review requests, findings iterations, and approval pauses.",
+  "description": "Human-scored scenarios for adaptive planner/worker/consultant coordination, single-writer delegation, targeted review requests, findings iterations, and approval pauses.",
   "scenarios": [
     {
       "id": "intercom-pending-selects-reply-or-send",
       "role": "planner",
       "skill": "b-plan",
       "observed_failure": "Planner and worker coordination sent messages without checking pending asks first and used ambiguous session-ID prefixes instead of retrieving exact IDs.",
-      "intended_behavior": "Both roles call pending first before every send or reply; when pending reports an inbound ask, reply to that ask and do not call send or list-cwd; only when pending reports no inbound ask may the role call list-cwd again, then send to the identifier token returned verbatim by that immediately preceding authoritative list-cwd result (including an authoritative short ID); guessed, reconstructed, extended, further-abbreviated, stale, display-name, alias, and otherwise altered targets are forbidden.",
-      "prompt": "You need to coordinate with the other role. Describe the Intercom check and message action you take when pending reports an inbound ask versus when it reports none, including how you retrieve the exact target.",
+      "intended_behavior": "All roles call pending first before every outbound send or ask. If it reports an inbound ask, reply to that ask immediately without calling send, ask, list-cwd, or another pending first; only when it reports no inbound ask may the role immediately call list-cwd, then send or ask using the identifier token returned verbatim by that immediately preceding authoritative list-cwd result (including an authoritative short ID); guessed, reconstructed, extended, further-abbreviated, stale, display-name, alias, and otherwise altered targets are forbidden.",
+      "prompt": "You are the planner, worker, or consultant coordinating with a peer. Describe the Intercom check before a send or ask, and the immediate action when pending reports an inbound ask versus when it reports none, including how you retrieve the exact target.",
       "must": [
-        "Call Intercom pending first before every send or reply",
-        "Use reply when pending reports an inbound ask",
-        "Do not call send or list-cwd when pending reports an inbound ask",
-        "Call list-cwd again only when there is nothing to reply to",
-        "Send to the identifier token returned verbatim by the immediately preceding authoritative list-cwd result, including an authoritative short ID"
+        "Call Intercom pending first before every outbound send or ask",
+        "Reply immediately when pending reports an inbound ask",
+        "Do not call send, ask, list-cwd, or another pending before that reply",
+        "Immediately call list-cwd when pending reports no inbound ask",
+        "Use the identifier token returned verbatim by that immediately preceding authoritative list-cwd result, including an authoritative short ID"
       ],
       "avoid": [
         "Use reply without checking pending",
+        "Call pending again before replying to the inbound ask",
         "Send without calling list-cwd again after no pending ask",
         "Use a guessed, reconstructed, extended, further-abbreviated, stale, display-name, alias, or otherwise altered target"
       ]
@@ -28,7 +29,7 @@
       "role": "worker",
       "skill": "b-implement",
       "observed_failure": "A worker used a stale or altered session target, treated an undelivered Intercom message as sent, or continued after delivery failed.",
-      "intended_behavior": "Use the identifier token returned verbatim by the immediately preceding authoritative list-cwd result (including its short ID), require successful delivery before treating a result or review request as sent, and recover one send failure by checking pending first; reply without calling send or list-cwd when an inbound ask exists, otherwise use a fresh list-cwd before retrying once or surfacing the unavailable planner as a blocker.",
+      "intended_behavior": "Use the identifier token returned verbatim by the immediately preceding authoritative list-cwd result (including its short ID), require successful delivery before treating a result or review request as sent, and recover one send failure by checking pending first; if it reports an inbound ask, reply immediately without calling send, ask, list-cwd, or another pending first; otherwise use a fresh list-cwd before retrying once or surfacing the unavailable planner as a blocker.",
       "prompt": "Your Intercom send to the assigning planner reports delivery failure. Describe the target you may use, what you do when pending reports an inbound ask versus none, the checks and exactly one retry you perform, and whether you continue, commit, or close if the planner is no longer live.",
       "must": [
         "Use only the identifier token returned verbatim by the immediately preceding authoritative list-cwd result, including an authoritative short ID",
@@ -36,7 +37,7 @@
         "Do not call send or list-cwd when pending reports an inbound ask",
         "Do not retry the stale target or continue, commit, or close after delivery failure",
         "Call pending first after the failed send",
-        "Use reply and do not call send or list-cwd when pending reports an inbound ask",
+        "Use reply immediately and do not call send, ask, list-cwd, or another pending before replying when pending reports an inbound ask",
         "Otherwise call a fresh list-cwd before retrying",
         "Retry exactly once only if the intended planner remains live; otherwise pause and surface the unavailable planner as a blocker"
       ],
@@ -70,13 +71,15 @@
       "role": "planner",
       "skill": "b-plan",
       "observed_failure": "Planner handed off before finishing discovery, then continued exploring and issued new implementation requests while the worker edited, causing scope drift.",
-      "intended_behavior": "The planner finishes discovery and settles one bounded approach before handoff; planner and worker may agree on the final approach before edits, then the planner stops exploring and issuing implementation requests while the worker edits.",
-      "prompt": "A same-directory worker is available for a feature that needs repository exploration before implementation. Describe how you sequence discovery, the handoff, any approach agreement, and coordination after the worker starts editing.",
+      "intended_behavior": "The planner finishes discovery and settles one bounded approach before handoff; the handoff names expected paths/symbols, scope/non-goals, invariants, and checks. While the worker edits, planner and consultant work is limited to independent read-only work outside that set; they do not mutate, revise in-flight scope, issue another implementation request, or review the in-flight diff before the worker's terminal result. After the result, the planner re-reads actual changed paths before review.",
+      "prompt": "A same-directory worker is available for a feature that needs repository exploration before implementation. Describe how you sequence discovery, the expected paths/symbols in the handoff, any approach agreement, independent work while editing, and review after the worker's terminal result.",
       "must": [
         "Finish the necessary discovery and settle the approach before one bounded handoff",
-        "Send one natural-language implementation handoff to the worker",
+        "Name expected paths/symbols, scope/non-goals, invariants, and checks in the handoff",
         "If needed, agree with the worker on the final approach before edits begin",
-        "Stop exploration and new implementation requests once the worker starts editing"
+        "While the worker edits, do only independent read-only work outside the expected set",
+        "Do not mutate, revise in-flight scope, issue another implementation request, or review the in-flight diff before the terminal result",
+        "Re-read actual changed paths before review after the terminal result"
       ],
       "avoid": [
         "Send speculative follow-up implementation requests",
@@ -89,13 +92,13 @@
       "role": "planner",
       "skill": "b-plan",
       "observed_failure": "The planner profile said external b-research was delegated with worker-owned skills and left pre-edit approach agreement and send-versus-ask responsibilities implicit, allowing research delegation or ask-based waiting.",
-      "intended_behavior": "External b-research remains planner-owned. When needed, the planner agrees with the worker on the approach before edits begin; send is for task delegation and worker result/review reporting, while ask is only for blockers, clarifications, or a planner's quick-answer need—not for waiting on a delegated result.",
-      "prompt": "You are coordinating a task that needs external research and then worker edits. Explain who performs the research, when you agree on the approach, and whether you use send or ask for delegation, results/review, blockers, clarifications, a quick answer, and waiting.",
+      "intended_behavior": "External b-research remains planner-owned. When needed, the planner agrees with the worker on the approach before edits begin; send is for task delegation, terminal results, review requests/findings, and any question/request needing material work, while ask is only for one focused question whose answer needs no substantial investigation, implementation, or waiting—not for waiting on a delegated result.",
+      "prompt": "You are coordinating a task that needs external research and then worker edits. Explain who performs the research, when you agree on the approach, and whether you use send or ask for delegation, terminal results, review requests/findings, quick answers, material requests, and waiting.",
       "must": [
         "Keep external b-research planner-owned rather than delegating it",
         "Agree with the worker on the approach before edits begin when needed",
-        "Use send for task delegation and worker result/review reporting",
-        "Use ask only for blockers, clarifications, or a planner's quick-answer need",
+        "Use send for task delegation, terminal results, review requests/findings, and any question/request needing material work",
+        "Use ask only for one focused question whose answer needs no substantial investigation, implementation, or waiting",
         "Do not use ask to wait for a delegated result"
       ],
       "avoid": [
@@ -147,12 +150,12 @@
       "role": "worker",
       "skill": "b-implement",
       "observed_failure": "A worker paused without reporting when no edits were needed or when the task ended with a gap, leaving the assigning planner without a terminal result.",
-      "intended_behavior": "Every terminal worker outcome is sent to the same assigning planner before pausing, including no-change and reported-gap outcomes, with evidence and remaining gaps.",
-      "prompt": "Your bounded two-role task needs no edits, or ends with a reported gap that prevents the requested change. Describe the terminal message you send, its target and contents, and whether you pause afterward.",
+      "intended_behavior": "Every terminal outcome for any assigned worker task—completed, no-change, blocked, or reported gap—is successfully sent to the same assigning planner before pausing, with evidence and remaining gaps.",
+      "prompt": "Your assigned task completes, needs no edits, becomes blocked, or ends with a reported gap. Describe the terminal message you send, its target and contents, and whether you pause afterward.",
       "must": [
-        "Send a terminal completion/result to the same assigning planner before pausing",
-        "Report the no-change outcome or reported gap along with evidence, checks, and remaining gaps",
-        "Pause after successful delivery rather than stopping silently"
+        "For every assigned task, send a terminal completion/result to the same assigning planner before pausing",
+        "Report the completed, no-change, blocked, or reported-gap outcome along with evidence, checks, and remaining gaps",
+        "Pause only after successful delivery rather than stopping silently"
       ],
       "avoid": [
         "Stop without sending because no edits were needed",
@@ -165,14 +168,14 @@
       "role": "worker",
       "skill": "b-implement",
       "observed_failure": "A worker asked the user directly, stopped midway, or sent a premature completion/review message while the planner waited after encountering an unresolved issue or blocker.",
-      "intended_behavior": "For a two-role blocker, the worker calls pending first; it replies without list-cwd, send, or ask if an inbound ask exists, otherwise refreshes list-cwd and uses ask to the assigning planner with one focused question targeted by that returned identifier token verbatim (including an authoritative short ID). It waits for the planner's response, does not ask the user directly or send a premature completion/review message, and keeps the task open.",
-      "prompt": "During a bounded implementation task, you encounter an unresolved blocker that repository evidence cannot resolve. Describe who you ask, what message action you take, and whether you close, complete, or review the task while waiting.",
+      "intended_behavior": "For a quick two-role blocker or scope question, the worker calls pending first; it replies without list-cwd, send, or ask if an inbound ask exists, otherwise immediately refreshes list-cwd and uses ask to the assigning planner with one focused question targeted by that returned identifier token verbatim (including an authoritative short ID). A material blocker or request needing investigation uses send instead; neither action transfers the assigned task, and the worker keeps the task open while waiting.",
+      "prompt": "During a bounded implementation task, repository evidence leaves either a quick scope question or a material blocker. Describe which Intercom action you use for each, the pending-first target sequence, and whether you close, complete, or review the task while waiting.",
       "must": [
-        "Use ask to the assigning planner with one focused question",
-        "After pending reports no inbound ask, refresh list-cwd then use ask for the assigning planner with its returned identifier token verbatim, including an authoritative short ID",
+        "Use ask only for a single focused question whose answer needs no substantial investigation, implementation, or waiting",
+        "After pending reports no inbound ask, immediately refresh list-cwd then use ask for the assigning planner with its returned identifier token verbatim, including an authoritative short ID",
         "When pending reports an inbound ask, use reply and do not call list-cwd, send, or ask",
-        "Wait for the planner's response and keep the task open",
-        "Do not ask the user directly, stop midway, or send a premature completion/review message while the planner waits"
+        "Use send for a material blocker or request needing investigation, implementation, or waiting",
+        "Wait for the planner's response and keep the task open without sending a premature completion/review message"
       ],
       "avoid": [
         "Ask the user directly",
@@ -245,15 +248,15 @@
       "role": "planner",
       "skill": "b-plan",
       "observed_failure": "Planners repeatedly polled list-cwd or status after assigning work instead of waiting for the worker's result, adding coordination noise without improving readiness.",
-      "intended_behavior": "The planner checks pending first before messaging; if it reports an inbound ask, the planner uses reply for that ask without calling send or list-cwd; otherwise it calls list-cwd once and sends to the identifier token returned verbatim by that immediately preceding authoritative list-cwd result (including an authoritative short ID), then waits for the worker's send result without further polling. Send is used for delegation and result/review reporting; ask is reserved for blockers, clarifications, or a planner's quick-answer need.",
+      "intended_behavior": "The planner checks pending first before every outbound send or ask; if it reports an inbound ask, the planner replies immediately without calling send, ask, list-cwd, or another pending first; otherwise it immediately calls list-cwd and sends or asks to the identifier token returned verbatim by that immediately preceding authoritative list-cwd result (including an authoritative short ID), then waits for the worker's send result without further polling. Send is used for delegation, terminal results, review requests/findings, and material requests; ask is reserved for one focused quick-answer question.",
       "prompt": "You are about to assign a bounded task to a ready same-directory worker. Describe the pending check, how you retrieve the exact target before sending, and what you do after the handoff while the worker edits, including whether you repeatedly call list-cwd or status and when ask is appropriate.",
       "must": [
-        "Use reply for an inbound ask without calling send or list-cwd",
-        "Call list-cwd again to retrieve the identifier token before a send when no inbound ask is pending",
-        "Send to the identifier token returned verbatim by the immediately preceding authoritative list-cwd result, including an authoritative short ID",
+        "Reply immediately for an inbound ask without calling send, ask, list-cwd, or another pending",
+        "Immediately call list-cwd to retrieve the identifier token before a send or ask when no inbound ask is pending",
+        "Send or ask only to the identifier token returned verbatim by the immediately preceding authoritative list-cwd result, including an authoritative short ID",
         "Wait for the worker's send result after the natural-language send handoff",
-        "Reserve ask for worker blockers or clarifications, or a planner's quick-answer need from the worker—not for waiting on a delegated result",
-        "Reserve further list-cwd and status calls for selecting a worker or handling genuine connection needs"
+        "Reserve ask for one focused quick-answer question whose answer needs no substantial investigation, implementation, or waiting",
+        "Use send for delegation, terminal results, review requests/findings, and any material request; do not poll while the worker edits"
       ],
       "avoid": [
         "Repeatedly poll list-cwd or status after the exact-ID handoff",
@@ -427,6 +430,106 @@
       ],
       "avoid": [
         "Freeform report without headings"
+      ]
+    },
+    {
+      "id": "consultant-intercom-pending-first",
+      "role": "consultant",
+      "skill": "b-agentic-audit",
+      "observed_failure": "The consultant's advisory prompt only described pending-first behavior for sends, leaving asks and replies able to bypass the authoritative target sequence.",
+      "intended_behavior": "The consultant calls pending before every outbound send or ask; if it reports an inbound ask, reply immediately without send, ask, list-cwd, or another pending first, while no inbound ask requires an immediate list-cwd and a verbatim planner target.",
+      "prompt": "As the read-only consultant, you need to send advice, ask one focused quick question, or reply to a planner. Describe the pending-first sequence before send or ask and the exact immediate action for an inbound ask versus no inbound ask.",
+      "must": [
+        "Call pending before every outbound send or ask",
+        "Reply immediately to an inbound planner ask without calling send, ask, list-cwd, or another pending",
+        "When no inbound ask exists, immediately call list-cwd",
+        "Use only the planner identifier token returned verbatim by that authoritative list-cwd result",
+        "Keep advice advisory and communicate only with the planner"
+      ],
+      "avoid": [
+        "Ask or send without pending-first",
+        "Call pending again before replying to an inbound ask",
+        "Call list-cwd after pending reports an inbound ask",
+        "Contact a worker directly or use a guessed or stale target"
+      ]
+    },
+    {
+      "id": "worker-intercom-pending-first-for-ask-and-send",
+      "role": "worker",
+      "skill": "b-implement",
+      "observed_failure": "The worker's pending-first rule covered result sends but not quick asks or replies, allowing ambiguous targets and wrong message actions.",
+      "intended_behavior": "The worker calls pending before every outbound send or ask; if it reports an inbound ask, reply immediately without send, ask, list-cwd, or another pending first, otherwise immediate list-cwd supplies the verbatim assigning-planner target.",
+      "prompt": "During a two-role task, you may send a terminal result, ask one focused quick scope question, or reply to the planner. Describe the pending-first sequence before send or ask and the exact immediate action for each case.",
+      "must": [
+        "Call pending before every outbound send or ask",
+        "Reply immediately to an inbound ask without calling send, ask, list-cwd, or another pending",
+        "When no inbound ask exists, immediately call list-cwd",
+        "Use only the identifier token returned verbatim by that authoritative list-cwd result",
+        "Treat delivery as real only after successful delivery"
+      ],
+      "avoid": [
+        "Use ask for a terminal result or review request",
+        "Call pending again before replying to an inbound ask",
+        "Reuse a stale or altered target after delivery failure",
+        "Continue or close after an undelivered terminal report"
+      ]
+    },
+    {
+      "id": "quick-vs-material-intercom-action",
+      "role": "planner",
+      "skill": "b-plan",
+      "observed_failure": "Coordination prompts did not distinguish a quick answer from a material request, so ask was used for delegated work, review findings, or questions that required investigation and waiting.",
+      "intended_behavior": "Ask is limited to one focused question whose answer needs no substantial investigation, implementation, or waiting. Send handles delegation, terminal results, review requests/findings, and any question or request needing material work; ask is never a wait mechanism.",
+      "prompt": "You are coordinating a worker and consultant. Compare the Intercom action for a single focused quick-answer question, a material scope decision needing investigation, a task delegation, a terminal result, and a review finding.",
+      "must": [
+        "Use ask only for one focused question whose answer needs no substantial investigation, implementation, or waiting",
+        "Use send for task delegation, terminal results, review requests/findings, and any question or request needing material work",
+        "Never use ask to wait for delegated work or a review result",
+        "Use the pending-first target sequence for both send and ask"
+      ],
+      "avoid": [
+        "Use ask for delegation, terminal reporting, review findings, or material investigation",
+        "Use ask as a task wait or progress poll",
+        "Treat a quick question as permission to transfer work to the consultant or worker"
+      ]
+    },
+    {
+      "id": "planner-material-consultation-uses-send",
+      "role": "planner",
+      "skill": "b-plan",
+      "observed_failure": "The planner used ask for a hard decision or plan review even though the consultant's advice required material investigation and waiting.",
+      "intended_behavior": "For a hard decision or plan review involving competing options, consequential trade-offs, or unresolved evidence, the planner sends the consultant a bounded question with minimal caller-supplied context and waits for its send response; ask remains limited to one genuinely quick focused question.",
+      "prompt": "You face a hard decision or plan review with competing viable options, consequential risk, or unresolved evidence. Explain how you consult the optional read-only consultant, which Intercom action you use, what context you provide, and when you wait.",
+      "must": [
+        "Use send for a hard decision or plan review needing material advice",
+        "Send a bounded question with minimal caller-supplied context",
+        "Wait for the consultant's send response rather than using ask to wait",
+        "Reserve ask for one focused question needing no substantial investigation, implementation, or waiting"
+      ],
+      "avoid": [
+        "Use ask for hard-decision or plan-review consultation",
+        "Treat consultant advice as evidence",
+        "Use the consultant for routine or obvious work"
+      ]
+    },
+    {
+      "id": "worker-reports-no-change-and-blocked-terminal-outcomes",
+      "role": "worker",
+      "skill": "b-implement",
+      "observed_failure": "Workers sometimes paused silently after no-change or blocked outcomes because only successful implementation reports were treated as terminal.",
+      "intended_behavior": "Every assigned task outcome—completed, no-change, blocked, or reported gap—is successfully sent to the same assigning planner before pausing, with the outcome, changed paths, checks, acceptance coverage, deviations, and gaps.",
+      "prompt": "Your assigned task either needs no edits or cannot proceed because of a reported gap. Describe the terminal report, its target and evidence, the delivery requirement, and what you do after sending it.",
+      "must": [
+        "Send a terminal completion/result to the same assigning planner for both no-change and blocked outcomes",
+        "Report the outcome, changed paths, exact checks, acceptance coverage, deviations, and gaps",
+        "Require successful delivery before pausing",
+        "Do not stop silently or send the terminal report to another worker",
+        "Request actual b-review and pause edits when the terminal outcome changes the worktree"
+      ],
+      "avoid": [
+        "Treat no-change or blocked work as an exception to terminal reporting",
+        "Pause before successful delivery",
+        "Claim completion without reporting the gap or checks"
       ]
     }
   ]

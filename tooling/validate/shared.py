@@ -374,7 +374,7 @@ else:
         else:
             role_ids.append(scenario_id)
         role = scenario.get("role")
-        if role not in {"planner", "worker"}:
+        if role not in {"planner", "worker", "consultant"}:
             errors.append(f"{label} has unknown role {role!r}")
         else:
             covered_roles.add(role)
@@ -389,8 +389,8 @@ else:
                 errors.append(f"{label} {field} must be a non-empty string array")
     if len(role_ids) != len(set(role_ids)):
         errors.append(f"{rel(roles_path)}: scenario ids must be unique")
-    if covered_roles != {"planner", "worker"}:
-        errors.append(f"{rel(roles_path)}: scenarios must cover planner and worker")
+    if covered_roles != {"planner", "worker", "consultant"}:
+        errors.append(f"{rel(roles_path)}: scenarios must cover planner, worker, and consultant")
 
 prompt_runner_path = ROOT / "pi" / "tests" / "prompt_effectiveness.py"
 prompt_runner = read_text(prompt_runner_path)
@@ -601,18 +601,23 @@ role_prompt = read_text(ROOT / "pi/extensions/b-agentic-support/role.ts")
 for intercom_marker in [
     # generated:role-prompt-markers:shared:start
     "Finish discovery before one bounded handoff",
-    "Use send for task delegation and worker result/review reporting; use ask only for blockers, clarifications, or a planner's quick-answer need—not to wait",
+    "expected paths/symbols",
+    "independent read-only work outside",
+    "do not mutate, revise in-flight scope, issue another implementation task, or review the in-flight diff",
+    "re-read the actual changed paths before review",
+    "Use send for task delegation, terminal results, review requests/findings, and any question/request needing material work",
+    "one focused question whose answer needs no substantial investigation, implementation, or waiting",
+    "never use ask to wait",
     "Roster/status only selects or handles",
-    "Before every Intercom send/reply call pending",
-    "Reply to an inbound ask without send/list-cwd",
+    "Before every outbound Intercom send or ask",
+    "If it reports an inbound ask, reply to that ask immediately—do not call send, ask, list-cwd, or another pending first",
+    "If none exists, immediately call list-cwd",
     "identifier token verbatim",
     "authoritative short ID is valid",
     "never guess, reconstruct, extend, further abbreviate, or reuse stale output",
     "Delivery makes a handoff, result, finding, or approval real",
     "one retry only",
     "applicable observable behavior, scope/non-goals, constraints/invariants",
-    "send a completion/result to the same assigning planner before pausing",
-    "including when no edits were needed or the task ends with a reported gap",
     "latest approved plan, handoff, and clarifications",
     "Only delegated worktree-changing tasks require actual b-review",
     "location, evidence, impact, violated baseline, smallest correction, and regression check",
