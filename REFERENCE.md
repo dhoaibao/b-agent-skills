@@ -305,7 +305,11 @@ changes update planner/worker preferences under
 `~/.pi/agent/b-agentic/role-models.json` without credentials. Use the planner-only
 `b_consult` tool for a hard decision or plan review when independent advice is
 useful; choose its provider, model, and thinking level with `/b-consult-model`.
-The isolated call receives only caller-supplied text, has no tools or repository
+The command accepts an exact `provider/model [thinking-level]`, or a fuzzy model
+search query with an optional thinking level; with UI it also offers a model
+picker. Model completions follow Pi's provider/model search shape, mark the
+current active model, and the selected consultant preference is stored in the
+shared `role-models.json` file. The isolated call receives only caller-supplied text, has no tools or repository
 access, returns bounded natural-language advice, and is advisory rather than
 evidence. An existing legacy `~/.pi/agent/b-agentic/consult-model.json` file is
 left untouched and is not migrated or read.

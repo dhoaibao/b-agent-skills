@@ -615,6 +615,13 @@ expect((await toolCallHandler({ toolName: 'b_consult', input: validConsultInput 
 const legacyConsultPath = path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic/consult-model.json');
 mkdirSync(path.dirname(legacyConsultPath), { recursive: true });
 writeFileSync(legacyConsultPath, JSON.stringify({ provider: 'legacy', model: 'legacy', thinkingLevel: 'high' }));
+const scopedConsultContext = { ...roleContext, scopedModels: [{ model: activeModel }] };
+expect(consultTest.getConsultantModels(scopedConsultContext).length === 1 && consultTest.getConsultantModels(scopedConsultContext)[0].id === activeModel.id, 'consultant model selection must honor the active Pi model scope');
+expect(consultTest.modelLabel(activeModel, activeModel).includes('current active'), 'consultant model labels must identify the current active model');
+expect(consultTest.searchConsultantModels(roleContext.modelRegistry.getAvailable(), 'claude-sonnet-4-5').length === 1, 'consultant model search must match a model by fuzzy id');
+await consultCommand.handler('claude-sonnet-4-5 high', roleContext);
+const consultModelCompletions = consultCommand.getArgumentCompletions('claude-sonnet-4-5');
+expect(consultModelCompletions?.some((item) => item.value === 'anthropic/claude-sonnet-4-5' && item.label.includes('current active')), 'consultant command completions must search models and identify the current active model');
 await consultCommand.handler('anthropic/claude-sonnet-4-5 high', roleContext);
 const selectedConsultPreference = JSON.parse(readFileSync(path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic/role-models.json'), 'utf8'));
 expect(selectedConsultPreference.consultant.provider === 'anthropic' && selectedConsultPreference.consultant.model === 'claude-sonnet-4-5' && selectedConsultPreference.consultant.thinkingLevel === 'high', '/b-consult-model must persist the consultant preference in role-models.json');

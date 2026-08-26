@@ -1,5 +1,6 @@
 /** On-demand, isolated, read-only consultation for planner decisions and plan reviews. */
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { fuzzyFilter } from "@earendil-works/pi-tui";
 import {
   CONSULT_INPUT_LIMITS,
   CONSULT_THINKING_LEVELS,
@@ -85,8 +86,67 @@ function parseModelSpec(value: string): { provider: string; model: string } | un
   return provider && model ? { provider, model } : undefined;
 }
 
-function modelLabel(model: { provider: string; id: string }): string {
-  return `${model.provider}/${model.id}`;
+type ConsultSelectableModel = {
+  provider: string;
+  id: string;
+  name?: string;
+};
+
+function modelsAreEqual(a: ConsultSelectableModel | undefined, b: ConsultSelectableModel | undefined): boolean {
+  return Boolean(a && b && a.provider === b.provider && a.id === b.id);
+}
+
+function modelSearchText(model: ConsultSelectableModel): string {
+  const name = model.name ? ` ${model.name}` : "";
+  return `${model.provider} ${model.provider}/${model.id} ${model.provider} ${model.id}${name}`;
+}
+
+function modelLabel(
+  model: ConsultSelectableModel,
+  activeModel?: ConsultSelectableModel,
+  preference?: ConsultModelPreference,
+): string {
+  const badges: string[] = [];
+  if (modelsAreEqual(model, activeModel)) badges.push("current active");
+  if (preference && model.provider === preference.provider && model.id === preference.model) badges.push("configured consultant");
+  return `${model.provider}/${model.id}${badges.length > 0 ? ` (${badges.join("; ")})` : ""}`;
+}
+
+function getConsultantModels(ctx: ExtensionContext): ConsultSelectableModel[] {
+  const models = ctx.scopedModels.length > 0
+    ? ctx.scopedModels.map(({ model }) => model)
+    : ctx.modelRegistry.getAvailable();
+  const seen = new Set<string>();
+  return models
+    .filter((model) => {
+      const key = `${model.provider}/${model.id}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => {
+      const aIsCurrent = modelsAreEqual(a, ctx.model);
+      const bIsCurrent = modelsAreEqual(b, ctx.model);
+      if (aIsCurrent && !bIsCurrent) return -1;
+      if (!aIsCurrent && bIsCurrent) return 1;
+      return `${a.provider}/${a.id}`.localeCompare(`${b.provider}/${b.id}`);
+    });
+}
+
+function searchConsultantModels(models: ConsultSelectableModel[], query: string): ConsultSelectableModel[] {
+  const normalized = query.trim();
+  return normalized ? fuzzyFilter(models, normalized, modelSearchText) : [...models];
+}
+
+function activeModelLabel(ctx: ExtensionContext): string {
+  return ctx.model ? `${ctx.model.provider}/${ctx.model.id}` : "(none)";
+}
+
+function updateConsultantStatus(ctx: ExtensionContext, preference = loadConsultModelPreference()): void {
+  const consultant = preference
+    ? `${preference.provider}/${preference.model} (thinking: ${preference.thinkingLevel})`
+    : "not configured";
+  ctx.ui.setStatus("b-agentic-consult", `b-agentic consultant: ${consultant} · active: ${activeModelLabel(ctx)}`);
 }
 
 async function chooseThinkingLevel(ctx: ExtensionContext): Promise<ConsultModelPreference["thinkingLevel"] | undefined> {
@@ -196,67 +256,132 @@ const ConsultToolSchema = {
 } as any;
 
 export default function bAgenticConsult(pi: ExtensionAPI): void {
+  let completionModels: ConsultSelectableModel[] = [];
+  let completionActiveModel: ConsultSelectableModel | undefined;
+  const syncModelCache = (ctx: ExtensionContext): void => {
+    completionModels = getConsultantModels(ctx);
+    completionActiveModel = ctx.model;
+  };
+  const thinkingCompletions = (prefix: string) => CONSULT_THINKING_LEVELS
+    .filter((value) => value.startsWith(prefix.trim().toLowerCase()))
+    .map((value) => ({ value, label: value }));
+  const chooseModel = async (
+    ctx: ExtensionContext,
+    models: ConsultSelectableModel[],
+    query: string,
+    preference: ConsultModelPreference | undefined,
+  ): Promise<ConsultSelectableModel | undefined> => {
+    const matches = searchConsultantModels(models, query);
+    if (matches.length === 0) {
+      ctx.ui.notify(query ? `No models match "${query}". Choose a model listed by Pi or configure it first.` : "No available models. Configure a provider, then run /b-consult-model provider/model thinking-level.", "error");
+      return undefined;
+    }
+    if (matches.length === 1) return matches[0];
+    if (!ctx.hasUI) {
+      ctx.ui.notify(`Model search "${query}" matched multiple models: ${matches.map((model) => `${model.provider}/${model.id}`).join(", ")}. Use provider/model to select one.`, "error");
+      return undefined;
+    }
+    const searchHint = query ? ` matching "${query}"` : "";
+    const selected = await ctx.ui.select(
+      `Select consultant model${searchHint} (active: ${activeModelLabel(ctx)})`,
+      matches.map((model) => modelLabel(model, ctx.model, preference)),
+    );
+    const selectedIndex = matches.findIndex((model) => modelLabel(model, ctx.model, preference) === selected);
+    if (selectedIndex < 0) {
+      ctx.ui.notify("Consultant model selection was cancelled", "info");
+      return undefined;
+    }
+    return matches[selectedIndex];
+  };
+
+  pi.on("session_start", (_event, ctx) => {
+    syncModelCache(ctx);
+  });
+  pi.on("model_select", (_event, ctx) => {
+    syncModelCache(ctx);
+  });
+
   pi.registerCommand("b-consult-model", {
     description: "Choose the isolated consultant provider, model, and thinking level",
-    getArgumentCompletions: (prefix) => CONSULT_THINKING_LEVELS
-      .filter((value) => value.startsWith(prefix.trim().toLowerCase()))
-      .map((value) => ({ value, label: value })),
-    handler: async (args, ctx) => {
-      const tokens = args.trim().split(/\s+/).filter(Boolean);
-      if (tokens.length > 2) {
-        ctx.ui.notify("Usage: /b-consult-model provider/model [thinking-level]", "error");
-        return;
+    getArgumentCompletions: (prefix) => {
+      const tokens = prefix.trim().split(/\s+/).filter(Boolean);
+      if (/\s$/.test(prefix) || tokens.length > 1) return thinkingCompletions(tokens.at(-1) ?? "");
+      const query = tokens[0] ?? "";
+      const matches = query && !CONSULT_THINKING_LEVELS.includes(query as ConsultModelPreference["thinkingLevel"])
+        ? searchConsultantModels(completionModels, query).slice(0, 50)
+        : [];
+      if (matches.length > 0) {
+        return matches.map((model) => ({
+          value: `${model.provider}/${model.id}`,
+          label: modelLabel(model, completionActiveModel),
+        }));
       }
+      return thinkingCompletions(query);
+    },
+    handler: async (args, ctx) => {
+      syncModelCache(ctx);
+      const tokens = args.trim().split(/\s+/).filter(Boolean);
       const existing = loadConsultModelPreference();
+      updateConsultantStatus(ctx, existing);
       if (tokens.length === 0 && !ctx.hasUI) {
-        ctx.ui.notify(existing ? `Consultant model: ${existing.provider}/${existing.model} (thinking: ${existing.thinkingLevel})` : "Usage: /b-consult-model provider/model thinking-level", existing ? "info" : "error");
+        ctx.ui.notify(
+          existing
+            ? `Consultant model: ${existing.provider}/${existing.model} (thinking: ${existing.thinkingLevel}) · active model: ${activeModelLabel(ctx)}`
+            : `Usage: /b-consult-model provider/model thinking-level · active model: ${activeModelLabel(ctx)}`,
+          existing ? "info" : "error",
+        );
         return;
       }
 
-      let selectedModel: { provider: string; model: string } | undefined;
-      if (tokens.length > 0) {
-        selectedModel = parseModelSpec(tokens[0]);
-        if (!selectedModel) {
+      const available = getConsultantModels(ctx);
+      let selectedModel: ConsultSelectableModel | undefined;
+      let thinkingLevel: ConsultModelPreference["thinkingLevel"] | undefined;
+      const explicitModel = tokens.length > 0 ? parseModelSpec(tokens[0]) : undefined;
+      if (explicitModel) {
+        if (tokens.length > 2) {
           ctx.ui.notify("Usage: /b-consult-model provider/model [thinking-level]", "error");
           return;
         }
+        selectedModel = available.find((model) => model.provider === explicitModel.provider && model.id === explicitModel.model);
+        if (!selectedModel) {
+          ctx.ui.notify(`Model ${explicitModel.provider}/${explicitModel.model} is unavailable in the current Pi model scope. Choose a model listed by Pi or configure it first.`, "error");
+          return;
+        }
+        if (tokens.length === 2) {
+          const requestedThinking = tokens[1] as ConsultModelPreference["thinkingLevel"];
+          if (!CONSULT_THINKING_LEVELS.includes(requestedThinking)) {
+            ctx.ui.notify("Usage: /b-consult-model provider/model [thinking-level]", "error");
+            return;
+          }
+          thinkingLevel = requestedThinking;
+        }
+      } else if (tokens.length > 0) {
+        const requestedThinking = tokens.at(-1);
+        if (requestedThinking && CONSULT_THINKING_LEVELS.includes(requestedThinking as ConsultModelPreference["thinkingLevel"])) {
+          thinkingLevel = requestedThinking as ConsultModelPreference["thinkingLevel"];
+        }
+        const query = tokens.slice(0, thinkingLevel ? -1 : undefined).join(" ").trim();
+        selectedModel = await chooseModel(ctx, available, query, existing);
       } else {
-        const available = ctx.modelRegistry.getAvailable()
-          .map((model) => ({ provider: model.provider, model: model.id, label: modelLabel(model) }))
-          .sort((a, b) => a.label.localeCompare(b.label));
-        if (available.length === 0) {
-          ctx.ui.notify("No available models. Configure a provider, then run /b-consult-model provider/model thinking-level.", "error");
-          return;
-        }
-        const selected = await ctx.ui.select("Select consultant model", available.map((item) => item.label));
-        const match = available.find((item) => item.label === selected);
-        if (!match) {
-          ctx.ui.notify("Consultant model selection was cancelled", "info");
-          return;
-        }
-        selectedModel = { provider: match.provider, model: match.model };
+        selectedModel = await chooseModel(ctx, available, "", existing);
       }
+      if (!selectedModel) return;
 
-      const model = ctx.modelRegistry.find(selectedModel.provider, selectedModel.model);
-      if (!model) {
-        ctx.ui.notify(`Model ${selectedModel.provider}/${selectedModel.model} is unavailable. Choose a model listed by Pi or configure it first.`, "error");
-        return;
-      }
-      const thinkingLevel = tokens.length === 2
-        ? tokens[1] as ConsultModelPreference["thinkingLevel"]
-        : await chooseThinkingLevel(ctx);
+      thinkingLevel ??= await chooseThinkingLevel(ctx);
       if (!thinkingLevel || !CONSULT_THINKING_LEVELS.includes(thinkingLevel)) {
         ctx.ui.notify("Consultant thinking-level selection cancelled", "info");
         return;
       }
 
+      const preference: ConsultModelPreference = { provider: selectedModel.provider, model: selectedModel.id, thinkingLevel };
       try {
-        saveConsultModelPreference({ provider: model.provider, model: model.id, thinkingLevel });
+        saveConsultModelPreference(preference);
       } catch {
         ctx.ui.notify("Failed to save consultant preference.", "error");
         return;
       }
-      ctx.ui.notify(`Consultant model set to ${model.provider}/${model.id} (thinking: ${thinkingLevel})`, "info");
+      updateConsultantStatus(ctx, preference);
+      ctx.ui.notify(`Consultant model set to ${selectedModel.provider}/${selectedModel.id} (thinking: ${thinkingLevel}) · active model: ${activeModelLabel(ctx)}`, "info");
     },
   });
 
@@ -281,6 +406,10 @@ export const __test__ = {
   CONSULTANT_SYSTEM_PROMPT,
   CONSULT_INPUT_LIMITS,
   parseModelSpec,
+  modelLabel,
+  modelSearchText,
+  searchConsultantModels,
+  getConsultantModels,
   isValidConsultToolInput,
   executeConsultation,
 };
