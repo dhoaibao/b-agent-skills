@@ -78,7 +78,7 @@ Invoke a skill explicitly with Pi's native `/skill:<name>` command. The usual pa
 
 ## Managed MCPs
 
-The installer writes all seven recommended entries to Pi's MCP configuration with lazy startup. **Configured** means an entry exists; it does not mean the server is installed, authenticated, or ready. **Required** means required for the stated capability, not for every b-agentic session.
+The installer writes all eight recommended entries to Pi's MCP configuration with lazy startup. **Configured** means an entry exists; it does not mean the server is installed, authenticated, or ready. **Required** means required for the stated capability, not for every b-agentic session.
 
 | MCP | Role | Required | Default/configured state |
 |---|---|---|---|
@@ -86,6 +86,7 @@ The installer writes all seven recommended entries to Pi's MCP configuration wit
 | CodeGraph | Repository architecture, flows, impact, and affected tests | Optional per task; CLI optional | Configured lazily; initialized only for a concrete architecture or impact question |
 | Context7 | Versioned library and framework documentation | Optional per task; API key required when used | Configured lazily; `CONTEXT7_API_KEY` is user-supplied |
 | Linear | Exact issue and linked-relation planning context | Optional per task; OAuth may be required when used | Configured lazily and restricted to `get_issue`; authentication state is unverified, so run `/mcp-auth linear` if needed |
+| Mobbin | Comparable shipped UI patterns for bounded design-reference evidence | Optional per task; OAuth may be required when used | Configured lazily and restricted to `mobbin_search_screens`; authentication state is unverified, so run `/mcp-auth mobbin` if needed |
 | Firecrawl | Bounded public research, extraction, papers, and GitHub lookup | Optional per task; Bun and API key required when used | Configured lazily; `FIRECRAWL_API_KEY` is user-supplied |
 | Brave Search | Independent current discovery and alternate search modalities | Optional per task; Bun and API key required when used | Configured lazily; `BRAVE_API_KEY` is user-supplied |
 | Playwright | Real-browser, visual, console/network, and e2e evidence | Optional per task; Bun required when used | Configured lazily; no key |

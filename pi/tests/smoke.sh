@@ -2151,10 +2151,13 @@ expect(t.isTrustedManagedTool('firecrawl', 'firecrawl_extract', { urls: ['https:
 expect(t.isTrustedManagedTool('firecrawl', 'firecrawl_extract', { urls: ['https://example.org'], allowExternalLinks: true }) === false, 'unbounded Firecrawl extract must require approval');
 expect(t.isTrustedManagedTool('linear', 'linear_get_issue') === true, 'exact Linear issue tool is trusted');
 expect(t.isTrustedManagedTool('linear', 'get_issue') === false, 'legacy Linear tool alias is not trusted');
+expect(t.isTrustedManagedTool('mobbin', 'mobbin_search_screens') === true, 'exact Mobbin screen-search tool is trusted');
+expect(t.isTrustedManagedTool('mobbin', 'mobbin_search_projects') === false, 'unlisted Mobbin tools require approval');
 expect(t.isTrustedManagedTool('linear', 'list_issues') === false, 'unlisted Linear tools require approval');
 expect(t.isTrustedManagedTool('user-server', 'user_tool') === false, 'unmanaged server is not trusted');
 expect(t.approvalLabel('\u001b[31mtool\u0007\u009b') === ' [31mtool  ', 'broker approval labels must strip terminal control characters');
 expect(t.MANAGED_MCP_SERVERS.has('linear'), 'Linear is a managed MCP server');
+expect(t.MANAGED_MCP_SERVERS.has('mobbin'), 'Mobbin is a managed MCP server');
 expect(t.MANAGED_MCP_SERVERS.has('playwright'), 'managed MCP servers present');
 
 console.log('pi permission behavioral fixtures ok');

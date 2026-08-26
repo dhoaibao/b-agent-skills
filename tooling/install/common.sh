@@ -1161,6 +1161,42 @@ linear_readiness_status() {
   fi
 }
 
+mobbin_configured() {
+  [ -f "$MCP_CONFIG_DST" ] || return 1
+  python3 - "$MCP_CONFIG_DST" "$MCP_ROOT_KEY" "$SOURCE_DIR" <<'PY'
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+root_key = sys.argv[2]
+sys.path.insert(0, str(Path(sys.argv[3]) / 'tooling' / 'install'))
+from jsonc import loads as load_jsonc
+try:
+    data = load_jsonc(path.read_text())
+except Exception:
+    sys.exit(1)
+
+servers = data.get(root_key)
+entry = servers.get('mobbin') if isinstance(servers, dict) else None
+valid = (
+    isinstance(entry, dict)
+    and entry.get('url') == 'https://api.mobbin.com/mcp'
+    and entry.get('auth') == 'oauth'
+    and entry.get('includeTools') == ['mobbin_search_screens']
+    and entry.get('lifecycle') == 'lazy'
+)
+sys.exit(0 if valid else 1)
+PY
+}
+
+mobbin_readiness_status() {
+  if mobbin_configured; then
+    printf 'configured: authentication unverified; run /mcp-auth mobbin if needed'
+  else
+    printf 'blocked: invalid Mobbin OAuth read-only config'
+  fi
+}
+
 rtk_readiness_status() {
   if command -v rtk >/dev/null 2>&1; then
     printf 'ready: rtk installed'
@@ -1186,6 +1222,7 @@ print_install_report_readiness() {
   report_item "codegraph" "$(codegraph_readiness_status)"
   report_item "context7" "$(context7_readiness_status)"
   report_item "linear" "$(linear_readiness_status)"
+  report_item "mobbin" "$(mobbin_readiness_status)"
   report_item "brave-search" "$(brave_search_readiness_status)"
   report_item "firecrawl" "$(firecrawl_readiness_status)"
   report_item "playwright" "$(playwright_readiness_status)"

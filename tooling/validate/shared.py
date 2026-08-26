@@ -421,7 +421,7 @@ for required in ["authorized", "Diagnosis-only requests stop"]:
             f"authorization marker {required!r}"
         )
 
-MCP_SERVERS = {"serena", "codegraph", "context7", "linear", "brave-search", "firecrawl", "playwright"}
+MCP_SERVERS = {"serena", "codegraph", "context7", "linear", "mobbin", "brave-search", "firecrawl", "playwright"}
 LOCAL_TOOLS = {"bash", "read", "edit", "write", "recall"}
 KNOWN_TOOLS = MCP_SERVERS | LOCAL_TOOLS
 
@@ -450,6 +450,7 @@ TOKEN_TO_DISPLAY_NAME = {
     "codegraph": "CodeGraph",
     "context7": "Context7",
     "linear": "Linear",
+    "mobbin": "Mobbin",
     "brave-search": "Brave",
     "firecrawl": "Firecrawl",
     "playwright": "Playwright",

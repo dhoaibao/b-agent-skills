@@ -557,6 +557,7 @@ EOF
 	set -e
 	[ "$rc" -eq 0 ] || fail "expected a valid Linear configuration to pass without an OAuth-state claim, got $rc"
 	assert_contains "$doctor_log" 'linear: configured: authentication unverified'
+	assert_contains "$doctor_log" 'mobbin: configured: authentication unverified'
 	assert_contains "$doctor_log" 'mcp-adapter: ready:'
 	assert_contains "$doctor_log" 'serena: ready:'
 	assert_contains "$doctor_log" 'codegraph: ready:'
@@ -585,6 +586,7 @@ PY
 	assert_contains "$config_doctor_log" 'brave-search: ready:'
 	assert_contains "$config_doctor_log" 'firecrawl: ready:'
 	assert_contains "$config_doctor_log" 'linear: configured: authentication unverified'
+	assert_contains "$config_doctor_log" 'mobbin: configured: authentication unverified'
 
 	python3 - "$sandbox/home/.pi/agent/mcp.json" <<'PY'
 import json

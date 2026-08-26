@@ -170,7 +170,7 @@ Existing CodeGraph installations are refreshed with `codegraph upgrade`. Run `co
 ## Managed MCPs
 
 The installer writes recommended entries for Serena, CodeGraph, Context7,
-Linear, Firecrawl, Brave Search, and Playwright. Servers use lazy lifecycle through the
+Linear, Mobbin, Firecrawl, Brave Search, and Playwright. Servers use lazy lifecycle through the
 adapter's proxy tool, so they are not eagerly started or injected into context.
 The template sets a global `settings.requestTimeoutMs` of 30000 milliseconds
 (30 seconds). API keys are user-supplied and are written only to user config,
@@ -182,6 +182,7 @@ never tracked templates.
 | CodeGraph | Architecture, dependency/call flows, impact, and affected tests | `codegraph` CLI; initialize only for a concrete repository-wide architecture or impact question |
 | Context7 | Versioned framework and API facts | `CONTEXT7_API_KEY` |
 | Linear | Exact issue and linked-relation planning context | Configured read-only; authentication state is unverified, so run `/mcp-auth linear` if needed |
+| Mobbin | Comparable shipped UI patterns for bounded design-reference evidence | Configured read-only; authentication state is unverified, so run `/mcp-auth mobbin` if needed |
 | Firecrawl | Primary public research, bounded extraction, papers, and GitHub lookup | Bun (`bunx`) and `FIRECRAWL_API_KEY` |
 | Brave Search | Independent corroboration and specialized current search | Bun (`bunx`) and `BRAVE_API_KEY` |
 | Playwright | Live browser, visual, console/network, and e2e evidence | Bun (`bunx`) |
@@ -199,8 +200,8 @@ session has RTK. Use `--allow-degraded` to inspect status without failing.
 When live network/process activity is approved,
 `scripts/mcp-doctor.sh --probe-schemas` explicitly starts or connects to each
 configured server and compares its current tool inventory with the canonical
-operation policy. Linear is skipped until an authenticated adapter probe path
-exists; the doctor never acquires OAuth tokens. Run it after MCP package updates and before release candidates. Add `--suggestions` for human-readable review records and
+operation policy. OAuth-backed Linear and Mobbin entries are skipped until an
+authenticated adapter probe path exists; the doctor never acquires OAuth tokens. Run it after MCP package updates and before release candidates. Add `--suggestions` for human-readable review records and
 `--suggestions-json=<path>` for a machine-readable report; suggestion mode
 never edits policy or configuration.
 

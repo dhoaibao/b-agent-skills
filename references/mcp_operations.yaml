@@ -84,6 +84,11 @@
         "linear_get_issue": "read-only"
       }
     },
+    "mobbin": {
+      "tools": {
+        "mobbin_search_screens": "read-only"
+      }
+    },
     "brave-search": {
       "tools": {
         "brave_search_brave_web_search": "read-only",

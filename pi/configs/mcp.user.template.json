@@ -43,6 +43,12 @@
       "includeTools": ["get_issue"],
       "lifecycle": "lazy"
     },
+    "mobbin": {
+      "url": "https://api.mobbin.com/mcp",
+      "auth": "oauth",
+      "includeTools": ["mobbin_search_screens"],
+      "lifecycle": "lazy"
+    },
     "brave-search": {
       "command": "bunx",
       "args": ["@brave/brave-search-mcp-server", "--transport", "stdio"],

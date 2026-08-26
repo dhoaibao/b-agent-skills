@@ -32,6 +32,7 @@ Create or refresh `docs/DESIGN.md`, the repo-local frontend design standard. Do 
 ## Tool guidance
 
 - `bash` - `rtk git status --short`, diffs, and modern discovery (`rg`, `fdfind`, `eza`).
+- `mobbin` - optional bounded design-reference evidence: use only when local/user evidence is insufficient, search comparable shipped patterns, synthesize rather than copy, keep local requirements/tokens authoritative, distinguish observed references from inferred durable rules, and do not use it for UI implementation or visual QA.
 - `read`/`edit`/`write` - inspect sources and update only `docs/DESIGN.md` unless broader docs were approved.
 - `serena` - after native search/read, inspect a specific exact symbol or
   reference only when it materially improves precision about code ownership or
@@ -66,6 +67,8 @@ Use the following as an adaptable checklist, not a required document outline:
 Omit YAML front matter when exact token values are not evidenced or when the repo already has a better token source.
 
 ## Content Rules
+
+Use optional Mobbin evidence only when local/user evidence is insufficient: search comparable shipped patterns, synthesize rather than copy, keep local requirements and tokens authoritative, and distinguish observed references from inferred durable rules. Mobbin is not for UI implementation or visual QA.
 
 - State durable standards for the product, not page-specific implementation notes.
 - Make rules concrete: density, radius, spacing scale, component usage, icon usage, color roles, typography scale, empty/loading/error states, and responsive behavior.

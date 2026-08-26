@@ -86,7 +86,7 @@ only `permissionsExtension` are restored using the original compatibility path.
 It does not remove any of these packages, including `@gotgenes/pi-anthropic-auth`, `@juicesharp/rpiv-ask-user-question`, and `@narumitw/pi-lsp`.
 
 Servers default to lazy lifecycle through the adapter's proxy tool so schemas
-are not eagerly injected into context. Linear is configured for deferred OAuth and exposes only `get_issue`; it does not authenticate during install, and its authentication state remains unverified until the adapter needs it. The template sets the adapter's global
+are not eagerly injected into context. Linear is configured for deferred OAuth and exposes only `get_issue`; Mobbin is configured for deferred OAuth and exposes only `mobbin_search_screens`. Neither authenticates during install, and each authentication state remains unverified until the adapter needs it. The template sets the adapter's global
 `settings.requestTimeoutMs` to 30000 milliseconds (30 seconds), giving every
 MCP request a finite deadline. Optional adapter-specific `directTools` settings
 can expose selected tools individually when needed.
@@ -137,7 +137,7 @@ that listens for `tool_call` events and:
   cached MCP status/list/search/describe/instructions metadata follows the shared
   managed-MCP approval policy in every role; `mcpScript` follows that same policy;
   asks for Firecrawl external-mutation or
-  local-upload tools (agent/crawl/interact/monitor/feedback/parse), Linear OAuth bootstrap and every Linear operation other than `get_issue`, Playwright
+  local-upload tools (agent/crawl/interact/monitor/feedback/parse), Linear OAuth bootstrap and every Linear operation other than `get_issue`, Mobbin OAuth bootstrap and every Mobbin operation other than `mobbin_search_screens`, Playwright
   page-mutating tools (click/type/upload/evaluate/…), screenshots (the server
   persists a default file even without a filename), MCP auth bootstrap,
   Playwright navigation (including public URLs that may redirect or DNS-rebind),
@@ -151,5 +151,5 @@ Use `scripts/validate-skills.sh` and `scripts/validate-skills.sh --release`
 from the repository root. MCP readiness must distinguish missing adapter,
 missing config, missing local prerequisites, and ready servers. The opt-in
 `scripts/mcp-doctor.sh --probe-schemas` lane performs approved live startup/network
-checks and reports current tool IDs that are new or absent relative to policy. It does not acquire OAuth tokens, so Linear schema probing remains blocked until an authenticated adapter probe path is available; normal readiness reports its authentication state as unverified. Run it after MCP
+checks and reports current tool IDs that are new or absent relative to policy. It does not acquire OAuth tokens, so Linear and Mobbin schema probing remain blocked until an authenticated adapter probe path is available; normal readiness reports their authentication state as unverified. Run it after MCP
 package updates and before release candidates; normal readiness does not verify live schemas.

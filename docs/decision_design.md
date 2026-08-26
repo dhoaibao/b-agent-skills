@@ -323,10 +323,11 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   conditional argument keys, and runtime enforcement. Generated sets in
   `pi/extensions/b-agentic-support/mcp.ts` are checked against that source by
   `tooling/validate/mcp_policy.py` and `pi/scripts/validate_mcp_policy.py`.
-- The managed set is Serena, CodeGraph, Context7, Linear, Brave Search, Firecrawl, and
-  Playwright. Configured servers use lazy lifecycle, proxy execution by
+- The managed set is Serena, CodeGraph, Context7, Linear, Mobbin, Brave Search, Firecrawl,
+  and Playwright. Configured servers use lazy lifecycle, proxy execution by
   default, and a 30-second request timeout. Linear uses the hosted read-only endpoint,
-  OAuth `read` scope, and an exact `get_issue` allowlist. Shared managed-MCP
+  OAuth `read` scope, and an exact `get_issue` allowlist; Mobbin uses its official
+  OAuth endpoint and an exact `mobbin_search_screens` allowlist. Shared managed-MCP
   classifications—not the selected role—govern gateway, direct-tool, and
   `mcpScript` use. The capability matrix permits cached non-executing
   status/server-list/search/describe/instructions metadata for any server and
@@ -452,7 +453,7 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   `tooling/install/manifest_uninstall.py`.
 - MCP configuration is merged rather than replaced: unrelated user servers
   survive, prompted secrets are written only to user config through a private
-  input pipe, and config uses lazy servers with API-key placeholders or deferred OAuth. Linear
+  input pipe, and config uses lazy servers with API-key placeholders or deferred OAuth. Linear and Mobbin
   authentication happens only through the adapter's normal flow when needed; readiness does not infer or claim its OAuth state. Evidence:
   `pi/configs/mcp.user.template.json`, `tooling/install/common.sh`,
   `tooling/install/json_cleanup.py`, `tests/smoke/install.sh`.
@@ -465,8 +466,8 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
 ### Readiness is explicit and degraded states are visible
 
 - `scripts/mcp-doctor.sh` distinguishes missing adapter, malformed config,
-  missing launchers/credentials, configured OAuth-authentication-unverified state, and ready servers. A valid Linear configuration is nonblocking because the doctor cannot observe adapter OAuth state. Live MCP schema probing is
-  opt-in and reports drift/suggestions without editing policy; it does not acquire OAuth tokens, so Linear is not live-probed until an authenticated adapter path is available.
+  missing launchers/credentials, configured OAuth-authentication-unverified state, and ready servers. Valid Linear and Mobbin configurations are nonblocking because the doctor cannot observe adapter OAuth state. Live MCP schema probing is
+  opt-in and reports drift/suggestions without editing policy; it does not acquire OAuth tokens, so OAuth-backed servers are not live-probed until an authenticated adapter path is available.
 - `scripts/skill-doctor.sh` checks installed Pi skill payloads and kernel
   discovery. Install reports expose readiness and next steps instead of hiding
   missing optional infrastructure. Evidence: `tooling/validate/mcp_doctor.py`,

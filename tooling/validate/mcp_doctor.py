@@ -48,9 +48,10 @@ def load_jsonc(text: str) -> object:
     return module.loads(text)
 
 
-SUPPORTED_SERVERS = ("serena", "codegraph", "context7", "linear", "brave-search", "firecrawl", "playwright")
+SUPPORTED_SERVERS = ("serena", "codegraph", "context7", "linear", "mobbin", "brave-search", "firecrawl", "playwright")
 CONTEXT7_URL = "https://mcp.context7.com/mcp"
 LINEAR_URL = "https://mcp.linear.app/mcp/readonly"
+MOBBIN_URL = "https://api.mobbin.com/mcp"
 POLICY_PATH = ROOT / "references" / "mcp_operations.yaml"
 
 
@@ -145,6 +146,14 @@ def pi_server_status(server: str, config: dict) -> str:
             and entry.get("lifecycle") == "lazy"
         )
         return "configured: authentication unverified; run /mcp-auth linear if needed" if valid else "blocked: invalid Linear OAuth read-only config"
+    if server == "mobbin":
+        valid = (
+            entry.get("url") == MOBBIN_URL
+            and entry.get("auth") == "oauth"
+            and entry.get("includeTools") == ["mobbin_search_screens"]
+            and entry.get("lifecycle") == "lazy"
+        )
+        return "configured: authentication unverified; run /mcp-auth mobbin if needed" if valid else "blocked: invalid Mobbin OAuth read-only config"
     expected = {
         "brave-search": ["@brave/brave-search-mcp-server", "--transport", "stdio"],
         "firecrawl": ["firecrawl-mcp"],
@@ -252,8 +261,8 @@ def main() -> int:
                         )
                     blocked = True
                     continue
-                if server == "linear":
-                    print("schema-probe linear: blocked: OAuth authentication is required; doctor does not acquire tokens")
+                if server in {"linear", "mobbin"}:
+                    print(f"schema-probe {server}: blocked: OAuth authentication is required; doctor does not acquire tokens")
                     if suggestions_requested:
                         suggestion_failures.append({"server": server, "reason": "OAuth authentication required; doctor does not acquire tokens"})
                     blocked = True

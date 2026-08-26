@@ -48,6 +48,7 @@ export const MANAGED_MCP_SERVERS = new Set([
   "context7",
   "firecrawl",
   "linear",
+  "mobbin",
   "playwright",
   "serena"
 ]);
@@ -332,6 +333,10 @@ export const CONTEXT7_TRUSTED_TOOLS = new Set([
 
 export const LINEAR_TRUSTED_TOOLS = new Set([
   "linear_get_issue"
+]);
+
+export const MOBBIN_TRUSTED_TOOLS = new Set([
+  "mobbin_search_screens"
 ]);
 
 export const BRAVE_SEARCH_TRUSTED_TOOLS = new Set([
@@ -836,6 +841,7 @@ export function isTrustedManagedTool(server: string, toolName: string, input?: u
   if (server === "codegraph") return CODEGRAPH_TRUSTED_TOOLS.has(base);
   if (server === "context7") return CONTEXT7_TRUSTED_TOOLS.has(base);
   if (server === "linear") return LINEAR_TRUSTED_TOOLS.has(base);
+  if (server === "mobbin") return MOBBIN_TRUSTED_TOOLS.has(base);
   if (server === "brave-search") return BRAVE_SEARCH_TRUSTED_TOOLS.has(base);
   if (server === "firecrawl") return FIRECRAWL_TRUSTED_TOOLS.has(base);
   if (server === "playwright") return PLAYWRIGHT_TRUSTED_TOOLS.has(base);
