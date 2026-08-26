@@ -553,6 +553,7 @@ const consultantProvider = {
 };
 let rolePickerCalls = 0;
 let modelPickerCalls = 0;
+const consultSearchInputs = [];
 let roleColorMode = 'truecolor';
 const roleContext = {
   get model() { return activeModel; },
@@ -561,6 +562,10 @@ const roleContext = {
   hasUI: true,
   ui: {
     confirm: async () => true,
+    input: async (title, placeholder) => {
+      consultSearchInputs.push({ title, placeholder });
+      return 'claude-sonnet-4-5';
+    },
     select: async (title) => {
       if (title === 'Select b-agentic role') {
         rolePickerCalls += 1;
@@ -570,6 +575,7 @@ const roleContext = {
         modelPickerCalls += 1;
         return 'anthropic/claude-sonnet-4-5';
       }
+      if (title === 'Select consultant thinking level') return 'high';
       return 'Allow once';
     },
     notify(message, level) { roleNotifications.push({ message, level }); },
@@ -619,7 +625,11 @@ const scopedConsultContext = { ...roleContext, scopedModels: [{ model: activeMod
 expect(consultTest.getConsultantModels(scopedConsultContext).length === 1 && consultTest.getConsultantModels(scopedConsultContext)[0].id === activeModel.id, 'consultant model selection must honor the active Pi model scope');
 expect(consultTest.modelLabel(activeModel, activeModel).includes('current active'), 'consultant model labels must identify the current active model');
 expect(consultTest.searchConsultantModels(roleContext.modelRegistry.getAvailable(), 'claude-sonnet-4-5').length === 1, 'consultant model search must match a model by fuzzy id');
+await consultCommand.handler('', roleContext);
+expect(consultSearchInputs[0]?.title.includes('Search consultant models') && consultSearchInputs[0]?.title.includes('active: anthropic/claude-sonnet-4-5') && consultSearchInputs[0]?.placeholder === 'provider/model, model name, or provider', 'interactive consultant setup must expose a search input with the active model context');
+expect(!roleStatuses.some(({ key }) => key === 'b-agentic-consult'), 'consultant model selection must not add a footer status');
 await consultCommand.handler('claude-sonnet-4-5 high', roleContext);
+expect(consultSearchInputs[1]?.placeholder === 'claude-sonnet-4-5', 'consultant model search must accept the command query as the input hint');
 const consultModelCompletions = consultCommand.getArgumentCompletions('claude-sonnet-4-5');
 expect(consultModelCompletions?.some((item) => item.value === 'anthropic/claude-sonnet-4-5' && item.label.includes('current active')), 'consultant command completions must search models and identify the current active model');
 await consultCommand.handler('anthropic/claude-sonnet-4-5 high', roleContext);

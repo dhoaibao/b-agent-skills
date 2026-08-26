@@ -142,13 +142,6 @@ function activeModelLabel(ctx: ExtensionContext): string {
   return ctx.model ? `${ctx.model.provider}/${ctx.model.id}` : "(none)";
 }
 
-function updateConsultantStatus(ctx: ExtensionContext, preference = loadConsultModelPreference()): void {
-  const consultant = preference
-    ? `${preference.provider}/${preference.model} (thinking: ${preference.thinkingLevel})`
-    : "not configured";
-  ctx.ui.setStatus("b-agentic-consult", `b-agentic consultant: ${consultant} · active: ${activeModelLabel(ctx)}`);
-}
-
 async function chooseThinkingLevel(ctx: ExtensionContext): Promise<ConsultModelPreference["thinkingLevel"] | undefined> {
   if (!ctx.hasUI) return undefined;
   const selected = await ctx.ui.select("Select consultant thinking level", [...CONSULT_THINKING_LEVELS]);
@@ -271,17 +264,29 @@ export default function bAgenticConsult(pi: ExtensionAPI): void {
     query: string,
     preference: ConsultModelPreference | undefined,
   ): Promise<ConsultSelectableModel | undefined> => {
-    const matches = searchConsultantModels(models, query);
+    let searchQuery = query;
+    if (ctx.hasUI) {
+      const enteredQuery = await ctx.ui.input(
+        `Search consultant models (active: ${activeModelLabel(ctx)})`,
+        query || "provider/model, model name, or provider",
+      );
+      if (enteredQuery === undefined) {
+        ctx.ui.notify("Consultant model search was cancelled", "info");
+        return undefined;
+      }
+      searchQuery = enteredQuery.trim();
+    }
+    const matches = searchConsultantModels(models, searchQuery);
     if (matches.length === 0) {
-      ctx.ui.notify(query ? `No models match "${query}". Choose a model listed by Pi or configure it first.` : "No available models. Configure a provider, then run /b-consult-model provider/model thinking-level.", "error");
+      ctx.ui.notify(searchQuery ? `No models match "${searchQuery}". Choose a model listed by Pi or configure it first.` : "No available models. Configure a provider, then run /b-consult-model provider/model thinking-level.", "error");
       return undefined;
     }
     if (matches.length === 1) return matches[0];
     if (!ctx.hasUI) {
-      ctx.ui.notify(`Model search "${query}" matched multiple models: ${matches.map((model) => `${model.provider}/${model.id}`).join(", ")}. Use provider/model to select one.`, "error");
+      ctx.ui.notify(`Model search "${searchQuery}" matched multiple models: ${matches.map((model) => `${model.provider}/${model.id}`).join(", ")}. Use provider/model to select one.`, "error");
       return undefined;
     }
-    const searchHint = query ? ` matching "${query}"` : "";
+    const searchHint = searchQuery ? ` matching "${searchQuery}"` : "";
     const selected = await ctx.ui.select(
       `Select consultant model${searchHint} (active: ${activeModelLabel(ctx)})`,
       matches.map((model) => modelLabel(model, ctx.model, preference)),
@@ -322,7 +327,6 @@ export default function bAgenticConsult(pi: ExtensionAPI): void {
       syncModelCache(ctx);
       const tokens = args.trim().split(/\s+/).filter(Boolean);
       const existing = loadConsultModelPreference();
-      updateConsultantStatus(ctx, existing);
       if (tokens.length === 0 && !ctx.hasUI) {
         ctx.ui.notify(
           existing
@@ -380,7 +384,6 @@ export default function bAgenticConsult(pi: ExtensionAPI): void {
         ctx.ui.notify("Failed to save consultant preference.", "error");
         return;
       }
-      updateConsultantStatus(ctx, preference);
       ctx.ui.notify(`Consultant model set to ${selectedModel.provider}/${selectedModel.id} (thinking: ${thinkingLevel}) · active model: ${activeModelLabel(ctx)}`, "info");
     },
   });
