@@ -19,8 +19,8 @@ b-agentic is a slim workflow kernel built around Pi. It ships the always-loaded 
 
 - `skills/registry.yaml` owns skill metadata, routing, and generated frontmatter; each `skills/*/prompt.md` owns its canonical skill body.
 - `references/kernel.template.md` owns the generated Pi kernel; `references/mcp_operations.yaml` owns managed MCP classifications.
-- `tooling/generate/registry_sync.py` renders `skills/*/SKILL.md`, the README skills table, kernel generated blocks, `pi/extensions/b-agentic-support/role.ts`, and generated MCP runtime sets. Run it without `--check` only after changing a canonical source; use `--check` to verify synchronization.
-- The standalone preview package is canonical under `pi/packages/preview-markdown/`; its extension source is `extensions/b-agentic-preview-markdown.ts`, and `pi/scripts/validate-preview-markdown-package.sh` validates its package contents.
+- `tooling/generate/registry_sync.py` renders `skills/*/SKILL.md`, the README skills table, kernel blocks, role ownership, prompt-marker blocks, and MCP runtime policy into `README.md`, `references/kernel.template.md`, `pi/extensions/b-agentic-support/{role.ts,mcp.ts}`, `tooling/validate/{shared.py,behavior.py}`, `pi/scripts/validate.sh`, and `pi/tests/smoke.sh`. Run it without `--check` only after changing a canonical source; use `--check` to verify synchronization.
+- The standalone preview package is canonical under `pi/packages/preview-markdown/`; its extension source is `pi/packages/preview-markdown/extensions/b-agentic-preview-markdown.ts`, and `pi/scripts/validate-preview-markdown-package.sh` validates its package contents.
 - `references/kernel.template.md` is the compact runtime kernel and must remain within the validator's 120-line/12,000-byte limit. Keep `references/` limited to `kernel.template.md` and `mcp_operations.yaml`.
 
 ## Verification
@@ -30,6 +30,7 @@ Run the narrowest applicable checks from the repository root:
 ```bash
 python3 tooling/generate/registry_sync.py --check
 scripts/validate-skills.sh
+bash pi/scripts/validate.sh
 scripts/b-agentic-audit.sh
 scripts/smoke-install.sh
 bash pi/scripts/validate-preview-markdown-package.sh
