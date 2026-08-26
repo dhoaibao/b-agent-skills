@@ -53,7 +53,6 @@ EXTENSION_NAMES=(
 )
 LEGACY_EXTENSION_NAMES=(
 	b-agentic-consultant.ts
-	b-agentic-support/consult.ts
 )
 EXTENSION_DST="$EXTENSIONS_DST/b-agentic-permissions.ts"
 EXTENSION_SNAPSHOT_DST="$METADATA_DIR/extensions/b-agentic-permissions.ts"
