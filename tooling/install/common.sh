@@ -1182,7 +1182,7 @@ valid = (
     isinstance(entry, dict)
     and entry.get('url') == 'https://api.mobbin.com/mcp'
     and entry.get('auth') == 'oauth'
-    and entry.get('includeTools') == ['mobbin_search_screens']
+    and entry.get('includeTools') == ['mobbin_search_screens', 'mobbin_search_flows', 'mobbin_search_sections']
     and entry.get('lifecycle') == 'lazy'
 )
 sys.exit(0 if valid else 1)

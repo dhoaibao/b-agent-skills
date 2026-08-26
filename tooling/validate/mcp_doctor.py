@@ -150,7 +150,7 @@ def pi_server_status(server: str, config: dict) -> str:
         valid = (
             entry.get("url") == MOBBIN_URL
             and entry.get("auth") == "oauth"
-            and entry.get("includeTools") == ["mobbin_search_screens"]
+            and entry.get("includeTools") == ["mobbin_search_screens", "mobbin_search_flows", "mobbin_search_sections"]
             and entry.get("lifecycle") == "lazy"
         )
         return "configured: authentication unverified; run /mcp-auth mobbin if needed" if valid else "blocked: invalid Mobbin OAuth read-only config"

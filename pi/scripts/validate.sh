@@ -121,8 +121,8 @@ if mcp.exists():
     if linear.get('url') != 'https://mcp.linear.app/mcp/readonly' or linear.get('auth') != 'oauth' or linear.get('oauth', {}).get('scope') != 'read' or linear.get('includeTools') != ['get_issue']:
         errors.append(f'{mcp}: linear must be a read-only OAuth get_issue server')
     mobbin = servers.get('mobbin', {})
-    if mobbin.get('url') != 'https://api.mobbin.com/mcp' or mobbin.get('auth') != 'oauth' or mobbin.get('includeTools') != ['mobbin_search_screens']:
-        errors.append(f'{mcp}: mobbin must be a read-only OAuth mobbin_search_screens server')
+    if mobbin.get('url') != 'https://api.mobbin.com/mcp' or mobbin.get('auth') != 'oauth' or mobbin.get('includeTools') != ['mobbin_search_screens', 'mobbin_search_flows', 'mobbin_search_sections']:
+        errors.append(f'{mcp}: mobbin must be a read-only OAuth server with the three documented search tools')
     settings = data.get('settings', {})
     if settings.get('directTools') not in (False, None):
         errors.append(f'{mcp}: default directTools must be false (proxy tool default)')

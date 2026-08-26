@@ -99,6 +99,7 @@ EOF
 	assert_contains "$mcp_path" '"user-server"'
 	assert_contains "$mcp_path" '"codegraph"'
 	assert_json_value "$mcp_path" "data['mcpServers']['linear'] == {'url': 'https://mcp.linear.app/mcp/readonly', 'auth': 'oauth', 'oauth': {'scope': 'read'}, 'includeTools': ['get_issue'], 'lifecycle': 'lazy'}"
+	assert_json_value "$mcp_path" "data['mcpServers']['mobbin'] == {'url': 'https://api.mobbin.com/mcp', 'auth': 'oauth', 'includeTools': ['mobbin_search_screens', 'mobbin_search_flows', 'mobbin_search_sections'], 'lifecycle': 'lazy'}"
 	assert_json_value "$mcp_path" "data['settings']['requestTimeoutMs'] == 30000"
 
 	python3 - "$mcp_path" <<'PY'

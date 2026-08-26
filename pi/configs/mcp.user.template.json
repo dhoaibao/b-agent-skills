@@ -46,7 +46,7 @@
     "mobbin": {
       "url": "https://api.mobbin.com/mcp",
       "auth": "oauth",
-      "includeTools": ["mobbin_search_screens"],
+      "includeTools": ["mobbin_search_screens", "mobbin_search_flows", "mobbin_search_sections"],
       "lifecycle": "lazy"
     },
     "brave-search": {

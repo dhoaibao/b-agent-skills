@@ -331,7 +331,8 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   and Playwright. Configured servers use lazy lifecycle, proxy execution by
   default, and a 30-second request timeout. Linear uses the hosted read-only endpoint,
   OAuth `read` scope, and an exact `get_issue` allowlist; Mobbin uses its official
-  OAuth endpoint and an exact `mobbin_search_screens` allowlist. Shared managed-MCP
+  OAuth endpoint and an exact allowlist of `mobbin_search_screens`,
+  `mobbin_search_flows`, and `mobbin_search_sections`. Shared managed-MCP
   classifications—not the selected role—govern gateway, direct-tool, and
   `mcpScript` use. The capability matrix permits cached non-executing
   status/server-list/search/describe/instructions metadata for any server and

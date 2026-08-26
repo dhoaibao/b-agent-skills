@@ -182,7 +182,7 @@ never tracked templates.
 | CodeGraph | Architecture, dependency/call flows, impact, and affected tests | `codegraph` CLI; initialize only for a concrete repository-wide architecture or impact question |
 | Context7 | Versioned framework and API facts | `CONTEXT7_API_KEY` |
 | Linear | Exact issue and linked-relation planning context | Configured read-only; authentication state is unverified, so run `/mcp-auth linear` if needed |
-| Mobbin | Comparable shipped UI patterns for bounded design-reference evidence | Configured read-only; authentication state is unverified, so run `/mcp-auth mobbin` if needed |
+| Mobbin | Comparable shipped UI patterns for bounded design-reference evidence | Configured read-only with `mobbin_search_screens`, `mobbin_search_flows`, and `mobbin_search_sections`; authentication state is unverified, so run `/mcp-auth mobbin` if needed |
 | Firecrawl | Primary public research, bounded extraction, papers, and GitHub lookup | Bun (`bunx`) and `FIRECRAWL_API_KEY` |
 | Brave Search | Independent corroboration and specialized current search | Bun (`bunx`) and `BRAVE_API_KEY` |
 | Playwright | Live browser, visual, console/network, and e2e evidence | Bun (`bunx`) |

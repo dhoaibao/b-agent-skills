@@ -336,7 +336,9 @@ export const LINEAR_TRUSTED_TOOLS = new Set([
 ]);
 
 export const MOBBIN_TRUSTED_TOOLS = new Set([
-  "mobbin_search_screens"
+  "mobbin_search_flows",
+  "mobbin_search_screens",
+  "mobbin_search_sections"
 ]);
 
 export const BRAVE_SEARCH_TRUSTED_TOOLS = new Set([

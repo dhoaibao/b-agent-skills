@@ -86,7 +86,9 @@
     },
     "mobbin": {
       "tools": {
-        "mobbin_search_screens": "read-only"
+        "mobbin_search_screens": "read-only",
+        "mobbin_search_flows": "read-only",
+        "mobbin_search_sections": "read-only"
       }
     },
     "brave-search": {
