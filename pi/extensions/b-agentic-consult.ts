@@ -1,6 +1,6 @@
 /** On-demand, isolated, read-only consultation for planner decisions and plan reviews. */
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { fuzzyFilter } from "@earendil-works/pi-tui";
+import type { ExtensionAPI, ExtensionContext, KeybindingsManager, Theme } from "@earendil-works/pi-coding-agent";
+import { Container, fuzzyFilter, Input, Spacer, Text, type Focusable, type TUI } from "@earendil-works/pi-tui";
 import {
   CONSULT_INPUT_LIMITS,
   CONSULT_THINKING_LEVELS,
@@ -109,7 +109,7 @@ function modelLabel(
   const badges: string[] = [];
   if (modelsAreEqual(model, activeModel)) badges.push("current active");
   if (preference && model.provider === preference.provider && model.id === preference.model) badges.push("configured consultant");
-  return `${model.provider}/${model.id}${badges.length > 0 ? ` (${badges.join("; ")})` : ""}`;
+  return `${model.provider}/${model.id}${badges.length > 0 ? ` ${badges.map((badge) => `(${badge})`).join(" ")}` : ""}`;
 }
 
 function getConsultantModels(ctx: ExtensionContext): ConsultSelectableModel[] {
@@ -143,6 +143,140 @@ function searchConsultantModels(models: ConsultSelectableModel[], query: string)
   return normalized ? fuzzyFilter(models, normalized, modelSearchText) : [...models];
 }
 
+class ConsultantModelPicker extends Container implements Focusable {
+  private _focused = false;
+  private readonly input = new Input();
+  private readonly listContainer = new Container();
+  private readonly models: ConsultSelectableModel[];
+  private readonly activeModel: ConsultSelectableModel | undefined;
+  private readonly preference: ConsultModelPreference | undefined;
+  private readonly tui: TUI;
+  private readonly theme: Theme;
+  private readonly keybindings: KeybindingsManager;
+  private readonly done: (model: ConsultSelectableModel | undefined) => void;
+  private filteredModels: ConsultSelectableModel[] = [];
+  private selectedIndex = 0;
+  private closed = false;
+
+  constructor(
+    tui: TUI,
+    theme: Theme,
+    keybindings: KeybindingsManager,
+    models: ConsultSelectableModel[],
+    activeModel: ConsultSelectableModel | undefined,
+    preference: ConsultModelPreference | undefined,
+    initialQuery: string,
+    done: (model: ConsultSelectableModel | undefined) => void,
+  ) {
+    super();
+    this.tui = tui;
+    this.theme = theme;
+    this.keybindings = keybindings;
+    this.models = models;
+    this.activeModel = activeModel;
+    this.preference = preference;
+    this.done = done;
+    this.input.setValue(initialQuery);
+
+    this.addChild(new Text(
+      theme.fg("accent", theme.bold(`Select consultant model (active: ${modelContextLabel(activeModel)})`)),
+      1,
+      0,
+    ));
+    this.addChild(new Spacer(1));
+    this.addChild(new Text(theme.fg("dim", "Type to filter models"), 1, 0));
+    this.addChild(this.input);
+    this.addChild(new Spacer(1));
+    this.addChild(this.listContainer);
+    this.addChild(new Spacer(1));
+    this.addChild(new Text(theme.fg("dim", "↑↓ navigate · enter select · escape cancel"), 1, 0));
+    this.filterModels();
+  }
+
+  get focused(): boolean {
+    return this._focused;
+  }
+
+  set focused(value: boolean) {
+    this._focused = value;
+    this.input.focused = value;
+  }
+
+  private filterModels(): void {
+    this.filteredModels = searchConsultantModels(this.models, this.input.getValue());
+    this.selectedIndex = 0;
+    this.updateList();
+  }
+
+  private updateList(): void {
+    this.listContainer.clear();
+    const maxVisible = 10;
+    const startIndex = Math.max(
+      0,
+      Math.min(this.selectedIndex - Math.floor(maxVisible / 2), this.filteredModels.length - maxVisible),
+    );
+    const endIndex = Math.min(startIndex + maxVisible, this.filteredModels.length);
+    for (let index = startIndex; index < endIndex; index += 1) {
+      const model = this.filteredModels[index];
+      if (!model) continue;
+      const line = `${index === this.selectedIndex ? "→ " : "  "}${modelLabel(model, this.activeModel, this.preference)}`;
+      this.listContainer.addChild(new Text(
+        index === this.selectedIndex ? this.theme.fg("accent", line) : line,
+        1,
+        0,
+      ));
+    }
+    if (startIndex > 0 || endIndex < this.filteredModels.length) {
+      this.listContainer.addChild(new Text(
+        this.theme.fg("dim", `  (${this.selectedIndex + 1}/${this.filteredModels.length})`),
+        1,
+        0,
+      ));
+    }
+    if (this.filteredModels.length === 0) {
+      this.listContainer.addChild(new Text(this.theme.fg("warning", "  No matching models"), 1, 0));
+    }
+    this.tui.requestRender();
+  }
+
+  private finish(model: ConsultSelectableModel | undefined): void {
+    if (this.closed) return;
+    this.closed = true;
+    this.done(model);
+  }
+
+  handleInput(data: string): void {
+    if (this.keybindings.matches(data, "tui.select.up")) {
+      if (this.filteredModels.length > 0) {
+        this.selectedIndex = this.selectedIndex === 0 ? this.filteredModels.length - 1 : this.selectedIndex - 1;
+        this.updateList();
+      }
+      return;
+    }
+    if (this.keybindings.matches(data, "tui.select.down")) {
+      if (this.filteredModels.length > 0) {
+        this.selectedIndex = this.selectedIndex === this.filteredModels.length - 1 ? 0 : this.selectedIndex + 1;
+        this.updateList();
+      }
+      return;
+    }
+    if (this.keybindings.matches(data, "tui.select.confirm") || data === "\r" || data === "\n") {
+      this.finish(this.filteredModels[this.selectedIndex]);
+      return;
+    }
+    if (this.keybindings.matches(data, "tui.select.cancel")) {
+      this.finish(undefined);
+      return;
+    }
+    this.input.handleInput(data);
+    this.filterModels();
+  }
+
+  dispose(): void {
+    this.closed = true;
+  }
+}
+
 async function getConsultantModelsForCommand(ctx: ExtensionContext): Promise<ConsultSelectableModel[]> {
   const models = getConsultantModels(ctx);
   if (models.length > 0 || ctx.scopedModels.length > 0) return models;
@@ -154,8 +288,12 @@ async function getConsultantModelsForCommand(ctx: ExtensionContext): Promise<Con
   return getConsultantModels(ctx);
 }
 
+function modelContextLabel(model: ConsultSelectableModel | undefined): string {
+  return model ? `${model.provider}/${model.id}` : "(none)";
+}
+
 function activeModelLabel(ctx: ExtensionContext): string {
-  return ctx.model ? `${ctx.model.provider}/${ctx.model.id}` : "(none)";
+  return modelContextLabel(ctx.model);
 }
 
 async function chooseThinkingLevel(ctx: ExtensionContext): Promise<ConsultModelPreference["thinkingLevel"] | undefined> {
@@ -280,39 +418,29 @@ export default function bAgenticConsult(pi: ExtensionAPI): void {
     query: string,
     preference: ConsultModelPreference | undefined,
   ): Promise<ConsultSelectableModel | undefined> => {
-    let searchQuery = query;
     if (ctx.hasUI) {
-      const enteredQuery = await ctx.ui.input(
-        `Search consultant models (active: ${activeModelLabel(ctx)})`,
-        query || "provider/model, model name, or provider",
+      return ctx.ui.custom<ConsultSelectableModel | undefined>((tui, theme, keybindings, done) =>
+        new ConsultantModelPicker(
+          tui,
+          theme,
+          keybindings,
+          models,
+          ctx.model,
+          preference,
+          query,
+          done,
+        ),
       );
-      if (enteredQuery === undefined) {
-        ctx.ui.notify("Consultant model search was cancelled", "info");
-        return undefined;
-      }
-      searchQuery = enteredQuery.trim();
     }
+    const searchQuery = query.trim();
     const matches = searchConsultantModels(models, searchQuery);
     if (matches.length === 0) {
       ctx.ui.notify(searchQuery ? `No models match "${searchQuery}". Choose a model listed by Pi or configure it first.` : "No available models. Configure a provider, then run /b-consult-model provider/model thinking-level.", "error");
       return undefined;
     }
     if (matches.length === 1) return matches[0];
-    if (!ctx.hasUI) {
-      ctx.ui.notify(`Model search "${searchQuery}" matched multiple models: ${matches.map((model) => `${model.provider}/${model.id}`).join(", ")}. Use provider/model to select one.`, "error");
-      return undefined;
-    }
-    const searchHint = searchQuery ? ` matching "${searchQuery}"` : "";
-    const selected = await ctx.ui.select(
-      `Select consultant model${searchHint} (active: ${activeModelLabel(ctx)})`,
-      matches.map((model) => modelLabel(model, ctx.model, preference)),
-    );
-    const selectedIndex = matches.findIndex((model) => modelLabel(model, ctx.model, preference) === selected);
-    if (selectedIndex < 0) {
-      ctx.ui.notify("Consultant model selection was cancelled", "info");
-      return undefined;
-    }
-    return matches[selectedIndex];
+    ctx.ui.notify(`Model search "${searchQuery}" matched multiple models: ${matches.map((model) => `${model.provider}/${model.id}`).join(", ")}. Use provider/model to select one.`, "error");
+    return undefined;
   };
 
   pi.on("session_start", (_event, ctx) => {
@@ -430,6 +558,7 @@ export const __test__ = {
   modelSearchText,
   searchConsultantModels,
   getConsultantModels,
+  ConsultantModelPicker,
   isValidConsultToolInput,
   executeConsultation,
 };

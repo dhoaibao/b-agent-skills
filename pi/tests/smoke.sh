@@ -553,7 +553,7 @@ const consultantProvider = {
 };
 let rolePickerCalls = 0;
 let modelPickerCalls = 0;
-const consultSearchInputs = [];
+const consultantPickerRenders = [];
 let roleColorMode = 'truecolor';
 const roleContext = {
   get model() { return activeModel; },
@@ -562,9 +562,22 @@ const roleContext = {
   hasUI: true,
   ui: {
     confirm: async () => true,
-    input: async (title, placeholder) => {
-      consultSearchInputs.push({ title, placeholder });
-      return 'claude-sonnet-4-5';
+    custom: async (factory) => {
+      let selected;
+      const component = await factory(
+        { requestRender() {} },
+        { fg(_color, text) { return text; }, bold(text) { return text; } },
+        { matches(data, action) {
+          if (action === 'tui.select.confirm') return data === '\r' || data === '\n';
+          if (action === 'tui.select.cancel') return data === '\u001b' || data === '\u0003';
+          return false;
+        } },
+        (value) => { selected = value; },
+      );
+      consultantPickerRenders.push(component.render(120).join('\n'));
+      component.handleInput?.('\r');
+      component.dispose?.();
+      return selected;
     },
     select: async (title) => {
       if (title === 'Select b-agentic role') {
@@ -608,17 +621,11 @@ const roleContext = {
 };
 let consultantRefreshCalls = 0;
 let consultantSnapshotReady = false;
-const consultantPickerOptions = [];
 const refreshingConsultContext = {
   ...roleContext,
   ui: {
     ...roleContext.ui,
-    input: async () => 'anthropic',
     select: async (title, options) => {
-      if (title.startsWith('Select consultant model')) {
-        consultantPickerOptions.push([...options]);
-        return options[0];
-      }
       if (title === 'Select consultant thinking level') return 'high';
       return roleContext.ui.select(title, options);
     },
@@ -637,7 +644,6 @@ const activeOutsideScopeConsultContext = {
   scopedModels: [{ model: { provider: 'openrouter', id: 'anthropic/claude-3.5-sonnet' } }],
   ui: {
     ...roleContext.ui,
-    input: async () => 'claude-sonnet-4-5',
     select: async (title, options) => title === 'Select consultant thinking level'
       ? 'high'
       : roleContext.ui.select(title, options),
@@ -664,14 +670,15 @@ expect(consultTest.modelLabel(activeModel, activeModel).includes('current active
 expect(consultTest.searchConsultantModels(roleContext.modelRegistry.getAvailable(), 'claude-sonnet-4-5').length === 1, 'consultant model search must match a model by fuzzy id');
 expect(consultTest.searchConsultantModels(consultTest.getConsultantModels(activeOutsideScopeConsultContext), 'claude-sonnet-4-5').some((model) => model.id === activeModel.id), 'consultant search must retain the active model when it is outside the Pi model scope');
 await consultCommand.handler('', activeOutsideScopeConsultContext);
+expect(consultantPickerRenders[0]?.includes('Select consultant model (active: anthropic/claude-sonnet-4-5)') && consultantPickerRenders[0]?.includes('→ anthropic/claude-sonnet-4-5 (current active)'), 'interactive consultant setup must render the active model in the searchable picker');
 expect(roleNotifications.at(-1)?.message.includes('Consultant model set to anthropic/claude-sonnet-4-5'), 'consultant setup must allow selecting the active model when Pi scope excludes it');
 await consultCommand.handler('', refreshingConsultContext);
-expect(consultantRefreshCalls === 1 && consultantPickerOptions[0]?.length === 2 && consultantPickerOptions[0].some((label) => label.includes('current active')), 'consultant model picker must refresh an empty Pi model snapshot before displaying matches');
+expect(consultantRefreshCalls === 1 && consultantPickerRenders[1]?.includes('Select consultant model') && consultantPickerRenders[1]?.includes('anthropic/claude-sonnet-4-5 (current active)') && consultantPickerRenders[1]?.includes('openrouter/anthropic/claude-3.5-sonnet'), 'consultant model picker must refresh an empty Pi model snapshot and render visible matches in the search UI');
 await consultCommand.handler('', roleContext);
-expect(consultSearchInputs[0]?.title.includes('Search consultant models') && consultSearchInputs[0]?.title.includes('active: anthropic/claude-sonnet-4-5') && consultSearchInputs[0]?.placeholder === 'provider/model, model name, or provider', 'interactive consultant setup must expose a search input with the active model context');
+expect(consultantPickerRenders[2]?.includes('Select consultant model (active: anthropic/claude-sonnet-4-5)') && consultantPickerRenders[2]?.includes('anthropic/claude-sonnet-4-5 (current active)') && consultantPickerRenders[2]?.includes('openrouter/anthropic/claude-3.5-sonnet'), 'interactive consultant setup must combine the search input and visible model options');
 expect(!roleStatuses.some(({ key }) => key === 'b-agentic-consult'), 'consultant model selection must not add a footer status');
 await consultCommand.handler('claude-sonnet-4-5 high', roleContext);
-expect(consultSearchInputs[1]?.placeholder === 'claude-sonnet-4-5', 'consultant model search must accept the command query as the input hint');
+expect(consultantPickerRenders[3]?.includes('claude-sonnet-4-5') && consultantPickerRenders[3]?.includes('Select consultant model'), 'consultant model search must prefill the combined search picker with the command query');
 const consultModelCompletions = consultCommand.getArgumentCompletions('claude-sonnet-4-5');
 expect(consultModelCompletions?.some((item) => item.value === 'anthropic/claude-sonnet-4-5' && item.label.includes('current active')), 'consultant command completions must search models and identify the current active model');
 await consultCommand.handler('anthropic/claude-sonnet-4-5 high', roleContext);
