@@ -116,6 +116,11 @@ function getConsultantModels(ctx: ExtensionContext): ConsultSelectableModel[] {
   const models = ctx.scopedModels.length > 0
     ? ctx.scopedModels.map(({ model }) => model)
     : ctx.modelRegistry.getAvailable();
+  // Pi permits an explicitly selected active model outside the configured scope;
+  // keep that current model discoverable without expanding the rest of the scope.
+  if (ctx.scopedModels.length > 0 && ctx.model && !models.some((model) => modelsAreEqual(model, ctx.model))) {
+    models.push(ctx.model);
+  }
   const seen = new Set<string>();
   return models
     .filter((model) => {

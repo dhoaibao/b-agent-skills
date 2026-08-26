@@ -632,6 +632,17 @@ const refreshingConsultContext = {
     },
   },
 };
+const activeOutsideScopeConsultContext = {
+  ...roleContext,
+  scopedModels: [{ model: { provider: 'openrouter', id: 'anthropic/claude-3.5-sonnet' } }],
+  ui: {
+    ...roleContext.ui,
+    input: async () => 'claude-sonnet-4-5',
+    select: async (title, options) => title === 'Select consultant thinking level'
+      ? 'high'
+      : roleContext.ui.select(title, options),
+  },
+};
 const validConsultInput = { question: 'Which approach should the planner choose?', context: 'Only this supplied context is available.', plan: 'Use the smallest reversible design.' };
 expect(consultTest.isValidConsultToolInput(validConsultInput) === true, 'b_consult input helper must accept bounded question/context/plan text');
 expect(consultTest.parseModelSpec('openrouter/anthropic/claude-3.5-sonnet')?.provider === 'openrouter' && consultTest.parseModelSpec('openrouter/anthropic/claude-3.5-sonnet')?.model === 'anthropic/claude-3.5-sonnet', 'consultant model specs must preserve provider model ids containing slashes');
@@ -651,6 +662,9 @@ const scopedConsultContext = { ...roleContext, scopedModels: [{ model: activeMod
 expect(consultTest.getConsultantModels(scopedConsultContext).length === 1 && consultTest.getConsultantModels(scopedConsultContext)[0].id === activeModel.id, 'consultant model selection must honor the active Pi model scope');
 expect(consultTest.modelLabel(activeModel, activeModel).includes('current active'), 'consultant model labels must identify the current active model');
 expect(consultTest.searchConsultantModels(roleContext.modelRegistry.getAvailable(), 'claude-sonnet-4-5').length === 1, 'consultant model search must match a model by fuzzy id');
+expect(consultTest.searchConsultantModels(consultTest.getConsultantModels(activeOutsideScopeConsultContext), 'claude-sonnet-4-5').some((model) => model.id === activeModel.id), 'consultant search must retain the active model when it is outside the Pi model scope');
+await consultCommand.handler('', activeOutsideScopeConsultContext);
+expect(roleNotifications.at(-1)?.message.includes('Consultant model set to anthropic/claude-sonnet-4-5'), 'consultant setup must allow selecting the active model when Pi scope excludes it');
 await consultCommand.handler('', refreshingConsultContext);
 expect(consultantRefreshCalls === 1 && consultantPickerOptions[0]?.length === 2 && consultantPickerOptions[0].some((label) => label.includes('current active')), 'consultant model picker must refresh an empty Pi model snapshot before displaying matches');
 await consultCommand.handler('', roleContext);
