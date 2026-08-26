@@ -606,6 +606,32 @@ const roleContext = {
     getBranch: () => [...branchEntries],
   },
 };
+let consultantRefreshCalls = 0;
+let consultantSnapshotReady = false;
+const consultantPickerOptions = [];
+const refreshingConsultContext = {
+  ...roleContext,
+  ui: {
+    ...roleContext.ui,
+    input: async () => 'anthropic',
+    select: async (title, options) => {
+      if (title.startsWith('Select consultant model')) {
+        consultantPickerOptions.push([...options]);
+        return options[0];
+      }
+      if (title === 'Select consultant thinking level') return 'high';
+      return roleContext.ui.select(title, options);
+    },
+  },
+  modelRegistry: {
+    ...roleContext.modelRegistry,
+    getAvailable: () => consultantSnapshotReady ? roleContext.modelRegistry.getAvailable() : [],
+    refresh: async () => {
+      consultantRefreshCalls += 1;
+      consultantSnapshotReady = true;
+    },
+  },
+};
 const validConsultInput = { question: 'Which approach should the planner choose?', context: 'Only this supplied context is available.', plan: 'Use the smallest reversible design.' };
 expect(consultTest.isValidConsultToolInput(validConsultInput) === true, 'b_consult input helper must accept bounded question/context/plan text');
 expect(consultTest.parseModelSpec('openrouter/anthropic/claude-3.5-sonnet')?.provider === 'openrouter' && consultTest.parseModelSpec('openrouter/anthropic/claude-3.5-sonnet')?.model === 'anthropic/claude-3.5-sonnet', 'consultant model specs must preserve provider model ids containing slashes');
@@ -625,6 +651,8 @@ const scopedConsultContext = { ...roleContext, scopedModels: [{ model: activeMod
 expect(consultTest.getConsultantModels(scopedConsultContext).length === 1 && consultTest.getConsultantModels(scopedConsultContext)[0].id === activeModel.id, 'consultant model selection must honor the active Pi model scope');
 expect(consultTest.modelLabel(activeModel, activeModel).includes('current active'), 'consultant model labels must identify the current active model');
 expect(consultTest.searchConsultantModels(roleContext.modelRegistry.getAvailable(), 'claude-sonnet-4-5').length === 1, 'consultant model search must match a model by fuzzy id');
+await consultCommand.handler('', refreshingConsultContext);
+expect(consultantRefreshCalls === 1 && consultantPickerOptions[0]?.length === 2 && consultantPickerOptions[0].some((label) => label.includes('current active')), 'consultant model picker must refresh an empty Pi model snapshot before displaying matches');
 await consultCommand.handler('', roleContext);
 expect(consultSearchInputs[0]?.title.includes('Search consultant models') && consultSearchInputs[0]?.title.includes('active: anthropic/claude-sonnet-4-5') && consultSearchInputs[0]?.placeholder === 'provider/model, model name, or provider', 'interactive consultant setup must expose a search input with the active model context');
 expect(!roleStatuses.some(({ key }) => key === 'b-agentic-consult'), 'consultant model selection must not add a footer status');

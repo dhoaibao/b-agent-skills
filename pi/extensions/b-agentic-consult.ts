@@ -138,6 +138,17 @@ function searchConsultantModels(models: ConsultSelectableModel[], query: string)
   return normalized ? fuzzyFilter(models, normalized, modelSearchText) : [...models];
 }
 
+async function getConsultantModelsForCommand(ctx: ExtensionContext): Promise<ConsultSelectableModel[]> {
+  const models = getConsultantModels(ctx);
+  if (models.length > 0 || ctx.scopedModels.length > 0) return models;
+  try {
+    await ctx.modelRegistry.refresh({ signal: ctx.signal });
+  } catch {
+    // Keep the cached snapshot and let the command report the existing no-models guidance.
+  }
+  return getConsultantModels(ctx);
+}
+
 function activeModelLabel(ctx: ExtensionContext): string {
   return ctx.model ? `${ctx.model.provider}/${ctx.model.id}` : "(none)";
 }
@@ -337,7 +348,8 @@ export default function bAgenticConsult(pi: ExtensionAPI): void {
         return;
       }
 
-      const available = getConsultantModels(ctx);
+      const available = await getConsultantModelsForCommand(ctx);
+      syncModelCache(ctx);
       let selectedModel: ConsultSelectableModel | undefined;
       let thinkingLevel: ConsultModelPreference["thinkingLevel"] | undefined;
       const explicitModel = tokens.length > 0 ? parseModelSpec(tokens[0]) : undefined;
