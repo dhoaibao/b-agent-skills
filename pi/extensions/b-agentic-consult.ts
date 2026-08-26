@@ -28,7 +28,7 @@ import { getRole } from "./b-agentic-support/state.ts";
 
 const MAX_OUTPUT_CHARS = 16_000;
 const MAX_OUTPUT_TOKENS = 1_800;
-const CONSULT_TIMEOUT_MS = 120_000;
+const CONSULT_TIMEOUT_MS = 600_000;
 const CONSULTANT_TOOL_ALLOWLIST = ["read", "grep", "find", "ls", "mcp"] as const;
 const CONSULTANT_EXTENSION_DIR = dirname(fileURLToPath(import.meta.url));
 const CONSULTANT_POLICY_EXTENSION = join(CONSULTANT_EXTENSION_DIR, "b-agentic-mcp-permissions.ts");
