@@ -167,11 +167,15 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   for `b_consult`, and the original structured response contract made occasional
   independent advice unavailable when the provider returned incomplete or
   non-JSON text. The replacement keeps `b_consult` planner-only and optional for
-  hard decisions or plan reviews after bounded local discovery; it accepts only
-  caller-supplied text, structurally supplies no tools/history/extensions/cwd,
-  returns bounded natural-language advice, and frames the result as advisory
-  rather than repository evidence. Evidence and regression check:
-  `pi/extensions/b-agentic-role.ts`,
+  hard decisions or plan reviews after bounded local discovery; each call starts a
+  fresh in-memory session that independently inspects the current repository with
+  `read`, `grep`, `find`, and `ls`, and may use the existing `mcp` research gateway
+  only under normal adapter authentication, approval, and managed-operation policy.
+  It receives bounded caller text but no outer conversation history, and has no
+  write, shell, browser, Intercom, delegation, or worktree-writing capability.
+  Output is bounded natural-language advice that distinguishes observed evidence
+  from inference and recommendation. Evidence and regression check:
+  `pi/extensions/b-agentic-consult.ts`, `pi/extensions/b-agentic-role.ts`,
   `pi/extensions/b-agentic-support/role-models.ts`, `pi/tests/smoke.sh`.
 - The consultation response is intentionally not parsed as strict JSON or split into
   response modes. Natural-language output is truncated to a bounded size and
@@ -576,23 +580,30 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   dependency; when no independent session was available, occasional consultation
   was unavailable or added friction to ordinary planner work. The earlier strict
   JSON response contract also made some provider replies unusable.
-- Intended behavior: immediately replace the persistent consultant role/session
-  with the planner-only one-shot `b_consult` tool. Rebuild the call in-process
-  through `ctx.modelRegistry` and the selected provider's `streamSimple`, with an
-  empty isolated context, structural `tools: []`, caller `AbortSignal`, a bounded
-  timeout, `maxRetries: 0`, no model fallback, and bounded natural-language output.
-  The call uses the shared consultant preference store; `/b-consult-model`
-  selects and persists provider, model, and thinking level. Existing legacy
-  consultant configuration remains untouched, unread, and unmanaged. Advice is
-  advisory rather than repository evidence, and sanitized timeout, abort, auth,
-  configuration, and provider errors are returned without strict JSON parsing.
-- Regression: `pi/extensions/b-agentic-role.ts`,
-  `pi/extensions/b-agentic-support/role-models.ts`, `pi/tests/smoke.sh`,
-  `pi/scripts/install.sh`, and `pi/scripts/validate.sh` cover
+- Intended behavior: keep the planner-only one-shot `b_consult` tool, but rebuild
+  each call as an isolated nested Pi session using the selected provider/model and
+  shared consultant preference store. The session uses `SessionManager.inMemory`,
+  no discovered context files/skills/prompts/extensions, and an explicit allowlist
+  of `read`, `grep`, `find`, `ls`, plus the existing `mcp` gateway when the adapter
+  is installed. The local tools are read-only; MCP calls use the normal adapter
+  authentication, approval, and managed-operation policy rather than a bypass.
+  The session receives only the bounded question/context/plan prompt, never outer
+  conversation history, and has no write, shell, browser, Intercom, delegation, or
+  worktree-writing route. `/b-consult-model` selects and persists provider, model,
+  and thinking level. Existing legacy consultant configuration remains untouched,
+  unread, and unmanaged. The caller `AbortSignal`, bounded timeout, disabled retry,
+  no model fallback, bounded natural-language output, and sanitized timeout, abort,
+  auth, configuration, and provider errors remain part of the contract; repository
+  findings are advisory evidence for the decision, not a substitute for review.
+- Regression: `pi/extensions/b-agentic-consult.ts`,
+  `pi/extensions/b-agentic-role.ts`, `pi/extensions/b-agentic-support/role-models.ts`,
+  `pi/tests/smoke.sh`, `pi/scripts/install.sh`, and `pi/scripts/validate.sh` cover
   the tool surface, planner-only gate, shared model preference/default/error paths,
-  no-tools isolation, bounded request options, legacy config non-revival, and
-  removal of consultant role/status/roster/prompt behavior; generated
-  synchronization and the offline validation suite remain required.
+  isolated read-only session tool allowlisting, no outer-history/cwd prompt leakage,
+  normal MCP approval/auth policy preservation, bounded timeout/no retry behavior,
+  legacy config non-revival, and removal of consultant role/status/roster/prompt
+  behavior; generated synchronization and the offline validation suite remain
+  required.
 
 ## Superseding decision: adaptive bounded concurrency and Intercom sequencing
 

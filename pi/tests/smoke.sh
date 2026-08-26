@@ -541,14 +541,43 @@ const noUiContext = { hasUI: false, ui: { select: async () => 'Approve' } };
 const consultantCalls = [];
 let consultantStreamError;
 let consultantAuthError;
+let consultantAuthBaseUrl;
 let deferConsultAuth = false;
 let resolveDeferredConsultAuth;
 let consultantText = 'Choose the smallest reversible design. The evidence is limited; verify compatibility before committing to the choice.';
+let consultantSessionError;
+const consultantSessionCalls = [];
+let isolatedConsultantPrompt;
 const consultantProvider = {
   streamSimple(model, context, options) {
     consultantCalls.push({ model, context, options });
     if (consultantStreamError) throw new Error(consultantStreamError);
     return { result: async () => ({ content: [{ type: 'text', text: consultantText }], stopReason: 'stop' }) };
+  },
+};
+const consultantDependencies = {
+  createModelRuntime: async () => ({
+    registerNativeProvider() {},
+    getModel() {
+      return {
+        provider: 'anthropic', id: 'claude-sonnet-4-5', maxTokens: 4096,
+        contextWindow: 200000, input: ['text'], reasoning: true,
+        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+      };
+    },
+  }),
+  createAgentSession: async (options) => {
+    consultantSessionCalls.push(options);
+    if (consultantSessionError) throw new Error(consultantSessionError);
+    const session = {
+      state: { errorMessage: undefined },
+      getActiveToolNames: () => [...(options.tools || [])],
+      async prompt(text, promptOptions) { isolatedConsultantPrompt = { text, options: promptOptions }; },
+      getLastAssistantText: () => consultantText,
+      async abort() {},
+      dispose() {},
+    };
+    return { session };
   },
 };
 let rolePickerCalls = 0;
@@ -611,7 +640,11 @@ const roleContext = {
         return await new Promise((resolve) => { resolveDeferredConsultAuth = resolve; });
       }
       if (consultantAuthError) throw new Error(consultantAuthError);
-      return { ok: true, apiKey: 'test-key' };
+      return {
+        ok: true,
+        apiKey: 'test-key',
+        ...(consultantAuthBaseUrl ? { baseUrl: consultantAuthBaseUrl } : {}),
+      };
     },
   },
   scopedModels: [],
@@ -685,13 +718,20 @@ await consultCommand.handler('anthropic/claude-sonnet-4-5 high', roleContext);
 const selectedConsultPreference = JSON.parse(readFileSync(path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic/role-models.json'), 'utf8'));
 expect(selectedConsultPreference.consultant.provider === 'anthropic' && selectedConsultPreference.consultant.model === 'claude-sonnet-4-5' && selectedConsultPreference.consultant.thinkingLevel === 'high', '/b-consult-model must persist the consultant preference in role-models.json');
 expect(readFileSync(legacyConsultPath, 'utf8').includes('legacy'), 'legacy consult-model.json must remain untouched and unmanaged');
-const consultationResult = await consultTool.execute('consult-1', validConsultInput, new AbortController().signal, undefined, roleContext);
+consultantAuthBaseUrl = 'https://consultant.example.invalid/api';
+const consultationResult = await consultTest.executeConsultation('consult-1', validConsultInput, new AbortController().signal, roleContext, consultantDependencies);
 expect(consultationResult.details.status === 'ok' && consultationResult.content[0].text.includes('Advisory consultation') && consultationResult.content[0].text.includes('smallest reversible'), 'configured b_consult must return bounded natural-language advisory output');
-expect(consultantCalls.at(-1)?.context.tools?.length === 0 && !('cwd' in consultantCalls.at(-1)?.context) && !('history' in consultantCalls.at(-1)?.context), 'consultant requests must structurally exclude tools, cwd, history, and extensions');
-expect(consultantCalls.at(-1)?.context.systemPrompt.includes('no tools') && consultantCalls.at(-1)?.context.systemPrompt.includes('Never claim') && consultantCalls.at(-1)?.options?.maxRetries === 0 && consultantCalls.at(-1)?.options?.timeoutMs === 120000, 'consultant requests must use isolated safety, bounded timeout, and no retries');
+const consultantSessionOptions = consultantSessionCalls.at(-1);
+expect(consultantSessionOptions?.model?.baseUrl === consultantAuthBaseUrl, 'consultant session must apply the authenticated baseUrl to the effective model');
+consultantAuthBaseUrl = undefined;
+expect(JSON.stringify(consultantSessionOptions?.tools) === JSON.stringify(['read', 'grep', 'find', 'ls', 'mcp']), 'consultant session must use the explicit read-only tool allowlist plus the MCP gateway');
+expect(!consultantSessionOptions?.tools.includes('bash') && !consultantSessionOptions?.tools.includes('edit') && !consultantSessionOptions?.tools.includes('write'), 'consultant session must not expose write-capable or shell tools');
+expect(consultantSessionOptions?.sessionManager?.isPersisted() === false && consultantSessionOptions?.sessionManager?.getEntries().length === 0, 'consultant session must start in-memory without caller history');
+expect(consultantSessionOptions?.resourceLoader?.getAgentsFiles().agentsFiles.length === 0 && !isolatedConsultantPrompt.text.includes(root) && isolatedConsultantPrompt.options.expandPromptTemplates === false, 'consultant prompt must omit context-file and cwd leakage while retaining bounded prompt expansion');
+expect(consultTest.CONSULTANT_SYSTEM_PROMPT.includes('normal adapter authentication, approval, and managed-operation policy') && consultTest.CONSULTANT_SYSTEM_PROMPT.includes('no outer planner'), 'consultant research must retain normal MCP gates and reject outer history');
 rmSync(path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic/role-models.json'), { force: true });
 const unconfiguredResult = await consultTool.execute('consult-unconfigured', { question: 'Can this be improved?' }, new AbortController().signal, undefined, roleContext);
-expect(unconfiguredResult.details.status === 'error' && unconfiguredResult.content[0].text.includes('/b-consult-model') && consultantCalls.length === 1, 'unconfigured b_consult must return setup guidance without falling back');
+expect(unconfiguredResult.details.status === 'error' && unconfiguredResult.content[0].text.includes('/b-consult-model') && consultantSessionCalls.length === 1, 'unconfigured b_consult must return setup guidance without falling back');
 writeFileSync(path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic/role-models.json'), JSON.stringify({ consultant: { provider: 'missing', model: 'missing', thinkingLevel: 'high' } }));
 const unavailableResult = await consultTool.execute('consult-unavailable', { question: 'Can this be improved?' }, new AbortController().signal, undefined, roleContext);
 expect(unavailableResult.details.status === 'error' && unavailableResult.content[0].text.includes('unavailable'), 'unavailable consultant models must return actionable setup guidance');
@@ -700,7 +740,7 @@ abortedController.abort();
 const abortedResult = await consultTool.execute('consult-aborted', { question: 'Can this be improved?' }, abortedController.signal, undefined, roleContext);
 expect(abortedResult.details.status === 'cancelled', 'aborted b_consult calls must return a cancellation result');
 await consultCommand.handler('anthropic/claude-sonnet-4-5 high', roleContext);
-const deferredConsultCalls = consultantCalls.length;
+const deferredConsultCalls = consultantSessionCalls.length;
 deferConsultAuth = true;
 const deferredAbortController = new AbortController();
 const deferredAbortConsultation = consultTool.execute('consult-abort-during-auth', { question: 'Can this be improved?' }, deferredAbortController.signal, undefined, roleContext);
@@ -709,7 +749,7 @@ deferredAbortController.abort();
 resolveDeferredConsultAuth({ ok: true, apiKey: 'test-key' });
 const deferredAbortResult = await deferredAbortConsultation;
 deferConsultAuth = false;
-expect(deferredAbortResult.details.status === 'cancelled' && consultantCalls.length === deferredConsultCalls, 'b_consult must cancel after auth abort without invoking the provider');
+expect(deferredAbortResult.details.status === 'cancelled' && consultantSessionCalls.length === deferredConsultCalls, 'b_consult must cancel after auth abort without invoking the consultant session');
 const invalidConsultResult = await consultTool.execute('consult-invalid', { question: '', extra: true }, new AbortController().signal, undefined, roleContext);
 expect(invalidConsultResult.details.status === 'error' && invalidConsultResult.content[0].text.includes('Invalid b_consult input'), 'invalid consultant input must be rejected clearly');
 await consultCommand.handler('anthropic/claude-sonnet-4-5 high', roleContext);

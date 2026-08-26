@@ -310,9 +310,7 @@ The command accepts an exact `provider/model [thinking-level]`, or a fuzzy model
 search query with an optional thinking level; with UI it opens a searchable model picker with a visible
 input and filtered model options. Model completions follow Pi's provider/model search shape, mark the
 current active model, and the selected consultant preference is stored in the
-shared `role-models.json` file. The isolated call receives only caller-supplied text, has no tools or repository
-access, returns bounded natural-language advice, and is advisory rather than
-evidence. An existing legacy `~/.pi/agent/b-agentic/consult-model.json` file is
+shared `role-models.json` file. Each isolated call starts a fresh in-memory session, independently inspects the current repository with bounded read-only tools, and may use the managed MCP research gateway only under normal approval/auth and operation policy. It receives no outer conversation history and has no write, shell, Intercom, delegation, or worktree access. It returns bounded natural-language advice; repository findings inform that advice but do not replace authoritative review. An existing legacy `~/.pi/agent/b-agentic/consult-model.json` file is
 left untouched and is not migrated or read.
 
 `/b-auto-mode` is an explicit opt-in that warns and requires an interactive Y/N
