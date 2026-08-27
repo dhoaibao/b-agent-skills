@@ -123,6 +123,61 @@ for skill_name, markers in prompt_regression_contracts.items():
         if marker not in text:
             errors.append(f"skills/{skill_name}/prompt.md: missing behavior regression anchor {marker!r}")
 
+# Regression: quality guidance could equate passing checks with quality, skip
+# proportionate alternatives for material work, or add ceremony to obvious tasks.
+QUALITY_GATE_REGRESSION = {
+    "observed_failure": (
+        "Quality guidance could focus on command success while omitting relevant risks, "
+        "proportionate alternatives, or evidence-backed trade-offs."
+    ),
+    "intended_behavior": (
+        "The kernel defines quality as the best evidence-backed fit; planning compares "
+        "material approaches including the simpler option, implementation consults local "
+        "standards and relevant failure modes, review checks proportionate solution choice, "
+        "and obvious work remains low ceremony."
+    ),
+    "anchors": {
+        "references/kernel.template.md": [
+            "best evidence-backed fit to the request, repository, and relevant risks",
+            "passing checks alone are not sufficient",
+        ],
+        "skills/b-plan/prompt.md": [
+            "non-trivial or risky work",
+            "relevant quality dimensions",
+            "including the simpler option",
+            "evidence-backed rationale and accepted trade-offs",
+            "small obvious tasks free of forced comparison or research",
+        ],
+        "skills/b-implement/prompt.md": [
+            "Before edits, consult applicable project standards",
+            "architecture boundaries",
+            "relevant failure modes",
+            "relevant quality constraints",
+            "material framework/API best-practice uncertainty",
+            "targeted **b-research**",
+        ],
+        "skills/b-review/prompt.md": [
+            "solution choice is proportionate",
+            "plan's quality criteria",
+            "project conventions",
+            "do not turn every review into an architecture report",
+        ],
+        "skills/b-init/prompt.md": [
+            "canonical standards sources and their precedence",
+            "formatter, lint, type, architecture/design, tests, and CI",
+            "generic best-practice catalog",
+        ],
+    },
+}
+for relative_path, markers in QUALITY_GATE_REGRESSION["anchors"].items():
+    text = read_text(ROOT / relative_path)
+    for marker in markers:
+        if marker not in text:
+            errors.append(
+                f"{relative_path}: missing quality-gate regression anchor {marker!r}; "
+                f"observed failure: {QUALITY_GATE_REGRESSION['observed_failure']}"
+            )
+
 # Regression: b-init produced generic project guidance without first profiling the
 # local stack and risk surfaces, and its overlapping section contract duplicated
 # verification and split ownership/navigation across generated AGENTS.md files; durable

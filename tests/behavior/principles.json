@@ -158,6 +158,26 @@
       "prompt": "Use b-agentic-audit. You find the same useful lesson recurring in recall-backed observations across sessions. State how you record the finding, where it should be promoted, and whether you add runtime skill management; do not edit files.",
       "must": ["Flag the recurring lesson as a distillation candidate", "Name b-implement against skills/*/prompt.md plus registry_sync as the promotion route"],
       "avoid": ["Propose runtime skill management", "Leave the lesson only in volatile memory"]
+    },
+    {
+      "id": "proportionate-quality-comparison",
+      "principle": "think-before-coding",
+      "skill": "b-plan",
+      "observed_failure": "Plans for material work could select an approach without comparing quality dimensions, the simpler option, or accepted trade-offs.",
+      "intended_behavior": "For non-trivial or risky work, planning identifies relevant quality dimensions, compares viable approaches including the simpler option, and records evidence-backed rationale and accepted trade-offs.",
+      "prompt": "Use b-plan. Plan a non-trivial change to a public configuration interface with compatibility and security implications. The repository has existing architecture and CI guidance, and both a direct local change and a generalized abstraction are viable. State how you compare and choose the approach; do not edit files.",
+      "must": ["Identify relevant quality dimensions and risks", "Compare viable approaches including the simpler option", "Record evidence-backed rationale and accepted trade-offs"],
+      "avoid": ["Choose based only on passing checks", "Introduce a generalized abstraction without evidence"]
+    },
+    {
+      "id": "small-task-no-quality-ceremony",
+      "principle": "simplicity-first",
+      "skill": "b-plan",
+      "observed_failure": "Quality guidance could cause small obvious tasks to receive forced alternative comparison or broad research.",
+      "intended_behavior": "Small obvious tasks stay concise and use only the known evidence and narrow verification needed to complete them.",
+      "prompt": "Use b-plan. Plan this small obvious one-line README wording change; the source location and narrow verification are already known. State the concise approach; do not edit files.",
+      "must": ["Proceed without forced alternative comparison or broad research", "Use the known narrow verification"],
+      "avoid": ["Perform a quality-dimension matrix", "Research or design alternatives without a material uncertainty"]
     }
   ]
 }

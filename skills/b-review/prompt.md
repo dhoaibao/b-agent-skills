@@ -42,7 +42,7 @@ Flags: `--skip-tests`, `--baseline=<path|url>`, `--range=<ref>..<ref>`.
 4. Read repo context only when it materially affects the changed-code review; use recall for compacted prior review ids when present.
 5. When native inspection leaves a concrete repository-wide flow, impact, or affected-test question, use an available CodeGraph index for that question. Do not initialize an absent index in planner mode; fall back to native inspection and state the resulting gap. Outside planner mode, initialize an absent index only for that question; do not initialize one merely because the diff spans files. Use native inspection first and Serena separately only for a specific exact reference or diagnostic when it materially improves precision. Use Brave only when public semantics materially affect a finding, and do not parallelize or batch Serena calls.
 6. Inspect highest-risk changed symbols and boundaries first.
-7. Check tests, edge cases, security, operability, evidence quality, hidden assumptions, unnecessary diff, and over-abstraction.
+7. Check tests, edge cases, security, operability, evidence quality, hidden assumptions, unnecessary diff, and over-abstraction. Assess whether the solution choice is proportionate to the request, the plan's quality criteria, and project conventions; do not turn every review into an architecture report.
 8. Verify evidence proves the intended observable outcome, not only command success (using Brave to look up API semantics if needed).
 9. Emit findings ordered by severity. If none, say so and name residual risk.
 
