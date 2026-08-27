@@ -138,9 +138,11 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   observable technical risk surfaces. Its seven overlapping top-level sections
   could also duplicate verification (profile bullets plus a separate section)
   and split navigation, canonical ownership, and local edit boundaries across
-  redundant headings. It could therefore invent commands or standards, blur
-  enforced conventions with contextual secure-coding advice, and duplicate the
-  always-loaded kernel.
+  redundant headings. Durable project changes could also leave recorded facts
+  stale or omit new durable facts, while unrelated edits could cause unnecessary
+  AGENTS.md churn. It could therefore invent commands or standards, blur enforced
+  conventions with contextual secure-coding advice, and duplicate the always-loaded
+  kernel.
 - Intended behavior: b-init inventories manifests, lint/format/type/test/CI
   configuration, local docs, and detected request/input/auth, persistence,
   rendering, integration, and infrastructure surfaces before drafting. The
@@ -153,8 +155,13 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   command once, recording focused TODOs/gaps only when commands are absent.
   Legacy names are forbidden at any Markdown heading depth, while descriptive
   nested headings remain allowed when they do not create duplicate fact
-  buckets. It includes only narrowly relevant practices, distinguishes config-
-  or documentation-backed conventions from contextual security advice, labels
+  buckets. Under the `Project Map and Ownership` section's local edit-boundaries
+  guidance, when a change makes a recorded project fact stale or introduces a
+  durable project purpose, convention, boundary, ownership rule, map entry, or
+  verification command, it updates the relevant AGENTS.md fact in the same
+  change; otherwise it leaves AGENTS.md unchanged, including for unrelated code
+  edits. It includes only narrowly relevant practices, distinguishes config- or
+  documentation-backed conventions from contextual security advice, labels
   project-specific bullets with scope and evidence, and does not restate or
   weaken generic kernel workflow, tool, or secret policy.
 - Regression: `skills/b-init/prompt.md` and generated
@@ -163,8 +170,10 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   mapping, command de-duplication, and kernel-boundary rules.
   `tests/behavior/init-guidance.json` provides human-scored TypeScript/web and
   minimal-repository scenarios that must require the common four-section
-  structure, one owner per fact category, and rejection of legacy headings at
-  any depth; `tooling/validate/shared.py` records the observed
+  structure, one owner per fact category, rejection of legacy headings at
+  any depth, and the bounded stale-guidance rule under Project Map and
+  Ownership's local edit-boundaries guidance rather than as a standalone
+  instruction; `tooling/validate/shared.py` records the observed
   failure/intended behavior, validates the canonical prompt/generated anchors
   and fixture contract, and structurally checks this repository's managed
   `AGENTS.md` markers, section order, heading exclusions, and unique inline-code

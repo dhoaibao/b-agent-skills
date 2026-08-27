@@ -7,7 +7,7 @@
       "id": "typescript-web-evidence-profile",
       "skill": "b-init",
       "observed_failure": "b-init could write generic guidance without detecting local TypeScript/web tooling or the request, auth, and rendering surfaces that needed scoped advice.",
-      "intended_behavior": "Profile the detected tooling and surfaces, separate enforced conventions from contextual secure-coding practices, ground every project-specific bullet in scope and evidence, and list applicable existing verification checks once under Verification without claiming coverage that the repository does not prove.",
+      "intended_behavior": "Profile the detected tooling and surfaces, separate enforced conventions from contextual secure-coding practices, ground every project-specific bullet in scope and evidence, and list applicable existing verification checks once under Verification without claiming coverage that the repository does not prove. Update the relevant AGENTS.md fact in the same change when a recorded fact is stale or a durable project fact is newly introduced; otherwise leave AGENTS.md unchanged for unrelated code edits.",
       "prompt": "Use b-init for a repository root. Inventory evidence finds package.json with scripts lint, format:check, typecheck, and test; tsconfig.json with strict true; eslint.config.js; prettier.config.js; vitest.config.ts; .github/workflows/ci.yml invoking npm run lint, npm run typecheck, and npm test; README.md and CONTRIBUTING.md; src/api/routes.ts parsing JSON request bodies and applying auth middleware; and src/ui/Comment.tsx rendering user-authored markdown through src/ui/sanitize.ts. No database or migration files, infrastructure/deployment manifests, or external-service clients are present. Describe the concise project-specific AGENTS.md additions you would make; do not edit files.",
       "must": [
         "Inventory and name the detected TypeScript tooling and existing verification commands",
@@ -21,6 +21,9 @@
         "List each existing repository command once under Verification",
         "Use focused TODOs/gaps only when an applicable command is absent",
         "Allow descriptive nested headings without creating duplicate fact buckets",
+        "Update AGENTS.md in the same change for stale or newly introduced durable project facts",
+        "Place the durable stale-guidance rule under Project Map and Ownership's local edit-boundaries guidance",
+        "Leave AGENTS.md unchanged for unrelated code edits",
         "Avoid claiming security coverage beyond the observed auth middleware and sanitizer"
       ],
       "avoid": [
@@ -30,6 +33,8 @@
         "Create top-level Working Rules, Safety Rules, Maintainer Guide, Sources and Generated Assets, or Codebase Map sections",
         "Use legacy names at any Markdown heading depth",
         "Repeat verification commands in the profile",
+        "Present the durable stale-guidance rule as a standalone instruction after the four-section list",
+        "Update AGENTS.md for unrelated code edits",
         "Restate generic kernel workflow, tool, or secret policy"
       ]
     },
@@ -37,7 +42,7 @@
       "id": "minimal-repo-bounded-profile",
       "skill": "b-init",
       "observed_failure": "When a repository had little evidence, b-init could invent a language profile, verification commands, or security standards instead of exposing the gap.",
-      "intended_behavior": "Produce a bounded evidence profile with focused TODOs for missing conventions and verification, while keeping unsupported standards and generic kernel policy out of AGENTS.md.",
+      "intended_behavior": "Produce a bounded evidence profile with focused TODOs for missing conventions and verification, while keeping unsupported standards and generic kernel policy out of AGENTS.md. Update the relevant AGENTS.md fact in the same change when a recorded fact is stale or a durable project fact is newly introduced; otherwise leave AGENTS.md unchanged for unrelated code edits.",
       "prompt": "Use b-init for a minimal repository. The inventory finds only README.md and notes.txt. There is no language or package manifest, lockfile, lint, format, type, test, or CI configuration, no maintainer guide beyond README.md, no verification script, and no observable request, authentication, persistence, rendering, external-integration, or infrastructure surface. Describe the concise AGENTS.md content you would write; do not edit files.",
       "must": [
         "State that the evidence is insufficient for a specialized language or technical-area profile",
@@ -49,6 +54,9 @@
         "List each existing repository command once under Verification",
         "Use focused TODOs/gaps only when an applicable command is absent",
         "Allow descriptive nested headings without creating duplicate fact buckets",
+        "Update AGENTS.md in the same change for stale or newly introduced durable project facts",
+        "Place the durable stale-guidance rule under Project Map and Ownership's local edit-boundaries guidance",
+        "Leave AGENTS.md unchanged for unrelated code edits",
         "Avoid fabricating commands, owners, policies, or security coverage",
         "Keep generic kernel workflow, tool, and secret policy out of the project supplement"
       ],
@@ -59,6 +67,8 @@
         "Create top-level Working Rules, Safety Rules, Maintainer Guide, Sources and Generated Assets, or Codebase Map sections",
         "Use legacy names at any Markdown heading depth",
         "Repeat verification commands in the profile",
+        "Present the durable stale-guidance rule as a standalone instruction after the four-section list",
+        "Update AGENTS.md for unrelated code edits",
         "Claim technical risk surfaces that the inventory did not observe"
       ]
     }

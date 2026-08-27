@@ -125,12 +125,14 @@ for skill_name, markers in prompt_regression_contracts.items():
 
 # Regression: b-init produced generic project guidance without first profiling the
 # local stack and risk surfaces, and its overlapping section contract duplicated
-# verification and split ownership/navigation across generated AGENTS.md files.
+# verification and split ownership/navigation across generated AGENTS.md files; durable
+# project changes could also leave recorded facts stale or missing.
 B_INIT_GUIDANCE_REGRESSION = {
     "observed_failure": (
         "b-init guidance could produce generic AGENTS.md content without inventorying "
         "the local stack and technical surfaces; its seven overlapping top-level sections "
-        "could duplicate verification and separate canonical ownership from navigation."
+        "could duplicate verification and separate canonical ownership from navigation, "
+        "while durable project changes could leave recorded facts stale or omit new facts."
     ),
     "intended_behavior": (
         "b-init first inventories manifests, tooling, docs, and observable risk surfaces; "
@@ -139,7 +141,11 @@ B_INIT_GUIDANCE_REGRESSION = {
         "distinguishes enforced conventions from contextual secure-coding practices, while "
         "Project Map and Ownership combines navigation, canonical-source/generated-output "
         "ownership, and local edit boundaries. Verification lists each existing command once "
-        "and uses focused gaps when evidence is absent, without restating generic kernel policy."
+        "and uses focused gaps when evidence is absent. When a change makes a recorded project "
+        "fact stale or introduces a durable project purpose, convention, boundary, ownership "
+        "rule, map entry, or verification command, update the relevant AGENTS.md fact in the "
+        "same change; otherwise leave it unchanged, including for unrelated code edits, without "
+        "restating generic kernel policy."
     ),
     "anchors": {
         "skills/b-init/prompt.md": [
@@ -156,6 +162,12 @@ B_INIT_GUIDANCE_REGRESSION = {
             "so each fact appears once",
             "non-structural scope gaps",
             "do not repeat verification commands in the profile",
+            "Under its local edit-boundaries guidance, keep durable guidance current",
+            "keep durable guidance current",
+            "when a change makes a recorded project fact stale",
+            "durable project purpose, convention, boundary, ownership rule, map entry, or verification command",
+            "update the relevant `AGENTS.md` fact in the same change",
+            "Do not update `AGENTS.md` for unrelated code edits",
             "`## Verification`",
             "list each existing repository command once",
             "Do not use headings named `Working Rules`, `Safety Rules`, `Maintainer Guide`, `Sources and Generated Assets`, or `Codebase Map` at any Markdown heading depth",
@@ -183,6 +195,12 @@ B_INIT_GUIDANCE_REGRESSION = {
             "list each existing repository command once",
             "Do not use headings named `Working Rules`, `Safety Rules`, `Maintainer Guide`, `Sources and Generated Assets`, or `Codebase Map` at any Markdown heading depth",
             "Descriptive nested headings are allowed",
+            "Under its local edit-boundaries guidance, keep durable guidance current",
+            "keep durable guidance current",
+            "when a change makes a recorded project fact stale",
+            "durable project purpose, convention, boundary, ownership rule, map entry, or verification command",
+            "update the relevant `AGENTS.md` fact in the same change",
+            "Do not update `AGENTS.md` for unrelated code edits",
             "Distinguish enforced local conventions",
             "contextual secure-coding practices",
             "Every project-specific bullet names its applicable scope and `Evidence:` source",
@@ -199,10 +217,15 @@ B_INIT_GUIDANCE_REGRESSION = {
             "List each existing repository command once under Verification",
             "Use focused TODOs/gaps only when an applicable command is absent",
             "Allow descriptive nested headings without creating duplicate fact buckets",
+            "Update AGENTS.md in the same change for stale or newly introduced durable project facts",
+            "Place the durable stale-guidance rule under Project Map and Ownership's local edit-boundaries guidance",
+            "Leave AGENTS.md unchanged for unrelated code edits",
         ],
         "avoid": [
             "Use legacy names at any Markdown heading depth",
             "Repeat verification commands in the profile",
+            "Present the durable stale-guidance rule as a standalone instruction after the four-section list",
+            "Update AGENTS.md for unrelated code edits",
         ],
     },
 }
