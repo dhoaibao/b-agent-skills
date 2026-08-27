@@ -124,19 +124,22 @@ for skill_name, markers in prompt_regression_contracts.items():
             errors.append(f"skills/{skill_name}/prompt.md: missing behavior regression anchor {marker!r}")
 
 # Regression: b-init produced generic project guidance without first profiling the
-# local stack and risk surfaces, so generated AGENTS.md files could invent tools,
-# blur enforced conventions with contextual security advice, or duplicate kernel policy.
+# local stack and risk surfaces, and its overlapping section contract duplicated
+# verification and split ownership/navigation across generated AGENTS.md files.
 B_INIT_GUIDANCE_REGRESSION = {
     "observed_failure": (
         "b-init guidance could produce generic AGENTS.md content without inventorying "
-        "the local stack and technical surfaces, and could present invented or "
-        "kernel-duplicating security and workflow claims."
+        "the local stack and technical surfaces; its seven overlapping top-level sections "
+        "could duplicate verification and separate canonical ownership from navigation."
     ),
     "intended_behavior": (
         "b-init first inventories manifests, tooling, docs, and observable risk surfaces; "
-        "generated bullets distinguish enforced conventions from contextual secure-coding "
-        "practices, name scope/evidence/verification, and use bounded TODOs when evidence "
-        "is insufficient without restating generic kernel policy."
+        "generated AGENTS.md content uses exactly four ordered sections—Repository Purpose, "
+        "Project Profile, Project Map and Ownership, and Verification. Project Profile "
+        "distinguishes enforced conventions from contextual secure-coding practices, while "
+        "Project Map and Ownership combines navigation, canonical-source/generated-output "
+        "ownership, and local edit boundaries. Verification lists each existing command once "
+        "and uses focused gaps when evidence is absent, without restating generic kernel policy."
     ),
     "anchors": {
         "skills/b-init/prompt.md": [
@@ -144,6 +147,19 @@ B_INIT_GUIDANCE_REGRESSION = {
             "lint, format, type, test, and CI configuration or scripts",
             "observable technical risk surfaces",
             "Treat absent evidence as absence",
+            "exactly these four top-level sections, in this order",
+            "`## Repository Purpose`",
+            "`## Project Profile`",
+            "`## Project Map and Ownership`",
+            "canonical-source/generated-output ownership",
+            "sole owner of navigation",
+            "so each fact appears once",
+            "non-structural scope gaps",
+            "do not repeat verification commands in the profile",
+            "`## Verification`",
+            "list each existing repository command once",
+            "Do not use headings named `Working Rules`, `Safety Rules`, `Maintainer Guide`, `Sources and Generated Assets`, or `Codebase Map` at any Markdown heading depth",
+            "Descriptive nested headings are allowed",
             "Distinguish enforced local conventions",
             "contextual secure-coding practices",
             "Every project-specific bullet names its applicable scope and `Evidence:` source",
@@ -155,11 +171,38 @@ B_INIT_GUIDANCE_REGRESSION = {
         ],
         "skills/b-init/SKILL.md": [
             "language/package manifests and lockfiles",
+            "exactly these four top-level sections, in this order",
+            "`## Repository Purpose`",
+            "`## Project Profile`",
+            "`## Project Map and Ownership`",
+            "canonical-source/generated-output ownership",
+            "sole owner of navigation",
+            "so each fact appears once",
+            "non-structural scope gaps",
+            "`## Verification`",
+            "list each existing repository command once",
+            "Do not use headings named `Working Rules`, `Safety Rules`, `Maintainer Guide`, `Sources and Generated Assets`, or `Codebase Map` at any Markdown heading depth",
+            "Descriptive nested headings are allowed",
             "Distinguish enforced local conventions",
             "contextual secure-coding practices",
             "Every project-specific bullet names its applicable scope and `Evidence:` source",
             "bounded profile and focused TODO/gap",
             "always-loaded kernel owns generic workflow, tool, and secret policy",
+        ],
+    },
+    "fixture_contract": {
+        "must": [
+            "Use exactly four top-level sections in this order: Repository Purpose, Project Profile, Project Map and Ownership, Verification",
+            "Keep enforced conventions and contextual boundaries/gaps under Project Profile",
+            "Combine navigation, canonical-source/generated-output ownership, and local edit boundaries under Project Map and Ownership",
+            "Project Profile owns evidence-backed conventions and non-structural scope gaps; Project Map and Ownership is the sole owner of navigation, canonical-source/generated-output ownership, and local edit boundaries, so each fact appears once",
+            "List each existing repository command once under Verification",
+            "Use focused TODOs/gaps only when an applicable command is absent",
+            "Allow descriptive nested headings without creating duplicate fact buckets",
+        ],
+        "avoid": [
+            "Use legacy names at any Markdown heading depth",
+            "Repeat verification commands in the profile",
         ],
     },
 }
@@ -476,6 +519,14 @@ for index, scenario in enumerate(init_guidance_scenarios, start=1):
         values = scenario.get(field)
         if not isinstance(values, list) or not values or not all(isinstance(value, str) and value for value in values):
             errors.append(f"{label} {field} must be a non-empty string array")
+            continue
+        for marker in B_INIT_GUIDANCE_REGRESSION["fixture_contract"][field]:
+            if marker not in values:
+                errors.append(
+                    f"{label} {field} missing b-init guidance fixture contract marker {marker!r}; "
+                    f"observed failure: {B_INIT_GUIDANCE_REGRESSION['observed_failure']}; "
+                    f"intended behavior: {B_INIT_GUIDANCE_REGRESSION['intended_behavior']}"
+                )
 if len(init_guidance_ids) != len(set(init_guidance_ids)):
     errors.append(f"{rel(init_guidance_path)}: scenario ids must be unique")
 if set(init_guidance_ids) != required_init_guidance_ids:
@@ -484,6 +535,82 @@ if set(init_guidance_ids) != required_init_guidance_ids:
         f"found {sorted(init_guidance_ids)}; observed failure: {B_INIT_GUIDANCE_REGRESSION['observed_failure']}; "
         f"intended behavior: {B_INIT_GUIDANCE_REGRESSION['intended_behavior']}"
     )
+
+# Validate only this repository's managed example. Keep the check deliberately
+# small: section ownership is structural, while the rest remains prompt-driven.
+managed_agents_path = ROOT / "AGENTS.md"
+managed_agents = read_text(managed_agents_path)
+managed_start_marker = "<!-- b-init-managed:start -->"
+managed_end_marker = "<!-- b-init-managed:end -->"
+managed_marker_error_context = (
+    f"observed failure: {B_INIT_GUIDANCE_REGRESSION['observed_failure']}; "
+    f"intended behavior: {B_INIT_GUIDANCE_REGRESSION['intended_behavior']}"
+)
+if managed_agents.count(managed_start_marker) != 1 or managed_agents.count(managed_end_marker) != 1:
+    errors.append(
+        f"{rel(managed_agents_path)}: b-init managed markers must occur exactly once; "
+        f"{managed_marker_error_context}"
+    )
+else:
+    managed_start = managed_agents.index(managed_start_marker) + len(managed_start_marker)
+    managed_end = managed_agents.index(managed_end_marker)
+    if managed_end < managed_start:
+        errors.append(
+            f"{rel(managed_agents_path)}: b-init managed markers are out of order; "
+            f"{managed_marker_error_context}"
+        )
+    else:
+        managed_block = managed_agents[managed_start:managed_end]
+        required_managed_headings = [
+            "Repository Purpose",
+            "Project Profile",
+            "Project Map and Ownership",
+            "Verification",
+        ]
+        managed_headings = re.findall(r"^##\s+(.+?)\s*$", managed_block, re.MULTILINE)
+        if managed_headings != required_managed_headings:
+            errors.append(
+                f"{rel(managed_agents_path)}: expected b-init headings "
+                f"{required_managed_headings!r} in order, found {managed_headings!r}; "
+                f"{managed_marker_error_context}"
+            )
+
+        legacy_heading_names = [
+            "Working Rules",
+            "Safety Rules",
+            "Maintainer Guide",
+            "Sources and Generated Assets",
+            "Codebase Map",
+        ]
+        for raw_heading in re.findall(r"^#{1,6}\s+(.+?)\s*$", managed_block, re.MULTILINE):
+            heading = raw_heading.rstrip("#").strip()
+            for legacy_name in legacy_heading_names:
+                if heading == legacy_name:
+                    errors.append(
+                        f"{rel(managed_agents_path)}: legacy heading {legacy_name!r} "
+                        f"is forbidden at any Markdown heading depth; found {raw_heading!r}; "
+                        f"{managed_marker_error_context}"
+                    )
+
+        verification_match = re.search(
+            r"^##\s+Verification\s*$([\s\S]*?)(?=^##\s+|\Z)",
+            managed_block,
+            re.MULTILINE,
+        )
+        if verification_match is None:
+            errors.append(
+                f"{rel(managed_agents_path)}: missing ## Verification section; "
+                f"{managed_marker_error_context}"
+            )
+        else:
+            seen_commands: set[str] = set()
+            for command in re.findall(r"`([^`\n]+)`", verification_match.group(1)):
+                if command in seen_commands:
+                    errors.append(
+                        f"{rel(managed_agents_path)}: duplicate Verification inline-code command "
+                        f"{command!r}; {managed_marker_error_context}"
+                    )
+                seen_commands.add(command)
 
 prompt_runner_path = ROOT / "pi" / "tests" / "prompt_effectiveness.py"
 prompt_runner = read_text(prompt_runner_path)

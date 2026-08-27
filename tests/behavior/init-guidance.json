@@ -7,19 +7,29 @@
       "id": "typescript-web-evidence-profile",
       "skill": "b-init",
       "observed_failure": "b-init could write generic guidance without detecting local TypeScript/web tooling or the request, auth, and rendering surfaces that needed scoped advice.",
-      "intended_behavior": "Profile the detected tooling and surfaces, separate enforced conventions from contextual secure-coding practices, and ground every project-specific bullet in scope, evidence, and available verification without claiming coverage that the repository does not prove.",
+      "intended_behavior": "Profile the detected tooling and surfaces, separate enforced conventions from contextual secure-coding practices, ground every project-specific bullet in scope and evidence, and list applicable existing verification checks once under Verification without claiming coverage that the repository does not prove.",
       "prompt": "Use b-init for a repository root. Inventory evidence finds package.json with scripts lint, format:check, typecheck, and test; tsconfig.json with strict true; eslint.config.js; prettier.config.js; vitest.config.ts; .github/workflows/ci.yml invoking npm run lint, npm run typecheck, and npm test; README.md and CONTRIBUTING.md; src/api/routes.ts parsing JSON request bodies and applying auth middleware; and src/ui/Comment.tsx rendering user-authored markdown through src/ui/sanitize.ts. No database or migration files, infrastructure/deployment manifests, or external-service clients are present. Describe the concise project-specific AGENTS.md additions you would make; do not edit files.",
       "must": [
         "Inventory and name the detected TypeScript tooling and existing verification commands",
         "Add scoped input, authentication, and rendering guidance for the observed web surfaces",
         "Distinguish config-backed enforced conventions from contextual secure-coding practices",
-        "Give every project-specific bullet an applicable scope, evidence source, and available verification command",
+        "Give every project-specific bullet an applicable scope and evidence source, and map applicable existing checks once under Verification",
+        "Use exactly four top-level sections in this order: Repository Purpose, Project Profile, Project Map and Ownership, Verification",
+        "Keep enforced conventions and contextual boundaries/gaps under Project Profile",
+        "Combine navigation, canonical-source/generated-output ownership, and local edit boundaries under Project Map and Ownership",
+        "Project Profile owns evidence-backed conventions and non-structural scope gaps; Project Map and Ownership is the sole owner of navigation, canonical-source/generated-output ownership, and local edit boundaries, so each fact appears once",
+        "List each existing repository command once under Verification",
+        "Use focused TODOs/gaps only when an applicable command is absent",
+        "Allow descriptive nested headings without creating duplicate fact buckets",
         "Avoid claiming security coverage beyond the observed auth middleware and sanitizer"
       ],
       "avoid": [
         "Invent commands, owners, policies, or enforcement",
         "Add guidance for absent persistence, infrastructure, or external integrations",
         "Turn the profile into a broad language or security standards catalog",
+        "Create top-level Working Rules, Safety Rules, Maintainer Guide, Sources and Generated Assets, or Codebase Map sections",
+        "Use legacy names at any Markdown heading depth",
+        "Repeat verification commands in the profile",
         "Restate generic kernel workflow, tool, or secret policy"
       ]
     },
@@ -32,6 +42,13 @@
       "must": [
         "State that the evidence is insufficient for a specialized language or technical-area profile",
         "Provide a bounded profile with focused TODOs or gaps rather than invented conventions",
+        "Use exactly four top-level sections in this order: Repository Purpose, Project Profile, Project Map and Ownership, Verification",
+        "Keep enforced conventions and contextual boundaries/gaps under Project Profile",
+        "Combine navigation, canonical-source/generated-output ownership, and local edit boundaries under Project Map and Ownership",
+        "Project Profile owns evidence-backed conventions and non-structural scope gaps; Project Map and Ownership is the sole owner of navigation, canonical-source/generated-output ownership, and local edit boundaries, so each fact appears once",
+        "List each existing repository command once under Verification",
+        "Use focused TODOs/gaps only when an applicable command is absent",
+        "Allow descriptive nested headings without creating duplicate fact buckets",
         "Avoid fabricating commands, owners, policies, or security coverage",
         "Keep generic kernel workflow, tool, and secret policy out of the project supplement"
       ],
@@ -39,6 +56,9 @@
         "Assume TypeScript, Python, web, or another unsupported stack",
         "Invent lint, test, CI, or verification commands",
         "Add a broad secure-coding or language standards catalog",
+        "Create top-level Working Rules, Safety Rules, Maintainer Guide, Sources and Generated Assets, or Codebase Map sections",
+        "Use legacy names at any Markdown heading depth",
+        "Repeat verification commands in the profile",
         "Claim technical risk surfaces that the inventory did not observe"
       ]
     }

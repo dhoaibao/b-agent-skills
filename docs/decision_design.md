@@ -131,29 +131,45 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   `skills/b-implement/prompt.md`, `tests/behavior/principles.json`,
   `tooling/validate/shared.py`.
 
-### b-init generates evidence-backed project supplements
+### b-init generates four-section evidence-backed project supplements
 
 - Observed failure: b-init could produce generic AGENTS.md guidance without
   inventorying the local language/package stack, tooling, canonical docs, or
-  observable technical risk surfaces. It could therefore invent commands or
-  standards, blur enforced conventions with contextual secure-coding advice,
-  and duplicate the always-loaded kernel.
+  observable technical risk surfaces. Its seven overlapping top-level sections
+  could also duplicate verification (profile bullets plus a separate section)
+  and split navigation, canonical ownership, and local edit boundaries across
+  redundant headings. It could therefore invent commands or standards, blur
+  enforced conventions with contextual secure-coding advice, and duplicate the
+  always-loaded kernel.
 - Intended behavior: b-init inventories manifests, lint/format/type/test/CI
   configuration, local docs, and detected request/input/auth, persistence,
-  rendering, integration, and infrastructure surfaces before drafting. It
-  includes only narrowly relevant practices, distinguishes config- or
-  documentation-backed conventions from contextual security advice, labels
-  each project-specific bullet with scope, evidence, and available verification,
-  and writes a bounded TODO/gap when evidence is insufficient. The generated
-  supplement does not restate or weaken generic kernel workflow, tool, or
-  secret policy.
+  rendering, integration, and infrastructure surfaces before drafting. The
+  managed block uses exactly four top-level sections, in order: `Repository
+  Purpose`, `Project Profile`, `Project Map and Ownership`, and `Verification`.
+  Project Profile owns evidence-backed conventions and non-structural scope
+  gaps; Project Map and Ownership is the sole owner of navigation,
+  canonical-source/generated-output ownership, and local edit boundaries, so
+  each fact appears once; and Verification lists each existing repository
+  command once, recording focused TODOs/gaps only when commands are absent.
+  Legacy names are forbidden at any Markdown heading depth, while descriptive
+  nested headings remain allowed when they do not create duplicate fact
+  buckets. It includes only narrowly relevant practices, distinguishes config-
+  or documentation-backed conventions from contextual security advice, labels
+  project-specific bullets with scope and evidence, and does not restate or
+  weaken generic kernel workflow, tool, or secret policy.
 - Regression: `skills/b-init/prompt.md` and generated
-  `skills/b-init/SKILL.md` carry structural anchors for the inventory,
-  distinction, evidence, verification, and kernel-boundary rules.
+  `skills/b-init/SKILL.md` carry structural anchors for the inventory, exact
+  four-section order, non-redundant headings, profile distinction, ownership
+  mapping, command de-duplication, and kernel-boundary rules.
   `tests/behavior/init-guidance.json` provides human-scored TypeScript/web and
-  minimal-repository scenarios; `tooling/validate/shared.py` validates the
-  anchors and fixture shape, while `tooling/validate/run.sh` runs the fixture's
-  non-network `--validate-inputs` check. The narrow checks are
+  minimal-repository scenarios that must require the common four-section
+  structure, one owner per fact category, and rejection of legacy headings at
+  any depth; `tooling/validate/shared.py` records the observed
+  failure/intended behavior, validates the canonical prompt/generated anchors
+  and fixture contract, and structurally checks this repository's managed
+  `AGENTS.md` markers, section order, heading exclusions, and unique inline-code
+  commands within `## Verification`, while `tooling/validate/run.sh` runs the
+  fixture's non-network `--validate-inputs` check. The narrow checks are
   `python3 tooling/generate/registry_sync.py --check` and
   `python3 pi/tests/prompt_effectiveness.py --fixtures
   tests/behavior/init-guidance.json --skill skills/b-init/SKILL.md

@@ -41,18 +41,12 @@ Initialize or refresh repo-local agent instruction docs. `AGENTS.md` is canonica
    <!-- b-init-managed:end -->
    ```
 6. If the target file contains these markers, update only the managed block with edit/write. Preserve user-owned notes above or below it. If it contains substantial unmarked content, treat replacement as a material user-facing choice: in planner or solo/Off work use `ask_user_question` with 2–4 concrete options such as preserve the unmarked content (`Preserve (Recommended)`), replace it wholesale, or stop; if unavailable or noninteractive, ask one focused plain-text question. In a two-role worker, ask the assigning planner through Intercom instead. Planner mode emits exactly one `B_AGENTIC_USER_INPUT_NEEDED` signal for the decision; solo/Off workers emit no planner signal.
-7. Write concise `AGENTS.md` sections grounded in repo evidence:
-   - Repository purpose: one short paragraph on what the repo ships or maintains.
-   - Working rules: local conventions, edit boundaries, and approval expectations.
-   - Verification commands: only list commands that exist in the repo.
-   - Codebase map: top-level directories or packages that matter for navigation.
-   - Safety rules: constraints on migrations, secrets, or generated-vs-source invariants.
-   - Maintainer guide: edit guidelines (e.g. sync scripts) when the repo has generated files.
-   - Source-of-truth files: registries, templates, or docs that own generated outputs.
-   Add a small project-profile subsection only when the inventory supports it:
-   - Distinguish enforced local conventions (backed by config, docs, or scripts) from contextual secure-coding practices (scope-conditional advice, not claims of enforcement).
-   - Every project-specific bullet names its applicable scope and `Evidence:` source; include `Verify:` with an existing command where available, otherwise a focused TODO/gap.
-   - Use established, narrowly relevant language or area practices only for detected stacks and surfaces; do not fabricate commands, owners, policies, or security coverage.
+7. Write a concise managed `AGENTS.md` block with exactly these four top-level sections, in this order:
+   - `## Repository Purpose`: one short paragraph on what the repo ships or maintains.
+   - `## Project Profile`: retain evidence-backed conventions and non-structural scope gaps. Distinguish enforced local conventions (backed by config, docs, or scripts) from contextual secure-coding practices (scope-conditional advice, not claims of enforcement). Every project-specific bullet names its applicable scope and `Evidence:` source. Use established, narrowly relevant language or area practices only for detected stacks and surfaces; do not fabricate commands, owners, policies, or security coverage; do not repeat verification commands in the profile.
+   - `## Project Map and Ownership`: is the sole owner of navigation, canonical-source/generated-output ownership, and local edit boundaries, so each fact appears once. Identify the top-level directories or packages that matter, the registries/templates/docs that own generated outputs, and where edits belong.
+   - `## Verification`: list each existing repository command once. Record only focused TODOs/gaps when an applicable command is absent; do not invent replacement commands.
+   Do not use headings named `Working Rules`, `Safety Rules`, `Maintainer Guide`, `Sources and Generated Assets`, or `Codebase Map` at any Markdown heading depth; fold supported facts into the four required sections instead. Descriptive nested headings are allowed when they organize content without creating duplicate fact buckets.
 8. If evidence is insufficient, write a bounded profile and focused TODO/gap instead of inventing standards. The always-loaded kernel owns generic workflow, tool, and secret policy; do not restate, weaken, or replace it in `AGENTS.md`.
 9. Avoid runtime-home paths, agent-vendor policy dumps, speculative architecture summaries, and extra root docs.
 10. Verify that referenced paths and commands exist (using Bash to run checks), then inspect the diff for noise or invented detail.
