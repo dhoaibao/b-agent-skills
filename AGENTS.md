@@ -15,6 +15,19 @@ b-agentic is a slim workflow kernel built around Pi. It ships the always-loaded 
 - Keep `skills/registry.yaml` and `references/mcp_operations.yaml` in the JSON-compatible YAML subset required by the Python standard library.
 - Record an observed failure, intended behavior change, and narrow regression check for behavior-shaping prompt changes.
 
+## Project Profile
+
+### Enforced local conventions
+
+- **Pi TypeScript integration (`pi/`):** strict TypeScript is enabled for the first-party extensions, and the standalone preview package extends the same configuration. **Evidence:** `pi/tsconfig.json`, `pi/packages/preview-markdown/tsconfig.json`, `pi/package.json`. **Verify:** `npm ci --prefix pi --no-fund --no-audit` followed by `bash pi/scripts/typecheck.sh`, and `bash pi/scripts/validate-preview-markdown-package.sh`.
+- **Generated delivery assets (`skills/`, `references/`, and generated README/Pi surfaces):** edit the canonical registry, prompt, template, or policy sources rather than generated outputs. **Evidence:** `tooling/generate/registry_sync.py`, `README.md`, `docs/decision_design.md`. **Verify:** `python3 tooling/generate/registry_sync.py --check`.
+- **Repository validation (`tooling/validate/`, `scripts/`, `pi/scripts/`, and `tests/`):** the CI lane provisions Python 3.12 and Node 22 and runs the repository's synchronization, TypeScript, validation, and audit commands. **Evidence:** `.github/workflows/validate.yml`, `tooling/validate/run.sh`, `pi/scripts/validate.sh`. **Verify:** `bash scripts/validate-skills.sh --release`.
+
+### Contextual boundaries and gaps
+
+- **Installer and MCP configuration (`install.sh`, `tooling/install/`, `pi/configs/`, and Pi policy extensions):** CLI/environment inputs, user-configuration merges, remote install/update paths, and lazy MCP entries are observable boundaries; preserve the template's lazy/read-only constraints and user-owned configuration behavior when changing them. **Evidence:** `install.sh`, `tooling/install/common.sh`, `pi/configs/mcp.user.template.json`, `tests/smoke/install.sh`. **Verify:** `bash scripts/smoke-install.sh`; live schema probing remains opt-in with `scripts/mcp-doctor.sh --probe-schemas`.
+- **Unavailable local conventions:** no root package manifest, lint/format configuration, database or migration files, infrastructure/deployment manifests, or external-service client source was found beyond the installer/MCP integration. Do not invent guidance for those areas; reassess when new evidence appears. **Evidence:** tracked-file inventory, `pi/package.json`, `.github/workflows/validate.yml`. **Verify:** TODO—add focused commands or area guidance only when the repository gains the corresponding files.
+
 ## Sources and Generated Assets
 
 - `skills/registry.yaml` owns skill metadata, routing, and generated frontmatter; each `skills/*/prompt.md` owns its canonical skill body.
