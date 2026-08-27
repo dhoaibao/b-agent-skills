@@ -131,6 +131,34 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   `skills/b-implement/prompt.md`, `tests/behavior/principles.json`,
   `tooling/validate/shared.py`.
 
+### b-init generates evidence-backed project supplements
+
+- Observed failure: b-init could produce generic AGENTS.md guidance without
+  inventorying the local language/package stack, tooling, canonical docs, or
+  observable technical risk surfaces. It could therefore invent commands or
+  standards, blur enforced conventions with contextual secure-coding advice,
+  and duplicate the always-loaded kernel.
+- Intended behavior: b-init inventories manifests, lint/format/type/test/CI
+  configuration, local docs, and detected request/input/auth, persistence,
+  rendering, integration, and infrastructure surfaces before drafting. It
+  includes only narrowly relevant practices, distinguishes config- or
+  documentation-backed conventions from contextual security advice, labels
+  each project-specific bullet with scope, evidence, and available verification,
+  and writes a bounded TODO/gap when evidence is insufficient. The generated
+  supplement does not restate or weaken generic kernel workflow, tool, or
+  secret policy.
+- Regression: `skills/b-init/prompt.md` and generated
+  `skills/b-init/SKILL.md` carry structural anchors for the inventory,
+  distinction, evidence, verification, and kernel-boundary rules.
+  `tests/behavior/init-guidance.json` provides human-scored TypeScript/web and
+  minimal-repository scenarios; `tooling/validate/shared.py` validates the
+  anchors and fixture shape, while `tooling/validate/run.sh` runs the fixture's
+  non-network `--validate-inputs` check. The narrow checks are
+  `python3 tooling/generate/registry_sync.py --check` and
+  `python3 pi/tests/prompt_effectiveness.py --fixtures
+  tests/behavior/init-guidance.json --skill skills/b-init/SKILL.md
+  --validate-inputs`.
+
 ### Planner/worker collaboration is explicit and single-writer
 
 - Solo sessions default to `off`; the first session is not automatically a

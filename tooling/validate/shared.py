@@ -123,6 +123,56 @@ for skill_name, markers in prompt_regression_contracts.items():
         if marker not in text:
             errors.append(f"skills/{skill_name}/prompt.md: missing behavior regression anchor {marker!r}")
 
+# Regression: b-init produced generic project guidance without first profiling the
+# local stack and risk surfaces, so generated AGENTS.md files could invent tools,
+# blur enforced conventions with contextual security advice, or duplicate kernel policy.
+B_INIT_GUIDANCE_REGRESSION = {
+    "observed_failure": (
+        "b-init guidance could produce generic AGENTS.md content without inventorying "
+        "the local stack and technical surfaces, and could present invented or "
+        "kernel-duplicating security and workflow claims."
+    ),
+    "intended_behavior": (
+        "b-init first inventories manifests, tooling, docs, and observable risk surfaces; "
+        "generated bullets distinguish enforced conventions from contextual secure-coding "
+        "practices, name scope/evidence/verification, and use bounded TODOs when evidence "
+        "is insufficient without restating generic kernel policy."
+    ),
+    "anchors": {
+        "skills/b-init/prompt.md": [
+            "language/package manifests and lockfiles",
+            "lint, format, type, test, and CI configuration or scripts",
+            "observable technical risk surfaces",
+            "Treat absent evidence as absence",
+            "Distinguish enforced local conventions",
+            "contextual secure-coding practices",
+            "Every project-specific bullet names its applicable scope and `Evidence:` source",
+            "Use established, narrowly relevant language or area practices",
+            "do not fabricate commands, owners, policies, or security coverage",
+            "bounded profile and focused TODO/gap",
+            "always-loaded kernel owns generic workflow, tool, and secret policy",
+            "do not restate, weaken, or replace it",
+        ],
+        "skills/b-init/SKILL.md": [
+            "language/package manifests and lockfiles",
+            "Distinguish enforced local conventions",
+            "contextual secure-coding practices",
+            "Every project-specific bullet names its applicable scope and `Evidence:` source",
+            "bounded profile and focused TODO/gap",
+            "always-loaded kernel owns generic workflow, tool, and secret policy",
+        ],
+    },
+}
+for relative_path, markers in B_INIT_GUIDANCE_REGRESSION["anchors"].items():
+    text = read_text(ROOT / relative_path)
+    for marker in markers:
+        if marker not in text:
+            errors.append(
+                f"{relative_path}: missing b-init guidance regression anchor {marker!r}; "
+                f"observed failure: {B_INIT_GUIDANCE_REGRESSION['observed_failure']}; "
+                f"intended behavior: {B_INIT_GUIDANCE_REGRESSION['intended_behavior']}"
+            )
+
 # Regression: the questionnaire package was installed, but worker-facing material
 # decisions still prescribed plain chat and b-commit lacked a structured approval
 # path. Check canonical and generated guidance, not only package installation.
@@ -391,6 +441,49 @@ else:
         errors.append(f"{rel(roles_path)}: scenario ids must be unique")
     if covered_roles != {"planner", "worker"}:
         errors.append(f"{rel(roles_path)}: scenarios must cover planner and worker")
+
+init_guidance_path = ROOT / "tests" / "behavior" / "init-guidance.json"
+init_guidance_fixture = load_json(init_guidance_path)
+init_guidance_scenarios = init_guidance_fixture.get("scenarios", [])
+required_init_guidance_ids = {
+    "typescript-web-evidence-profile",
+    "minimal-repo-bounded-profile",
+}
+if init_guidance_fixture.get("version") != 1:
+    errors.append(f"{rel(init_guidance_path)}: expected fixture version 1")
+if not isinstance(init_guidance_fixture.get("source"), str) or not init_guidance_fixture["source"]:
+    errors.append(f"{rel(init_guidance_path)}: source must be a non-empty string")
+if not isinstance(init_guidance_scenarios, list) or not init_guidance_scenarios:
+    errors.append(f"{rel(init_guidance_path)}: scenarios must be a non-empty array")
+    init_guidance_scenarios = []
+init_guidance_ids: list[str] = []
+for index, scenario in enumerate(init_guidance_scenarios, start=1):
+    label = f"{rel(init_guidance_path)}: scenario {index}"
+    if not isinstance(scenario, dict):
+        errors.append(f"{label} must be an object")
+        continue
+    scenario_id = scenario.get("id")
+    if not isinstance(scenario_id, str) or not scenario_id:
+        errors.append(f"{label} must have a non-empty id")
+    else:
+        init_guidance_ids.append(scenario_id)
+    if scenario.get("skill") != "b-init":
+        errors.append(f"{label} must target b-init")
+    for field in ("prompt", "observed_failure", "intended_behavior"):
+        if not isinstance(scenario.get(field), str) or not scenario[field]:
+            errors.append(f"{label} {field} must be a non-empty string")
+    for field in ("must", "avoid"):
+        values = scenario.get(field)
+        if not isinstance(values, list) or not values or not all(isinstance(value, str) and value for value in values):
+            errors.append(f"{label} {field} must be a non-empty string array")
+if len(init_guidance_ids) != len(set(init_guidance_ids)):
+    errors.append(f"{rel(init_guidance_path)}: scenario ids must be unique")
+if set(init_guidance_ids) != required_init_guidance_ids:
+    errors.append(
+        f"{rel(init_guidance_path)}: expected scenarios {sorted(required_init_guidance_ids)}, "
+        f"found {sorted(init_guidance_ids)}; observed failure: {B_INIT_GUIDANCE_REGRESSION['observed_failure']}; "
+        f"intended behavior: {B_INIT_GUIDANCE_REGRESSION['intended_behavior']}"
+    )
 
 prompt_runner_path = ROOT / "pi" / "tests" / "prompt_effectiveness.py"
 prompt_runner = read_text(prompt_runner_path)

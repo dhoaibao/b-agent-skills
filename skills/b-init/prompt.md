@@ -27,7 +27,7 @@ Initialize or refresh repo-local agent instruction docs. `AGENTS.md` is canonica
 
 1. Confirm scope: repository root or a specific subtree, and whether the task is create, refresh, or reconcile.
 2. Run `rtk git status --short` via Bash before inspecting or changing the repository; preserve unrelated changes.
-3. Inspect only the repo evidence needed to avoid boilerplate: existing docs, manifests, validation scripts, top-level directories, and source-of-truth files. Use native `read` first; use Serena only after native search/read for a specific exact ownership symbol or reference when it materially improves the codebase-map evidence. Do not use it for routine reads or parallelize/batch its requests.
+3. Before drafting, first inventory only the repo evidence needed to avoid boilerplate: language/package manifests and lockfiles; lint, format, type, test, and CI configuration or scripts (recording only commands that exist); local canonical docs; and observable technical risk surfaces such as request/input/auth boundaries, persistence/migrations, rendering/templates/HTML, external integrations, and infrastructure/deployment. Treat absent evidence as absence rather than inferring a stack or surface. Use native `read` first; use Serena only after native search/read for a specific exact ownership symbol or reference when it materially improves precision about file ownership or code layout. Do not use it for routine reads or parallelize/batch its requests.
 4. Prefer `AGENTS.md` as the only authoritative instruction file. Keep `CLAUDE.md` short and route the reader to `AGENTS.md` using the exact shim pattern:
    ```markdown
    # Claude Code Instructions
@@ -49,8 +49,13 @@ Initialize or refresh repo-local agent instruction docs. `AGENTS.md` is canonica
    - Safety rules: constraints on migrations, secrets, or generated-vs-source invariants.
    - Maintainer guide: edit guidelines (e.g. sync scripts) when the repo has generated files.
    - Source-of-truth files: registries, templates, or docs that own generated outputs.
-8. Avoid runtime-home paths, agent-vendor policy dumps, speculative architecture summaries, and extra root docs.
-9. Verify that referenced paths and commands exist (using Bash to run checks), then inspect the diff for noise or invented detail.
+   Add a small project-profile subsection only when the inventory supports it:
+   - Distinguish enforced local conventions (backed by config, docs, or scripts) from contextual secure-coding practices (scope-conditional advice, not claims of enforcement).
+   - Every project-specific bullet names its applicable scope and `Evidence:` source; include `Verify:` with an existing command where available, otherwise a focused TODO/gap.
+   - Use established, narrowly relevant language or area practices only for detected stacks and surfaces; do not fabricate commands, owners, policies, or security coverage.
+8. If evidence is insufficient, write a bounded profile and focused TODO/gap instead of inventing standards. The always-loaded kernel owns generic workflow, tool, and secret policy; do not restate, weaken, or replace it in `AGENTS.md`.
+9. Avoid runtime-home paths, agent-vendor policy dumps, speculative architecture summaries, and extra root docs.
+10. Verify that referenced paths and commands exist (using Bash to run checks), then inspect the diff for noise or invented detail.
 
 ## Output format
 
