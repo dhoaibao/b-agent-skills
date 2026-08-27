@@ -844,14 +844,16 @@ SERENA_WORKFLOW_REGRESSION = {
         "guidance preferred Serena for routine reads and edits."
     ),
     "intended_behavior": (
-        "The kernel and representative skills prefer native file tools for routine work, "
-        "reserve Serena for materially safer or more precise semantic tasks, prohibit "
-        "routine Serena reads/searches/edits, and serialize calls without parallel or "
-        "batched Serena requests."
+        "Before the first Serena use in a coding task, agents call "
+        "serena_initial_instructions and follow it. The kernel and representative "
+        "skills prefer native file tools for routine work, reserve Serena for materially "
+        "safer or more precise semantic tasks, prohibit routine Serena reads/searches/edits, "
+        "and serialize calls without parallel or batched Serena requests."
     ),
     "anchors": {
         "references/kernel.template.md": [
             "Prefer Pi native `read`/`edit`/`write`",
+            "Before the first Serena use in a coding task, call `serena_initial_instructions` and follow it.",
             "begin with native search/read",
             "concrete exact-symbol",
             "Do not use Serena for routine reads/searches/edits",
