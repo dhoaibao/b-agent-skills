@@ -38,7 +38,7 @@ Figure out what to do when the task is unclear, then turn the chosen path into t
 5. When the task is fuzzy, investigate the current code or constraints enough to compare viable paths before choosing one. For non-trivial or risky work, identify the relevant quality dimensions and compare viable approaches, including the simpler option, using repository evidence and targeted research when needed. Keep small obvious tasks free of forced comparison or research.
 6. Choose the smallest safe approach, record the evidence-backed rationale and accepted trade-offs, and push back if a simpler or safer path exists.
 7. Include `Done when` verification for each step that proves the intended observable outcome, not just command success.
-8. End with either a plan that is ready for **b-implement** or one focused blocking question that must be answered before implementation. For a user-facing material decision or blocker, use the installed `ask_user_question` tool with 1–4 grouped questions, 2–4 concrete options, and a recommended first option; if unavailable or noninteractive, ask one focused plain-text question. Emit exactly one `B_AGENTIC_USER_INPUT_NEEDED` signal for that planner decision/blocker. Omit both questionnaire and signal for normal planning, discovery, handoffs, and updates.
+8. End with either a plan that is ready for **b-implement** or one focused blocking question that must be answered before implementation. For a user-facing material decision or blocker, use the installed `ask_user_question` tool with 1–4 grouped questions, 2–4 concrete options, and a recommended first option; if unavailable or noninteractive, ask one focused plain-text question. The planner-notify extension surfaces the actual `ask_user_question` tool call with a fixed privacy-safe desktop notification. Omit the questionnaire and notification for normal planning, discovery, handoffs, and updates.
 9. For larger plans, tag steps only when useful: `AFK` for agent-ready work, `HITL` for user decision, approval, external access, or judgment.
 
 For plans spanning more than 3 files, public contracts, dependencies, CI/build, or durable coordination, save a plan under `.b-agentic/b-plan/` only if it will materially help execution. In planner mode, instead keep the approved plan in the handoff or conversation; do not save plan files.
@@ -51,7 +51,7 @@ For a two-role task, finish discovery and settle the approach before one bounded
 
 Concise scope, recommended path, ordered steps, verification, and explicit blockers. Ask for approval before implementation.
 
-When the response ends with a focused user question requiring a decision or blocker answer, add `B_AGENTIC_USER_INPUT_NEEDED` as its own final line; otherwise omit it. Do not include task or session details in the signal.
+When a focused user question is needed, invoke `ask_user_question` rather than encoding an attention marker in assistant text. The desktop notification is fixed and contains no question or session details.
 
 ## Rules
 

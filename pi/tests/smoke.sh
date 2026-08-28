@@ -763,14 +763,13 @@ await roleSessionStartHandler({}, roleContext);
 expect(activeTools.length === 8 && activeTools.includes('edit') && activeTools.includes('write'), 'Off role application must preserve normal active tools');
 const notifierCalls = [];
 const taskCompleteSignal = plannerNotifyTest.PLANNER_ATTENTION_SIGNALS.TASK_COMPLETE;
-const userInputSignal = plannerNotifyTest.PLANNER_ATTENTION_SIGNALS.USER_INPUT_NEEDED;
 await plannerNotifyTest.notifyDesktop(async (command, args, options) => { notifierCalls.push({ command, args, options }); }, taskCompleteSignal, 'linux');
-await plannerNotifyTest.notifyDesktop(async (command, args, options) => { notifierCalls.push({ command, args, options }); }, userInputSignal, 'darwin');
+await plannerNotifyTest.notifyUserInputNeeded(async (command, args, options) => { notifierCalls.push({ command, args, options }); }, 'darwin');
 await plannerNotifyTest.notifyDesktop(async (command, args, options) => { notifierCalls.push({ command, args, options }); }, taskCompleteSignal, 'freebsd');
 await plannerNotifyTest.notifyDesktop(async () => { throw new Error('notifier unavailable'); }, taskCompleteSignal, 'linux');
 expect(notifierCalls.length === 2 && notifierCalls[0].command === 'notify-send' && JSON.stringify(notifierCalls[0].args) === JSON.stringify(['Task complete']) && notifierCalls[0].options?.timeout === plannerNotifyTest.NOTIFICATION_TIMEOUT_MS, 'Linux planner notifications must use fixed task-complete text with a bounded timeout');
 expect(notifierCalls[1].command === 'osascript' && notifierCalls[1].args[0] === '-e' && notifierCalls[1].args[1] === 'display notification "User input needed" with title "b-agentic"' && notifierCalls[1].options?.timeout === plannerNotifyTest.NOTIFICATION_TIMEOUT_MS, 'macOS planner notifications must use fixed user-input text with a bounded timeout');
-expect(typeof handlers.agent_start === 'function' && typeof handlers.agent_end === 'function' && typeof handlers.agent_settled === 'function', 'planner notification extension must register agent lifecycle handlers');
+expect(typeof handlers.agent_start === 'function' && typeof handlers.agent_end === 'function' && typeof handlers.agent_settled === 'function' && typeof handlers.tool_call === 'function', 'planner notification extension must register agent lifecycle and tool-call handlers');
 branchEntries.push({
   type: 'custom', customType: 'b-agentic-role',
   data: { role: 'planner', toolsBeforePlanner: ['read', 'bash', 'edit', 'write'] },
@@ -858,28 +857,34 @@ await handlers.agent_end({ messages: [
   { role: 'assistant', content: [{ type: 'text', text: 'Planning handoff to worker.' }], timestamp: 2 },
 ] });
 await handlers.agent_settled({ messages: [{ content: 'sensitive task/session content' }] });
-expect(executedCommands.length === notificationCommandStart, 'off role must remain silent for planning and settled events');
+await handlers.tool_call({ toolName: 'ask_user_question', toolCallId: 'off-input', input: { questions: [{ question: 'sensitive question' }] } }, roleContext);
+expect(executedCommands.length === notificationCommandStart, 'off role must remain silent for planning and ask_user_question tool calls');
 await commands['b-role'].handler('planner', roleContext);
+const expectedInputNotification = process.platform === 'darwin'
+  ? { command: 'osascript', args: ['-e', 'display notification "User input needed" with title "b-agentic"'] }
+  : { command: 'notify-send', args: ['User input needed'] };
+await handlers.tool_call({ toolName: 'ask_user_question', toolCallId: 'planner-input', input: { questions: [{ question: 'sensitive question/session content' }] } }, roleContext);
+expect(executedCommands.length === notificationCommandStart + 1 && executedCommands.at(-1)?.command === expectedInputNotification.command && JSON.stringify(executedCommands.at(-1)?.args) === JSON.stringify(expectedInputNotification.args) && executedCommands.at(-1)?.options?.timeout === plannerNotifyTest.NOTIFICATION_TIMEOUT_MS, 'planner must notify on an ask_user_question tool call with fixed text and bounded timeout');
 await handlers.agent_start({});
 await handlers.agent_end({ messages: [
   { role: 'user', content: 'sensitive task/session content mentioning B_AGENTIC_TASK_COMPLETE', timestamp: 1 },
   { role: 'assistant', content: [{ type: 'text', text: 'Planning handoff to worker.' }], timestamp: 2 },
 ] });
 await handlers.agent_settled({});
-expect(executedCommands.length === notificationCommandStart, 'planner handoffs and normal planning must remain silent');
+expect(executedCommands.length === notificationCommandStart + 1, 'planner handoffs and normal planning must remain silent');
 await handlers.agent_start({});
 await handlers.agent_end({ messages: [
   { role: 'assistant', content: [{ type: 'text', text: 'Verdict: READY FOR PR' }], timestamp: 3 },
 ] });
 await handlers.agent_settled({});
-expect(executedCommands.length === notificationCommandStart, 'verdict-only b-review content must remain silent');
+expect(executedCommands.length === notificationCommandStart + 1, 'verdict-only b-review content must remain silent');
 await handlers.agent_start({});
 await handlers.agent_end({ messages: [
   { role: 'user', content: 'sensitive task/session content', timestamp: 4 },
   { role: 'assistant', content: [{ type: 'text', text: `${taskCompleteSignal}\nVerdict: READY FOR PR` }], timestamp: 5 },
 ] });
 await handlers.agent_settled({});
-expect(executedCommands.length === notificationCommandStart + 1, 'planner must notify after an explicit passing-completion signal');
+expect(executedCommands.length === notificationCommandStart + 2, 'planner must notify after an explicit passing-completion signal');
 const expectedTaskNotification = process.platform === 'darwin'
   ? { command: 'osascript', args: ['-e', 'display notification "Task complete" with title "b-agentic"'] }
   : { command: 'notify-send', args: ['Task complete'] };
@@ -889,30 +894,26 @@ await handlers.agent_end({ messages: [
   { role: 'assistant', content: [{ type: 'text', text: 'Verdict: READY WITH FOLLOW-UPS' }], timestamp: 6 },
 ] });
 await handlers.agent_settled({});
-expect(executedCommands.length === notificationCommandStart + 1, 'verdict-only follow-ups must remain silent');
+expect(executedCommands.length === notificationCommandStart + 2, 'verdict-only follow-ups must remain silent');
 await handlers.agent_start({});
 await handlers.agent_end({ messages: [
-  { role: 'assistant', content: [{ type: 'text', text: 'I need one focused decision.\n' + userInputSignal }], timestamp: 7 },
+  { role: 'assistant', content: [{ type: 'text', text: 'I need one focused decision.\nUser input needed' }], timestamp: 7 },
 ] });
 await handlers.agent_settled({});
-expect(executedCommands.length === notificationCommandStart + 2, 'planner must notify when explicit user input is needed');
-const expectedInputNotification = process.platform === 'darwin'
-  ? { command: 'osascript', args: ['-e', 'display notification "User input needed" with title "b-agentic"'] }
-  : { command: 'notify-send', args: ['User input needed'] };
-expect(executedCommands.at(-1)?.command === expectedInputNotification.command && JSON.stringify(executedCommands.at(-1)?.args) === JSON.stringify(expectedInputNotification.args), 'user-input notification must use fixed text and exclude the user question');
+expect(executedCommands.length === notificationCommandStart + 2, 'assistant text alone must not trigger a user-input notification');
 await handlers.agent_start({});
 await handlers.agent_end({ messages: [
-  { role: 'assistant', content: [{ type: 'text', text: `${taskCompleteSignal}\n${userInputSignal}` }], timestamp: 8 },
+  { role: 'assistant', content: [{ type: 'text', text: 'User input needed in arbitrary prose' }], timestamp: 8 },
 ] });
 await handlers.agent_settled({});
-expect(executedCommands.length === notificationCommandStart + 2, 'ambiguous multiple attention signals must remain silent');
+expect(executedCommands.length === notificationCommandStart + 2, 'assistant prose must not trigger a user-input notification');
 await handlers.agent_start({});
 await handlers.agent_end({ messages: [
   { role: 'assistant', content: [{ type: 'text', text: `${taskCompleteSignal} in arbitrary prose` }], timestamp: 9 },
   { role: 'assistant', content: [{ type: 'text', text: 'Intermediate update with sensitive task/session content.' }], timestamp: 10 },
 ] });
 await handlers.agent_settled({});
-expect(executedCommands.length === notificationCommandStart + 2, 'only exact signals in the final assistant response may notify');
+expect(executedCommands.length === notificationCommandStart + 2, 'only exact task-complete signals in the final assistant response may notify');
 await handlers.agent_start({});
 await handlers.agent_end({ messages: [
   { role: 'assistant', content: [{ type: 'text', text: 'Verdict: NEEDS FIXES' }], timestamp: 11 },
@@ -923,15 +924,18 @@ await handlers.agent_settled({ messages: [{ content: 'sensitive task/session con
 expect(executedCommands.length === notificationCommandStart + 2, 'generic settled events must remain silent without a final agent_end signal');
 roleChannelRegistration.onReady({ publish() {}, listSessions: async () => [{ id: 'self', cwd: root, pid: process.pid, startedAt: 1 }] });
 await commands['b-role'].handler('worker', roleContext);
+await handlers.tool_call({ toolName: 'ask_user_question', toolCallId: 'worker-input', input: { questions: [{ question: 'sensitive question/session content' }] } }, roleContext);
+expect(executedCommands.length === notificationCommandStart + 2, 'worker must remain silent after an ask_user_question tool call');
 await handlers.agent_start({});
 await handlers.agent_end({ messages: [{ role: 'assistant', content: [{ type: 'text', text: taskCompleteSignal }], timestamp: 12 }] });
 await handlers.agent_settled({});
 expect(executedCommands.length === notificationCommandStart + 2, 'worker must remain silent after an explicit signal');
 await commands['b-role'].handler('off', roleContext);
+await handlers.tool_call({ toolName: 'ask_user_question', toolCallId: 'off-input-after-worker', input: { questions: [{ question: 'sensitive question/session content' }] } }, roleContext);
 await handlers.agent_start({});
-await handlers.agent_end({ messages: [{ role: 'assistant', content: [{ type: 'text', text: userInputSignal }], timestamp: 13 }] });
+await handlers.agent_end({ messages: [{ role: 'assistant', content: [{ type: 'text', text: 'User input needed' }], timestamp: 13 }] });
 await handlers.agent_settled({});
-expect(executedCommands.length === notificationCommandStart + 2, 'off role must remain silent after an explicit signal');
+expect(executedCommands.length === notificationCommandStart + 2, 'off role must remain silent after ask_user_question tool calls and assistant text');
 activeThinkingLevel = 'high';
 await commands['b-role'].handler('', roleContext);
 expect(rolePickerCalls === 1, '/b-role without an argument must open a role picker');
@@ -1009,7 +1013,7 @@ const plannerPromptBytes = Buffer.byteLength(plannerTest.PLANNER_PROMPT, 'utf8')
 const measuredPreDedupPlannerPromptBytes = 6711;
 expect(plannerPromptBytes < measuredPreDedupPlannerPromptBytes, `planner prompt addendum must be smaller than the measured pre-dedup baseline (got ${plannerPromptBytes} bytes)`);
 expect(!plannerTest.PLANNER_PROMPT.includes('Your in-scope planner skills are:') && !plannerTest.PLANNER_PROMPT.includes('Group 1–4 related questions per call'), 'planner prompt must defer shared ownership and questionnaire guidance to the kernel');
-expect(plannerStart.systemPrompt.includes('The planner keeps external b-research planner-owned and never delegates it.') && plannerStart.systemPrompt.includes('Use send for task delegation, terminal results, review requests/findings, and any question/request needing material work.') && plannerStart.systemPrompt.includes('Use ask only for one focused question whose answer needs no substantial investigation, implementation, or waiting; never use ask to wait.') && plannerStart.systemPrompt.includes('ask_user_question') && plannerStart.systemPrompt.includes('B_AGENTIC_TASK_COMPLETE') && plannerStart.systemPrompt.includes('B_AGENTIC_USER_INPUT_NEEDED') && plannerStart.systemPrompt.includes('2–4 concrete options') && plannerStart.systemPrompt.includes(' (Recommended)') && plannerStart.systemPrompt.includes('automatic custom-answer row'), 'planner system prompt must combine composed kernel questionnaire guidance with planner signals');
+expect(plannerStart.systemPrompt.includes('The planner keeps external b-research planner-owned and never delegates it.') && plannerStart.systemPrompt.includes('Use send for task delegation, terminal results, review requests/findings, and any question/request needing material work.') && plannerStart.systemPrompt.includes('Use ask only for one focused question whose answer needs no substantial investigation, implementation, or waiting; never use ask to wait.') && plannerStart.systemPrompt.includes('ask_user_question') && plannerStart.systemPrompt.includes('B_AGENTIC_TASK_COMPLETE') && plannerStart.systemPrompt.includes('2–4 concrete options') && plannerStart.systemPrompt.includes(' (Recommended)') && plannerStart.systemPrompt.includes('automatic custom-answer row') && plannerStart.systemPrompt.includes('fixed "User input needed" desktop notification'), 'planner system prompt must combine composed kernel questionnaire guidance with task-complete signal and tool-call notification guidance');
 expect(plannerStart.systemPrompt.includes('b_consult') && plannerStart.systemPrompt.includes('Do not use `b_consult` for routine or obvious work') && plannerStart.systemPrompt.includes('never evidence'), 'planner prompt must explain selective optional b_consult use and its advisory boundary');
 expect(plannerStart.systemPrompt.includes('If `b_consult` advice materially changes a hard decision') && plannerStart.systemPrompt.includes('`Consultation` note') && plannerStart.systemPrompt.includes('question, recommendation or trade-off, risks or missing evidence') && plannerStart.systemPrompt.includes('how repository evidence was weighed') && plannerStart.systemPrompt.includes('no artifact, store, command, or template'), 'planner prompt must constrain optional Consultation notes to material, advisory decisions');
 for (const marker of [

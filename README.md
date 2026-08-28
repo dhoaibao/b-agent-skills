@@ -127,7 +127,7 @@ Pi CLI, RTK, Serena, CodeGraph, Bun, and Pi packages install or refresh automati
 | `b-agentic-auto-mode.ts` | Confirmed automatic approval mode with explicit-deny protection | Default; installed and configured by b-agentic |
 | `b-agentic-role.ts` | Explicit solo/planner/worker role selection and same-CWD coordination | Default; installed and configured by b-agentic |
 | `b-agentic-planner.ts` | Planner prompt-governed collaboration profile | Default; installed and configured by b-agentic |
-| `b-agentic-planner-notify.ts` | Privacy-safe desktop notifications for explicit planner task-complete and user-input attention signals | Default; installed and configured by b-agentic |
+| `b-agentic-planner-notify.ts` | Privacy-safe desktop notifications for planner task completion and `ask_user_question` tool calls | Default; installed and configured by b-agentic |
 | `b-agentic-worker.ts` | Worker collaboration profile | Default; installed and configured by b-agentic |
 | `b-agentic-consult.ts` | Planner-only isolated repo-aware advisory consultation tool and model picker | Default; installed and configured by b-agentic |
 | `b-agentic-sync.ts` | In-session `/b-sync` and `/b-update` refresh commands | Default; installed and configured by b-agentic |

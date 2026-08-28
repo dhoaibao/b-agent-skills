@@ -304,8 +304,9 @@ INTERACTIVE_DECISION_REGRESSION = {
     ),
     "intended_behavior": (
         "Planner and solo/Off worker material user-facing decisions and blockers use "
-        "the questionnaire with its grouped-option contract, while worker-to-planner "
-        "questions remain Intercom and b-commit exposes structured approval with fallback."
+        "the questionnaire with its grouped-option contract, while planner tool calls "
+        "produce fixed privacy-safe notifications, worker-to-planner questions remain "
+        "Intercom, and b-commit exposes structured approval with fallback."
     ),
     "anchors": {
         "references/kernel.template.md": [
@@ -319,9 +320,18 @@ INTERACTIVE_DECISION_REGRESSION = {
         ],
         "pi/extensions/b-agentic-support/role.ts": [
             "any interactive, user-facing material decision or blocker",
-            "Solo/Off workers do not emit planner signals",
+            "actual tool call in planner mode triggers the fixed",
+            "notification contains no question or session data",
+            "Solo/Off workers do not emit planner notifications",
             "If the package reports that it is unavailable or the UI is noninteractive",
             "B_AGENTIC_TASK_COMPLETE",
+        ],
+        "pi/extensions/b-agentic-planner-notify.ts": [
+            "tool_call",
+            "ask_user_question",
+            "User input needed",
+            "getRole() !== \"planner\"",
+            "notifyUserInputNeeded",
         ],
         "skills/b-commit/prompt.md": [
             "Approve (Recommended)",

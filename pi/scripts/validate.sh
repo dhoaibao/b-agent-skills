@@ -147,7 +147,7 @@ if extension.exists():
             if marker not in preview_text:
                 errors.append(f'{preview_extension}: missing preview marker {marker!r}')
     for marker in [
-        'tool_call', 'isAutoApprovedIntercomCall', 'PLANNER_PROMPT', 'workerPrompt',
+        'tool_call', 'ask_user_question', 'User input needed', 'notifyUserInputNeeded', 'isAutoApprovedIntercomCall', 'PLANNER_PROMPT', 'workerPrompt',
         'planner profile (read-only coordinator)', 'worker profile (implementation)',
         'SKILL_OWNERS', 'skillOwner', 'SKILL_OWNERSHIP_CRITERION', 'sole worktree writer', 'external b-research',
         'Planner-owned only when execution is read-only decision/planning', 'Mixed or uncertain skills are worker-owned',

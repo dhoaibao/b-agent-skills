@@ -1,21 +1,21 @@
 /** Notify desktop users for explicit planner attention signals. */
-import type { AgentEndEvent, ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { AgentEndEvent, ExtensionAPI, ToolCallEvent } from "@earendil-works/pi-coding-agent";
 import { getRole } from "./b-agentic-support/state.ts";
 
 export const PLANNER_ATTENTION_SIGNALS = {
   TASK_COMPLETE: "B_AGENTIC_TASK_COMPLETE",
-  USER_INPUT_NEEDED: "B_AGENTIC_USER_INPUT_NEEDED",
 } as const;
 export type PlannerAttentionSignal = (typeof PLANNER_ATTENTION_SIGNALS)[keyof typeof PLANNER_ATTENTION_SIGNALS];
 
 const NOTIFICATION_MESSAGES: Record<PlannerAttentionSignal, string> = {
   [PLANNER_ATTENTION_SIGNALS.TASK_COMPLETE]: "Task complete",
-  [PLANNER_ATTENTION_SIGNALS.USER_INPUT_NEEDED]: "User input needed",
 };
+export const USER_INPUT_NOTIFICATION = "User input needed";
 const NOTIFICATION_TIMEOUT_MS = 5_000;
 const MACOS_TITLE = "b-agentic";
+const macosNotificationScript = (message: string): string => `display notification "${message}" with title "${MACOS_TITLE}"`;
 const MACOS_SCRIPTS: Record<PlannerAttentionSignal, string> = Object.fromEntries(
-  Object.entries(NOTIFICATION_MESSAGES).map(([signal, message]) => [signal, `display notification "${message}" with title "${MACOS_TITLE}"`]),
+  Object.entries(NOTIFICATION_MESSAGES).map(([signal, message]) => [signal, macosNotificationScript(message)]),
 ) as Record<PlannerAttentionSignal, string>;
 type Exec = (command: string, args: string[], options?: { timeout?: number }) => Promise<unknown>;
 
@@ -34,18 +34,11 @@ export function plannerAttentionSignals(messages: AgentEndEvent["messages"]): Pl
   const signals = new Set<PlannerAttentionSignal>();
   for (const line of text.split(/\r?\n/).map((line) => line.trim())) {
     if (line === PLANNER_ATTENTION_SIGNALS.TASK_COMPLETE) signals.add(PLANNER_ATTENTION_SIGNALS.TASK_COMPLETE);
-    if (line === PLANNER_ATTENTION_SIGNALS.USER_INPUT_NEEDED) signals.add(PLANNER_ATTENTION_SIGNALS.USER_INPUT_NEEDED);
   }
   return signals.size === 1 ? [...signals] : [];
 }
 
-export async function notifyDesktop(
-  exec: Exec,
-  signal: PlannerAttentionSignal,
-  platform: string = process.platform,
-): Promise<void> {
-  const message = NOTIFICATION_MESSAGES[signal];
-  if (!message) return;
+async function notifyMessage(exec: Exec, message: string, platform: string): Promise<void> {
   if (platform === "linux") {
     try {
       await exec("notify-send", [message], { timeout: NOTIFICATION_TIMEOUT_MS });
@@ -56,11 +49,25 @@ export async function notifyDesktop(
   }
   if (platform === "darwin") {
     try {
-      await exec("osascript", ["-e", MACOS_SCRIPTS[signal]], { timeout: NOTIFICATION_TIMEOUT_MS });
+      await exec("osascript", ["-e", macosNotificationScript(message)], { timeout: NOTIFICATION_TIMEOUT_MS });
     } catch {
       // Missing or failing desktop notifiers must not disrupt Pi.
     }
   }
+}
+
+export async function notifyDesktop(
+  exec: Exec,
+  signal: PlannerAttentionSignal,
+  platform: string = process.platform,
+): Promise<void> {
+  const message = NOTIFICATION_MESSAGES[signal];
+  if (!message) return;
+  await notifyMessage(exec, message, platform);
+}
+
+export async function notifyUserInputNeeded(exec: Exec, platform: string = process.platform): Promise<void> {
+  await notifyMessage(exec, USER_INPUT_NOTIFICATION, platform);
 }
 
 export default function bAgenticPlannerNotify(pi: ExtensionAPI): void {
@@ -71,6 +78,10 @@ export default function bAgenticPlannerNotify(pi: ExtensionAPI): void {
   });
   pi.on("agent_end", ({ messages }) => {
     lastAgentEndSignals = plannerAttentionSignals(messages);
+  });
+  pi.on("tool_call", async (event: ToolCallEvent) => {
+    if (getRole() !== "planner" || event.toolName !== "ask_user_question") return;
+    await notifyUserInputNeeded((command, args, options) => pi.exec(command, args, options));
   });
   pi.on("agent_settled", async () => {
     const signals = getRole() === "planner" ? lastAgentEndSignals : [];
@@ -86,6 +97,8 @@ export const __test__ = {
   NOTIFICATION_MESSAGES,
   NOTIFICATION_TIMEOUT_MS,
   PLANNER_ATTENTION_SIGNALS,
+  USER_INPUT_NOTIFICATION,
   notifyDesktop,
+  notifyUserInputNeeded,
   plannerAttentionSignals,
 };

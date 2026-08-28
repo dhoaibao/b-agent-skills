@@ -292,17 +292,19 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   automatic custom-answer row available; reserved labels `Other`, `Type
   something.`, and `Next` are not authored. If the package or interactive UI is
   unavailable, the fallback is one focused plain-text question. Planner
-  decisions/blockers also emit exactly one `B_AGENTIC_USER_INPUT_NEEDED` signal;
-  solo/Off workers emit no planner signal. Worker→planner material blockers
-  remain Intercom `ask`/`reply`, and native tool-permission prompts remain for
-  browser, external, or privileged actions rather than being replaced by
-  questionnaire calls. A completed task that passed all delegated b-review
-  gates uses `B_AGENTIC_TASK_COMPLETE`; both signals are omitted for normal
+  actual `ask_user_question` tool calls trigger a fixed privacy-safe desktop
+  `User input needed` notification in planner mode; solo/Off workers emit no
+  planner notifications. Worker→planner material blockers remain Intercom
+  `ask`/`reply`, and native tool-permission prompts remain for browser,
+  external, or privileged actions rather than being replaced by questionnaire
+  calls. A completed task that passed all delegated b-review gates uses
+  `B_AGENTIC_TASK_COMPLETE`; task-complete notifications are omitted for normal
   planning, discovery, handoffs, intermediate updates, and reviews needing
-  fixes. The planner-notify extension surfaces these signals as desktop
-  notifications (`notify-send` on Linux, `osascript` on macOS, bounded timeout,
-  notifier failures ignored) only while the planner role is active; the signal
-  text never carries task or session content. Evidence:
+  fixes. The planner-notify extension surfaces task-complete signals and actual
+  planner `ask_user_question` tool calls as fixed desktop notifications
+  (`notify-send` on Linux, `osascript` on macOS, bounded timeout, notifier
+  failures ignored) only while the planner role is active; task/session and
+  question data never enter the notification. Evidence:
   `pi/extensions/b-agentic-planner-notify.ts`,
   `pi/extensions/b-agentic-support/role.ts`, `references/kernel.template.md`,
   `pi/configs/README.md`, `pi/tests/smoke.sh`.
