@@ -18,7 +18,7 @@ Create or refresh `docs/DESIGN.md`, the repo-local frontend design standard. Do 
 ## Tool guidance
 
 - `bash` - `rtk git status --short`, diffs, and modern discovery (`rg`, `fdfind`, `eza`).
-- `mobbin` - optional bounded design-reference evidence: use only when local/user evidence is insufficient. Choose `mobbin_search_screens` for comparable component/state patterns, `mobbin_search_flows` for end-to-end journey patterns, or `mobbin_search_sections` for web-section patterns; synthesize rather than copy, keep local requirements/tokens authoritative, distinguish observed references from inferred durable rules, and do not use it for UI implementation or visual QA.
+- `mobbin` - optional, bounded design-reference evidence: use only when local/user evidence is insufficient. Choose `mobbin_search_screens` for comparable component/state patterns, `mobbin_search_flows` for end-to-end journey patterns, or `mobbin_search_sections` for web-section patterns. Keep queries bounded and precise, and use `task_intent` when it usefully states the intended evidence. Inspect returned screen images rather than relying on metadata; cite screens with their canonical `mobbin_url`. Synthesize observed patterns rather than copying, keep local requirements and tokens authoritative, and do not use Mobbin for UI implementation or visual QA.
 - `read`/`edit`/`write` - inspect sources and update only `docs/DESIGN.md` unless broader docs were approved.
 - `serena` - after native search/read, inspect a specific exact symbol or
   reference only when it materially improves precision about code ownership or
@@ -54,7 +54,7 @@ Omit YAML front matter when exact token values are not evidenced or when the rep
 
 ## Content Rules
 
-Use optional Mobbin evidence only when local/user evidence is insufficient: use `mobbin_search_screens` for component/state patterns, `mobbin_search_flows` for end-to-end journey patterns, or `mobbin_search_sections` for web-section patterns; search comparable shipped patterns, synthesize rather than copy, keep local requirements and tokens authoritative, and distinguish observed references from inferred durable rules. Mobbin is not for UI implementation or visual QA.
+Use optional Mobbin evidence only when local or user evidence is insufficient. Select the analysis unit deliberately: `mobbin_search_screens` for comparable component or state patterns, `mobbin_search_flows` for end-to-end journey patterns, and `mobbin_search_sections` for web-section patterns. Form bounded, precise queries and use `task_intent` where useful; inspect returned images, not just result metadata. Treat findings as observed reference evidence, cite screen findings with the canonical `mobbin_url`, and synthesize rather than copy. Local requirements and tokens remain authoritative. Mobbin is not for UI implementation or visual QA.
 
 - State durable standards for the product, not page-specific implementation notes.
 - Make rules concrete: density, radius, spacing scale, component usage, icon usage, color roles, typography scale, empty/loading/error states, and responsive behavior.
