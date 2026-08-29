@@ -338,8 +338,8 @@ another implementation task, or review the in-flight diff before the worker's
 terminal result. After that result, the planner re-reads the actual changed paths before
 review. Its generated ownership mapping permits read-only execution only of
 `b-plan`, external `b-research`, `b-agentic-audit`, `b-review`, and
-`b-pr-summary`; it delegates `b-design`, `b-implement`, `b-init`, `b-refactor`,
-`b-debug`, `b-test`, `b-browser`, and `b-commit` to the explicitly selected
+`b-pr-summary`; it delegates `b-design`, `b-frontend`, `b-implement`, `b-init`,
+`b-refactor`, `b-debug`, `b-test`, `b-browser`, and `b-commit` to the explicitly selected
 same-directory worker. Ownership governs execution, not inspection, so the
 planner may read any skill for planning, delegation, audit, or review. Planner
 ownership is limited to read-only decision/planning, external research,

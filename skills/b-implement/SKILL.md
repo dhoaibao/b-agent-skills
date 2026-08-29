@@ -1,27 +1,30 @@
 ---
 name: b-implement
 description: >
-  Execute approved or scoped work safely after b-plan approval, when the
-  user asks to implement scoped work, or when a direct request is small
-  and clear. Applies the next small step, verifies it, and hands back to
-  planning or research instead of guessing when new ambiguity appears.
-  Unlike b-plan, b-implement changes code.
+  Execute approved or scoped non-UI work safely after b-plan approval,
+  when a user gives a small direct request or an approved plan. Applies
+  the next small step, verifies it, and hands back to planning or research
+  instead of guessing when new ambiguity appears. Frontend/UI code—pages,
+  layouts, components, styling, responsive behavior, interactions, or
+  visual refreshes—belongs to b-frontend instead. Unlike b-plan,
+  b-implement changes code.
 ---
 
 <!-- Generated from skills/registry.yaml and skills/b-implement/prompt.md. Edit those sources, not this file. -->
 
 # b-implement
 
-Make the scoped change in the smallest coherent step, and hand back to planning or research instead of guessing when new ambiguity appears.
+Make the scoped non-UI change in the smallest coherent step, and hand back to planning or research instead of guessing when new ambiguity appears.
 
 ## When to use
 
 - The user approved a plan or gave a small direct request.
-- The next action is an edit within known scope.
+- The next action is a scoped non-UI code or repository change.
 
 ## When NOT to use
 
 - Scope or behavior is unclear -> use **b-plan**.
+- The primary requested change is frontend/UI code—pages, layouts, components, styling, responsive behavior, interactions, or a visual refresh -> use **b-frontend**, the sole implementation skill for that UI slice.
 - The primary task is a named refactor -> use **b-refactor**.
 - The task is only tests -> use **b-test**.
 - Root cause is unknown -> use **b-debug**.

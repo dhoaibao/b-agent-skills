@@ -44,11 +44,11 @@ Pin the bootstrap and source to a reviewed tag or commit with `B_AGENTIC_REF=<ta
 | Phase | Skills | Purpose |
 |---|---|---|
 | **Decide** | `b-plan`, `b-research`, `b-design` | Resolve ambiguity, gather outside facts, or define a frontend standard. |
-| **Build** | `b-implement`, `b-init`, `b-refactor` | Make the smallest approved change. |
+| **Build** | `b-frontend`, `b-implement`, `b-init`, `b-refactor` | Make the smallest approved change. |
 | **Validate** | `b-debug`, `b-test`, `b-browser`, `b-agentic-audit`, `b-review` | Confirm runtime behavior, tests, browser evidence, repository conformance, and changed-code quality. |
 | **Ship** | `b-commit`, `b-pr-summary` | Create explicitly approved local commits or write PR copy from local history. |
 
-In a solo session, workflow is **Off**: one session routes and executes the needed phases. An optional planner/worker setup uses explicitly selected roles: the planner executes read-only `b-plan`, external `b-research`, `b-agentic-audit`, `b-review`, and `b-pr-summary`; the worker executes `b-design`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, and `b-commit` as the sole worktree writer. Ownership controls execution, not reading: the planner may inspect any skill, but delegates worker-owned work. Planner ownership is limited to read-only decision/planning, external research, audit/review, or release-summary coordination; implementation, mutation, runtime diagnosis, builds/tests, browser/operational verification, commits, mixed, and uncertain work belong to the worker. Unknown ownership fails closed to the worker. Only delegated worktree-changing tasks require the actual `b-review` gate; the worker pauses there before completion.
+In a solo session, workflow is **Off**: one session routes and executes the needed phases. An optional planner/worker setup uses explicitly selected roles: the planner executes read-only `b-plan`, external `b-research`, `b-agentic-audit`, `b-review`, and `b-pr-summary`; the worker executes `b-design`, `b-frontend`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, and `b-commit` as the sole worktree writer. Ownership controls execution, not reading: the planner may inspect any skill, but delegates worker-owned work. Planner ownership is limited to read-only decision/planning, external research, audit/review, or release-summary coordination; implementation, mutation, runtime diagnosis, builds/tests, browser/operational verification, commits, mixed, and uncertain work belong to the worker. Unknown ownership fails closed to the worker. Only delegated worktree-changing tasks require the actual `b-review` gate; the worker pauses there before completion.
 
 ## Skills
 
@@ -58,7 +58,8 @@ In a solo session, workflow is **Off**: one session routes and executes the need
 | `b-plan` | Decide | Figure out what to do when scope or approach is fuzzy, then produce an execution-ready plan |
 | `b-research` | Decide | Fetch outside truth: docs, API facts, comparisons, or recent evidence |
 | `b-design` | Decide | Create or refresh docs/DESIGN.md as a frontend design standard |
-| `b-implement` | Build | Make the scoped change from an approved plan or a small direct request |
+| `b-frontend` | Build | Implement contextual frontend/UI code, styling, responsive behavior, interactions, visual refreshes, and landing pages |
+| `b-implement` | Build | Make the scoped non-UI change from an approved plan or a small direct request |
 | `b-init` | Build | Initialize or refresh repo-local agent instruction docs |
 | `b-refactor` | Build | Rename, extract, move, inline, simplify, or delete behavior-preserving code |
 | `b-debug` | Validate | Find the real runtime root cause and fix it only when authorized |

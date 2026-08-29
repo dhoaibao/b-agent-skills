@@ -684,7 +684,7 @@ export function hasOpaquePackageExecution(tokens: string[]): boolean {
 }
 
 export const B_AGENTIC_SKILL_NAMES = new Set([
-  "b-plan", "b-research", "b-design", "b-implement", "b-init", "b-refactor",
+  "b-plan", "b-research", "b-design", "b-frontend", "b-implement", "b-init", "b-refactor",
   "b-debug", "b-test", "b-browser", "b-agentic-audit", "b-review", "b-commit", "b-pr-summary",
 ]);
 

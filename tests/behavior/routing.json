@@ -16,6 +16,24 @@
       "forbidden_skills": ["b-plan"]
     },
     {
+      "id": "frontend-implementation-boundary",
+      "prompt": "Make a scoped frontend implementation for an existing account-settings component: apply component styling and responsive states using the repository's current tokens and assets. This is a code change, not reusable guidance or live-site checking.",
+      "expected_skill": "b-frontend",
+      "forbidden_skills": ["b-design", "b-browser", "b-implement"]
+    },
+    {
+      "id": "responsive-settings-screen",
+      "prompt": "Make the settings screen's responsive behavior match the existing app styles; update its layout code and verify the change.",
+      "expected_skill": "b-frontend",
+      "forbidden_skills": ["b-implement"]
+    },
+    {
+      "id": "non-ui-implementation-fallback",
+      "prompt": "Implement the approved server-side request-validation change in the billing API. Keep the implementation scoped and verify it.",
+      "expected_skill": "b-implement",
+      "forbidden_skills": ["b-frontend"]
+    },
+    {
       "id": "initialize-agent-docs",
       "prompt": "Initialize this repository's agent instruction docs with a canonical AGENTS.md and a minimal CLAUDE.md shim.",
       "expected_skill": "b-init",

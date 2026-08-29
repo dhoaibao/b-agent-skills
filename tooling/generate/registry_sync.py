@@ -127,7 +127,7 @@ ROLE_PROMPT_MARKERS = {
         "worker profile (implementation)",
         "Executing a skill requires first reading its `SKILL.md` at its listed location (installed: `~/.pi/agent/skills/<name>/SKILL.md`)",
         "sole worktree writer",
-        "Your in-scope worker skills are: `b-design`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, `b-commit`",
+        "Your in-scope worker skills are: `b-design`, `b-frontend`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, `b-commit`",
         "Delegate these planner-owned skills to the planner: `b-plan`, `b-research`, `b-agentic-audit`, `b-review`, `b-pr-summary`",
         "planner owns external research",
         "Planner-owned only when execution is read-only decision/planning",

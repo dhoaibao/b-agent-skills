@@ -68,7 +68,7 @@ if kernel.exists():
     text = kernel.read_text()
     for marker in [
         'Pi Workflow Kernel', 'b-agentic defaults to Off', 'Planner-owned skills: `b-plan`, external `b-research`',
-        'Worker-owned skills: `b-design`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, `b-commit`',
+        'Worker-owned skills: `b-design`, `b-frontend`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, `b-commit`',
         'Ownership governs execution, not inspection', 'Planner-owned only when execution is read-only decision/planning',
         'Mixed or uncertain skills are worker-owned', 'Unknown or ambiguous skill ownership is worker-owned',
         'Worker is the sole worktree writer', 'same-CWD roster',
@@ -284,7 +284,7 @@ if readme.exists():
         'extensions/b-agentic-permissions.ts', 'mcp.json', '/b-role planner',
         'pi --b-role planner|worker', '/b-auto-mode', '/b-sync', '/b-update',
         'Planner mode is prompt-governed rather than tool-gated', 'generated ownership mapping gives the planner',
-        '`b-design`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, and `b-commit`',
+        '`b-design`, `b-frontend`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, and `b-commit`',
         'ownership governs execution, not inspection', 'Planner ownership is limited to read-only decision/planning',
         'mixed, and uncertain work belong to the worker', 'sole worktree writer',
         'authoritative short ID is valid', 'Never guess, reconstruct, extend, further abbreviate',

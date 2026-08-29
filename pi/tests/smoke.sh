@@ -961,7 +961,7 @@ for (const toolName of ['read', 'recall', 'intercom', 'bash', 'edit', 'write', '
 }
 expect(activeTools.includes('edit') && activeTools.includes('write') && activeTools.includes('mcpScript') && activeTools.includes('mcp__playwright_browser_snapshot'), 'planner roles must not filter normal active tools; prompt ownership preserves the writer boundary');
 const expectedSkillOwners = {
-  'b-plan': 'planner', 'b-research': 'planner', 'b-design': 'worker', 'b-implement': 'worker',
+  'b-plan': 'planner', 'b-research': 'planner', 'b-design': 'worker', 'b-frontend': 'worker', 'b-implement': 'worker',
   'b-init': 'worker', 'b-refactor': 'worker', 'b-debug': 'worker', 'b-test': 'worker',
   'b-browser': 'worker', 'b-agentic-audit': 'planner', 'b-review': 'planner',
   'b-commit': 'worker', 'b-pr-summary': 'planner',
@@ -1008,7 +1008,7 @@ for (const toolName of ['serena_replace_content', 'serena_serena_replace_content
 expect(await toolCallHandler({ toolName: 'mcp', input: { server: 'linear', tool: 'list_issues', args: {} } }, roleContext) === undefined, 'planner must not have a role-specific MCP execution block');
 const kernelPrompt = readFileSync(path.join(root, 'references/kernel.template.md'), 'utf8');
 const plannerStart = await handlers.before_agent_start({ systemPrompt: `${kernelPrompt}\n\nbase`, systemPromptOptions: { skills: [] } }, roleContext);
-expect(plannerStart.systemPrompt.includes('planner profile (read-only coordinator)') && plannerStart.systemPrompt.includes('Planner-owned skills: `b-plan`, external `b-research`, `b-agentic-audit`, `b-review`, `b-pr-summary`') && plannerStart.systemPrompt.includes('Worker-owned skills: `b-design`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, `b-commit`'), 'planner system prompt must retain the composed kernel ownership mapping');
+expect(plannerStart.systemPrompt.includes('planner profile (read-only coordinator)') && plannerStart.systemPrompt.includes('Planner-owned skills: `b-plan`, external `b-research`, `b-agentic-audit`, `b-review`, `b-pr-summary`') && plannerStart.systemPrompt.includes('Worker-owned skills: `b-design`, `b-frontend`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, `b-commit`'), 'planner system prompt must retain the composed kernel ownership mapping');
 const plannerPromptBytes = Buffer.byteLength(plannerTest.PLANNER_PROMPT, 'utf8');
 const measuredPreDedupPlannerPromptBytes = 6711;
 expect(plannerPromptBytes < measuredPreDedupPlannerPromptBytes, `planner prompt addendum must be smaller than the measured pre-dedup baseline (got ${plannerPromptBytes} bytes)`);
@@ -1083,7 +1083,7 @@ activeThinkingLevel = 'off';
 await commands['b-role'].handler('worker', roleContext);
 expect(activeModel.provider === 'anthropic' && activeModel.id === 'claude-sonnet-4-5' && activeThinkingLevel === 'minimal', '/b-role worker must apply its saved model and thinking preference');
 expect(await toolCallHandler({ toolName: 'edit', input: { path: 'README.md', edits: [] } }, roleContext) === undefined, 'worker role must not wait for a structured assignment');
-for (const skill of ['b-implement', 'b-debug', 'b-refactor', 'b-test', 'b-browser', 'b-research', 'b-design', 'b-init']) {
+for (const skill of ['b-frontend', 'b-implement', 'b-debug', 'b-refactor', 'b-test', 'b-browser', 'b-research', 'b-design', 'b-init']) {
   expect(await toolCallHandler({ toolName: 'read', input: { path: path.join(root, `skills/${skill}/SKILL.md`) } }, roleContext) === undefined, `worker role must allow task-appropriate skill ${skill}`);
 }
 for (const command of ['rtk git status --short', 'fdfind -t f SKILL.md skills', 'eza -la']) {
@@ -1095,7 +1095,7 @@ for (const marker of [
   "worker profile (implementation)",
   "Executing a skill requires first reading its `SKILL.md` at its listed location (installed: `~/.pi/agent/skills/<name>/SKILL.md`)",
   "sole worktree writer",
-  "Your in-scope worker skills are: `b-design`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, `b-commit`",
+  "Your in-scope worker skills are: `b-design`, `b-frontend`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, `b-commit`",
   "Delegate these planner-owned skills to the planner: `b-plan`, `b-research`, `b-agentic-audit`, `b-review`, `b-pr-summary`",
   "planner owns external research",
   "Planner-owned only when execution is read-only decision/planning",

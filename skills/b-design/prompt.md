@@ -10,7 +10,7 @@ Create or refresh `docs/DESIGN.md`, the repo-local frontend design standard. Do 
 
 ## When NOT to use
 
-- The user wants frontend code changed now -> use **b-implement** after design guidance exists or is unnecessary.
+- The user wants frontend code changed now -> use **b-frontend** after design guidance exists or is unnecessary.
 - The user wants live visual/browser evidence -> use **b-browser**.
 - The user wants a broader implementation plan -> use **b-plan**.
 - The repo already has sufficient design-system docs and the task is only to follow them -> use the relevant build or validation skill.
@@ -33,7 +33,7 @@ Create or refresh `docs/DESIGN.md`, the repo-local frontend design standard. Do 
 4. If analyzing images, separate observed facts from inferred rules. Treat exact dimensions, counts, colors, and spatial alignment as approximate unless supported by source files or browser evidence.
 5. Create or update only `docs/DESIGN.md` with edit/write unless the user explicitly approved a broader documentation change. Preserve useful existing content and remove generic filler. If an unresolved product choice is material and user-facing, use `ask_user_question` in planner or solo/Off work with 2–4 concrete options, the recommended option first, and the automatic custom-answer row; if unavailable or noninteractive, ask one focused plain-text question. In a two-role worker, ask the assigning planner through Intercom. In planner mode, an actual `ask_user_question` tool call triggers a fixed privacy-safe desktop notification; solo/Off workers emit no planner notifications. Otherwise, record the unresolved choice as an open question.
 6. Keep the document implementation-facing and concise. Prefer rules an agent can apply while coding over design theory.
-7. Include exact tokens only when supported by repo evidence. Include a short verification checklist that later **b-implement** and **b-browser** work can use.
+7. Include exact tokens only when supported by repo evidence. Include a short verification checklist that later **b-frontend** and **b-browser** work can use.
 8. Verify referenced paths exist where possible, then inspect the diff for unsupported claims and ceremony.
 
 ## Structure guidance

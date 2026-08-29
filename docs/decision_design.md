@@ -98,16 +98,17 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
 
 - Route the current intent to one skill and sequence phases rather than mixing
   planning, building, validation, and shipping. The registry groups skills as
-  Decide (`b-plan`, `b-research`, `b-design`), Build (`b-implement`, `b-init`,
-  `b-refactor`), Validate (`b-debug`, `b-test`, `b-browser`, `b-review`,
+  Decide (`b-plan`, `b-research`, `b-design`), Build (`b-frontend`, `b-implement`,
+  `b-init`, `b-refactor`), Validate (`b-debug`, `b-test`, `b-browser`, `b-review`,
   `b-agentic-audit`), and Ship (`b-commit`, `b-pr-summary`). Evidence:
   `references/kernel.template.md`, `skills/registry.yaml`, `README.md`.
 - `b-plan` resolves ambiguity and produces an executable plan without edits;
   `b-research` supplies versioned/external facts with provenance;
-  `b-implement` makes the smallest approved change; `b-refactor` owns named
-  behavior-preserving transforms; `b-debug` confirms runtime causes before an
-  authorized fix; `b-test` owns test mechanics/TDD/coverage; `b-browser`
-  owns real-browser evidence; `b-review` reviews changed code; and
+  `b-frontend` owns contextual frontend/UI implementation and styling;
+  `b-implement` is the scoped non-UI/general implementation fallback; `b-refactor`
+  owns named behavior-preserving transforms; `b-debug` confirms runtime causes
+  before an authorized fix; `b-test` owns test mechanics/TDD/coverage;
+  `b-browser` owns real-browser evidence; `b-review` reviews changed code; and
   `b-agentic-audit` compares the repository and design record for conformance
   drift. Evidence: the corresponding `skills/*/prompt.md` files.
 - Keep shipping intent explicit: `b-commit` stages/commits only after the
@@ -196,8 +197,9 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   assigns all skills: the planner prompt enumerates in-scope `b-plan`, external
   `b-research`, `b-agentic-audit`, `b-review`, and `b-pr-summary` skills and its
   worker delegation list; the worker prompt likewise enumerates `b-design`,
-  `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, and
-  `b-commit` and its planner delegation list. Ownership is execution-only, so
+  `b-frontend`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`,
+  `b-browser`, and `b-commit` and its planner delegation list. Ownership is
+  execution-only, so
   either role may inspect skills; direct user wording or no ready worker never
   permits planner implementation. Planner ownership is limited to read-only
   decision/planning, external research, audit/review, or release-summary
