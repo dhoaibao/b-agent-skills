@@ -286,6 +286,7 @@ export const MCP_CONDITIONAL_ARGUMENTS: Record<string, readonly string[]> = {
     "paths_exclude_glob",
     "relative_path",
     "restrict_search_to_code_files",
+    "skip_ignored_files",
     "multiline",
     "max_answer_chars"
   ],
@@ -716,6 +717,7 @@ export function isSafeSerenaSymbolRead(base: string, input: Record<string, unkno
 
 export function isSafeSerenaPatternSearch(input: Record<string, unknown>): boolean {
   if (input.restrict_search_to_code_files !== true ||
+    (input.skip_ignored_files !== undefined && input.skip_ignored_files !== true) ||
     !isSafeSerenaGlob(input.paths_include_glob) ||
     !isSafeSerenaGlob(input.paths_exclude_glob)) return false;
   const searchRoot = input.relative_path ?? process.cwd();

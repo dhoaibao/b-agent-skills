@@ -1928,7 +1928,7 @@ const trustedSerenaTools = [
 ];
 const serenaSourcePath = path.join(root, 'pi/extensions/b-agentic-support/mcp.ts');
 const serenaConditionalArgs = {
-  serena_search_for_pattern: { substring_pattern: 'isSafeSerena', relative_path: serenaSourcePath, restrict_search_to_code_files: true },
+  serena_search_for_pattern: { substring_pattern: 'isSafeSerena', relative_path: serenaSourcePath, restrict_search_to_code_files: true, skip_ignored_files: true },
   serena_get_symbols_overview: { relative_path: serenaSourcePath },
   serena_find_symbol: { name_path_pattern: 'isTrustedManagedTool', relative_path: serenaSourcePath },
   serena_find_referencing_symbols: { name_path: 'isTrustedManagedTool', relative_path: serenaSourcePath },
@@ -1989,7 +1989,26 @@ expect(t.isTrustedManagedTool('serena', 'serena_search_for_pattern', {
   ...serenaRootSearch,
   paths_include_glob: '**/*.ts',
   paths_exclude_glob: '**/*.test.ts',
-}) === true, 'repository-wide Serena code search must allow safe project globs');
+  skip_ignored_files: true,
+}) === true, 'repository-wide Serena code search must allow safe project globs with ignored files skipped');
+expect(t.isTrustedManagedTool('serena', 'serena_search_for_pattern', {
+  ...serenaRootSearch,
+  skip_ignored_files: false,
+}) === false, 'Serena code search with ignored files included must require approval');
+expect(t.isTrustedManagedTool('serena', 'serena_search_for_pattern', {
+  ...serenaRootSearch,
+  skip_ignored_files: 'true',
+}) === false, 'Serena code search with a non-boolean skip_ignored_files must require approval');
+expect(t.isTrustedManagedTool('serena', 'serena_search_for_pattern', {
+  ...serenaRootSearch,
+  restrict_search_to_code_files: false,
+  skip_ignored_files: true,
+}) === false, 'Serena code search must retain the code-file restriction with ignored files skipped');
+expect(t.isTrustedManagedTool('serena', 'serena_search_for_pattern', {
+  ...serenaRootSearch,
+  paths_include_glob: '../**/*.ts',
+  skip_ignored_files: true,
+}) === false, 'Serena code search must retain the safe project-glob gate with ignored files skipped');
 expect(t.isTrustedManagedTool('serena', 'serena_search_for_pattern', {
   substring_pattern: 'isSafeSerena',
   restrict_search_to_code_files: true,
@@ -2000,7 +2019,8 @@ expect(t.isTrustedManagedTool('serena', 'serena_find_symbol', {
 expect(t.isTrustedManagedTool('serena', 'serena_search_for_pattern', {
   ...serenaRootSearch,
   relative_path: os.tmpdir(),
-}) === false, 'outside-project Serena code search remains gated');
+  skip_ignored_files: true,
+}) === false, 'outside-project Serena code search remains gated with ignored files skipped');
 expect(t.isTrustedManagedTool('serena', 'serena_replace_content', { relative_path: '/etc/hosts' }) === false, 'outside-project Serena edits remain gated');
 const serenaProtectedFixture = mkdtempSync(path.join(root, 'pi/tests/', '.b-agentic-serena-'));
 try {
@@ -2026,6 +2046,7 @@ try {
   const fixturePlannerPatternSearch = {
     ...serenaRootSearch,
     relative_path: serenaProtectedFixture,
+    skip_ignored_files: true,
   };
   expect(t.isTrustedManagedTool('serena', 'serena_search_for_pattern', fixturePlannerPatternSearch) === true, 'directory Serena code search must ignore non-code protected files');
   let changedDescendantBrokerClaim;

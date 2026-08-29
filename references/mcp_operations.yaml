@@ -204,7 +204,7 @@
       "known": ["name_path_pattern", "relative_path"]
     },
     "serena:serena_search_for_pattern": {
-      "known": ["substring_pattern", "context_lines_before", "context_lines_after", "paths_include_glob", "paths_exclude_glob", "relative_path", "restrict_search_to_code_files", "multiline", "max_answer_chars"]
+      "known": ["substring_pattern", "context_lines_before", "context_lines_after", "paths_include_glob", "paths_exclude_glob", "relative_path", "restrict_search_to_code_files", "skip_ignored_files", "multiline", "max_answer_chars"]
     },
     "serena:serena_get_symbols_overview": {
       "known": ["relative_path", "depth", "max_answer_chars"]
