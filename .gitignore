@@ -10,6 +10,7 @@
 .codegraph/
 
 # Node development-tooling dependencies
+node_modules/
 /node_modules/
 .husky/_/
 
