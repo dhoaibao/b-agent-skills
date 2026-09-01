@@ -478,6 +478,31 @@ failure mode and a narrow regression check. Evidence: `README.md`, `AGENTS.md`,
   an actual screenshot. Evidence: `skills/b-browser/prompt.md`,
   `tooling/validate/browser_evidence.py`, `tests/behavior/browser-evidence.json`.
 
+### UI direction and visual assessment are contextual
+
+- Observed failure: UI guidance could let recognizable generic AI defaults stand
+  in for a product decision, while browser checks could stop at recording a
+  screenshot without comparing the requested result with an approved brief or
+  design reference.
+- Intended behavior: `b-design` and `b-frontend` make an explicit,
+  task-conditional design read covering surface, audience, brand/repository
+  evidence, hierarchy, density, layout variance, and motion posture. They state
+  a product-appropriate art direction with anti-default constraints and
+  self-audit typography, palette, composition/layout repetition, surface/card
+  restraint, meaningful interactions, truthful copy/assets, responsive behavior,
+  and accessibility. Marketing pages, product apps, dashboards, and
+  trust/regulated surfaces remain context-specific; existing tokens, components,
+  stack, and assets remain authoritative. `b-browser` performs visual assessment
+  only for an explicit request with an approved brief, an approved design
+  guidance document, or supplied reference, comparing hierarchy, clipping/overflow, responsive
+  composition, contrast/focus/interaction affordance, and adherence to the
+  specified design guidance. It reports observations and gaps rather than
+  claiming aesthetic proof from a generic load or screenshot.
+- Regression: `skills/b-design/prompt.md`, `skills/b-frontend/prompt.md`,
+  `skills/b-browser/prompt.md`, `tooling/validate/shared.py`, and the wired
+  `pi/tests/prompt_effectiveness.py --validate-inputs` check in
+  `tooling/validate/run.sh`; generated synchronization remains required.
+
 ## Installation, configuration, and lifecycle
 
 ### Install is source-backed, opt-in where state changes are external

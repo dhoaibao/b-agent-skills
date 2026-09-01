@@ -6,6 +6,11 @@ All notable shipped revisions of b-agentic are recorded here. Released version h
 
 ### Changed
 
+- Contextual UI art direction and visual assessment:
+  - Observed failure: UI guidance could let recognizable generic AI defaults stand in for a product decision, while browser checks could stop at recording a screenshot without comparing the requested result with an approved brief or design reference.
+  - Intended behavior: `b-design` and `b-frontend` make an explicit, task-conditional design read, choose a product-appropriate art direction with anti-default constraints, and self-audit typography, palette, composition/layout repetition, surface/card restraint, meaningful interactions, truthful copy/assets, responsive behavior, and accessibility. `b-browser` performs visual assessment only for an explicit request with an approved brief, `docs/DESIGN.md`, or supplied reference, comparing concrete observable criteria and reporting observations or gaps without claiming aesthetic proof from a generic load or screenshot.
+  - Regression: `skills/b-design/prompt.md`, `skills/b-frontend/prompt.md`, `skills/b-browser/prompt.md`, `tooling/validate/shared.py`, and `tooling/validate/run.sh` wire the human-scored fixture's `--validate-inputs` check; `python3 tooling/generate/registry_sync.py --check` covers generated synchronization.
+
 - One-shot `b_consult` replaces persistent consultant sessions:
   - Observed failure: needing a separately provisioned consultant session made occasional independent consultation unavailable or frictional, and the former strict JSON contract made some provider replies unusable.
   - Intended behavior: provide a planner-only in-process `b_consult` call with `streamSimple`, structural no-tools isolation, selected shared consultant model/thinking preference, caller abort, bounded timeout, zero retries, no fallback, bounded natural-language output, and sanitized failures; remove consultant role/session status, roster, prompt, and configuration behavior while leaving legacy `consult-model.json` untouched.

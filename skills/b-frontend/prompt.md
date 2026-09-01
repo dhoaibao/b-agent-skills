@@ -22,15 +22,17 @@ Implement clearly scoped frontend/UI code, visual refreshes, landing pages, and 
 ## Steps
 
 1. Read the user's brief/intent, acceptance criteria, and existing UI context. Inspect the relevant layout/component files, tokens, assets, data, package manifest, and `docs/DESIGN.md` when present before choosing an approach.
-2. Treat the existing visual system or design documentation as authoritative. Ask one material question only when the requested design direction materially diverges from that authority; otherwise make the smallest contextual choice that fits the product.
-3. Define the bounded UI slice: component structure and content, loading/empty/error/success states where applicable, responsive behavior, interaction states, semantic HTML, keyboard/focus behavior, contrast, and other relevant accessibility needs. For apps, dashboards, and marketing surfaces, choose hierarchy, density, and composition from the product context rather than applying a rote landing-page formula.
+2. Treat the existing visual system or design documentation as authoritative. Before selecting composition or styling, make an explicit, task-conditional design read covering the surface, audience, brand/repository evidence, hierarchy, density, layout variance, and motion posture. State one product-appropriate art direction and its anti-default constraints. Ask one material question only when the requested design direction materially diverges from that authority; otherwise make the smallest contextual choice that fits the product. Treat marketing pages, product apps, dashboards, and trust/regulated surfaces differently rather than applying a rote landing-page formula.
+3. Define the bounded UI slice: component structure and content, loading/empty/error/success states where applicable, responsive behavior, interaction states, semantic HTML, keyboard/focus behavior, contrast, and other relevant accessibility needs. Choose hierarchy, density, and composition from the product context.
 4. Implement the smallest coherent change. Preserve existing information architecture, brand, behavior, and tracking in a redesign unless the user approved changing them. Avoid rote generic card grids, gratuitous gradients, fake product screenshots, invented social proof, and invented metrics.
 5. Add motion only when it communicates a state or relationship. Use performance-safe mechanisms and provide a reduced-motion fallback; do not introduce an animation library or other dependency without repository evidence and manifest review.
-6. Verify with the narrowest useful existing repository checks for the changed surface, inspect the actual changed paths and diff, and report exact outcomes. Do not run browser work or claim visual proof; hand that evidence request to **b-browser**.
+6. Before delivery, self-audit the implementation against the chosen direction and product context: typography, palette, composition/layout repetition, surface/card restraint, meaningful interactions and states, truthful copy/assets, responsive behavior, and accessibility. Record any unresolved gap instead of substituting a generic default.
+7. Verify with the narrowest useful existing repository checks for the changed surface, inspect the actual changed paths and diff, and report exact outcomes. Do not run browser work or claim visual proof; hand that evidence request to **b-browser**.
 
 ## Pre-delivery checklist
 
 - [ ] Existing tokens, components, assets, content, and design guidance were inspected and followed.
+- [ ] A product-appropriate design read, chosen art direction, and evidence-backed anti-default constraints are explicit.
 - [ ] Component structure, states, responsive behavior, semantics, keyboard/focus behavior, and relevant accessibility needs are covered.
 - [ ] The result is contextual rather than a generic card/gradient/marketing template, with no fabricated assets, data, social proof, or metrics.
 - [ ] New imports and dependencies are supported by the manifest and existing stack; no arbitrary package was installed.
@@ -45,6 +47,8 @@ Report implemented behavior, changed paths, exact checks and outcomes, acceptanc
 
 - Stay within the approved or clearly scoped request; stop and ask the assigning planner about a material blocker or scope change before editing further.
 - Prefer repository evidence over aesthetic defaults and do not add speculative abstractions, compatibility paths, or dependencies.
+- Reject recognizable generic AI defaults such as unmotivated gradients, repeated centered heroes, three equal feature cards, or indiscriminate glass surfaces unless the brief or evidence explicitly calls for them; do not replace them with another fixed aesthetic.
 - Use real repo assets/data only. Do not make image generation or external asset fetching a task requirement.
+- The design direction is contextual guidance, not a mandate for a particular font, icon library, dark mode, image-generation workflow, or heavy motion.
 - Do not claim browser, screenshot, e2e, or visual proof from code inspection or non-browser checks; route it to **b-browser**.
 - Route reusable design-standard authoring to **b-design** and unresolved external facts to the planner/**b-research**.
