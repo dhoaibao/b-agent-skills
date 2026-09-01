@@ -21,12 +21,8 @@ mcp = root / 'pi/configs/mcp.user.template.json'
 extension = root / 'pi/extensions/b-agentic-permissions.ts'
 preview_extension = root / 'pi/packages/preview-markdown/extensions/b-agentic-preview-markdown.ts'
 preview_package = root / 'pi/packages/preview-markdown/package.json'
+public_readme = root / 'README.md'
 preview_tag_sections = [
-    (
-        root / 'README.md',
-        'To install only the inline Markdown preview extension',
-        'After the standalone package is published',
-    ),
     (
         root / 'REFERENCE.md',
         'After the public immutable',
@@ -57,10 +53,10 @@ extension_files = [
     root / 'pi/extensions/b-agentic-support/worker.ts',
     root / 'pi/extensions/b-agentic-support/auto.ts',
 ]
-readme = root / 'pi/configs/README.md'
+config_readme = root / 'pi/configs/README.md'
 standalone_preview_installer = root / 'pi/scripts/install-preview-markdown.sh'
 
-for path in [kernel, mcp, *extension_files, readme, standalone_preview_installer, preview_package]:
+for path in [kernel, mcp, *extension_files, config_readme, standalone_preview_installer, preview_package]:
     if not path.exists():
         errors.append(f'{path}: missing')
 
@@ -267,32 +263,35 @@ if preview_package.exists():
                         f'must both match package version {package_version!r} (expected {expected_tag})'
                     )
 
-if readme.exists():
-    text = readme.read_text()
-    # The first-party extension set is installed as one coherent bundle.
-    for path in extension_files:
-        if path.parent != root / 'pi/extensions':
-            continue
-        name = path.name
-        if name not in text and name != 'b-agentic-permissions.ts':
-            errors.append(f'{readme}: missing extension {name!r}')
-
-if readme.exists():
-    text = readme.read_text()
+if public_readme.exists():
+    text = public_readme.read_text()
     for marker in [
-        'pi-mcp-adapter', 'pi-observational-memory', '@sreetej510/pi-usage', '@gotgenes/pi-anthropic-auth', '@narumitw/pi-lsp', '@juicesharp/rpiv-ask-user-question',
-        'extensions/b-agentic-permissions.ts', 'mcp.json', '/b-role planner',
-        'pi --b-role planner|worker', '/b-auto-mode', '/b-sync', '/b-update',
-        'Planner mode is prompt-governed rather than tool-gated', 'generated ownership mapping gives the planner',
-        '`b-design`, `b-frontend`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, and `b-commit`',
-        'ownership governs execution, not inspection', 'Planner ownership is limited to read-only decision/planning',
-        'mixed, and uncertain work belong to the worker', 'sole worktree writer',
-        'authoritative short ID is valid', 'Never guess, reconstruct, extend, further abbreviate',
-        'applicable observable behavior, scope/non-goals, constraints/invariants',
-        'actual `b-review` of the diff and verification', 'unchanged reviewed snapshot',
+        '[Read the operational reference](REFERENCE.md)',
+        'the standalone\nMarkdown preview install',
+        'preview package route',
+        '[package-facing guide](pi/packages/preview-markdown/README.md)',
     ]:
         if marker not in text:
-            errors.append(f'{readme}: missing {marker!r}')
+            errors.append(f'{public_readme}: missing public-entrypoint marker {marker!r}')
+
+if config_readme.exists():
+    text = config_readme.read_text()
+    for marker in [
+        '# Pi Configuration Layout',
+        '## Install Layout',
+        '`~/.pi/agent/AGENTS.md`',
+        '`~/.pi/agent/skills/<skill-name>/SKILL.md`',
+        '`~/.pi/agent/mcp.json`',
+        '`~/.pi/agent/extensions/`',
+        '`~/.pi/agent/b-agentic/`',
+        'ownership boundary',
+        '[operational reference](../../REFERENCE.md)',
+        'planner-only advisory tooling',
+        'read-only `read`, `grep`, `find`, and `ls`',
+        'managed `mcp` under its normal policy',
+    ]:
+        if marker not in text:
+            errors.append(f'{config_readme}: missing layout/boundary marker {marker!r}')
 
 if errors:
     print('\n'.join(errors), file=sys.stderr)

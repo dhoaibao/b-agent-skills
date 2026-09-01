@@ -9,13 +9,14 @@ boundaries, not a change history or a second runtime contract. Evidence:
 
 ## Scope and evidence
 
-b-agentic and Pi are one integrated personal workflow product, with Pi as the
-shipped runtime. The design standard is **slim, strong, usable**: keep behavior
-explicit, avoid speculative infrastructure, and prefer a small observable check
-when a decision changes. This record summarizes current decisions supported by
-tracked repository sources.
+b-agentic and Pi are one integrated personal workflow product with Pi as the shipped runtime; this record summarizes current decisions supported by tracked repository sources.
 
-Evidence: `README.md`, `AGENTS.md`, `CHANGELOG.md`.
+### Slim, strong, and usable
+- **Slim:** choose the smallest evidence-backed fit; remove duplication, ceremony, and speculative complexity.
+- **Strong:** preserve explicit safety, evidence, and verification boundaries, with a small observable check when a decision changes.
+- **Usable:** retain direct, predictable user paths.
+This decision applies to future b-agentic repository source, docs, tooling, and CI changes, including skills, installers, extensions, configuration, validators, and tests; it does not apply to the installed runtime kernel or create a generic runtime policy. Necessary compatibility/security fixes remain in scope, so slimness never demands cosmetic reduction.
+Evidence: `AGENTS.md`, `README.md`, `REFERENCE.md`, `tooling/validate/decision_design.py`.
 
 ## Product boundary and architecture
 

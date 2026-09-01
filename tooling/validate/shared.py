@@ -342,10 +342,6 @@ INTERACTIVE_DECISION_REGRESSION = {
             "Worker→planner material blockers remain Intercom",
             "native tool-permission prompts for browser, external, or privileged actions are not replaced",
         ],
-        "pi/configs/README.md": [
-            "interactive, user-facing material decisions and blockers in planner or solo/Off work",
-            "Worker→planner material blockers remain Intercom",
-        ],
         "pi/extensions/b-agentic-support/role.ts": [
             "any interactive, user-facing material decision or blocker",
             "actual tool call in planner mode triggers the fixed",

@@ -2,8 +2,11 @@
 
 [Back to the public overview](README.md)
 
-This document contains the detailed installation, configuration, lifecycle,
-safety, MCP, and verification guidance behind the concise [README.md](README.md).
+This is the operational source of truth for installation, lifecycle, safety,
+MCP, package, role, and verification behavior behind the concise
+[README.md](README.md). The installed path map and managed-versus-user-owned
+boundary live in [pi/configs/README.md](pi/configs/README.md); this reference
+owns the operations performed on those paths.
 
 ## Install
 
@@ -273,17 +276,13 @@ Helpers under `pi/extensions/b-agentic-support/` are not discovered as
 standalone Pi extensions. Pi enforces managed MCP and RTK policy from
 `references/mcp_operations.yaml` and `references/kernel.template.md`.
 
-## Install layout
+## Installed configuration layout
 
-- Kernel memory: `~/.pi/agent/AGENTS.md`
-- Skills: `~/.pi/agent/skills/<skill-name>/SKILL.md`
-- Shared references: `~/.pi/agent/b-agentic/references/kernel.template.md` and `mcp_operations.yaml`
-- MCP template: `~/.pi/agent/b-agentic/templates/mcp.user.template.json`
-- User MCP config: `~/.pi/agent/mcp.json`
-- Dracula theme: `~/.pi/agent/themes/dracula.json` (symlink to cached copy)
-- Theme cache: `~/.pi/agent/b-agentic/themes/dracula.json`
-- Permission extensions: `~/.pi/agent/extensions/` (managed files listed above)
-- Extension snapshots and backups: `~/.pi/agent/b-agentic/extensions/` and `backups/`
+See [Pi Configuration Layout](pi/configs/README.md) for the installed path
+map and managed-versus-user-owned boundary. This reference owns the lifecycle
+that acts on those paths: merge, preservation, backup, restore, and uninstall
+behavior is documented in the installation and package sections above and
+below.
 
 Installers merge MCP configuration rather than replace it: unrelated user
 servers survive, prompted secrets use a private input pipe, and API-key
