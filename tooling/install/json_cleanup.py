@@ -154,7 +154,9 @@ def managed_mcp_server(current_server, incoming_server, server_name):
             _normalize_managed_launcher(normalized, incoming_server, ["bunx", "firecrawl-mcp"])
     elif server_name == "playwright":
         if isinstance(incoming_server.get("command"), str):
-            _normalize_managed_launcher(normalized, incoming_server, "npx", ["-y", "@playwright/mcp@latest", "--isolated"])
+            _normalize_managed_launcher(
+                normalized, incoming_server, "npx", ["-y", "@playwright/mcp@latest", "--isolated"]
+            )
             _normalize_managed_launcher(normalized, incoming_server, "pnpm", ["dlx", "@playwright/mcp", "--isolated"])
             _normalize_managed_launcher(normalized, incoming_server, "bunx", ["@playwright/mcp@latest", "--isolated"])
             _normalize_managed_launcher(normalized, incoming_server, "bunx", ["@playwright/mcp", "--isolated"])

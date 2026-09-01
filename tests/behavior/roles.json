@@ -428,9 +428,7 @@
         "Include exact commands and outcomes under Verification",
         "Include acceptance criteria, scope changes or assumptions, and remaining gaps under the corresponding headings"
       ],
-      "avoid": [
-        "Freeform report without headings"
-      ]
+      "avoid": ["Freeform report without headings"]
     },
     {
       "id": "worker-intercom-pending-first-for-ask-and-send",

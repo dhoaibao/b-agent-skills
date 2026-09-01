@@ -14,7 +14,6 @@ import time
 import urllib.error
 import urllib.request
 from unittest import mock
-from pathlib import Path
 from typing import Any
 
 
@@ -263,9 +262,7 @@ def probe_http(entry: dict[str, Any], timeout: float) -> dict[str, dict[str, Any
             if primary_failure is None:
                 if isinstance(cleanup_error, ProbeError):
                     raise
-                raise ProbeError(
-                    f"HTTP session termination failed ({type(cleanup_error).__name__})"
-                ) from cleanup_error
+                raise ProbeError(f"HTTP session termination failed ({type(cleanup_error).__name__})") from cleanup_error
 
 
 def probe_server(entry: dict[str, Any], timeout: float) -> dict[str, dict[str, Any]]:
@@ -283,7 +280,7 @@ def probe_server(entry: dict[str, Any], timeout: float) -> dict[str, dict[str, A
 def policy_upstream_name(server: str, policy_tool: str) -> str:
     prefix = server.replace("-", "_") + "_"
     if server in {"serena", "codegraph", "context7", "brave-search"} and policy_tool.startswith(prefix):
-        return policy_tool[len(prefix):]
+        return policy_tool[len(prefix) :]
     return policy_tool
 
 
@@ -569,7 +566,7 @@ def self_test() -> int:
     if '"method": "initialize"' not in encoded or tools_request(2)["method"] != "tools/list":
         print("MCP protocol request fixture failed")
         return 1
-    fake_server = r'''
+    fake_server = r"""
 import json, sys
 for line in sys.stdin:
     message = json.loads(line)
@@ -582,14 +579,16 @@ for line in sys.stdin:
     else:
         continue
     print(json.dumps({"jsonrpc": "2.0", "id": message["id"], "result": result}), flush=True)
-'''
+"""
     discovered = probe_stdio({"command": sys.executable, "args": ["-c", fake_server], "env": {}}, 5)
     if set(discovered) != {"first_tool", "second_tool"}:
         print("MCP stdio handshake/pagination fixture failed")
         return 1
 
     class FakeResponse:
-        def __init__(self, result: dict[str, Any] | None, request_id: int | None, status: int = 200, session: str | None = None):
+        def __init__(
+            self, result: dict[str, Any] | None, request_id: int | None, status: int = 200, session: str | None = None
+        ):
             payload = {"jsonrpc": "2.0", "id": request_id, "result": result} if request_id is not None else {}
             self.status = status
             self.headers = {"Content-Type": "application/json"}

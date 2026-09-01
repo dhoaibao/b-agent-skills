@@ -128,13 +128,29 @@ def pi_server_status(server: str, config: dict) -> str:
         return "missing: config entry not installed"
     normalized = normalize_server(entry)
     if server == "serena":
-        valid = normalized.command == "serena" and normalized.args[:3] == ["start-mcp-server", "--context", "ide"] if normalized.args else False
-        return "ready: serena command found" if valid and command_ready("serena") else "blocked: invalid or unavailable serena launcher"
+        valid = (
+            normalized.command == "serena" and normalized.args[:3] == ["start-mcp-server", "--context", "ide"]
+            if normalized.args
+            else False
+        )
+        return (
+            "ready: serena command found"
+            if valid and command_ready("serena")
+            else "blocked: invalid or unavailable serena launcher"
+        )
     if server == "codegraph":
         valid = normalized.command == "codegraph" and normalized.args == ["serve", "--mcp"]
-        return "ready: codegraph command found" if valid and command_ready("codegraph") else "blocked: invalid or unavailable codegraph launcher"
+        return (
+            "ready: codegraph command found"
+            if valid and command_ready("codegraph")
+            else "blocked: invalid or unavailable codegraph launcher"
+        )
     if server == "context7":
-        return "ready: CONTEXT7_API_KEY available" if entry.get("url") == CONTEXT7_URL and credential_available(entry, "headers", "CONTEXT7_API_KEY") else "blocked: invalid context7 config or missing CONTEXT7_API_KEY"
+        return (
+            "ready: CONTEXT7_API_KEY available"
+            if entry.get("url") == CONTEXT7_URL and credential_available(entry, "headers", "CONTEXT7_API_KEY")
+            else "blocked: invalid context7 config or missing CONTEXT7_API_KEY"
+        )
     if server == "linear":
         oauth = entry.get("oauth")
         valid = (
@@ -145,7 +161,11 @@ def pi_server_status(server: str, config: dict) -> str:
             and entry.get("includeTools") == ["get_issue"]
             and entry.get("lifecycle") == "lazy"
         )
-        return "configured: authentication unverified; run /mcp-auth linear if needed" if valid else "blocked: invalid Linear OAuth read-only config"
+        return (
+            "configured: authentication unverified; run /mcp-auth linear if needed"
+            if valid
+            else "blocked: invalid Linear OAuth read-only config"
+        )
     if server == "mobbin":
         valid = (
             entry.get("url") == MOBBIN_URL
@@ -153,7 +173,11 @@ def pi_server_status(server: str, config: dict) -> str:
             and entry.get("includeTools") == ["mobbin_search_screens", "mobbin_search_flows", "mobbin_search_sections"]
             and entry.get("lifecycle") == "lazy"
         )
-        return "configured: authentication unverified; run /mcp-auth mobbin if needed" if valid else "blocked: invalid Mobbin OAuth read-only config"
+        return (
+            "configured: authentication unverified; run /mcp-auth mobbin if needed"
+            if valid
+            else "blocked: invalid Mobbin OAuth read-only config"
+        )
     expected = {
         "brave-search": ["@brave/brave-search-mcp-server", "--transport", "stdio"],
         "firecrawl": ["firecrawl-mcp"],
@@ -171,10 +195,14 @@ def pi_server_status(server: str, config: dict) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Check installed b-agentic Pi MCP configuration and local prerequisites.")
+    parser = argparse.ArgumentParser(
+        description="Check installed b-agentic Pi MCP configuration and local prerequisites."
+    )
     parser.add_argument("--home", default=str(Path.home()), help="Home directory to inspect. Defaults to current HOME.")
     parser.add_argument("--session-tools", action="store_true", help="Check active-session RTK support only.")
-    parser.add_argument("--allow-degraded", action="store_true", help="Exit zero even for missing or blocked MCP readiness.")
+    parser.add_argument(
+        "--allow-degraded", action="store_true", help="Exit zero even for missing or blocked MCP readiness."
+    )
     parser.add_argument(
         "--probe-schemas",
         action="store_true",
@@ -226,7 +254,9 @@ def main() -> int:
         return 1
 
     adapter_ready, adapter_status = pi_mcp_adapter_ready(home)
-    print(f"agent: Pi\nconfig: {config_path}\nstartup-check: not attempted; validates local launchers, keys, and config shape only")
+    print(
+        f"agent: Pi\nconfig: {config_path}\nstartup-check: not attempted; validates local launchers, keys, and config shape only"
+    )
     print(f"mcp-adapter: {adapter_status}")
     blocked = not adapter_ready
     suggestion_records: list[dict] = []
@@ -238,7 +268,9 @@ def main() -> int:
         blocked = blocked or status.startswith(("blocked:", "missing:"))
 
     if not args.probe_schemas:
-        print("schema-probe: not run; live tool inventory is unverified (run --probe-schemas after MCP updates and before release candidates)")
+        print(
+            "schema-probe: not run; live tool inventory is unverified (run --probe-schemas after MCP updates and before release candidates)"
+        )
 
     if args.probe_schemas:
         try:
@@ -256,15 +288,20 @@ def main() -> int:
                 if not isinstance(entry, dict) or not isinstance(policy_tools, dict):
                     print(f"schema-probe {server}: blocked: missing config or policy entry")
                     if suggestions_requested:
-                        suggestion_failures.append(
-                            {"server": server, "reason": "missing config or policy entry"}
-                        )
+                        suggestion_failures.append({"server": server, "reason": "missing config or policy entry"})
                     blocked = True
                     continue
                 if server in {"linear", "mobbin"}:
-                    print(f"schema-probe {server}: blocked: OAuth authentication is required; doctor does not acquire tokens")
+                    print(
+                        f"schema-probe {server}: blocked: OAuth authentication is required; doctor does not acquire tokens"
+                    )
                     if suggestions_requested:
-                        suggestion_failures.append({"server": server, "reason": "OAuth authentication required; doctor does not acquire tokens"})
+                        suggestion_failures.append(
+                            {
+                                "server": server,
+                                "reason": "OAuth authentication required; doctor does not acquire tokens",
+                            }
+                        )
                     blocked = True
                     continue
                 try:
@@ -306,13 +343,9 @@ def main() -> int:
                 print(format_drift_record(record))
         if suggestion_failures:
             for failure in suggestion_failures:
-                print(
-                    f"policy-suggestion-error server={failure['server']} reason={failure['reason']}"
-                )
+                print(f"policy-suggestion-error server={failure['server']} reason={failure['reason']}")
             print(
-                "policy-suggestions: incomplete; "
-                f"probed={suggestion_probed_servers or 'none'} "
-                "policy-change-applied=no"
+                f"policy-suggestions: incomplete; probed={suggestion_probed_servers or 'none'} policy-change-applied=no"
             )
         elif not suggestion_records:
             print("policy-suggestions: no schema drift records; policy-change-applied=no")

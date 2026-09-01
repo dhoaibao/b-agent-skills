@@ -183,9 +183,7 @@ def load_json_subset_yaml(path: Path) -> dict:
     try:
         return json.loads(path.read_text())
     except json.JSONDecodeError as exc:
-        raise SystemExit(
-            f"{path}: registry files must use the JSON-compatible YAML subset: {exc}"
-        ) from exc
+        raise SystemExit(f"{path}: registry files must use the JSON-compatible YAML subset: {exc}") from exc
 
 
 def ensure_string(value: object, label: str, errors: list[str]) -> str:
@@ -356,38 +354,41 @@ def render_mcp_runtime_policy(policy: dict) -> str:
         tools = servers.get(server, {}).get("tools", {})
         if not isinstance(tools, dict):
             raise SystemExit(f"{MCP_OPERATIONS_PATH}: {server} has no tools map")
-        lines.extend([
-            f"const {set_name} = new Set({json.dumps(sorted(tool for tool, operation in tools.items() if operation in safe), indent=2)});",
-            "",
-        ])
+        lines.extend(
+            [
+                f"const {set_name} = new Set({json.dumps(sorted(tool for tool, operation in tools.items() if operation in safe), indent=2)});",
+                "",
+            ]
+        )
     return "\n".join(lines).rstrip()
 
 
 def render_skill_ownership(skills: list[dict]) -> str:
-    by_owner = {
-        owner: [skill["name"] for skill in skills if skill["owner"] == owner]
-        for owner in sorted(SKILL_OWNERS)
-    }
-    return "\n".join([
-        f"- Planner-owned skills: {', '.join('external `b-research`' if name == 'b-research' else f'`{name}`' for name in by_owner['planner'])}. The planner may execute these only inside its read-only coordinator boundary.",
-        f"- Worker-owned skills: {', '.join(f'`{name}`' for name in by_owner['worker'])}. The planner delegates their execution to a ready same-CWD worker.",
-        f"- Ownership governs execution, not inspection: the planner may read any skill for planning, delegation, audit, or review. {SKILL_OWNERSHIP_CRITERION} Direct wording or no ready worker forbids implementation. Unknown or ambiguous skill ownership is worker-owned; registry rejects missing or invalid ownership.",
-    ])
+    by_owner = {owner: [skill["name"] for skill in skills if skill["owner"] == owner] for owner in sorted(SKILL_OWNERS)}
+    return "\n".join(
+        [
+            f"- Planner-owned skills: {', '.join('external `b-research`' if name == 'b-research' else f'`{name}`' for name in by_owner['planner'])}. The planner may execute these only inside its read-only coordinator boundary.",
+            f"- Worker-owned skills: {', '.join(f'`{name}`' for name in by_owner['worker'])}. The planner delegates their execution to a ready same-CWD worker.",
+            f"- Ownership governs execution, not inspection: the planner may read any skill for planning, delegation, audit, or review. {SKILL_OWNERSHIP_CRITERION} Direct wording or no ready worker forbids implementation. Unknown or ambiguous skill ownership is worker-owned; registry rejects missing or invalid ownership.",
+        ]
+    )
 
 
 def render_role_skill_ownership(skills: list[dict]) -> str:
     ownership = {skill["name"]: skill["owner"] for skill in skills}
-    return "\n".join([
-        "/** Generated from skills/registry.yaml. Unknown skills fail closed to worker ownership. */",
-        "export type SkillOwner = \"planner\" | \"worker\";",
-        f"export const SKILL_OWNERSHIP_CRITERION = {json.dumps(SKILL_OWNERSHIP_CRITERION)};",
-        f"export const SKILL_OWNERS: Readonly<Record<string, SkillOwner>> = {json.dumps(ownership, indent=2)};",
-        "export function skillOwner(skill: string): SkillOwner {",
-        "  return SKILL_OWNERS[skill] ?? \"worker\";",
-        "}",
-        "const PLANNER_OWNED_SKILLS = Object.entries(SKILL_OWNERS).filter(([, owner]) => owner === \"planner\").map(([skill]) => \"`\" + skill + \"`\");",
-        "const WORKER_OWNED_SKILLS = Object.entries(SKILL_OWNERS).filter(([, owner]) => owner === \"worker\").map(([skill]) => \"`\" + skill + \"`\");",
-    ])
+    return "\n".join(
+        [
+            "/** Generated from skills/registry.yaml. Unknown skills fail closed to worker ownership. */",
+            'export type SkillOwner = "planner" | "worker";',
+            f"export const SKILL_OWNERSHIP_CRITERION = {json.dumps(SKILL_OWNERSHIP_CRITERION)};",
+            f"export const SKILL_OWNERS: Readonly<Record<string, SkillOwner>> = {json.dumps(ownership, indent=2)};",
+            "export function skillOwner(skill: string): SkillOwner {",
+            '  return SKILL_OWNERS[skill] ?? "worker";',
+            "}",
+            'const PLANNER_OWNED_SKILLS = Object.entries(SKILL_OWNERS).filter(([, owner]) => owner === "planner").map(([skill]) => "`" + skill + "`");',
+            'const WORKER_OWNED_SKILLS = Object.entries(SKILL_OWNERS).filter(([, owner]) => owner === "worker").map(([skill]) => "`" + skill + "`");',
+        ]
+    )
 
 
 def render_routing(skills: list[dict]) -> str:
@@ -399,24 +400,39 @@ def render_routing(skills: list[dict]) -> str:
         elif skill["name"] == "b-commit":
             lines.append("- Split and commit working-tree changes -> `b-commit` only on explicit user request.")
         elif skill["name"] == "b-pr-summary":
-            lines.append("- PR summary for a commit count or commits ahead of cached origin -> `b-pr-summary` only on explicit user request.")
+            lines.append(
+                "- PR summary for a commit count or commits ahead of cached origin -> `b-pr-summary` only on explicit user request."
+            )
     return "\n".join(lines)
 
 
 def render_folded_yaml_block(key: str, value: str) -> list[str]:
-    wrapper = textwrap.TextWrapper(width=74, initial_indent="  ", subsequent_indent="  ", break_long_words=False, break_on_hyphens=False)
+    wrapper = textwrap.TextWrapper(
+        width=74, initial_indent="  ", subsequent_indent="  ", break_long_words=False, break_on_hyphens=False
+    )
     return [f"{key}: >", *wrapper.fill(value).splitlines()]
 
 
 def render_skill_file(skill: dict) -> str:
     prompt_path = ROOT / "skills" / skill["name"] / "prompt.md"
-    body = apply_template_tokens(prompt_path.read_text().rstrip() + "\n", {SKILL_SUPPORT_PATH_TOKEN: "."}, prompt_path).rstrip()
+    body = apply_template_tokens(
+        prompt_path.read_text().rstrip() + "\n", {SKILL_SUPPORT_PATH_TOKEN: "."}, prompt_path
+    ).rstrip()
     lines = ["---", f"name: {skill['name']}"]
     lines.extend(render_folded_yaml_block("description", skill["prompt"]["description"]))
     for field, yaml_key in PROMPT_FRONTMATTER_FIELDS:
         if field in skill["prompt"]:
             lines.append(f"{yaml_key}: {json.dumps(skill['prompt'][field], ensure_ascii=False)}")
-    lines.extend(["---", "", f"<!-- Generated from skills/registry.yaml and skills/{skill['name']}/prompt.md. Edit those sources, not this file. -->", "", body, ""])
+    lines.extend(
+        [
+            "---",
+            "",
+            f"<!-- Generated from skills/registry.yaml and skills/{skill['name']}/prompt.md. Edit those sources, not this file. -->",
+            "",
+            body,
+            "",
+        ]
+    )
     return "\n".join(lines)
 
 
@@ -436,18 +452,25 @@ def replace_block(text: str, start_marker: str, end_marker: str, body: str) -> s
 def render_outputs(skills: list[dict]) -> dict[Path, str]:
     outputs: dict[Path, str] = {}
     readme = ROOT / "README.md"
-    outputs[readme] = replace_block(readme.read_text(), README_SKILLS_START, README_SKILLS_END, render_readme_skills_table(skills))
+    outputs[readme] = replace_block(
+        readme.read_text(), README_SKILLS_START, README_SKILLS_END, render_readme_skills_table(skills)
+    )
 
     kernel = KERNEL_TEMPLATE_PATH.read_text()
     kernel = replace_block(kernel, KERNEL_ROUTING_START, KERNEL_ROUTING_END, render_routing(skills))
-    kernel = replace_block(kernel, KERNEL_SKILL_OWNERSHIP_START, KERNEL_SKILL_OWNERSHIP_END, render_skill_ownership(skills))
+    kernel = replace_block(
+        kernel, KERNEL_SKILL_OWNERSHIP_START, KERNEL_SKILL_OWNERSHIP_END, render_skill_ownership(skills)
+    )
     policy = load_json_subset_yaml(MCP_OPERATIONS_PATH)
     outputs[KERNEL_TEMPLATE_PATH] = replace_block(
         kernel, MCP_OPERATIONS_START, MCP_OPERATIONS_END, render_mcp_operations_table(policy)
     )
     role_extension = ROOT / "pi" / "extensions" / "b-agentic-support" / "role.ts"
     outputs[role_extension] = replace_block(
-        role_extension.read_text(), ROLE_SKILL_OWNERSHIP_START, ROLE_SKILL_OWNERSHIP_END, render_role_skill_ownership(skills)
+        role_extension.read_text(),
+        ROLE_SKILL_OWNERSHIP_START,
+        ROLE_SKILL_OWNERSHIP_END,
+        render_role_skill_ownership(skills),
     )
     shared_validation = ROOT / "tooling" / "validate" / "shared.py"
     outputs[shared_validation] = replace_block(
@@ -533,7 +556,9 @@ def sync_outputs(check: bool) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Render generated Pi assets from canonical sources.")
     parser.add_argument("--check", action="store_true", help="fail if generated outputs are stale")
-    parser.add_argument("--self-test", action="store_true", help="verify missing and invalid skill owners fail validation")
+    parser.add_argument(
+        "--self-test", action="store_true", help="verify missing and invalid skill owners fail validation"
+    )
     args = parser.parse_args()
     if args.self_test:
         errors = validate_owner_regressions(load_skills())

@@ -23,14 +23,29 @@ TRUSTED_CLASSES = {"trusted-serena"}
 CONDITIONAL_CLASSES = {"conditional-read", "conditional-local"}
 MANAGED_SERVERS = {"serena", "codegraph", "context7", "linear", "mobbin", "brave-search", "firecrawl", "playwright"}
 EXPECTED_SERENA_TOOLS = {
-    "serena_search_for_pattern", "serena_get_symbols_overview", "serena_find_symbol",
-    "serena_find_referencing_symbols", "serena_find_implementations", "serena_find_declaration",
-    "serena_get_diagnostics_for_file", "serena_read_memory", "serena_list_memories",
-    "serena_initial_instructions", "serena_replace_content", "serena_replace_in_files",
-    "serena_replace_symbol_body", "serena_insert_after_symbol", "serena_insert_before_symbol",
-    "serena_rename_symbol", "serena_safe_delete_symbol", "serena_write_memory",
-    "serena_delete_memory", "serena_rename_memory", "serena_edit_memory",
-    "serena_open_dashboard", "serena_onboarding",
+    "serena_search_for_pattern",
+    "serena_get_symbols_overview",
+    "serena_find_symbol",
+    "serena_find_referencing_symbols",
+    "serena_find_implementations",
+    "serena_find_declaration",
+    "serena_get_diagnostics_for_file",
+    "serena_read_memory",
+    "serena_list_memories",
+    "serena_initial_instructions",
+    "serena_replace_content",
+    "serena_replace_in_files",
+    "serena_replace_symbol_body",
+    "serena_insert_after_symbol",
+    "serena_insert_before_symbol",
+    "serena_rename_symbol",
+    "serena_safe_delete_symbol",
+    "serena_write_memory",
+    "serena_delete_memory",
+    "serena_rename_memory",
+    "serena_edit_memory",
+    "serena_open_dashboard",
+    "serena_onboarding",
 }
 
 
@@ -63,7 +78,9 @@ def validate_policy_shape(policy: dict, errors: list[str]) -> None:
             continue
         for tool, classification in tools.items():
             if classification not in classes:
-                errors.append(f"references/mcp_operations.yaml: tool {server}:{tool} has unknown class {classification!r}")
+                errors.append(
+                    f"references/mcp_operations.yaml: tool {server}:{tool} has unknown class {classification!r}"
+                )
             if classification in CONDITIONAL_CLASSES:
                 conditional_tools.add(f"{server}:{tool}")
     serena_tools = servers.get("serena", {}).get("tools", {})
@@ -89,14 +106,14 @@ def validate_policy_shape(policy: dict, errors: list[str]) -> None:
         or not all(isinstance(name, str) for name in record["known"])
         for record in conditional_arguments.values()
     ):
-        errors.append("references/mcp_operations.yaml: each conditional argument record needs a non-empty known string list")
+        errors.append(
+            "references/mcp_operations.yaml: each conditional argument record needs a non-empty known string list"
+        )
 
     runtime_policy = policy.get("runtime_enforcement", {}).get("pi", "")
     for marker in ("tools.search", "tools.describe", "nested tools.call"):
         if marker not in runtime_policy:
-            errors.append(
-                f"references/mcp_operations.yaml: mcpScript runtime policy missing {marker!r}"
-            )
+            errors.append(f"references/mcp_operations.yaml: mcpScript runtime policy missing {marker!r}")
 
 
 def main() -> int:

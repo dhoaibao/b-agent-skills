@@ -102,16 +102,14 @@ EOF
 smoke_runtime_cli_path() {
 	local sandbox="$1"
 	local bin_dir="$sandbox/smoke-bin"
-	local name
+	local name=agent
 
 	mkdir -p "$bin_dir"
-	for name in agent; do
-		cat >"$bin_dir/$name" <<'EOF'
+	cat >"$bin_dir/$name" <<'EOF'
 #!/usr/bin/env bash
 exit 0
 EOF
-		chmod +x "$bin_dir/$name"
-	done
+	chmod +x "$bin_dir/$name"
 
 	# Pi mock supports list/install so package lifecycle smoke can observe installs.
 	cat >"$bin_dir/pi" <<'EOF'

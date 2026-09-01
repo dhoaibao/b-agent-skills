@@ -73,7 +73,12 @@
       "id": "changed-code-review",
       "prompt": "Review the working-tree diff before a PR and report reviewer findings.",
       "expected_skill": "b-review",
-      "forbidden_skills": ["b-commit", "b-pr-summary", "b-plan", "b-agentic-audit"]
+      "forbidden_skills": [
+        "b-commit",
+        "b-pr-summary",
+        "b-plan",
+        "b-agentic-audit"
+      ]
     },
     {
       "id": "commit-working-tree",

@@ -12,11 +12,15 @@
 #   ~/.b-agentic/install.sh --update
 
 set -euo pipefail
+# Variables shared with the sourced installer core are intentionally defined
+# here even when ShellCheck analyzes this entrypoint in isolation.
 
 readonly REPO_URL="${B_AGENTIC_REPO:-https://github.com/dhoaibao/b-agentic.git}"
 readonly LOCAL_REPO="${B_AGENTIC_DIR:-$HOME/.b-agentic}"
 REF="${B_AGENTIC_REF:-}"
-readonly TIMESTAMP="$(date +%Y%m%d%H%M%S)"
+TIMESTAMP="$(date +%Y%m%d%H%M%S)"
+# shellcheck disable=SC2034
+readonly TIMESTAMP
 
 DRY_RUN_VALUE="${B_AGENTIC_DRY_RUN:-N}"
 REPLACE_MEMORY_VALUE="${B_AGENTIC_REPLACE_MEMORY:-}"
@@ -41,6 +45,7 @@ UI_STAGE_LABEL=""
 readonly UI_STAGE_BAR_WIDTH=20
 readonly UI_STAGE_LABEL_WIDTH=52
 readonly UI_STAGE_LINE_WIDTH=82
+# shellcheck disable=SC2034
 INSTALL_PI_CLI_DECISION=""
 
 ui_init() {
@@ -493,7 +498,8 @@ PY
 manifest_only_uninstall_one() {
 	local runtime_name="$1" manifest_path="$2"
 	[ -f "$manifest_path" ] || return 1
-	local installed_script="$(dirname "$manifest_path")/tooling/install/manifest_uninstall.py"
+	local installed_script
+	installed_script="$(dirname "$manifest_path")/tooling/install/manifest_uninstall.py"
 	if [ -f "$installed_script" ]; then
 		run_cmd python3 "$installed_script" "$manifest_path"
 		return $?
@@ -720,12 +726,14 @@ install_bun() {
 }
 
 run_parallel_chains() {
-	local log_dir="$(mktemp -d "${TMPDIR:-/tmp}/b-agentic-chains.XXXXXX")"
+	local log_dir
+	log_dir="$(mktemp -d "${TMPDIR:-/tmp}/b-agentic-chains.XXXXXX")"
 	local -a pids=() pid_indexes=() chains=() logs=() statuses=()
 	local chain pid index position chain_index status rc=0
 	for chain in "$@"; do
 		index=${#chains[@]}; chains+=("$chain"); logs+=("$log_dir/$index.log")
 		(
+			# shellcheck disable=SC2034
 			UI_HIDE_STAGES=1
 			UI_SUPPRESS_LOGS=1
 			"$chain"
@@ -737,10 +745,10 @@ run_parallel_chains() {
 				pid="${pids[$position]}"
 				chain_index="${pid_indexes[$position]}"
 				if wait "$pid"; then
-					statuses[$chain_index]=0
+					statuses[chain_index]=0
 				else
 					status=$?
-					statuses[$chain_index]="$status"
+					statuses[chain_index]="$status"
 					if [ "$rc" -eq 0 ] || [ "$status" -eq 2 ]; then rc="$status"; fi
 				fi
 			done
@@ -752,10 +760,10 @@ run_parallel_chains() {
 		pid="${pids[$position]}"
 		chain_index="${pid_indexes[$position]}"
 		if wait "$pid"; then
-			statuses[$chain_index]=0
+			statuses[chain_index]=0
 		else
 			status=$?
-			statuses[$chain_index]="$status"
+			statuses[chain_index]="$status"
 			if [ "$rc" -eq 0 ] || [ "$status" -eq 2 ]; then rc="$status"; fi
 		fi
 	done

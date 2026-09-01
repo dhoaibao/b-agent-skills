@@ -11,20 +11,43 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
-REQUIRED_TOOLS: tuple[tuple[str, tuple[str, ...]], ...] = (
-    ("rtk", ("rtk",)),
+REQUIRED_TOOLS: tuple[tuple[str, tuple[str, ...]], ...] = (("rtk", ("rtk",)),)
+REMEDIATION = (
+    "Install the missing prerequisites, then restart the runtime session; see the kernel's Shell commands section."
 )
-REMEDIATION = "Install the missing prerequisites, then restart the runtime session; see the kernel's Shell commands section."
 ROOT = Path(__file__).resolve().parents[2]
 RTK_POLICY = ROOT / "pi" / "extensions" / "b-agentic-support" / "shell.ts"
 # RTK commands that operate on RTK itself or generic command streams rather
 # than proxying a same-named native command family. New commands must be
 # reviewed and added to RTK_REQUIRED_COMMANDS. RTK-supported families are mandatory.
 RTK_NON_NATIVE_COMMANDS = {
-    "read", "smart", "err", "test", "json", "deps", "env", "summary", "log",
-    "gain", "cc-economics", "config", "init", "discover", "session", "telemetry",
-    "learn", "run", "proxy", "pipe", "trust", "untrust", "verify", "hook-audit",
-    "rewrite", "hook", "help",
+    "read",
+    "smart",
+    "err",
+    "test",
+    "json",
+    "deps",
+    "env",
+    "summary",
+    "log",
+    "gain",
+    "cc-economics",
+    "config",
+    "init",
+    "discover",
+    "session",
+    "telemetry",
+    "learn",
+    "run",
+    "proxy",
+    "pipe",
+    "trust",
+    "untrust",
+    "verify",
+    "hook-audit",
+    "rewrite",
+    "hook",
+    "help",
 }
 
 
@@ -111,7 +134,7 @@ def self_test() -> int:
         return 1
     configured = configured_rtk_families()
     required = required_rtk_families()
-    if ({"git", "pytest"} - required):
+    if {"git", "pytest"} - required:
         print("required RTK family fixture unexpectedly failed", file=sys.stderr)
         return 1
     if not ({"ls", "rg"} <= required):

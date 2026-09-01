@@ -82,16 +82,24 @@ def main() -> int:
         if not isinstance(tools, dict):
             errors.append(f"{args.policy}: {server!r} must declare tools")
             continue
-        safe_tools = {tool for tool, operation in tools.items() if operation in {"read-only", "conditional-read", "conditional-local", "trusted-serena"}}
+        safe_tools = {
+            tool
+            for tool, operation in tools.items()
+            if operation in {"read-only", "conditional-read", "conditional-local", "trusted-serena"}
+        }
         check_set(errors, source, runtime_set, safe_tools, extension, root)
-        conditional.update(f"{server}:{tool}" for tool, operation in tools.items() if operation in {"conditional-read", "conditional-local"})
+        conditional.update(
+            f"{server}:{tool}"
+            for tool, operation in tools.items()
+            if operation in {"conditional-read", "conditional-local"}
+        )
 
     check_set(errors, source, "MCP_CONDITIONAL_TOOLS", conditional, extension, root)
 
     for marker in [
         "isConditionallyTrustedTool(server, base, input)",
         "SERENA_TRUSTED_TOOLS.has(base)",
-        'isTrustedManagedGatewayCall',
+        "isTrustedManagedGatewayCall",
     ]:
         if marker not in source:
             errors.append(f"{extension.relative_to(root)}: missing managed-operation gate {marker!r}")

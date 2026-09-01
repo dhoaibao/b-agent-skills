@@ -26,9 +26,7 @@ ROLE_SOURCE = ROOT / "pi" / "extensions" / "b-agentic-support" / "role.ts"
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Run human-scored b-agentic behavior scenarios through Pi."
-    )
+    parser = argparse.ArgumentParser(description="Run human-scored b-agentic behavior scenarios through Pi.")
     parser.add_argument(
         "--allow-model-calls",
         action="store_true",
@@ -131,8 +129,7 @@ def pi_command(args: argparse.Namespace, scenario: dict, skill_path: Path) -> li
             command.extend(["--skill", str(available_skill)])
         prompt = (
             "Select exactly one available b-agentic skill for the request, load its SKILL.md, "
-            "and follow it without editing files. Start the final response with 'SKILL: <name>'.\n\n"
-            + prompt
+            "and follow it without editing files. Start the final response with 'SKILL: <name>'.\n\n" + prompt
         )
     else:
         command.append("--no-tools")
@@ -172,8 +169,7 @@ def main() -> int:
         args.fixtures = ROUTING_FIXTURES
     if not args.allow_model_calls and not args.validate_inputs:
         print(
-            "Refusing external model calls without --allow-model-calls. "
-            "Review costs and data exposure first.",
+            "Refusing external model calls without --allow-model-calls. Review costs and data exposure first.",
             file=sys.stderr,
         )
         return 2

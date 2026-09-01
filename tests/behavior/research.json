@@ -24,9 +24,7 @@
         "Deduplicate sources",
         "Distinguish direct evidence, corroboration, and uncertainty"
       ],
-      "avoid": [
-        "Presenting unqualified claims without source provenance"
-      ]
+      "avoid": ["Presenting unqualified claims without source provenance"]
     },
     {
       "id": "research-server-fallback",

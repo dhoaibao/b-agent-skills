@@ -31,14 +31,29 @@ export const SERVICE_COMMANDS: string[][] = [
 ];
 
 export const DANGEROUS_ASK_COMMANDS: string[][] = [
-  ["dd"], ["mkfs"], ["chmod"], ["chown"], ["kill"], ["pkill"], ["killall"],
-  ["shutdown"], ["reboot"], ["poweroff"], ["halt"],
-  ["systemctl", "stop"], ["systemctl", "restart"], ["systemctl", "disable"],
-  ["docker", "rm"], ["docker", "container", "rm"], ["docker", "image", "rm"],
-  ["docker", "compose", "down"], ["kubectl", "delete"],
+  ["dd"],
+  ["mkfs"],
+  ["chmod"],
+  ["chown"],
+  ["kill"],
+  ["pkill"],
+  ["killall"],
+  ["shutdown"],
+  ["reboot"],
+  ["poweroff"],
+  ["halt"],
+  ["systemctl", "stop"],
+  ["systemctl", "restart"],
+  ["systemctl", "disable"],
+  ["docker", "rm"],
+  ["docker", "container", "rm"],
+  ["docker", "image", "rm"],
+  ["docker", "compose", "down"],
+  ["kubectl", "delete"],
 ];
 
-export const COMPOUND_SOURCE_CODE_FILENAME = /^[^.]+\..+\.(?:[cm]?[jt]sx?|py|rb|go|rs|java|kt|kts|c(?:c|pp|xx)?|h(?:pp)?|cs|php|swift|scala|vue|svelte|astro)$/i;
+export const COMPOUND_SOURCE_CODE_FILENAME =
+  /^[^.]+\..+\.(?:[cm]?[jt]sx?|py|rb|go|rs|java|kt|kts|c(?:c|pp|xx)?|h(?:pp)?|cs|php|swift|scala|vue|svelte|astro)$/i;
 
 export const PROTECTED_PATH_MARKERS = [
   ".env",
@@ -84,22 +99,81 @@ export const SPECIALIZED_TOOLS = new Set([
   "ls",
 ]);
 
-export const WRAPPER_COMMANDS = new Set(["rtk", "sudo", "command", "nohup", "nice", "time", "env"]);
+export const WRAPPER_COMMANDS = new Set([
+  "rtk",
+  "sudo",
+  "command",
+  "nohup",
+  "nice",
+  "time",
+  "env",
+]);
 /** RTK subcommands that execute another command and must expose it to policy matching. */
-export const RTK_EXECUTION_WRAPPERS = new Set(["proxy", "err", "test", "summary", "run"]);
+export const RTK_EXECUTION_WRAPPERS = new Set([
+  "proxy",
+  "err",
+  "test",
+  "summary",
+  "run",
+]);
 /**
  * Every native family supported by RTK must go through RTK, including
  * discovery commands. Modern replacements remain direct only when RTK does
  * not support that command family.
  */
 export const RTK_REQUIRED_COMMANDS = new Set([
-  "git", "gh", "glab", "aws", "psql", "pnpm",
-  "dotnet", "docker", "kubectl", "oc", "wget",
-  "jest", "vitest", "prisma", "tsc", "next", "lint", "prettier", "format",
-  "playwright", "cargo", "npm", "npx", "curl", "ruff", "pytest", "mypy",
-  "rake", "rubocop", "rspec", "pip", "go", "gt", "golangci-lint", "gradlew", "mvn",
-  "ecs", "paratest", "pest", "php", "phpstan", "phpunit", "pint", "sbt", "uv",
-  "ls", "tree", "find", "diff", "grep", "rg", "wc",
+  "git",
+  "gh",
+  "glab",
+  "aws",
+  "psql",
+  "pnpm",
+  "dotnet",
+  "docker",
+  "kubectl",
+  "oc",
+  "wget",
+  "jest",
+  "vitest",
+  "prisma",
+  "tsc",
+  "next",
+  "lint",
+  "prettier",
+  "format",
+  "playwright",
+  "cargo",
+  "npm",
+  "npx",
+  "curl",
+  "ruff",
+  "pytest",
+  "mypy",
+  "rake",
+  "rubocop",
+  "rspec",
+  "pip",
+  "go",
+  "gt",
+  "golangci-lint",
+  "gradlew",
+  "mvn",
+  "ecs",
+  "paratest",
+  "pest",
+  "php",
+  "phpstan",
+  "phpunit",
+  "pint",
+  "sbt",
+  "uv",
+  "ls",
+  "tree",
+  "find",
+  "diff",
+  "grep",
+  "rg",
+  "wc",
 ]);
 /** Reserved for future RTK-native families that are explicitly exempted. */
 export const RTK_OPTIONAL_COMMANDS = new Set([]);
@@ -318,7 +392,9 @@ export function hasAmbiguousShellSyntax(command: string): boolean {
 export function hasShellControlSyntax(command: string): boolean {
   // Control structures require shell parsing across segments; fail closed with approval instead of
   // treating keywords such as `if` or `while` as raw executables.
-  return /(?:^|[;\n]\s*)(?:if|for|while|until|case|select|coproc|function|then|elif|else|fi|do|done|esac)\b|(?:^|[;\n]\s*)[{}]/.test(command);
+  return /(?:^|[;\n]\s*)(?:if|for|while|until|case|select|coproc|function|then|elif|else|fi|do|done|esac)\b|(?:^|[;\n]\s*)[{}]/.test(
+    command,
+  );
 }
 
 export function hasUnbalancedQuotes(command: string): boolean {
@@ -355,14 +431,23 @@ export function isInterpreterOpaque(tokens: string[]): boolean {
   if (!INTERPRETER_BASES.has(base)) {
     return false;
   }
-  if (base === "bun" && ["install", "i", "add", "remove", "uninstall", "update"].includes(packageOperation(tokens).operation || "")) {
+  if (
+    base === "bun" &&
+    ["install", "i", "add", "remove", "uninstall", "update"].includes(
+      packageOperation(tokens).operation || "",
+    )
+  ) {
     return false;
   }
   for (let i = 1; i < tokens.length; i += 1) {
     const t = tokens[i];
     if (
-      t === "-c" || t === "-e" || t === "--eval" || t === "-Command" ||
-      t.startsWith("--eval=") || t === "-"
+      t === "-c" ||
+      t === "-e" ||
+      t === "--eval" ||
+      t === "-Command" ||
+      t.startsWith("--eval=") ||
+      t === "-"
     ) {
       return true;
     }
@@ -373,7 +458,14 @@ export function isInterpreterOpaque(tokens: string[]): boolean {
     }
     // Combined short flags: bash -lc, bash -ic, etc.
     if (t.startsWith("-") && !t.startsWith("--") && t.length > 2) {
-      if ((base === "bash" || base === "sh" || base === "dash" || base === "zsh" || base === "ksh") && t.includes("c")) {
+      if (
+        (base === "bash" ||
+          base === "sh" ||
+          base === "dash" ||
+          base === "zsh" ||
+          base === "ksh") &&
+        t.includes("c")
+      ) {
         return true;
       }
       continue;
@@ -385,23 +477,43 @@ export function isInterpreterOpaque(tokens: string[]): boolean {
 }
 
 export function isOpaqueExecutablePath(rawTokens: string[]): boolean {
-  const trustedRoots = ["/bin", "/sbin", "/usr/bin", "/usr/sbin", "/usr/local/bin", "/opt/homebrew/bin"];
+  const trustedRoots = [
+    "/bin",
+    "/sbin",
+    "/usr/bin",
+    "/usr/sbin",
+    "/usr/local/bin",
+    "/opt/homebrew/bin",
+  ];
   const isOpaque = (executable: string | undefined): boolean => {
     if (!executable) return false;
     if (isExistingProjectConfinedLocalPath(executable)) return false;
-    if (executable.startsWith("~") || executable.startsWith("./") || executable.startsWith("../")) return true;
+    if (
+      executable.startsWith("~") ||
+      executable.startsWith("./") ||
+      executable.startsWith("../")
+    )
+      return true;
     if (!isAbsolute(executable)) return false;
     const normalizedExecutable = resolve(executable);
-    return !trustedRoots.some((root) =>
-      normalizedExecutable === root || normalizedExecutable.startsWith(`${root}/`)
+    return !trustedRoots.some(
+      (root) =>
+        normalizedExecutable === root ||
+        normalizedExecutable.startsWith(`${root}/`),
     );
   };
-  const firstExecutable = rawTokens.find((token) => !/^[A-Za-z_][A-Za-z0-9_]*=/.test(token));
+  const firstExecutable = rawTokens.find(
+    (token) => !/^[A-Za-z_][A-Za-z0-9_]*=/.test(token),
+  );
   const unwrappedExecutable = unwrapTokens(rawTokens).tokens[0];
   return isOpaque(firstExecutable) || isOpaque(unwrappedExecutable);
 }
 
-export function unwrapTokens(tokens: string[]): { tokens: string[]; wrappers: Set<string>; opaque: boolean } {
+export function unwrapTokens(tokens: string[]): {
+  tokens: string[];
+  wrappers: Set<string>;
+  opaque: boolean;
+} {
   let i = 0;
   let opaque = false;
   const wrappers = new Set<string>();
@@ -441,8 +553,15 @@ export function unwrapTokens(tokens: string[]): { tokens: string[]; wrappers: Se
       continue;
     }
     if (wrapper === "sudo" || wrapper === "nice" || wrapper === "command") {
-      while (i < tokens.length && tokens[i].startsWith("-") && tokens[i] !== "--") {
-        if (["-u", "-g", "-C", "-n", "-p"].includes(tokens[i]) && tokens[i + 1]) {
+      while (
+        i < tokens.length &&
+        tokens[i].startsWith("-") &&
+        tokens[i] !== "--"
+      ) {
+        if (
+          ["-u", "-g", "-C", "-n", "-p"].includes(tokens[i]) &&
+          tokens[i + 1]
+        ) {
           i += 2;
         } else {
           i += 1;
@@ -454,23 +573,32 @@ export function unwrapTokens(tokens: string[]): { tokens: string[]; wrappers: Se
       continue;
     }
     if (wrapper === "rtk") {
-      while (i < tokens.length && (
-        tokens[i] === "--ultra-compact" || tokens[i] === "--skip-env" ||
-        tokens[i] === "-v" || tokens[i] === "-vv" || tokens[i] === "-vvv" ||
-        tokens[i] === "--verbose"
-      )) i += 1;
+      while (
+        i < tokens.length &&
+        (tokens[i] === "--ultra-compact" ||
+          tokens[i] === "--skip-env" ||
+          tokens[i] === "-v" ||
+          tokens[i] === "-vv" ||
+          tokens[i] === "-vvv" ||
+          tokens[i] === "--verbose")
+      )
+        i += 1;
 
       if (RTK_EXECUTION_WRAPPERS.has(tokens[i])) {
         const rtkOperation = tokens[i];
         i += 1;
-        while (tokens[i] === "--ultra-compact" || tokens[i] === "--skip-env") i += 1;
+        while (tokens[i] === "--ultra-compact" || tokens[i] === "--skip-env")
+          i += 1;
         if (tokens[i] === "--") i += 1;
-        if (rtkOperation === "run" && (
-          tokens[i] === "-c" || tokens[i] === "--command" || tokens[i]?.startsWith("--command=")
-        )) {
+        if (
+          rtkOperation === "run" &&
+          (tokens[i] === "-c" ||
+            tokens[i] === "--command" ||
+            tokens[i]?.startsWith("--command="))
+        ) {
           // `rtk run -c` passes an opaque body to sh -c.
           opaque = true;
-          i += tokens[i]?.startsWith("--command=") ? 1 : (tokens[i + 1] ? 2 : 1);
+          i += tokens[i]?.startsWith("--command=") ? 1 : tokens[i + 1] ? 2 : 1;
         } else if (tokens[i]?.startsWith("-")) {
           // Unknown execution-wrapper options could hide the effective command.
           opaque = true;
@@ -497,7 +625,7 @@ export function hasInlineGitAliasInvocation(tokens: string[]): boolean {
   let i = 1;
   while (i < tokens.length && tokens[i].startsWith("-")) {
     const option = tokens[i];
-    let value = "";
+    let value: string;
     if (option === "-c") {
       value = tokens[i + 1] || "";
       i += 2;
@@ -510,10 +638,19 @@ export function hasInlineGitAliasInvocation(tokens: string[]): boolean {
     } else if (option.startsWith("--config-env=")) {
       value = option.slice("--config-env=".length);
       i += 1;
-    } else if (option === "-C" || option === "--git-dir" || option === "--work-tree" || option === "--namespace") {
+    } else if (
+      option === "-C" ||
+      option === "--git-dir" ||
+      option === "--work-tree" ||
+      option === "--namespace"
+    ) {
       i += 2;
       continue;
-    } else if (option.startsWith("--git-dir=") || option.startsWith("--work-tree=") || option.startsWith("--namespace=")) {
+    } else if (
+      option.startsWith("--git-dir=") ||
+      option.startsWith("--work-tree=") ||
+      option.startsWith("--namespace=")
+    ) {
       i += 1;
       continue;
     } else {
@@ -544,7 +681,14 @@ export function gitEffectiveTokens(tokens: string[]): string[] {
       break;
     }
     // Options that take a value before the Git subcommand.
-    if (t === "-C" || t === "-c" || t === "--git-dir" || t === "--work-tree" || t === "--namespace" || t === "--config-env") {
+    if (
+      t === "-C" ||
+      t === "-c" ||
+      t === "--git-dir" ||
+      t === "--work-tree" ||
+      t === "--namespace" ||
+      t === "--config-env"
+    ) {
       i += tokens[i + 1] ? 2 : 1;
       continue;
     }
@@ -553,7 +697,12 @@ export function gitEffectiveTokens(tokens: string[]): string[] {
       i += 1;
       continue;
     }
-    if (t.startsWith("--git-dir=") || t.startsWith("--work-tree=") || t.startsWith("--namespace=") || t.startsWith("--config-env=")) {
+    if (
+      t.startsWith("--git-dir=") ||
+      t.startsWith("--work-tree=") ||
+      t.startsWith("--namespace=") ||
+      t.startsWith("--config-env=")
+    ) {
       i += 1;
       continue;
     }
@@ -576,9 +725,37 @@ export function normalizeTokens(tokens: string[]): string[] {
 
 const EMPTY_MODERN_SHELL_TOOLS: ReadonlySet<string> = new Set();
 const PACKAGE_VALUE_OPTIONS = new Set(["--prefix", "--dir", "--manifest-path"]);
-const PACKAGE_VALUELESS_OPTIONS = new Set(["--silent", "--json", "--offline", "--version"]);
-const OPAQUE_PACKAGE_MANAGERS = new Set(["npm", "npx", "pnpm", "yarn", "bun", "cargo", "go", "pip", "pip3", "poetry", "uv"]);
-const DEPENDENCY_PATH_MANAGERS = new Set(["npm", "pnpm", "yarn", "bun", "cargo", "go", "pip", "pip3", "poetry", "uv"]);
+const PACKAGE_VALUELESS_OPTIONS = new Set([
+  "--silent",
+  "--json",
+  "--offline",
+  "--version",
+]);
+const OPAQUE_PACKAGE_MANAGERS = new Set([
+  "npm",
+  "npx",
+  "pnpm",
+  "yarn",
+  "bun",
+  "cargo",
+  "go",
+  "pip",
+  "pip3",
+  "poetry",
+  "uv",
+]);
+const DEPENDENCY_PATH_MANAGERS = new Set([
+  "npm",
+  "pnpm",
+  "yarn",
+  "bun",
+  "cargo",
+  "go",
+  "pip",
+  "pip3",
+  "poetry",
+  "uv",
+]);
 const DEPENDENCY_WRITES: Record<string, ReadonlySet<string>> = {
   npm: new Set(["install", "i", "ci", "add", "remove", "uninstall", "update"]),
   pnpm: new Set(["install", "i", "add", "remove", "uninstall", "update", "up"]),
@@ -591,22 +768,47 @@ const DEPENDENCY_WRITES: Record<string, ReadonlySet<string>> = {
   poetry: new Set(["add", "install", "remove", "update"]),
   uv: new Set(["add", "remove", "sync", "lock"]),
 };
-const DEPENDENCY_PATH_OPTIONS = new Set(["--prefix", "--dir", "--manifest-path", "--target", "--root"]);
-const DEPENDENCY_GLOBAL_OPTIONS = new Set(["-g", "--global", "--user", "--system", "--break-system-packages"]);
+const DEPENDENCY_PATH_OPTIONS = new Set([
+  "--prefix",
+  "--dir",
+  "--manifest-path",
+  "--target",
+  "--root",
+]);
+const DEPENDENCY_GLOBAL_OPTIONS = new Set([
+  "-g",
+  "--global",
+  "--user",
+  "--system",
+  "--break-system-packages",
+]);
 const PACKAGE_EXECUTION_OPERATIONS: Record<string, ReadonlySet<string>> = {
   npm: new Set(["exec", "rebuild", "run", "run-script", "test", "start"]),
   bun: new Set(["run", "test", "x"]),
 };
 const PACKAGE_NON_EXECUTION_OPERATIONS = new Set([
-  "audit", "help", "info", "licenses", "list", "outdated", "root", "search", "view", "why",
+  "audit",
+  "help",
+  "info",
+  "licenses",
+  "list",
+  "outdated",
+  "root",
+  "search",
+  "view",
+  "why",
 ]);
 
-export function packageOperation(tokens: string[]): { operation: string | null; opaque: boolean } {
+export function packageOperation(tokens: string[]): {
+  operation: string | null;
+  opaque: boolean;
+} {
   let i = 1;
   while (i < tokens.length) {
     const token = tokens[i];
     if (!token.startsWith("-")) return { operation: token, opaque: false };
-    if (token === "--") return { operation: tokens[i + 1] || null, opaque: false };
+    if (token === "--")
+      return { operation: tokens[i + 1] || null, opaque: false };
     if (token.includes("=")) {
       i += 1;
       continue;
@@ -627,7 +829,9 @@ export function packageOperation(tokens: string[]): { operation: string | null; 
 }
 
 export function hasOpaquePackageOptions(tokens: string[]): boolean {
-  return OPAQUE_PACKAGE_MANAGERS.has(tokens[0]) && packageOperation(tokens).opaque;
+  return (
+    OPAQUE_PACKAGE_MANAGERS.has(tokens[0]) && packageOperation(tokens).opaque
+  );
 }
 
 export function hasDependencyWrite(tokens: string[]): boolean {
@@ -635,7 +839,12 @@ export function hasDependencyWrite(tokens: string[]): boolean {
   const { operation } = packageOperation(tokens);
   if (!manager || !operation) return false;
   if (manager === "uv" && operation === "pip") {
-    return tokens.slice(2).some((token) => token === "install" || token === "uninstall" || token === "sync");
+    return tokens
+      .slice(2)
+      .some(
+        (token) =>
+          token === "install" || token === "uninstall" || token === "sync",
+      );
   }
   return DEPENDENCY_WRITES[manager]?.has(operation) ?? false;
 }
@@ -648,18 +857,29 @@ export function hasDependencyPathRisk(tokens: string[]): boolean {
   const operation = packageOperation(tokens).operation;
   // These install binaries into a toolchain-managed location rather than the
   // repository, even when a package manager cache is already present.
-  if ((manager === "cargo" || manager === "go") && operation === "install") return true;
+  if ((manager === "cargo" || manager === "go") && operation === "install")
+    return true;
 
   for (let i = 1; i < tokens.length; i += 1) {
     const token = tokens[i];
-    const inline = token.match(/^(--prefix|--dir|--manifest-path|--target|--root)=(.*)$/);
+    const inline = token.match(
+      /^(--prefix|--dir|--manifest-path|--target|--root)=(.*)$/,
+    );
     if (inline) {
       if (!inline[2] || !isProjectConfinedLocalPath(inline[2])) return true;
       continue;
     }
-    if (DEPENDENCY_GLOBAL_OPTIONS.has(token) || /^(?:--global|--user|--system)=/.test(token)) return true;
+    if (
+      DEPENDENCY_GLOBAL_OPTIONS.has(token) ||
+      /^(?:--global|--user|--system)=/.test(token)
+    )
+      return true;
     if (/^--location=(?:global|system)$/.test(token)) return true;
-    if (token === "--location" && /^(?:global|system)$/.test(tokens[i + 1] ?? "")) return true;
+    if (
+      token === "--location" &&
+      /^(?:global|system)$/.test(tokens[i + 1] ?? "")
+    )
+      return true;
     if (DEPENDENCY_PATH_OPTIONS.has(token)) {
       const target = tokens[i + 1];
       if (!target || !isProjectConfinedLocalPath(target)) return true;
@@ -684,14 +904,74 @@ export function hasOpaquePackageExecution(tokens: string[]): boolean {
 }
 
 export const B_AGENTIC_SKILL_NAMES = new Set([
-  "b-plan", "b-research", "b-design", "b-frontend", "b-implement", "b-init", "b-refactor",
-  "b-debug", "b-test", "b-browser", "b-agentic-audit", "b-review", "b-commit", "b-pr-summary",
+  "b-plan",
+  "b-research",
+  "b-design",
+  "b-frontend",
+  "b-implement",
+  "b-init",
+  "b-refactor",
+  "b-debug",
+  "b-test",
+  "b-browser",
+  "b-agentic-audit",
+  "b-review",
+  "b-commit",
+  "b-pr-summary",
 ]);
 
 export const LOCAL_PATH_COMMANDS = new Set([
-  "7z", "ar", "awk", "bat", "batcat", "cat", "cmp", "cp", "cpio", "curl", "diff", "eza", "exa", "fd", "fdfind", "file", "find", "git", "grep", "head",
-  "install", "less", "ln", "ls", "make", "mkdir", "mkfifo", "mknod", "more", "mv", "pax", "readlink", "realpath", "rg", "rm", "rmdir", "rsync", "sed", "shred", "stat",
-  "tail", "tar", "tee", "test", "touch", "truncate", "unzip", "unlink", "wc", "wget", "zip",
+  "7z",
+  "ar",
+  "awk",
+  "bat",
+  "batcat",
+  "cat",
+  "cmp",
+  "cp",
+  "cpio",
+  "curl",
+  "diff",
+  "eza",
+  "exa",
+  "fd",
+  "fdfind",
+  "file",
+  "find",
+  "git",
+  "grep",
+  "head",
+  "install",
+  "less",
+  "ln",
+  "ls",
+  "make",
+  "mkdir",
+  "mkfifo",
+  "mknod",
+  "more",
+  "mv",
+  "pax",
+  "readlink",
+  "realpath",
+  "rg",
+  "rm",
+  "rmdir",
+  "rsync",
+  "sed",
+  "shred",
+  "stat",
+  "tail",
+  "tar",
+  "tee",
+  "test",
+  "touch",
+  "truncate",
+  "unzip",
+  "unlink",
+  "wc",
+  "wget",
+  "zip",
 ]);
 
 export function expandLocalPath(pathValue: string): string {
@@ -700,20 +980,36 @@ export function expandLocalPath(pathValue: string): string {
   return resolve(pathValue);
 }
 
-export function isConfinedRelativePath(pathValue: string, projectRoot: string): boolean {
+export function isConfinedRelativePath(
+  pathValue: string,
+  projectRoot: string,
+): boolean {
   const projectRelative = relative(projectRoot, pathValue);
-  return !isAbsolute(projectRelative) && projectRelative !== ".." &&
-    !projectRelative.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`);
+  return (
+    !isAbsolute(projectRelative) &&
+    projectRelative !== ".." &&
+    !projectRelative.startsWith(
+      `..${process.platform === "win32" ? "\\" : "/"}`,
+    )
+  );
 }
 
 export function isInstalledBAgenticSkillPath(pathValue: string): boolean {
   if (!pathValue || isProtectedLocalPath(pathValue)) return false;
   try {
-    const configuredAgentDir = process.env.PI_CODING_AGENT_DIR?.trim() || resolve(homedir(), ".pi", "agent");
+    const configuredAgentDir =
+      process.env.PI_CODING_AGENT_DIR?.trim() ||
+      resolve(homedir(), ".pi", "agent");
     const agentRoot = realpathSync(expandLocalPath(configuredAgentDir));
     const absoluteTarget = realpathSync(expandLocalPath(pathValue));
     const targetParts = relative(agentRoot, absoluteTarget).split(/[\\/]/);
-    if (targetParts.length !== 3 || targetParts[0] !== "skills" || !B_AGENTIC_SKILL_NAMES.has(targetParts[1]) || targetParts[2] !== "SKILL.md") return false;
+    if (
+      targetParts.length !== 3 ||
+      targetParts[0] !== "skills" ||
+      !B_AGENTIC_SKILL_NAMES.has(targetParts[1]) ||
+      targetParts[2] !== "SKILL.md"
+    )
+      return false;
     return isConfinedRelativePath(realpathSync(absoluteTarget), agentRoot);
   } catch {
     return false;
@@ -731,8 +1027,10 @@ function isProjectConfinedResolvedPath(pathValue: string): boolean {
       if (parent === existing) return false;
       existing = parent;
     }
-    return isConfinedRelativePath(absoluteTarget, projectRoot) &&
-      isConfinedRelativePath(realpathSync(existing), projectRoot);
+    return (
+      isConfinedRelativePath(absoluteTarget, projectRoot) &&
+      isConfinedRelativePath(realpathSync(existing), projectRoot)
+    );
   } catch {
     return false;
   }
@@ -744,7 +1042,10 @@ export function isProjectConfinedLocalPath(pathValue: string): boolean {
 }
 
 export function isExistingProjectConfinedLocalPath(pathValue: string): boolean {
-  return existsSync(expandLocalPath(pathValue)) && isProjectConfinedLocalPath(pathValue);
+  return (
+    existsSync(expandLocalPath(pathValue)) &&
+    isProjectConfinedLocalPath(pathValue)
+  );
 }
 
 export function isExternalUrl(value: string): boolean {
@@ -756,17 +1057,23 @@ export function isRemoteTarget(value: string): boolean {
   return /^(?:[^@/\s]+@)?(?:\[[^\]]+\]|[A-Za-z0-9._-]+):.+/.test(value);
 }
 
-export function hasWorkingDirectoryChangeRisk(rawTokens: string[], tokens: string[]): boolean {
+export function hasWorkingDirectoryChangeRisk(
+  rawTokens: string[],
+  tokens: string[],
+): boolean {
   const command = baseName(tokens[0] || "");
   if (["cd", "popd", "pushd"].includes(command)) return true;
   for (let i = 0; i < rawTokens.length; i += 1) {
     const token = rawTokens[i];
-    let target = "";
+    let target: string;
     if (token === "-C" || token === "--chdir" || token === "--directory") {
       target = rawTokens[i + 1] || "";
     } else if (token.startsWith("-C") && token.length > 2) {
       target = token.slice(2);
-    } else if (token.startsWith("--chdir=") || token.startsWith("--directory=")) {
+    } else if (
+      token.startsWith("--chdir=") ||
+      token.startsWith("--directory=")
+    ) {
       target = token.slice(token.indexOf("=") + 1);
     } else {
       continue;
@@ -776,46 +1083,135 @@ export function hasWorkingDirectoryChangeRisk(rawTokens: string[], tokens: strin
   return false;
 }
 
-export type JqOperands = { valid: boolean; externalProgram: boolean; nullInput: boolean; program?: string; programIndex?: number; filePaths: string[]; inputPaths: string[] };
+export type JqOperands = {
+  valid: boolean;
+  externalProgram: boolean;
+  nullInput: boolean;
+  program?: string;
+  programIndex?: number;
+  filePaths: string[];
+  inputPaths: string[];
+};
 
 /** Parse jq's safe standard flag/value forms, separating filters from filesystem operands. */
 export function jqOperands(tokens: string[]): JqOperands {
-  const result: JqOperands = { valid: tokens[0] === "jq", externalProgram: false, nullInput: false, filePaths: [], inputPaths: [] };
-  const flags = new Set(["c", "r", "j", "0", "a", "S", "C", "M", "e", "s", "R", "n"]);
-  const longFlags = new Set(["--compact-output", "--raw-output", "--join-output", "--raw-output0", "--ascii-output", "--sort-keys", "--color-output", "--monochrome-output", "--exit-status", "--slurp", "--raw-input", "--null-input"]);
-  const valueCounts = new Map([["--arg", 2], ["--argjson", 2], ["--rawfile", 2], ["--slurpfile", 2], ["--argfile", 2], ["-L", 1], ["--library-path", 1], ["-f", 1], ["--from-file", 1]]);
-  const fileValueOffsets = new Map([["--rawfile", 2], ["--slurpfile", 2], ["--argfile", 2], ["-L", 1], ["--library-path", 1], ["-f", 1], ["--from-file", 1]]);
+  const result: JqOperands = {
+    valid: tokens[0] === "jq",
+    externalProgram: false,
+    nullInput: false,
+    filePaths: [],
+    inputPaths: [],
+  };
+  const flags = new Set([
+    "c",
+    "r",
+    "j",
+    "0",
+    "a",
+    "S",
+    "C",
+    "M",
+    "e",
+    "s",
+    "R",
+    "n",
+  ]);
+  const longFlags = new Set([
+    "--compact-output",
+    "--raw-output",
+    "--join-output",
+    "--raw-output0",
+    "--ascii-output",
+    "--sort-keys",
+    "--color-output",
+    "--monochrome-output",
+    "--exit-status",
+    "--slurp",
+    "--raw-input",
+    "--null-input",
+  ]);
+  const valueCounts = new Map([
+    ["--arg", 2],
+    ["--argjson", 2],
+    ["--rawfile", 2],
+    ["--slurpfile", 2],
+    ["--argfile", 2],
+    ["-L", 1],
+    ["--library-path", 1],
+    ["-f", 1],
+    ["--from-file", 1],
+  ]);
+  const fileValueOffsets = new Map([
+    ["--rawfile", 2],
+    ["--slurpfile", 2],
+    ["--argfile", 2],
+    ["-L", 1],
+    ["--library-path", 1],
+    ["-f", 1],
+    ["--from-file", 1],
+  ]);
   let afterOptions = false;
   for (let index = 1; index < tokens.length; index += 1) {
     const token = tokens[index]!;
-    if (!afterOptions && token === "--") { afterOptions = true; continue; }
+    if (!afterOptions && token === "--") {
+      afterOptions = true;
+      continue;
+    }
     if (!afterOptions) {
       const count = valueCounts.get(token);
       if (count !== undefined) {
         if (index + count >= tokens.length) return { ...result, valid: false };
         const fileOffset = fileValueOffsets.get(token);
-        if (fileOffset !== undefined) result.filePaths.push(tokens[index + fileOffset]!);
-        if (token === "-f" || token === "--from-file") result.externalProgram = true;
+        if (fileOffset !== undefined)
+          result.filePaths.push(tokens[index + fileOffset]!);
+        if (token === "-f" || token === "--from-file")
+          result.externalProgram = true;
         index += count;
         continue;
       }
-      if (token === "--null-input") { result.nullInput = true; continue; }
+      if (token === "--null-input") {
+        result.nullInput = true;
+        continue;
+      }
       if (longFlags.has(token)) continue;
-      if (/^-[^-]+$/.test(token) && token.slice(1).split("").every((flag) => flags.has(flag))) { if (token.includes("n")) result.nullInput = true; continue; }
+      if (
+        /^-[^-]+$/.test(token) &&
+        token
+          .slice(1)
+          .split("")
+          .every((flag) => flags.has(flag))
+      ) {
+        if (token.includes("n")) result.nullInput = true;
+        continue;
+      }
       if (token.startsWith("-")) return { ...result, valid: false };
     }
-    if (result.externalProgram || result.program !== undefined) result.inputPaths.push(token);
-    else { result.program = token; result.programIndex = index; }
+    if (result.externalProgram || result.program !== undefined)
+      result.inputPaths.push(token);
+    else {
+      result.program = token;
+      result.programIndex = index;
+    }
   }
-  return result.externalProgram || result.program !== undefined ? result : { ...result, valid: false };
+  return result.externalProgram || result.program !== undefined
+    ? result
+    : { ...result, valid: false };
 }
 
 function jqInputPathRisk(tokens: string[]): boolean {
   const parsed = jqOperands(tokens);
-  return !parsed.valid || [...parsed.filePaths, ...parsed.inputPaths].some((path) => !isProjectConfinedLocalPath(path));
+  return (
+    !parsed.valid ||
+    [...parsed.filePaths, ...parsed.inputPaths].some(
+      (path) => !isProjectConfinedLocalPath(path),
+    )
+  );
 }
 
-export function hasLocalFilesystemRisk(tokens: string[], options: { allowUnquotedGlob?: boolean } = {}): boolean {
+export function hasLocalFilesystemRisk(
+  tokens: string[],
+  options: { allowUnquotedGlob?: boolean } = {},
+): boolean {
   if (tokens.length === 0) return false;
 
   const command = baseName(tokens[0]);
@@ -823,7 +1219,8 @@ export function hasLocalFilesystemRisk(tokens: string[], options: { allowUnquote
     for (let i = 1; i < tokens.length; i += 1) {
       const token = tokens[i];
       const inlineOutput = token.match(/^--(?:output|output-document)=(.*)$/);
-      if (inlineOutput?.[1] && !isProjectConfinedLocalPath(inlineOutput[1])) return true;
+      if (inlineOutput?.[1] && !isProjectConfinedLocalPath(inlineOutput[1]))
+        return true;
       if (["-o", "-O", "--output", "--output-document"].includes(token)) {
         const target = tokens[i + 1] || "";
         if (target && !isProjectConfinedLocalPath(target)) return true;
@@ -837,7 +1234,12 @@ export function hasLocalFilesystemRisk(tokens: string[], options: { allowUnquote
     const redirection = token.match(/^(?:\d+)?(?:>>|>|&>>|&>|<)(.*)$/);
     if (!redirection) continue;
     const target = redirection[1] || tokens[i + 1] || "";
-    if (target && !/^&?\d+$/.test(target) && !isProjectConfinedLocalPath(target)) return true;
+    if (
+      target &&
+      !/^&?\d+$/.test(target) &&
+      !isProjectConfinedLocalPath(target)
+    )
+      return true;
   }
 
   if (command === "rm") return true;
@@ -845,9 +1247,16 @@ export function hasLocalFilesystemRisk(tokens: string[], options: { allowUnquote
   if (command === "rsync" && tokens.slice(1).some(isRemoteTarget)) return true;
   if (!LOCAL_PATH_COMMANDS.has(command)) return false;
   return tokens.slice(1).some((token) => {
-    if (!token || token.startsWith("-") || isNegatedGlob(token) || isExternalUrl(token) || /^&?\d+$/.test(token)) return false;
-    if (options.allowUnquotedGlob && /[*?\[\]{}]/.test(token)) {
-      const staticPrefix = token.split(/[*?\[\]{}]/, 1)[0] || ".";
+    if (
+      !token ||
+      token.startsWith("-") ||
+      isNegatedGlob(token) ||
+      isExternalUrl(token) ||
+      /^&?\d+$/.test(token)
+    )
+      return false;
+    if (options.allowUnquotedGlob && /[*?[\]{}]/.test(token)) {
+      const staticPrefix = token.split(/[*?[\]{}]/, 1)[0] || ".";
       if (isProjectConfinedResolvedPath(staticPrefix)) return false;
       return true;
     }
@@ -863,75 +1272,231 @@ export function hasExternalOrSharedMutationRisk(tokens: string[]): boolean {
 
   if (["npm", "pnpm", "yarn", "bun"].includes(command)) {
     const registryMutationMarkers = new Set([
-      "access", "deprecate", "dist-tag", "link", "owner", "publish", "star", "token",
-      "unlink", "unpublish", "unstar", "version",
+      "access",
+      "deprecate",
+      "dist-tag",
+      "link",
+      "owner",
+      "publish",
+      "star",
+      "token",
+      "unlink",
+      "unpublish",
+      "unstar",
+      "version",
     ]);
-    const externalScriptMarkers = new Set(["deploy", "release", "ship", "upload"]);
-    if (tokens.slice(1).some((token) => registryMutationMarkers.has(token) || externalScriptMarkers.has(token))) return true;
-    if (tokens.includes("config") && tokens.slice(tokens.indexOf("config") + 1).some((token) => ["delete", "set"].includes(token))) return true;
+    const externalScriptMarkers = new Set([
+      "deploy",
+      "release",
+      "ship",
+      "upload",
+    ]);
+    if (
+      tokens
+        .slice(1)
+        .some(
+          (token) =>
+            registryMutationMarkers.has(token) ||
+            externalScriptMarkers.has(token),
+        )
+    )
+      return true;
+    if (
+      tokens.includes("config") &&
+      tokens
+        .slice(tokens.indexOf("config") + 1)
+        .some((token) => ["delete", "set"].includes(token))
+    )
+      return true;
   }
 
   if (command === "gh" || command === "glab") {
     const mutationMarkers = new Set([
-      "api", "approve", "archive", "auth", "cancel", "checkout", "clone", "close", "comment",
-      "create", "delete", "disable", "edit", "enable", "fork", "merge", "ready", "reopen",
-      "request-changes", "set", "transfer", "unarchive", "upload",
+      "api",
+      "approve",
+      "archive",
+      "auth",
+      "cancel",
+      "checkout",
+      "clone",
+      "close",
+      "comment",
+      "create",
+      "delete",
+      "disable",
+      "edit",
+      "enable",
+      "fork",
+      "merge",
+      "ready",
+      "reopen",
+      "request-changes",
+      "set",
+      "transfer",
+      "unarchive",
+      "upload",
     ]);
-    if (tokens.slice(1).some((token) => mutationMarkers.has(token))) return true;
-    if (command === "gh" && tokens[1] === "workflow" && tokens[2] === "run") return true;
+    if (tokens.slice(1).some((token) => mutationMarkers.has(token)))
+      return true;
+    if (command === "gh" && tokens[1] === "workflow" && tokens[2] === "run")
+      return true;
     const readOnlyMarkers = new Set([
-      "checks", "diff", "get", "help", "list", "logs", "search", "show", "status", "trace",
-      "verify", "version", "view", "watch",
+      "checks",
+      "diff",
+      "get",
+      "help",
+      "list",
+      "logs",
+      "search",
+      "show",
+      "status",
+      "trace",
+      "verify",
+      "version",
+      "view",
+      "watch",
     ]);
     return !tokens.slice(1).some((token) => readOnlyMarkers.has(token));
   }
 
   if (command === "kubectl" || command === "oc") {
     const mutationOperations = new Set([
-      "annotate", "apply", "attach", "autoscale", "certificate", "cordon", "cp", "create",
-      "delete", "drain", "edit", "exec", "expose", "label", "patch", "replace", "rollout",
-      "run", "scale", "set", "taint", "uncordon",
+      "annotate",
+      "apply",
+      "attach",
+      "autoscale",
+      "certificate",
+      "cordon",
+      "cp",
+      "create",
+      "delete",
+      "drain",
+      "edit",
+      "exec",
+      "expose",
+      "label",
+      "patch",
+      "replace",
+      "rollout",
+      "run",
+      "scale",
+      "set",
+      "taint",
+      "uncordon",
     ]);
-    if (tokens.slice(1).some((token) => mutationOperations.has(token))) return true;
+    if (tokens.slice(1).some((token) => mutationOperations.has(token)))
+      return true;
     const readOnlyOperations = new Set([
-      "api-resources", "api-versions", "auth", "cluster-info", "describe", "diff",
-      "explain", "get", "logs", "top", "version", "wait",
+      "api-resources",
+      "api-versions",
+      "auth",
+      "cluster-info",
+      "describe",
+      "diff",
+      "explain",
+      "get",
+      "logs",
+      "top",
+      "version",
+      "wait",
     ]);
     return !tokens.slice(1).some((token) => readOnlyOperations.has(token));
   }
 
   if (command === "docker") {
     const mutationOperations = new Set([
-      "attach", "build", "commit", "cp", "create", "exec", "import", "kill", "load",
-      "login", "logout", "pause", "pull", "push", "rename", "restart", "rm", "rmi", "run",
-      "save", "start", "stop", "tag", "unpause", "update",
+      "attach",
+      "build",
+      "commit",
+      "cp",
+      "create",
+      "exec",
+      "import",
+      "kill",
+      "load",
+      "login",
+      "logout",
+      "pause",
+      "pull",
+      "push",
+      "rename",
+      "restart",
+      "rm",
+      "rmi",
+      "run",
+      "save",
+      "start",
+      "stop",
+      "tag",
+      "unpause",
+      "update",
     ]);
     if (tokens[1] === "compose") {
       const composeMutationOperations = new Set([
-        "build", "cp", "create", "down", "exec", "kill", "pause", "pull", "push", "restart",
-        "rm", "run", "start", "stop", "unpause", "up", "watch",
+        "build",
+        "cp",
+        "create",
+        "down",
+        "exec",
+        "kill",
+        "pause",
+        "pull",
+        "push",
+        "restart",
+        "rm",
+        "run",
+        "start",
+        "stop",
+        "unpause",
+        "up",
+        "watch",
       ]);
-      if (tokens.slice(2).some((token) => composeMutationOperations.has(token))) return true;
-      return !tokens.slice(2).some((token) => new Set(["config", "images", "logs", "ls", "ps", "top"]).has(token));
+      if (tokens.slice(2).some((token) => composeMutationOperations.has(token)))
+        return true;
+      return !tokens
+        .slice(2)
+        .some((token) =>
+          new Set(["config", "images", "logs", "ls", "ps", "top"]).has(token),
+        );
     }
-    if (tokens.slice(1).some((token) => mutationOperations.has(token))) return true;
+    if (tokens.slice(1).some((token) => mutationOperations.has(token)))
+      return true;
     const readOnlyOperations = new Set([
-      "diff", "events", "history", "images", "info", "inspect", "logs", "ls", "port",
-      "ps", "stats", "top", "version",
+      "diff",
+      "events",
+      "history",
+      "images",
+      "info",
+      "inspect",
+      "logs",
+      "ls",
+      "port",
+      "ps",
+      "stats",
+      "top",
+      "version",
     ]);
     return !tokens.slice(1).some((token) => readOnlyOperations.has(token));
   }
 
   if (command === "curl") {
-    return tokens.slice(1).some((token) =>
-      /^(?:-d|-F|-T|-X|--data(?:-|$)|--form(?:-|$)|--request(?:=|$)|--upload-file(?:=|$))/.test(token)
-    );
+    return tokens
+      .slice(1)
+      .some((token) =>
+        /^(?:-d|-F|-T|-X|--data(?:-|$)|--form(?:-|$)|--request(?:=|$)|--upload-file(?:=|$))/.test(
+          token,
+        ),
+      );
   }
 
   if (command === "wget") {
-    return tokens.slice(1).some((token) =>
-      /^(?:--method(?:=|$)|--post-data(?:=|$)|--post-file(?:=|$)|--body-data(?:=|$)|--body-file(?:=|$))/.test(token)
-    );
+    return tokens
+      .slice(1)
+      .some((token) =>
+        /^(?:--method(?:=|$)|--post-data(?:=|$)|--post-file(?:=|$)|--body-data(?:=|$)|--body-file(?:=|$))/.test(
+          token,
+        ),
+      );
   }
 
   return false;
@@ -973,8 +1538,21 @@ export function isRmRecursive(tokens: string[]): boolean {
 
 export function hasOpaqueGitOptions(tokens: string[]): boolean {
   if (tokens[0] !== "git") return false;
-  const valueOptions = new Set(["-C", "-c", "--git-dir", "--work-tree", "--namespace", "--config-env"]);
-  const valuelessOptions = new Set(["--no-pager", "--bare", "--literal-pathspecs", "--no-optional-locks", "--version"]);
+  const valueOptions = new Set([
+    "-C",
+    "-c",
+    "--git-dir",
+    "--work-tree",
+    "--namespace",
+    "--config-env",
+  ]);
+  const valuelessOptions = new Set([
+    "--no-pager",
+    "--bare",
+    "--literal-pathspecs",
+    "--no-optional-locks",
+    "--version",
+  ]);
   for (let i = 1; i < tokens.length; i += 1) {
     const token = tokens[i];
     if (!token.startsWith("-")) return false;
@@ -1024,50 +1602,136 @@ export function isGitBranchForceDelete(tokens: string[]): boolean {
   if (!matchesPrefix(tokens, ["git", "branch"])) {
     return false;
   }
-  return tokens.includes("-D") || (tokens.includes("--delete") && tokens.includes("--force"));
+  return (
+    tokens.includes("-D") ||
+    (tokens.includes("--delete") && tokens.includes("--force"))
+  );
 }
 
-export function isGitDestructiveWorktreeOrStashOperation(tokens: string[]): boolean {
+export function isGitDestructiveWorktreeOrStashOperation(
+  tokens: string[],
+): boolean {
   if (tokens[0] !== "git") return false;
   if (tokens[1] === "restore") return true;
   if (tokens[1] === "checkout") {
-    return tokens.includes("--") || tokens.includes("--force") || shortFlagChars(tokens.slice(2)).includes("f");
+    return (
+      tokens.includes("--") ||
+      tokens.includes("--force") ||
+      shortFlagChars(tokens.slice(2)).includes("f")
+    );
   }
   if (tokens[1] === "switch") return tokens.includes("--discard-changes");
-  return tokens[1] === "stash" && tokens.slice(2).some((token) => ["clear", "drop", "pop"].includes(token));
+  return (
+    tokens[1] === "stash" &&
+    tokens.slice(2).some((token) => ["clear", "drop", "pop"].includes(token))
+  );
 }
 
 export function hasGitMutationRisk(tokens: string[]): boolean {
   if (tokens[0] !== "git") return false;
   const operation = tokens[1];
   if (!operation) return false;
-  if (operation === "reflog") return !new Set(["", "show", "list"]).has(tokens[2] || "");
-  if (operation === "fsck" && tokens.slice(2).some((token) => token === "--lost-found" || token.startsWith("--lost"))) return true;
+  if (operation === "reflog")
+    return !new Set(["", "show", "list"]).has(tokens[2] || "");
+  if (
+    operation === "fsck" &&
+    tokens
+      .slice(2)
+      .some((token) => token === "--lost-found" || token.startsWith("--lost"))
+  )
+    return true;
   const readOnlyOperations = new Set([
-    "annotate", "blame", "cat-file", "count-objects", "describe", "diff", "diff-tree",
-    "for-each-ref", "fsck", "grep", "help", "log", "ls-files", "ls-remote", "ls-tree",
-    "merge-base", "name-rev", "rev-list", "rev-parse", "shortlog", "show",
-    "show-ref", "status", "verify-commit", "verify-tag", "version", "whatchanged",
+    "annotate",
+    "blame",
+    "cat-file",
+    "count-objects",
+    "describe",
+    "diff",
+    "diff-tree",
+    "for-each-ref",
+    "fsck",
+    "grep",
+    "help",
+    "log",
+    "ls-files",
+    "ls-remote",
+    "ls-tree",
+    "merge-base",
+    "name-rev",
+    "rev-list",
+    "rev-parse",
+    "shortlog",
+    "show",
+    "show-ref",
+    "status",
+    "verify-commit",
+    "verify-tag",
+    "version",
+    "whatchanged",
   ]);
   if (readOnlyOperations.has(operation)) return false;
   if (operation === "branch" || operation === "tag") {
     const rest = tokens.slice(2);
     const mutationFlags = new Set([
-      "-c", "-C", "-d", "-D", "-f", "-m", "-M", "-s", "-u",
-      "--annotate", "--copy", "--create-reflog", "--delete", "--edit-description",
-      "--force", "--move", "--set-upstream-to", "--sign", "--unset-upstream",
-      "--file", "--message",
+      "-c",
+      "-C",
+      "-d",
+      "-D",
+      "-f",
+      "-m",
+      "-M",
+      "-s",
+      "-u",
+      "--annotate",
+      "--copy",
+      "--create-reflog",
+      "--delete",
+      "--edit-description",
+      "--force",
+      "--move",
+      "--set-upstream-to",
+      "--sign",
+      "--unset-upstream",
+      "--file",
+      "--message",
     ]);
-    const attachedShortMutationFlags = operation === "branch"
-      ? ["-c", "-C", "-d", "-D", "-f", "-m", "-M", "-s", "-u"]
-      : ["-a", "-F", "-f", "-m", "-s", "-u"];
-    if (rest.some((token) => mutationFlags.has(token) ||
-      attachedShortMutationFlags.some((flag) => token.startsWith(flag)) ||
-      [...mutationFlags].some((flag) => token.startsWith(`${flag}=`)) ||
-      (token.startsWith("--") && ["--annotate", "--copy", "--create-reflog", "--delete", "--edit-description", "--file", "--force", "--message", "--move", "--set-upstream-to", "--sign", "--unset-upstream"].some((flag) => flag.startsWith(token) || token.startsWith(flag))))) return true;
+    const attachedShortMutationFlags =
+      operation === "branch"
+        ? ["-c", "-C", "-d", "-D", "-f", "-m", "-M", "-s", "-u"]
+        : ["-a", "-F", "-f", "-m", "-s", "-u"];
+    if (
+      rest.some(
+        (token) =>
+          mutationFlags.has(token) ||
+          attachedShortMutationFlags.some((flag) => token.startsWith(flag)) ||
+          [...mutationFlags].some((flag) => token.startsWith(`${flag}=`)) ||
+          (token.startsWith("--") &&
+            [
+              "--annotate",
+              "--copy",
+              "--create-reflog",
+              "--delete",
+              "--edit-description",
+              "--file",
+              "--force",
+              "--message",
+              "--move",
+              "--set-upstream-to",
+              "--sign",
+              "--unset-upstream",
+            ].some((flag) => flag.startsWith(token) || token.startsWith(flag))),
+      )
+    )
+      return true;
     const listMode = rest.some((token) => token === "-l" || token === "--list");
     const valueOptions = new Set([
-      "--contains", "--format", "--merged", "--no-contains", "--no-merged", "--points-at", "--sort",
+      "--contains",
+      "--format",
+      "--merged",
+      "--no-contains",
+      "--no-merged",
+      "--points-at",
+      "--sort",
     ]);
     for (let i = 0; i < rest.length; i += 1) {
       if (valueOptions.has(rest[i])) {
@@ -1078,11 +1742,16 @@ export function hasGitMutationRisk(tokens: string[]): boolean {
     }
     return false;
   }
-  if (operation === "reflog") return !new Set(["", "show", "list"]).has(tokens[2] || "");
-  if (operation === "stash") return !new Set(["list", "show"]).has(tokens[2] ?? "");
-  if (operation === "submodule") return tokens[2] !== "status" || tokens.length !== 3;
-  if (operation === "worktree") return tokens[2] !== "list" || tokens.length !== 3;
-  if (operation === "remote") return !new Set(["-v", "get-url", "show"]).has(tokens[2] || "show");
+  if (operation === "reflog")
+    return !new Set(["", "show", "list"]).has(tokens[2] || "");
+  if (operation === "stash")
+    return !new Set(["list", "show"]).has(tokens[2] ?? "");
+  if (operation === "submodule")
+    return tokens[2] !== "status" || tokens.length !== 3;
+  if (operation === "worktree")
+    return tokens[2] !== "list" || tokens.length !== 3;
+  if (operation === "remote")
+    return !new Set(["-v", "get-url", "show"]).has(tokens[2] || "show");
   return true;
 }
 
@@ -1103,11 +1772,17 @@ export function isStandaloneEnvCommand(rawTokens: string[]): boolean {
   );
 }
 
-export function isRtkSupportedCommand(rawTokens: string[], tokens: string[]): boolean {
+export function isRtkSupportedCommand(
+  rawTokens: string[],
+  tokens: string[],
+): boolean {
   return isRtkWrapped(rawTokens) && RTK_REQUIRED_COMMANDS.has(tokens[0]);
 }
 
-export function isDirectRtkRequiredCommand(rawTokens: string[], tokens: string[]): boolean {
+export function isDirectRtkRequiredCommand(
+  rawTokens: string[],
+  tokens: string[],
+): boolean {
   return !isRtkWrapped(rawTokens) && RTK_REQUIRED_COMMANDS.has(tokens[0]);
 }
 
@@ -1122,33 +1797,58 @@ export const MODERN_SHELL_REPLACEMENTS: Record<string, readonly string[]> = {
 
 export function modernShellToolAvailability(): Set<string> {
   const paths = (process.env.PATH || "").split(delimiter).filter(Boolean);
-  const extensions = process.platform === "win32"
-    ? (process.env.PATHEXT || ".EXE;.CMD;.BAT").split(";")
-    : [""];
+  const extensions =
+    process.platform === "win32"
+      ? (process.env.PATHEXT || ".EXE;.CMD;.BAT").split(";")
+      : [""];
   const available = new Set<string>();
   for (const candidates of Object.values(MODERN_SHELL_REPLACEMENTS)) {
     for (const candidate of candidates) {
-      if (paths.some((entry) => extensions.some((extension) => existsSync(resolve(entry, `${candidate}${extension}`))))) {
+      if (
+        paths.some((entry) =>
+          extensions.some((extension) =>
+            existsSync(resolve(entry, `${candidate}${extension}`)),
+          ),
+        )
+      ) {
         available.add(candidate);
       }
     }
   }
-  if (paths.some((entry) => extensions.some((extension) => existsSync(resolve(entry, `jq${extension}`))))) {
+  if (
+    paths.some((entry) =>
+      extensions.some((extension) =>
+        existsSync(resolve(entry, `jq${extension}`)),
+      ),
+    )
+  ) {
     available.add("jq");
   }
   return available;
 }
 
-export function availableModernReplacement(tokens: string[], available: ReadonlySet<string>): string | undefined {
+export function availableModernReplacement(
+  tokens: string[],
+  available: ReadonlySet<string>,
+): string | undefined {
   const command = tokens[0];
-  const candidates = command === "python" || command === "python3"
-    ? (tokens[1] === "-m" && tokens[2] === "json.tool" ? ["jq"] : [])
-    : (MODERN_SHELL_REPLACEMENTS[command] || []);
+  const candidates =
+    command === "python" || command === "python3"
+      ? tokens[1] === "-m" && tokens[2] === "json.tool"
+        ? ["jq"]
+        : []
+      : MODERN_SHELL_REPLACEMENTS[command] || [];
   return candidates.find((candidate) => available.has(candidate));
 }
 
 export function isLiteralGitContentPath(pathspec: string): boolean {
-  if (!pathspec || isAbsolute(pathspec) || pathspec.startsWith(":") || /[*?[\]{}]/.test(pathspec)) return false;
+  if (
+    !pathspec ||
+    isAbsolute(pathspec) ||
+    pathspec.startsWith(":") ||
+    /[*?[\]{}]/.test(pathspec)
+  )
+    return false;
   try {
     return statSync(resolve(process.cwd(), pathspec)).isFile();
   } catch {
@@ -1160,25 +1860,61 @@ function isSafeGitObjectPath(object: string): boolean {
   const colon = object.lastIndexOf(":");
   if (colon < 1) return false;
   const path = object.slice(colon + 1);
-  return Boolean(path) && !path.startsWith("/") && !path.startsWith("(") && !/[*?[\]{}]/.test(path) && !isProtectedPath(path);
+  return (
+    Boolean(path) &&
+    !path.startsWith("/") &&
+    !path.startsWith("(") &&
+    !/[*?[\]{}]/.test(path) &&
+    !isProtectedPath(path)
+  );
 }
 
 export function isUnscopedGitContentRead(tokens: string[]): boolean {
   const operation = tokens[1];
-  if (tokens[0] !== "git" || !["diff", "show", "diff-tree"].includes(operation)) return false;
+  if (tokens[0] !== "git" || !["diff", "show", "diff-tree"].includes(operation))
+    return false;
   const pathSeparator = tokens.indexOf("--");
-  const options = tokens.slice(2, pathSeparator < 0 ? undefined : pathSeparator);
-  const patchOutput = new Set(["-p", "-u", "--patch", "--patch-with-stat", "--patch-with-raw", "--binary"]);
-  if (options.some((token) => patchOutput.has(token) || token.startsWith("--word-diff") || token.startsWith("--color-words"))) {
+  const options = tokens.slice(
+    2,
+    pathSeparator < 0 ? undefined : pathSeparator,
+  );
+  const patchOutput = new Set([
+    "-p",
+    "-u",
+    "--patch",
+    "--patch-with-stat",
+    "--patch-with-raw",
+    "--binary",
+  ]);
+  if (
+    options.some(
+      (token) =>
+        patchOutput.has(token) ||
+        token.startsWith("--word-diff") ||
+        token.startsWith("--color-words"),
+    )
+  ) {
     return true;
   }
   const metadataOnly = new Set([
-    "--check", "--exit-code", "--name-only", "--name-status", "--no-patch", "--numstat",
-    "--quiet", "--raw", "--shortstat", "--stat", "--summary", "-s",
+    "--check",
+    "--exit-code",
+    "--name-only",
+    "--name-status",
+    "--no-patch",
+    "--numstat",
+    "--quiet",
+    "--raw",
+    "--shortstat",
+    "--stat",
+    "--summary",
+    "-s",
   ]);
   if (options.some((token) => metadataOnly.has(token))) return false;
   if (pathSeparator < 0) return operation !== "diff-tree";
-  return tokens.slice(pathSeparator + 1).some((pathspec) => !isLiteralGitContentPath(pathspec));
+  return tokens
+    .slice(pathSeparator + 1)
+    .some((pathspec) => !isLiteralGitContentPath(pathspec));
 }
 
 export function isVersionCheck(tokens: string[]): boolean {
@@ -1186,13 +1922,20 @@ export function isVersionCheck(tokens: string[]): boolean {
 }
 
 export function hasShellExecutionProxy(tokens: string[]): boolean {
-  return tokens[0] === "xargs" || (
-    tokens[0] === "find" && tokens.some((token) => ["-exec", "-execdir", "-ok", "-okdir"].includes(token))
+  return (
+    tokens[0] === "xargs" ||
+    (tokens[0] === "find" &&
+      tokens.some((token) =>
+        ["-exec", "-execdir", "-ok", "-okdir"].includes(token),
+      ))
   );
 }
 
 export function hasEnvironmentBootstrapModifier(rawTokens: string[]): boolean {
-  return rawTokens.some((token) => /^[A-Za-z_][A-Za-z0-9_]*\+?=/.test(token) || baseName(token) === "env");
+  return rawTokens.some(
+    (token) =>
+      /^[A-Za-z_][A-Za-z0-9_]*\+?=/.test(token) || baseName(token) === "env",
+  );
 }
 
 export function segmentDecision(
@@ -1224,10 +1967,15 @@ export function segmentDecision(
   // through rtk/wrapper commands or in a compound segment. This deliberately
   // covers both reads and writes: the shell parser cannot reliably infer intent.
   const jqProgramIndex = jqOperands(tokens).programIndex;
-  if (tokens.some((token, index) => !isNegatedGlob(token) &&
-    index !== jqProgramIndex &&
-    !(options.allowUnquotedGlob && /[*?\[\]{}]/.test(token)) &&
-    (isProtectedPath(token) || isProtectedLocalPath(token)))) {
+  if (
+    tokens.some(
+      (token, index) =>
+        !isNegatedGlob(token) &&
+        index !== jqProgramIndex &&
+        !(options.allowUnquotedGlob && /[*?[\]{}]/.test(token)) &&
+        (isProtectedPath(token) || isProtectedLocalPath(token)),
+    )
+  ) {
     return {
       decision: "ask",
       reason: "Requires approval: shell command references a protected path",
@@ -1244,16 +1992,25 @@ export function segmentDecision(
   if (hasLocalFilesystemRisk(tokens, options)) {
     return {
       decision: "ask",
-      reason: "Requires approval: shell command reads or mutates outside the project or removes local files",
+      reason:
+        "Requires approval: shell command reads or mutates outside the project or removes local files",
     };
   }
 
-  if (isUnscopedGitContentRead(tokens) && !(options.allowUnquotedGlob &&
-    (tokens[1] === "diff-tree" || tokens.some((token) => /[*?\[\]{}]/.test(token)) || tokens.includes("--") ||
-      (tokens[1] === "show" && tokens.slice(2).some(isSafeGitObjectPath))))) {
+  if (
+    isUnscopedGitContentRead(tokens) &&
+    !(
+      options.allowUnquotedGlob &&
+      (tokens[1] === "diff-tree" ||
+        tokens.some((token) => /[*?[\]{}]/.test(token)) ||
+        tokens.includes("--") ||
+        (tokens[1] === "show" && tokens.slice(2).some(isSafeGitObjectPath)))
+    )
+  ) {
     return {
       decision: "ask",
-      reason: "Requires approval: Git content read must name existing non-protected file paths after --",
+      reason:
+        "Requires approval: Git content read must name existing non-protected file paths after --",
     };
   }
 
@@ -1278,7 +2035,8 @@ export function segmentDecision(
   if (hasDependencyPathRisk(tokens)) {
     return {
       decision: "ask",
-      reason: "Requires approval: dependency operation targets an outside-project path",
+      reason:
+        "Requires approval: dependency operation targets an outside-project path",
     };
   }
 
@@ -1296,7 +2054,10 @@ export function segmentDecision(
     };
   }
 
-  if (matchesPrefix(tokens, ["git", "reset", "--hard"]) || (matchesPrefix(tokens, ["git", "reset"]) && tokens.includes("--hard"))) {
+  if (
+    matchesPrefix(tokens, ["git", "reset", "--hard"]) ||
+    (matchesPrefix(tokens, ["git", "reset"]) && tokens.includes("--hard"))
+  ) {
     return {
       decision: "deny",
       reason: "Denied by b-agentic policy: git reset --hard",
@@ -1320,7 +2081,8 @@ export function segmentDecision(
   if (isGitDestructiveWorktreeOrStashOperation(tokens)) {
     return {
       decision: "ask",
-      reason: "Requires approval: Git operation can discard worktree or stash changes",
+      reason:
+        "Requires approval: Git operation can discard worktree or stash changes",
     };
   }
 
@@ -1334,7 +2096,10 @@ export function segmentDecision(
   }
 
   if (unwrapTokens(rawTokens).wrappers.has("sudo")) {
-    return { decision: "ask", reason: "Requires approval: sudo elevates command privileges" };
+    return {
+      decision: "ask",
+      reason: "Requires approval: sudo elevates command privileges",
+    };
   }
 
   // Interpreter wrappers and executable paths outside trusted system roots hide code from static matching.
@@ -1353,7 +2118,10 @@ export function segmentDecision(
   }
 
   for (const pattern of DANGEROUS_ASK_COMMANDS) {
-    if (matchesPrefix(tokens, pattern) || (pattern[0] === "mkfs" && tokens[0].startsWith("mkfs."))) {
+    if (
+      matchesPrefix(tokens, pattern) ||
+      (pattern[0] === "mkfs" && tokens[0].startsWith("mkfs."))
+    ) {
       return {
         decision: "ask",
         reason: `Requires approval: ${pattern.join(" ")}`,
@@ -1366,7 +2134,11 @@ export function segmentDecision(
   }
 
   if (hasExternalOrSharedMutationRisk(tokens)) {
-    return { decision: "ask", reason: "Requires approval: external or shared-environment operation may mutate state" };
+    return {
+      decision: "ask",
+      reason:
+        "Requires approval: external or shared-environment operation may mutate state",
+    };
   }
 
   for (const pattern of ASK_COMMANDS) {
@@ -1392,25 +2164,39 @@ export function commandDecision(
   }
 
   const ambiguous = options.allowUnquotedGlob
-    ? hasUnbalancedQuotes(trimmed) || hasUnsafeShellSyntax(trimmed) || hasShellControlSyntax(trimmed)
-    : hasUnbalancedQuotes(trimmed) || hasAmbiguousShellSyntax(trimmed) || hasShellControlSyntax(trimmed);
+    ? hasUnbalancedQuotes(trimmed) ||
+      hasUnsafeShellSyntax(trimmed) ||
+      hasShellControlSyntax(trimmed)
+    : hasUnbalancedQuotes(trimmed) ||
+      hasAmbiguousShellSyntax(trimmed) ||
+      hasShellControlSyntax(trimmed);
   if (ambiguous) {
     return {
       decision: "ask",
-      reason: "Requires approval: ambiguous shell syntax (quotes/expansion/control structure/eval/source)",
+      reason:
+        "Requires approval: ambiguous shell syntax (quotes/expansion/control structure/eval/source)",
     };
   }
 
   const segments = splitShellSegments(trimmed);
-  const environmentModified = segments.some((segment) => hasEnvironmentBootstrapModifier(tokenize(segment)));
+  const environmentModified = segments.some((segment) =>
+    hasEnvironmentBootstrapModifier(tokenize(segment)),
+  );
   const hasCodegraphInit = segments.some((segment) => {
     const tokens = normalizeTokens(tokenize(segment));
     return tokens[0] === "codegraph" && tokens[1] === "init";
   });
   if (environmentModified && hasCodegraphInit) {
-    return { decision: "ask", reason: "Requires approval: CodeGraph initialization with environment modification" };
+    return {
+      decision: "ask",
+      reason:
+        "Requires approval: CodeGraph initialization with environment modification",
+    };
   }
-  let worst: { decision: Decision; reason: string } = { decision: "allow", reason: "" };
+  let worst: { decision: Decision; reason: string } = {
+    decision: "allow",
+    reason: "",
+  };
   const rank = { allow: 0, ask: 1, deny: 2 };
 
   for (const segment of segments) {
@@ -1422,12 +2208,21 @@ export function commandDecision(
   return worst;
 }
 
-export function nativePathDecision(toolName: string, pathValue: string): { decision: Decision; reason: string } {
+export function nativePathDecision(
+  toolName: string,
+  pathValue: string,
+): { decision: Decision; reason: string } {
   if (pathValue && isProtectedLocalPath(pathValue)) {
     if (toolName === "read") {
-      return { decision: "ask", reason: `Requires approval: read of protected path: ${pathValue}` };
+      return {
+        decision: "ask",
+        reason: `Requires approval: read of protected path: ${pathValue}`,
+      };
     }
-    return { decision: "deny", reason: `Blocked ${toolName} of protected path: ${pathValue}` };
+    return {
+      decision: "deny",
+      reason: `Blocked ${toolName} of protected path: ${pathValue}`,
+    };
   }
   if (toolName === "read" && isInstalledBAgenticSkillPath(pathValue)) {
     return { decision: "allow", reason: "" };
@@ -1435,7 +2230,10 @@ export function nativePathDecision(toolName: string, pathValue: string): { decis
   if (!pathValue || isProjectConfinedLocalPath(pathValue)) {
     return { decision: "allow", reason: "" };
   }
-  return { decision: "ask", reason: `Requires approval: ${toolName} outside the project: ${pathValue}` };
+  return {
+    decision: "ask",
+    reason: `Requires approval: ${toolName} outside the project: ${pathValue}`,
+  };
 }
 
 /**
@@ -1493,18 +2291,27 @@ export function isProtectedPath(pathValue: string): boolean {
     if (marker === "credentials." || marker === "secrets.") {
       // Preserve literal secret files such as credentials.ts, but allow
       // compound source filenames such as credentials.service.ts.
-      if (segments.some((segment) =>
-        segment.startsWith(marker) && !COMPOUND_SOURCE_CODE_FILENAME.test(segment))) {
+      if (
+        segments.some(
+          (segment) =>
+            segment.startsWith(marker) &&
+            !COMPOUND_SOURCE_CODE_FILENAME.test(segment),
+        )
+      ) {
         return true;
       }
       continue;
     }
     if (marker.startsWith("id_")) {
-      if (segments.some((segment) =>
-        segment === marker ||
-        segment.startsWith(`${marker}.`) ||
-        segment.startsWith(`${marker}_`) ||
-        segment.startsWith(`${marker}-`))) {
+      if (
+        segments.some(
+          (segment) =>
+            segment === marker ||
+            segment.startsWith(`${marker}.`) ||
+            segment.startsWith(`${marker}_`) ||
+            segment.startsWith(`${marker}-`),
+        )
+      ) {
         return true;
       }
       continue;

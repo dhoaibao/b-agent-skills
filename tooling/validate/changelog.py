@@ -40,9 +40,7 @@ def validate(text: str) -> list[str]:
         name = raw_name.strip() if raw_name is not None else ""
         line = line_number(text, heading.start())
         if not name:
-            errors.append(
-                f"CHANGELOG.md:{line}: empty level-2 heading; expected an Unreleased or release section"
-            )
+            errors.append(f"CHANGELOG.md:{line}: empty level-2 heading; expected an Unreleased or release section")
             continue
         if name == UNRELEASED_NAME:
             unreleased.append((heading, line))
@@ -51,8 +49,7 @@ def validate(text: str) -> list[str]:
         match = RELEASE_HEADING_RE.fullmatch(name)
         if match is None:
             errors.append(
-                f"CHANGELOG.md:{line}: invalid release heading {name!r}; expected "
-                "[vYYYY.MM.DD[.N]] - YYYY-MM-DD"
+                f"CHANGELOG.md:{line}: invalid release heading {name!r}; expected [vYYYY.MM.DD[.N]] - YYYY-MM-DD"
             )
             continue
 
@@ -62,15 +59,12 @@ def validate(text: str) -> list[str]:
         else:
             release_versions.add(version)
 
-        version_date_text = (
-            f"{match.group('year')}-{match.group('month')}-{match.group('day')}"
-        )
+        version_date_text = f"{match.group('year')}-{match.group('month')}-{match.group('day')}"
         try:
             version_date = date.fromisoformat(version_date_text)
         except ValueError:
             errors.append(
-                f"CHANGELOG.md:{line}: release heading {name!r} has invalid calendar version date "
-                f"{version_date_text!r}"
+                f"CHANGELOG.md:{line}: release heading {name!r} has invalid calendar version date {version_date_text!r}"
             )
             version_date = None
 
@@ -78,26 +72,17 @@ def validate(text: str) -> list[str]:
         try:
             release_date = date.fromisoformat(release_date_text)
         except ValueError:
-            errors.append(
-                f"CHANGELOG.md:{line}: release heading {name!r} has invalid ISO date "
-                f"{release_date_text!r}"
-            )
+            errors.append(f"CHANGELOG.md:{line}: release heading {name!r} has invalid ISO date {release_date_text!r}")
             release_date = None
 
-        if (
-            version_date is not None
-            and release_date is not None
-            and version_date != release_date
-        ):
+        if version_date is not None and release_date is not None and version_date != release_date:
             errors.append(
                 f"CHANGELOG.md:{line}: release heading {name!r} must use a date matching "
                 f"its calendar version ({version_date.isoformat()})"
             )
         releases.append((heading, line))
         if version_date is not None and release_date is not None:
-            sortable_releases.append(
-                (version_date, int(match.group("ordinal") or "0"), version, line)
-            )
+            sortable_releases.append((version_date, int(match.group("ordinal") or "0"), version, line))
 
     previous_key: tuple[date, int] | None = None
     previous_version: str | None = None
@@ -158,8 +143,7 @@ def main() -> int:
         print("\n".join(errors), file=sys.stderr)
         return 1
     release_count = sum(
-        RELEASE_HEADING_RE.fullmatch(heading.group("name").strip()) is not None
-        for heading in H2_RE.finditer(text)
+        RELEASE_HEADING_RE.fullmatch(heading.group("name").strip()) is not None for heading in H2_RE.finditer(text)
     )
     print(f"CHANGELOG format/structure validation passed ({release_count} release sections)")
     return 0

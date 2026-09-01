@@ -13,15 +13,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 REPO_SOURCE_SUFFIXES = {".md", ".py", ".ts", ".json", ".yaml", ".yml", ".sh", ".toml"}
 CODE_SPAN_RE = re.compile(r"`([^`]+)`")
-PLAIN_PATH_RE = re.compile(
-    r"(?<![@\w])(?:[A-Za-z0-9_.-]+/)+[A-Za-z0-9_.*@+-]+(?:\.[A-Za-z0-9_-]+)?"
-)
+PLAIN_PATH_RE = re.compile(r"(?<![@\w])(?:[A-Za-z0-9_.-]+/)+[A-Za-z0-9_.*@+-]+(?:\.[A-Za-z0-9_-]+)?")
 
 
 def tracked_paths() -> set[str]:
-    result = subprocess.run(
-        ["git", "ls-files"], cwd=ROOT, check=True, capture_output=True, text=True
-    )
+    result = subprocess.run(["git", "ls-files"], cwd=ROOT, check=True, capture_output=True, text=True)
     return set(result.stdout.splitlines())
 
 
@@ -78,11 +74,11 @@ def path_citations(
                         citations.append(citation)
                 continue
             citation = candidate_path(token)
-            if citation and (
-                "/" in citation
-                or tracked is None
-                or resolve_path(citation, tracked)
-            ) and citation not in citations:
+            if (
+                citation
+                and ("/" in citation or tracked is None or resolve_path(citation, tracked))
+                and citation not in citations
+            ):
                 citations.append(citation)
     if include_plain:
         for token in PLAIN_PATH_RE.findall(text):

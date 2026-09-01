@@ -1,0 +1,19 @@
+# Dependency trees are never repository source.
+node_modules/
+pi/node_modules/
+
+# Generated delivery outputs are checked by registry synchronization instead.
+skills/*/SKILL.md
+pi/extensions/b-agentic-support/mcp.ts
+pi/extensions/b-agentic-support/role.ts
+
+# These sources contain or feed generated blocks; registry synchronization owns
+# their delivery formatting.
+README.md
+references/kernel.template.md
+skills/*/prompt.md
+
+# These YAML-suffixed registries intentionally remain JSON-compatible for the
+# dependency-light generator and validators.
+skills/registry.yaml
+references/mcp_operations.yaml

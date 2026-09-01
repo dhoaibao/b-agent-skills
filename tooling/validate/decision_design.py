@@ -51,10 +51,7 @@ def validate(text: str, tracked: set[str], label: str = "docs/decision_design.md
     section_names = [name for name, _ in sections]
     expected = list(REQUIRED_SECTIONS)
     if section_names != expected:
-        errors.append(
-            f"{label}: top-level sections must be exactly {expected!r} in order; "
-            f"found {section_names!r}"
-        )
+        errors.append(f"{label}: top-level sections must be exactly {expected!r} in order; found {section_names!r}")
 
     for name, body in sections:
         if name not in REQUIRED_SECTIONS:
@@ -122,10 +119,7 @@ def main() -> int:
         print("\n".join(errors), file=sys.stderr)
         return 1
     references = sorted(set(source_references(decision_text, tracked)))
-    print(
-        "Decision-design structure and traceability check passed "
-        f"({len(references)} tracked source references)."
-    )
+    print(f"Decision-design structure and traceability check passed ({len(references)} tracked source references).")
     return 0
 
 

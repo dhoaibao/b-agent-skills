@@ -1,5 +1,8 @@
 /** Interactive opt-in for allowing approval prompts while preserving explicit denies. */
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type {
+  ExtensionAPI,
+  ExtensionContext,
+} from "@earendil-works/pi-coding-agent";
 import {
   AUTO_MODE_ENTRY_TYPE,
   autoModePath,
@@ -8,10 +11,16 @@ import {
   parseAutoMode,
   saveAutoModePreference,
 } from "./b-agentic-support/auto.ts";
-import { isAutoModeEnabled, setAutoModeEnabled } from "./b-agentic-support/state.ts";
+import {
+  isAutoModeEnabled,
+  setAutoModeEnabled,
+} from "./b-agentic-support/state.ts";
 
 function updateStatus(ctx: ExtensionContext): void {
-  ctx.ui.setStatus("b-auto-mode", isAutoModeEnabled() ? ctx.ui.theme.fg("error", "auto-mode") : undefined);
+  ctx.ui.setStatus(
+    "b-auto-mode",
+    isAutoModeEnabled() ? ctx.ui.theme.fg("error", "auto-mode") : undefined,
+  );
 }
 
 export default function bAgenticAutoMode(pi: ExtensionAPI): void {
@@ -32,13 +41,19 @@ export default function bAgenticAutoMode(pi: ExtensionAPI): void {
     updateStatus(ctx);
     if (shouldPersist) persist();
   };
-  const enable = async (ctx: ExtensionContext, shouldPersist = true): Promise<boolean> => {
+  const enable = async (
+    ctx: ExtensionContext,
+    shouldPersist = true,
+  ): Promise<boolean> => {
     if (isAutoModeEnabled()) {
       updateStatus(ctx);
       return true;
     }
     if (!ctx.hasUI) {
-      ctx.ui.notify("Cannot enable b-auto-mode without an interactive UI; remaining fail-closed", "warning");
+      ctx.ui.notify(
+        "Cannot enable b-auto-mode without an interactive UI; remaining fail-closed",
+        "warning",
+      );
       updateStatus(ctx);
       return false;
     }
@@ -54,16 +69,28 @@ export default function bAgenticAutoMode(pi: ExtensionAPI): void {
     setAutoModeEnabled(true);
     updateStatus(ctx);
     if (shouldPersist) persist();
-    ctx.ui.notify("b-auto-mode enabled; approval asks will be auto-allowed and explicit denies remain blocked", "warning");
+    ctx.ui.notify(
+      "b-auto-mode enabled; approval asks will be auto-allowed and explicit denies remain blocked",
+      "warning",
+    );
     return true;
   };
 
-  pi.registerFlag("b-auto-mode", { description: "Enable b-agentic automatic approval mode (requires confirmation)", type: "boolean" });
+  pi.registerFlag("b-auto-mode", {
+    description:
+      "Enable b-agentic automatic approval mode (requires confirmation)",
+    type: "boolean",
+  });
   pi.registerCommand("b-auto-mode", {
     description: "Enable or disable b-agentic automatic approval mode",
-    getArgumentCompletions: (prefix) => ["on", "off"].filter((value) => value.startsWith(prefix.trim().toLowerCase())).map((value) => ({ value, label: value })),
+    getArgumentCompletions: (prefix) =>
+      ["on", "off"]
+        .filter((value) => value.startsWith(prefix.trim().toLowerCase()))
+        .map((value) => ({ value, label: value })),
     handler: async (args, ctx) => {
-      const requested = args.trim() ? parseAutoMode(args) : !isAutoModeEnabled();
+      const requested = args.trim()
+        ? parseAutoMode(args)
+        : !isAutoModeEnabled();
       if (requested === undefined) {
         ctx.ui.notify("Usage: /b-auto-mode [on|off]", "error");
         return;
@@ -71,7 +98,10 @@ export default function bAgenticAutoMode(pi: ExtensionAPI): void {
       if (requested) await enable(ctx);
       else {
         disable(ctx);
-        ctx.ui.notify("b-auto-mode disabled; approval requests use the normal policy", "info");
+        ctx.ui.notify(
+          "b-auto-mode disabled; approval requests use the normal policy",
+          "info",
+        );
       }
     },
   });
@@ -80,10 +110,21 @@ export default function bAgenticAutoMode(pi: ExtensionAPI): void {
     const sessionState = latestAutoModeState(ctx.sessionManager.getBranch());
     const durableState = loadAutoModePreference();
     const flagValue = pi.getFlag("b-auto-mode");
-    const requested = flagValue === undefined ? durableState ?? sessionState : parseAutoMode(flagValue);
-    if (flagValue === undefined && durableState === undefined && sessionState !== undefined) {
+    const requested =
+      flagValue === undefined
+        ? (durableState ?? sessionState)
+        : parseAutoMode(flagValue);
+    if (
+      flagValue === undefined &&
+      durableState === undefined &&
+      sessionState !== undefined
+    ) {
       // Migrate the legacy session entry only when no durable preference exists.
-      try { saveAutoModePreference(sessionState); } catch { /* Keep session compatibility if persistence is unavailable. */ }
+      try {
+        saveAutoModePreference(sessionState);
+      } catch {
+        /* Keep session compatibility if persistence is unavailable. */
+      }
     }
     if (requested === true) {
       // A persisted opt-in was already confirmed in an earlier session; restore

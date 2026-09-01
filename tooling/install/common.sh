@@ -1,4 +1,5 @@
 # Common installer core sourced by install.sh after source sync.
+# shellcheck shell=bash
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then
   echo "error: this script is sourced by install.sh" >&2
   exit 1
@@ -130,7 +131,8 @@ backup_file() {
   [ -f "$path" ] || return 0
   local backups_dir="${BACKUPS_DIR:-${TMPDIR:-/tmp}/b-agentic-backups}"
   ensure_dir "$backups_dir"
-  local backup="$backups_dir/$(basename "$path").bak-$TIMESTAMP"
+  local backup
+  backup="$backups_dir/$(basename "$path").bak-$TIMESTAMP"
   copy_file "$path" "$backup"
   printf '%s' "$backup"
 }
@@ -231,7 +233,11 @@ PY
 }
 
 install_one_skill() {
-  local name="$1" src="$SKILLS_SRC/$name" dst="$SKILLS_DST/$name" snapshot="$SKILLS_SNAPSHOT_DST/$name"
+  local name src dst snapshot
+  name="$1"
+  src="$SKILLS_SRC/$name"
+  dst="$SKILLS_DST/$name"
+  snapshot="$SKILLS_SNAPSHOT_DST/$name"
 
   if [ -L "$dst" ]; then
     warn "preserving symlinked skill directory: $dst"

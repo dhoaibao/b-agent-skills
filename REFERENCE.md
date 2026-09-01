@@ -45,7 +45,7 @@ pi install npm:@dhoaibao/preview-markdown
 ```
 
 The npm package contains only the preview extension and package-facing
- documentation; the raw GitHub installer remains the version-pinned alternative
+documentation; the raw GitHub installer remains the version-pinned alternative
 and does not install the broader b-agentic bundle. Maintainers should use the
 [standalone preview package publishing procedure](docs/publish-preview-markdown.md)
 for validation and release steps.
@@ -179,16 +179,16 @@ The template sets a global `settings.requestTimeoutMs` of 30000 milliseconds
 (30 seconds). API keys are user-supplied and are written only to user config,
 never tracked templates.
 
-| MCP | Use | Local readiness |
-|---|---|---|
-| Serena | Symbols, references, diagnostics, and semantic edits | `serena` CLI; onboarding only when useful |
-| CodeGraph | Architecture, dependency/call flows, impact, and affected tests | `codegraph` CLI; initialize only for a concrete repository-wide architecture or impact question |
-| Context7 | Versioned framework and API facts | `CONTEXT7_API_KEY` |
-| Linear | Exact issue and linked-relation planning context | Configured read-only; authentication state is unverified, so run `/mcp-auth linear` if needed |
-| Mobbin | Comparable shipped UI patterns for bounded design-reference evidence | Configured read-only with `mobbin_search_screens`, `mobbin_search_flows`, and `mobbin_search_sections`; authentication state is unverified, so run `/mcp-auth mobbin` if needed |
-| Firecrawl | Primary public research, bounded extraction, papers, and GitHub lookup | Bun (`bunx`) and `FIRECRAWL_API_KEY` |
-| Brave Search | Independent corroboration and specialized current search | Bun (`bunx`) and `BRAVE_API_KEY` |
-| Playwright | Live browser, visual, console/network, and e2e evidence | Bun (`bunx`) |
+| MCP          | Use                                                                    | Local readiness                                                                                                                                                                 |
+| ------------ | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Serena       | Symbols, references, diagnostics, and semantic edits                   | `serena` CLI; onboarding only when useful                                                                                                                                       |
+| CodeGraph    | Architecture, dependency/call flows, impact, and affected tests        | `codegraph` CLI; initialize only for a concrete repository-wide architecture or impact question                                                                                 |
+| Context7     | Versioned framework and API facts                                      | `CONTEXT7_API_KEY`                                                                                                                                                              |
+| Linear       | Exact issue and linked-relation planning context                       | Configured read-only; authentication state is unverified, so run `/mcp-auth linear` if needed                                                                                   |
+| Mobbin       | Comparable shipped UI patterns for bounded design-reference evidence   | Configured read-only with `mobbin_search_screens`, `mobbin_search_flows`, and `mobbin_search_sections`; authentication state is unverified, so run `/mcp-auth mobbin` if needed |
+| Firecrawl    | Primary public research, bounded extraction, papers, and GitHub lookup | Bun (`bunx`) and `FIRECRAWL_API_KEY`                                                                                                                                            |
+| Brave Search | Independent corroboration and specialized current search               | Bun (`bunx`) and `BRAVE_API_KEY`                                                                                                                                                |
+| Playwright   | Live browser, visual, console/network, and e2e evidence                | Bun (`bunx`)                                                                                                                                                                    |
 
 The installer does not eagerly start MCP servers or initialize repositories;
 Bun is installed or refreshed automatically, while Bun-backed MCP packages are
@@ -409,6 +409,30 @@ CodeGraph owns repository-wide architecture, dependency/call flows, impact,
 route-to-handler discovery, and affected-test discovery only for concrete
 questions native inspection cannot settle. Do not initialize it merely because
 work spans files, and do not query both tools for the same question.
+
+## Repository quality checks
+
+Repository-development tooling is separate from the installed runtime. From the
+repository root, install the locked Node tools and pinned Python quality tools:
+
+```bash
+npm ci --no-fund --no-audit
+python3 -m pip install -r requirements-dev-quality.txt
+npm ci --prefix pi --no-fund --no-audit
+```
+
+`npm run quality` (or `bash scripts/quality-check.sh`) enumerates tracked files
+with `git ls-files` and runs check-only ESLint, Prettier, Ruff lint and format
+checks, ShellCheck, Markdownlint, and strict Pi TypeScript checks. It never
+rewrites files. The tracked `.husky/pre-commit` hook is enabled by `npm ci`'s
+`prepare` script and uses lint-staged to run the same applicable checks only on
+staged files; it does not run the behavioral or installer suite and does not
+rewrite the commit.
+
+The quality check intentionally leaves generator-owned delivery outputs and the
+JSON-compatible YAML registries to their existing synchronization and structural
+validators. CI runs the complete quality check on Ubuntu and macOS before the
+release validation and b-agentic audit lanes.
 
 ## Validation
 

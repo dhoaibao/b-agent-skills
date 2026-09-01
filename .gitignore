@@ -9,9 +9,14 @@
 .serena/
 .codegraph/
 
+# Node development-tooling dependencies
+/node_modules/
+.husky/_/
+
 # Pi TypeScript tooling dependencies
 /pi/node_modules/
 
 # Python artifacts
 __pycache__/
 *.pyc
+.ruff_cache/

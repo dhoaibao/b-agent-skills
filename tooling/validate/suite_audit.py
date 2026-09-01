@@ -32,7 +32,11 @@ def skill_names() -> list[str]:
         registry = json.loads((ROOT / "skills" / "registry.yaml").read_text())
     except (OSError, json.JSONDecodeError):
         return []
-    return sorted(skill["name"] for skill in registry.get("skills", []) if isinstance(skill, dict) and isinstance(skill.get("name"), str))
+    return sorted(
+        skill["name"]
+        for skill in registry.get("skills", [])
+        if isinstance(skill, dict) and isinstance(skill.get("name"), str)
+    )
 
 
 def audit_slimness(errors: list[str]) -> None:
@@ -41,11 +45,18 @@ def audit_slimness(errors: list[str]) -> None:
     lines = len(text.splitlines())
     size = len(text.encode())
     if lines > MAX_KERNEL_LINES or size > MAX_KERNEL_BYTES:
-        errors.append(f"{kernel.relative_to(ROOT)}: kernel exceeds slimness limit ({lines} lines/{size} bytes; max {MAX_KERNEL_LINES} lines/{MAX_KERNEL_BYTES} bytes)")
+        errors.append(
+            f"{kernel.relative_to(ROOT)}: kernel exceeds slimness limit ({lines} lines/{size} bytes; max {MAX_KERNEL_LINES} lines/{MAX_KERNEL_BYTES} bytes)"
+        )
 
 
 def audit_unresolved_tokens(errors: list[str]) -> None:
-    paths = [ROOT / "README.md", ROOT / "REFERENCE.md", ROOT / "references" / "kernel.template.md", *(ROOT / "skills" / name / "SKILL.md" for name in skill_names())]
+    paths = [
+        ROOT / "README.md",
+        ROOT / "REFERENCE.md",
+        ROOT / "references" / "kernel.template.md",
+        *(ROOT / "skills" / name / "SKILL.md" for name in skill_names()),
+    ]
     for path in paths:
         if path.exists() and "{{" in path.read_text():
             errors.append(f"{path.relative_to(ROOT)}: unresolved template token")

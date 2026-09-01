@@ -51,7 +51,11 @@ def stale_assets(home: Path, skills: list[str]) -> list[str]:
             stale.append(f"skill {name}")
     source_kernel = ROOT / "references" / "kernel.template.md"
     installed_kernel = home / PI_KERNEL
-    if source_kernel.exists() and installed_kernel.exists() and source_kernel.read_bytes() != installed_kernel.read_bytes():
+    if (
+        source_kernel.exists()
+        and installed_kernel.exists()
+        and source_kernel.read_bytes() != installed_kernel.read_bytes()
+    ):
         stale.append("kernel")
     return stale
 
@@ -79,7 +83,9 @@ def main() -> int:
     print(f"kernel: {'ready' if kernel.exists() else 'missing'}")
     print(f"skills: {skills}")
     print(f"content: {'ready' if not stale else 'stale: ' + ','.join(stale)}")
-    print(f"discovery: {'ready: native skills path populated and current' if ready else 'blocked: install complete current skill payload'}")
+    print(
+        f"discovery: {'ready: native skills path populated and current' if ready else 'blocked: install complete current skill payload'}"
+    )
     return 0 if ready else 1
 
 

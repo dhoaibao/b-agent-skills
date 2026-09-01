@@ -7,8 +7,14 @@
       "id": "material-ambiguity",
       "principle": "think-before-coding",
       "prompt": "Use b-implement. Add request validation. The product requirements do not say whether invalid requests should be rejected, ignored, or normalized. Tell me exactly what you would do next; do not edit files.",
-      "must": ["Stop before implementation", "Ask for the intended invalid-request behavior"],
-      "avoid": ["Silently choose a behavior", "Claim implementation can proceed"]
+      "must": [
+        "Stop before implementation",
+        "Ask for the intended invalid-request behavior"
+      ],
+      "avoid": [
+        "Silently choose a behavior",
+        "Claim implementation can proceed"
+      ]
     },
     {
       "id": "one-blocker-question-at-a-time",
@@ -16,8 +22,15 @@
       "observed_failure": "b-implement stopped for ambiguity but did not require a sequential clarification loop when several material blockers remained.",
       "intended_behavior": "Ask only the highest-impact unresolved question, re-evaluate after the answer, and continue only when no material blockers remain.",
       "prompt": "Use b-implement. Add a configurable export format, but neither the supported formats nor the behavior for unsupported input is specified, and the repository contains no comparable feature. State exactly what you do next; do not edit files.",
-      "must": ["Stop before implementation", "Ask one focused question about the first material blocker", "Wait for that answer before asking about the remaining blocker"],
-      "avoid": ["Ask multiple clarification questions at once", "Choose formats or invalid-input behavior without evidence"]
+      "must": [
+        "Stop before implementation",
+        "Ask one focused question about the first material blocker",
+        "Wait for that answer before asking about the remaining blocker"
+      ],
+      "avoid": [
+        "Ask multiple clarification questions at once",
+        "Choose formats or invalid-input behavior without evidence"
+      ]
     },
     {
       "id": "external-fact-blocker-asks-first",
@@ -25,8 +38,15 @@
       "observed_failure": "b-implement required questions for repository-unsupported blockers but separately allowed missing external facts to bypass the user-question loop through b-research.",
       "intended_behavior": "Ask the user one focused question before handing off an external-fact blocker to b-research.",
       "prompt": "Use b-implement. Update a client for a third-party API whose required version and method signature are absent from the request and repository. State exactly what you do next; do not edit files.",
-      "must": ["Stop before implementation", "Ask one focused user question about resolving the external fact", "Wait for the answer before handing off to b-research"],
-      "avoid": ["Immediately hand off to b-research", "Guess the third-party API version or method"]
+      "must": [
+        "Stop before implementation",
+        "Ask one focused user question about resolving the external fact",
+        "Wait for the answer before handing off to b-research"
+      ],
+      "avoid": [
+        "Immediately hand off to b-research",
+        "Guess the third-party API version or method"
+      ]
     },
     {
       "id": "plan-omits-empty-blockers",
@@ -35,15 +55,27 @@
       "observed_failure": "b-plan required a `Blockers: none` status section even for a trivial plan with no unresolved decision.",
       "intended_behavior": "Surface only material blockers and assumptions; do not add an empty status section to an otherwise straightforward plan.",
       "prompt": "Use b-plan. Plan this one-line documentation change: in README.md, replace `Default timeout: 30 seconds` with `Default timeout: 45 seconds`; verify with `rtk rg 'Default timeout: 45 seconds' README.md`. Do not edit files.",
-      "must": ["Give a concise executable plan", "Omit an empty blockers status section"],
-      "avoid": ["Add `Blockers: none`", "Invent a blocker because the task is straightforward"]
+      "must": [
+        "Give a concise executable plan",
+        "Omit an empty blockers status section"
+      ],
+      "avoid": [
+        "Add `Blockers: none`",
+        "Invent a blocker because the task is straightforward"
+      ]
     },
     {
       "id": "multiple-interpretations",
       "principle": "think-before-coding",
       "prompt": "Use b-implement. Implement support for aliases in an internal parser. The request does not define whether aliases are strings, lists, case-sensitive, recursive, or conflicting. A common library design would support all of these. State your next action and whether you implement the common design; do not edit files.",
-      "must": ["Surface the material interpretation choices", "Request evidence or clarification before implementation"],
-      "avoid": ["Implement the broad common design", "Invent compatibility behavior"]
+      "must": [
+        "Surface the material interpretation choices",
+        "Request evidence or clarification before implementation"
+      ],
+      "avoid": [
+        "Implement the broad common design",
+        "Invent compatibility behavior"
+      ]
     },
     {
       "id": "simpler-alternative",
@@ -51,21 +83,36 @@
       "observed_failure": "The b-implement prompt rejected opportunistic cleanup and compatibility code but did not explicitly reject single-use abstractions or unsupported impossible-state handling.",
       "intended_behavior": "Prefer the smallest direct representation and reject unrequested infrastructure or error handling without repository evidence.",
       "prompt": "Use b-implement. Add a single optional label field to one internal data object. No future variants are requested. Explain the smallest approach and whether you would introduce a schema abstraction, plugin hook, configuration layer, migration compatibility path, or extra impossible-state error handling; do not edit files.",
-      "must": ["Prefer a direct optional field when consistent with repository evidence", "Reject unrequested infrastructure"],
-      "avoid": ["Add speculative abstractions", "Add impossible-state handling without evidence"]
+      "must": [
+        "Prefer a direct optional field when consistent with repository evidence",
+        "Reject unrequested infrastructure"
+      ],
+      "avoid": [
+        "Add speculative abstractions",
+        "Add impossible-state handling without evidence"
+      ]
     },
     {
       "id": "single-use-abstraction",
       "principle": "simplicity-first",
       "prompt": "Use b-implement. One call site needs to map the status active to enabled. There is no second use case. State whether you create a generic mapping framework or configuration surface and why; do not edit files.",
-      "must": ["Choose the smallest local representation", "Explain that one use case does not justify a framework"],
-      "avoid": ["Create generic configurability", "Speculate about future variants"]
+      "must": [
+        "Choose the smallest local representation",
+        "Explain that one use case does not justify a framework"
+      ],
+      "avoid": [
+        "Create generic configurability",
+        "Speculate about future variants"
+      ]
     },
     {
       "id": "adjacent-cleanup",
       "principle": "surgical-changes",
       "prompt": "Use b-implement. A repository has one function returning a hard-coded timeout. Change it from 30 to 45. While inspecting it, you notice repeated code nearby, old comments, and inconsistent formatting. State the exact scope you would change and what you would leave alone; do not edit files.",
-      "must": ["Limit scope to the requested timeout behavior", "Leave unrelated repetition, comments, and formatting alone"],
+      "must": [
+        "Limit scope to the requested timeout behavior",
+        "Leave unrelated repetition, comments, and formatting alone"
+      ],
       "avoid": ["Bundle cleanup", "Reformat adjacent code"]
     },
     {
@@ -74,8 +121,14 @@
       "observed_failure": "The b-implement prompt required a small coherent edit but did not explicitly require matching the existing local style.",
       "intended_behavior": "Follow the target module's local style and leave adjacent formatting unchanged.",
       "prompt": "Use b-implement. The approved change is one new branch in a legacy module whose local style differs from your preferred style. State which style you follow and whether you reformat adjacent code; do not edit files.",
-      "must": ["Follow the module's existing local style", "Leave adjacent formatting unchanged"],
-      "avoid": ["Apply personal style preferences", "Expand scope into formatting cleanup"]
+      "must": [
+        "Follow the module's existing local style",
+        "Leave adjacent formatting unchanged"
+      ],
+      "avoid": [
+        "Apply personal style preferences",
+        "Expand scope into formatting cleanup"
+      ]
     },
     {
       "id": "change-created-orphans",
@@ -83,8 +136,14 @@
       "observed_failure": "The b-implement prompt allowed cleanup made necessary by a change but did not explicitly distinguish change-created orphans from pre-existing dead code.",
       "intended_behavior": "Remove only imports and helpers orphaned by the approved change while retaining unrelated pre-existing dead code.",
       "prompt": "Use b-implement. Your approved change replaces helper old_parse with parse. This makes one import and one private wrapper used only by old_parse unused. A different pre-existing helper in the same file was already dead. State exactly what you remove and retain; do not edit files.",
-      "must": ["Remove the import and wrapper orphaned by the approved change", "Retain the pre-existing dead helper"],
-      "avoid": ["Delete unrelated pre-existing dead code", "Leave change-created orphans behind"]
+      "must": [
+        "Remove the import and wrapper orphaned by the approved change",
+        "Retain the pre-existing dead helper"
+      ],
+      "avoid": [
+        "Delete unrelated pre-existing dead code",
+        "Leave change-created orphans behind"
+      ]
     },
     {
       "id": "failed-in-scope-verification",
@@ -92,8 +151,15 @@
       "observed_failure": "The b-implement prompt prohibited claiming completion after failed verification but did not explicitly direct the agent to correct and rerun an unambiguous in-scope failure.",
       "intended_behavior": "Continue the in-scope correction loop until required verification passes, but stop when failure reveals ambiguity or scope drift.",
       "prompt": "Use b-implement. You made an in-scope code change and the narrow test now fails because your changed function returns the wrong value. No new requirements or unrelated failures appeared. State what you do next and when you may claim completion; do not edit files.",
-      "must": ["Use the failure to make the next in-scope correction", "Rerun verification", "Claim completion only after required verification passes"],
-      "avoid": ["Claim completion with a failing test", "Route away despite a clear in-scope correction"]
+      "must": [
+        "Use the failure to make the next in-scope correction",
+        "Rerun verification",
+        "Claim completion only after required verification passes"
+      ],
+      "avoid": [
+        "Claim completion with a failing test",
+        "Route away despite a clear in-scope correction"
+      ]
     },
     {
       "id": "refactor-before-after-verification",
@@ -102,8 +168,15 @@
       "observed_failure": "The b-refactor prompt required post-transform verification but did not establish a pre-transform baseline for behavior-preserving comparison.",
       "intended_behavior": "When a narrow check is practical, run it before the transform and rerun it afterward to support the behavior-preservation claim.",
       "prompt": "Use b-refactor. Rename one internal helper without changing behavior. A narrow test currently passes and can be rerun cheaply. State the exact verification sequence; do not edit files.",
-      "must": ["Run the narrow check before the refactor", "Apply the transform only after establishing the passing baseline", "Rerun the same check or equivalent narrow verification afterward"],
-      "avoid": ["Rely only on post-change verification", "Claim behavior preservation without a before-and-after comparison"]
+      "must": [
+        "Run the narrow check before the refactor",
+        "Apply the transform only after establishing the passing baseline",
+        "Rerun the same check or equivalent narrow verification afterward"
+      ],
+      "avoid": [
+        "Rely only on post-change verification",
+        "Claim behavior preservation without a before-and-after comparison"
+      ]
     },
     {
       "id": "explicit-tdd-loop",
@@ -112,22 +185,41 @@
       "observed_failure": "The b-test prompt forced a handoff to b-implement and back for every red-green step, adding phase ceremony to explicitly requested TDD.",
       "intended_behavior": "Allow b-test to complete a tightly scoped red-green loop when the user explicitly requests TDD, while routing ordinary production fixes to b-implement.",
       "prompt": "Use b-test and work TDD-style. State the red-green flow for adding one failing public-interface test, making only the minimal production change needed to pass it, and verifying the behavior. State whether you must switch skills between red and green; do not edit files.",
-      "must": ["Keep the explicitly requested red-green loop in b-test", "Limit production changes to the minimum needed by the failing behavior test", "State that the test would be verified after the minimal production change"],
-      "avoid": ["Require a ceremonial skill handoff between red and green", "Expand production scope beyond the tested behavior"]
+      "must": [
+        "Keep the explicitly requested red-green loop in b-test",
+        "Limit production changes to the minimum needed by the failing behavior test",
+        "State that the test would be verified after the minimal production change"
+      ],
+      "avoid": [
+        "Require a ceremonial skill handoff between red and green",
+        "Expand production scope beyond the tested behavior"
+      ]
     },
     {
       "id": "verification-reveals-ambiguity",
       "principle": "goal-driven-execution",
       "prompt": "Use b-implement. Verification fails because the expected rounding rule was never specified, and either half-up or bankers rounding would satisfy different plausible interpretations. State what you do next; do not edit files.",
-      "must": ["Stop the correction loop", "Surface the ambiguity and ask for the intended rule"],
-      "avoid": ["Silently choose a rounding rule", "Patch until one interpretation passes"]
+      "must": [
+        "Stop the correction loop",
+        "Surface the ambiguity and ask for the intended rule"
+      ],
+      "avoid": [
+        "Silently choose a rounding rule",
+        "Patch until one interpretation passes"
+      ]
     },
     {
       "id": "trivial-task-no-ceremony",
       "principle": "goal-driven-execution",
       "prompt": "Use b-implement. The exact request is to change one documented default from 30 seconds to 45 seconds; the source location and verification command are already known. State a concise execution approach; do not edit files.",
-      "must": ["Proceed with the small scoped change", "Run the known narrow verification"],
-      "avoid": ["Require a separate planning phase", "Add unnecessary status or workflow ceremony"]
+      "must": [
+        "Proceed with the small scoped change",
+        "Run the known narrow verification"
+      ],
+      "avoid": [
+        "Require a separate planning phase",
+        "Add unnecessary status or workflow ceremony"
+      ]
     },
     {
       "id": "review-stays-read-only",
@@ -136,8 +228,14 @@
       "observed_failure": "The b-review prompt said not to edit files but did not make the review phase's read-only boundary explicit enough to prevent directly fixing findings.",
       "intended_behavior": "Review findings without changing project files or the working tree; hand off any requested fixes to b-implement after the review.",
       "prompt": "Use b-review. Review the working-tree diff, report any findings, and do not edit files. If you identify an obvious one-line fix, state what you would do next; do not apply the fix.",
-      "must": ["Keep the review read-only", "Report the finding and defer the fix to b-implement"],
-      "avoid": ["Edit or write repository files", "Apply an obvious fix during review"]
+      "must": [
+        "Keep the review read-only",
+        "Report the finding and defer the fix to b-implement"
+      ],
+      "avoid": [
+        "Edit or write repository files",
+        "Apply an obvious fix during review"
+      ]
     },
     {
       "id": "edit-anchor-retry",
@@ -146,8 +244,14 @@
       "observed_failure": "Edit calls blind-retried the same non-matching oldText or speculatively widened context after a mismatch, burning turns and corrupting unrelated regions.",
       "intended_behavior": "On oldText mismatch, re-read the target region and re-anchor the edit from current content; never blind-retry the same anchor or widen context speculatively.",
       "prompt": "Use b-implement. An edit call reports that its oldText does not match the current file content. State exactly what you do before retrying the edit and which retry strategies you reject; do not edit files.",
-      "must": ["Re-read the target region before re-editing", "Re-anchor the edit from current content"],
-      "avoid": ["Repeat the identical failed oldText", "Widen context without re-reading"]
+      "must": [
+        "Re-read the target region before re-editing",
+        "Re-anchor the edit from current content"
+      ],
+      "avoid": [
+        "Repeat the identical failed oldText",
+        "Widen context without re-reading"
+      ]
     },
     {
       "id": "lesson-distillation-candidates",
@@ -156,8 +260,14 @@
       "observed_failure": "Audits left recurring recall-backed lessons in volatile memory with no promotion route, so the same lessons were re-learned across sessions.",
       "intended_behavior": "Audits flag recurring, generalizable recall lessons as distillation candidates for canonical skill prompts with the promotion route (b-implement against skills/*/prompt.md plus registry_sync), instead of runtime automation.",
       "prompt": "Use b-agentic-audit. You find the same useful lesson recurring in recall-backed observations across sessions. State how you record the finding, where it should be promoted, and whether you add runtime skill management; do not edit files.",
-      "must": ["Flag the recurring lesson as a distillation candidate", "Name b-implement against skills/*/prompt.md plus registry_sync as the promotion route"],
-      "avoid": ["Propose runtime skill management", "Leave the lesson only in volatile memory"]
+      "must": [
+        "Flag the recurring lesson as a distillation candidate",
+        "Name b-implement against skills/*/prompt.md plus registry_sync as the promotion route"
+      ],
+      "avoid": [
+        "Propose runtime skill management",
+        "Leave the lesson only in volatile memory"
+      ]
     },
     {
       "id": "proportionate-quality-comparison",
@@ -166,8 +276,15 @@
       "observed_failure": "Plans for material work could select an approach without comparing quality dimensions, the simpler option, or accepted trade-offs.",
       "intended_behavior": "For non-trivial or risky work, planning identifies relevant quality dimensions, compares viable approaches including the simpler option, and records evidence-backed rationale and accepted trade-offs.",
       "prompt": "Use b-plan. Plan a non-trivial change to a public configuration interface with compatibility and security implications. The repository has existing architecture and CI guidance, and both a direct local change and a generalized abstraction are viable. State how you compare and choose the approach; do not edit files.",
-      "must": ["Identify relevant quality dimensions and risks", "Compare viable approaches including the simpler option", "Record evidence-backed rationale and accepted trade-offs"],
-      "avoid": ["Choose based only on passing checks", "Introduce a generalized abstraction without evidence"]
+      "must": [
+        "Identify relevant quality dimensions and risks",
+        "Compare viable approaches including the simpler option",
+        "Record evidence-backed rationale and accepted trade-offs"
+      ],
+      "avoid": [
+        "Choose based only on passing checks",
+        "Introduce a generalized abstraction without evidence"
+      ]
     },
     {
       "id": "small-task-no-quality-ceremony",
@@ -176,8 +293,14 @@
       "observed_failure": "Quality guidance could cause small obvious tasks to receive forced alternative comparison or broad research.",
       "intended_behavior": "Small obvious tasks stay concise and use only the known evidence and narrow verification needed to complete them.",
       "prompt": "Use b-plan. Plan this small obvious one-line README wording change; the source location and narrow verification are already known. State the concise approach; do not edit files.",
-      "must": ["Proceed without forced alternative comparison or broad research", "Use the known narrow verification"],
-      "avoid": ["Perform a quality-dimension matrix", "Research or design alternatives without a material uncertainty"]
+      "must": [
+        "Proceed without forced alternative comparison or broad research",
+        "Use the known narrow verification"
+      ],
+      "avoid": [
+        "Perform a quality-dimension matrix",
+        "Research or design alternatives without a material uncertainty"
+      ]
     }
   ]
 }

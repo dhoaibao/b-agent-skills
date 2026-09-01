@@ -231,7 +231,11 @@ def main() -> None:
             kernel_text = kernel_path.read_text()
         except Exception:
             kernel_text = ""
-        if "<!-- b-agentic-managed -->" in kernel_text and kernel_snapshot.exists() and files_equal(kernel_path, kernel_snapshot):
+        if (
+            "<!-- b-agentic-managed -->" in kernel_text
+            and kernel_snapshot.exists()
+            and files_equal(kernel_path, kernel_snapshot)
+        ):
             remove_file(kernel_path)
         else:
             warn(f"preserving modified managed kernel: {kernel_path}")
@@ -247,7 +251,9 @@ def main() -> None:
         )
         extensions = paths.get("extensions")
         if not isinstance(extensions, dict):
-            extensions = {"b-agentic-permissions.ts": paths.get("permissionsExtension", str(defaults["permissionsExtension"]))}
+            extensions = {
+                "b-agentic-permissions.ts": paths.get("permissionsExtension", str(defaults["permissionsExtension"]))
+            }
         backup_map = data.get("backups", {}).get("extensions", {})
         if not isinstance(backup_map, dict):
             backup_map = {}

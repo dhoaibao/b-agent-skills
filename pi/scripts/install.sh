@@ -1,4 +1,7 @@
 # Sourced by install.sh — do not run directly.
+# shellcheck shell=bash
+# Variables below are shared with the sourced installer core.
+# shellcheck disable=SC2034
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then
 	echo "error: this script is sourced by install.sh" >&2
 	exit 1
@@ -200,9 +203,10 @@ pi_package_state() {
 	local listing
 	# Bind to current HOME so sandbox / alternate-home installs do not
 	# report a global package install as ready for this target.
+	local target_home="${HOME}" target_pi_dir="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
 	listing="$(
-		HOME="${HOME}" \
-			PI_CODING_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}" \
+		HOME="$target_home" \
+			PI_CODING_AGENT_DIR="$target_pi_dir" \
 			pi list 2>/dev/null || true
 	)"
 	if printf '%s\n' "$listing" | grep -Eq "(^|[[:space:]])npm:${package}([[:space:]]|$)|(^|[[:space:]])${package}([[:space:]]|$)"; then
@@ -480,7 +484,7 @@ runtime_install_config_stage_count() { # extension update + permission extension
 }
 
 install_dracula_theme() {
-	local tmp_clone="" rc=0
+	local tmp_clone=""
 	local repo_url="${DRACULA_REPO_URL:-https://github.com/dracula/pi-coding-agent.git}"
 
 	if dry_run_enabled; then

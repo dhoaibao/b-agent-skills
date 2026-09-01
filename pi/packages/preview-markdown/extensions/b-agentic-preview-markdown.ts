@@ -8,8 +8,20 @@
  */
 import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { copyToClipboard, getAgentDir, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { Box, Markdown, Spacer, Text, truncateToWidth, type Component } from "@earendil-works/pi-tui";
+import {
+  copyToClipboard,
+  getAgentDir,
+  type ExtensionAPI,
+  type ExtensionContext,
+} from "@earendil-works/pi-coding-agent";
+import {
+  Box,
+  Markdown,
+  Spacer,
+  Text,
+  truncateToWidth,
+  type Component,
+} from "@earendil-works/pi-tui";
 
 type PreviewTheme = "moon" | "day";
 type PreviewDetails = {
@@ -134,7 +146,6 @@ const FIXED_DEEPEST_BACKGROUND = truecolor("48", PALETTE.deepest);
 const FIXED_HIGHLIGHT_BACKGROUND = truecolor("48", PALETTE.highlight);
 const FIXED_BORDER = truecolor("38", PALETTE.border);
 const FIXED_HEADER = truecolor("38", PALETTE.accent);
-const FIXED_TITLE = truecolor("38", PALETTE.text);
 const FIXED_TEXT = truecolor("38", PALETTE.text);
 const FIXED_MUTED = truecolor("38", PALETTE.muted);
 const FIXED_COMMENT = truecolor("38", PALETTE.comment);
@@ -176,7 +187,9 @@ function getPreviewThemePath(): string {
 
 async function loadPreviewTheme(): Promise<PreviewTheme> {
   try {
-    const parsed = JSON.parse(await readFile(getPreviewThemePath(), "utf8")) as { theme?: unknown };
+    const parsed = JSON.parse(
+      await readFile(getPreviewThemePath(), "utf8"),
+    ) as { theme?: unknown };
     return isPreviewTheme(parsed?.theme) ? parsed.theme : DEFAULT_PREVIEW_THEME;
   } catch {
     return DEFAULT_PREVIEW_THEME;
@@ -188,7 +201,10 @@ async function persistPreviewTheme(theme: PreviewTheme): Promise<boolean> {
   const temporaryPath = `${path}.tmp-${process.pid}-${Date.now()}`;
   try {
     await mkdir(join(getAgentDir(), "b-agentic"), { recursive: true });
-    await writeFile(temporaryPath, `${JSON.stringify({ theme }, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
+    await writeFile(temporaryPath, `${JSON.stringify({ theme }, null, 2)}\n`, {
+      encoding: "utf8",
+      mode: 0o600,
+    });
     await rename(temporaryPath, path);
     return true;
   } catch {
@@ -211,12 +227,18 @@ function invalidatePreviewRows(): void {
   }
 }
 
-function rememberPreviewRowInvalidator(context: { toolCallId?: string; invalidate?: () => void }): void {
+function rememberPreviewRowInvalidator(context: {
+  toolCallId?: string;
+  invalidate?: () => void;
+}): void {
   if (!context.toolCallId || typeof context.invalidate !== "function") return;
   previewRowInvalidators.set(context.toolCallId, context.invalidate);
 }
 
-function setCurrentPreviewTheme(theme: PreviewTheme, invalidateRows: boolean): void {
+function setCurrentPreviewTheme(
+  theme: PreviewTheme,
+  invalidateRows: boolean,
+): void {
   const changed = currentPreviewTheme !== theme;
   currentPreviewTheme = theme;
   currentPreviewThemeLoaded = true;
@@ -237,20 +259,40 @@ function fixedColor(color: string, text: string): string {
   return `${color}${text}${ANSI_FOREGROUND_RESET}`;
 }
 
-function fixedCodeSurface(background: string, foreground: string, text: string, cardBackground: string): string {
+function fixedCodeSurface(
+  background: string,
+  foreground: string,
+  text: string,
+  cardBackground: string,
+): string {
   return `${background}${foreground}${text}${ANSI_RESET}${cardBackground}`;
 }
 
 function fixedInlineCode(text: string, colors: FixedPalette): string {
-  return fixedCodeSurface(colors.highlightBackground, colors.code, text, colors.cardBackground);
+  return fixedCodeSurface(
+    colors.highlightBackground,
+    colors.code,
+    text,
+    colors.cardBackground,
+  );
 }
 
 function fixedCodeBlock(text: string, colors: FixedPalette): string {
-  return fixedCodeSurface(colors.deepestBackground, colors.codeBlock, text, colors.cardBackground);
+  return fixedCodeSurface(
+    colors.deepestBackground,
+    colors.codeBlock,
+    text,
+    colors.cardBackground,
+  );
 }
 
 function fixedCodeBlockBorder(text: string, colors: FixedPalette): string {
-  return fixedCodeSurface(colors.deepestBackground, colors.comment, text, colors.cardBackground);
+  return fixedCodeSurface(
+    colors.deepestBackground,
+    colors.comment,
+    text,
+    colors.cardBackground,
+  );
 }
 
 function markdownTheme(colors: FixedPalette) {
@@ -291,10 +333,18 @@ class PreviewCard implements Component {
     if (width < 3) return this.body.render(width);
 
     const innerWidth = width - 2;
-    const bodyLines = this.body.render(innerWidth).map((line) => truncateToWidth(line, innerWidth, "", true));
-    const pageLine = (line: string) => `${this.colors.pageBackground}${line}${ANSI_RESET}`;
+    const bodyLines = this.body
+      .render(innerWidth)
+      .map((line) => truncateToWidth(line, innerWidth, "", true));
+    const pageLine = (line: string) =>
+      `${this.colors.pageBackground}${line}${ANSI_RESET}`;
     const border = (left: string, right: string) =>
-      pageLine(fixedColor(this.colors.border, `${left}${"─".repeat(innerWidth)}${right}`));
+      pageLine(
+        fixedColor(
+          this.colors.border,
+          `${left}${"─".repeat(innerWidth)}${right}`,
+        ),
+      );
     const framed = bodyLines.map(
       (line) =>
         `${this.colors.pageBackground}${fixedColor(this.colors.border, "│")}${line}${this.colors.pageBackground}${fixedColor(this.colors.border, "│")}${ANSI_RESET}`,
@@ -312,46 +362,77 @@ function fallbackResult(mode: ExtensionContext["mode"]): {
   details: { interactive: false; mode: ExtensionContext["mode"] };
 } {
   return {
-    content: [{ type: "text", text: "Markdown preview is only available in Pi TUI mode." }],
+    content: [
+      {
+        type: "text",
+        text: "Markdown preview is only available in Pi TUI mode.",
+      },
+    ],
     details: { interactive: false, mode },
   };
 }
 
 async function selectPreviewTheme(ctx: ExtensionContext): Promise<void> {
   if (!ctx.hasUI) {
-    ctx.ui.notify("Preview theme selection is only available in Pi TUI mode", "warning");
+    ctx.ui.notify(
+      "Preview theme selection is only available in Pi TUI mode",
+      "warning",
+    );
     return;
   }
 
   const current = await loadCurrentPreviewTheme();
-  const options = (Object.keys(PREVIEW_THEME_LABELS) as PreviewTheme[]).map((theme) =>
-    `${PREVIEW_THEME_LABELS[theme]}${theme === current ? " (current)" : ""}`,
+  const options = (Object.keys(PREVIEW_THEME_LABELS) as PreviewTheme[]).map(
+    (theme) =>
+      `${PREVIEW_THEME_LABELS[theme]}${theme === current ? " (current)" : ""}`,
   );
   const selection = await ctx.ui.select("Select preview theme", options);
   if (selection === undefined) return;
 
-  const theme = selection.startsWith(PREVIEW_THEME_LABELS.day) ? "day" : selection.startsWith(PREVIEW_THEME_LABELS.moon) ? "moon" : undefined;
+  const theme = selection.startsWith(PREVIEW_THEME_LABELS.day)
+    ? "day"
+    : selection.startsWith(PREVIEW_THEME_LABELS.moon)
+      ? "moon"
+      : undefined;
   if (!theme) {
-    ctx.ui.notify("Unknown preview theme selection; keeping the current theme", "error");
+    ctx.ui.notify(
+      "Unknown preview theme selection; keeping the current theme",
+      "error",
+    );
     return;
   }
   if (!(await persistPreviewTheme(theme))) {
-    ctx.ui.notify("Failed to save preview theme; keeping the current theme", "error");
+    ctx.ui.notify(
+      "Failed to save preview theme; keeping the current theme",
+      "error",
+    );
     return;
   }
   setCurrentPreviewTheme(theme, true);
   ctx.ui.notify(`Preview theme set to ${PREVIEW_THEME_LABELS[theme]}`, "info");
 }
 
-function getPreviewHistory(ctx: Pick<ExtensionContext, "sessionManager">): PreviewHistoryItem[] {
+function getPreviewHistory(
+  ctx: Pick<ExtensionContext, "sessionManager">,
+): PreviewHistoryItem[] {
   const previews: PreviewHistoryItem[] = [];
   for (const entry of ctx.sessionManager.getBranch()) {
-    if (entry.type !== "message" || entry.message.role !== "toolResult" || entry.message.toolName !== "preview_markdown" || entry.message.isError === true) continue;
-    const details = entry.message.details as Partial<PreviewDetails> | undefined;
+    if (
+      entry.type !== "message" ||
+      entry.message.role !== "toolResult" ||
+      entry.message.toolName !== "preview_markdown" ||
+      entry.message.isError === true
+    )
+      continue;
+    const details = entry.message.details as
+      Partial<PreviewDetails> | undefined;
     if (!details || typeof details.markdown !== "string") continue;
     previews.push({
       markdown: details.markdown,
-      title: typeof details.title === "string" && details.title.trim() ? details.title : DEFAULT_TITLE,
+      title:
+        typeof details.title === "string" && details.title.trim()
+          ? details.title
+          : DEFAULT_TITLE,
     });
   }
   return previews.slice(-MAX_PREVIEW_HISTORY);
@@ -366,7 +447,10 @@ async function copyPreviewSource(
     await copy(preview.markdown);
     ctx.ui.notify("Markdown preview source copied to clipboard", "info");
   } catch {
-    ctx.ui.notify("Failed to copy Markdown preview source to clipboard", "error");
+    ctx.ui.notify(
+      "Failed to copy Markdown preview source to clipboard",
+      "error",
+    );
   }
 }
 
@@ -385,7 +469,9 @@ async function listPreviewSources(
     return;
   }
 
-  const options = previews.map((preview, index) => `${index + 1}. ${preview.title}`);
+  const options = previews.map(
+    (preview, index) => `${index + 1}. ${preview.title}`,
+  );
   const selection = await ctx.ui.select("Select Markdown preview", options);
   if (selection === undefined) return;
 
@@ -419,7 +505,10 @@ async function copyLatestPreviewSource(
     await copy(lastPreviewMarkdown);
     ctx.ui.notify("Latest Markdown preview source copied to clipboard", "info");
   } catch {
-    ctx.ui.notify("Failed to copy latest Markdown preview source to clipboard", "error");
+    ctx.ui.notify(
+      "Failed to copy latest Markdown preview source to clipboard",
+      "error",
+    );
   }
 }
 
@@ -439,7 +528,9 @@ export default function bAgenticPreviewMarkdown(pi: ExtensionAPI): void {
         ctx.ui.notify(PREVIEW_RENDER_USAGE, "error");
         return;
       }
-      pi.sendUserMessage(buildPreviewRenderPrompt(prompt), { deliverAs: "followUp" });
+      pi.sendUserMessage(buildPreviewRenderPrompt(prompt), {
+        deliverAs: "followUp",
+      });
     },
   });
 
@@ -469,7 +560,8 @@ export default function bAgenticPreviewMarkdown(pi: ExtensionAPI): void {
     name: "preview_markdown",
     label: "Preview Markdown",
     description: "Render Markdown inline in the Pi TUI without writing a file.",
-    promptSnippet: "Render Markdown inline in the Pi TUI without creating a file",
+    promptSnippet:
+      "Render Markdown inline in the Pi TUI without creating a file",
     promptGuidelines: [
       "Use preview_markdown when the user asks to preview Markdown in Pi; pass the original Markdown source, not rendered text or an image.",
       "Use preview_markdown for an inline TUI tool result; copy the original source afterward with ctrl+shift+m; it does not write files or mutate session messages.",
@@ -477,8 +569,14 @@ export default function bAgenticPreviewMarkdown(pi: ExtensionAPI): void {
     parameters: {
       type: "object",
       properties: {
-        markdown: { type: "string", description: "The original Markdown source to preview." },
-        title: { type: "string", description: "Optional title shown above the preview." },
+        markdown: {
+          type: "string",
+          description: "The original Markdown source to preview.",
+        },
+        title: {
+          type: "string",
+          description: "Optional title shown above the preview.",
+        },
       },
       required: ["markdown"],
       additionalProperties: false,
@@ -489,8 +587,14 @@ export default function bAgenticPreviewMarkdown(pi: ExtensionAPI): void {
 
       const theme = await loadCurrentPreviewTheme();
       const result = {
-        content: [{ type: "text" as const, text: "Markdown preview rendered inline." }],
-        details: { markdown: params.markdown, title, theme } satisfies PreviewDetails,
+        content: [
+          { type: "text" as const, text: "Markdown preview rendered inline." },
+        ],
+        details: {
+          markdown: params.markdown,
+          title,
+          theme,
+        } satisfies PreviewDetails,
       };
       lastPreviewMarkdown = params.markdown;
       return result;
@@ -506,13 +610,19 @@ export default function bAgenticPreviewMarkdown(pi: ExtensionAPI): void {
       void loadCurrentPreviewTheme();
       const theme = currentPreviewTheme;
       const colors = colorsForTheme(theme);
-      const body = new Box(1, 1, (line) => `${colors.cardBackground}${line}${ANSI_RESET}`);
+      const body = new Box(
+        1,
+        1,
+        (line) => `${colors.cardBackground}${line}${ANSI_RESET}`,
+      );
       body.addChild(
         new Markdown(
           details.markdown,
           0,
           0,
-          theme === DEFAULT_PREVIEW_THEME ? FIXED_MARKDOWN_THEME : markdownTheme(colors),
+          theme === DEFAULT_PREVIEW_THEME
+            ? FIXED_MARKDOWN_THEME
+            : markdownTheme(colors),
           {
             color: (text: string) => fixedColor(colors.text, text),
           },
@@ -522,7 +632,9 @@ export default function bAgenticPreviewMarkdown(pi: ExtensionAPI): void {
         ),
       );
       body.addChild(new Spacer(1));
-      body.addChild(new Text(fixedColor(colors.comment, "Ctrl+Shift+M  Copy source"), 0, 0));
+      body.addChild(
+        new Text(fixedColor(colors.comment, "Ctrl+Shift+M  Copy source"), 0, 0),
+      );
       return new PreviewCard(body, colors);
     },
   });

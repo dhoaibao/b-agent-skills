@@ -12,11 +12,12 @@ boundaries, not a change history or a second runtime contract. Evidence:
 b-agentic and Pi are one integrated personal workflow product with Pi as the shipped runtime; this record summarizes current decisions supported by tracked repository sources.
 
 ### Slim, strong, and usable
+
 - **Slim:** choose the smallest evidence-backed fit; remove duplication, ceremony, and speculative complexity.
 - **Strong:** preserve explicit safety, evidence, and verification boundaries, with a small observable check when a decision changes.
 - **Usable:** retain direct, predictable user paths.
-This decision applies to future b-agentic repository source, docs, tooling, and CI changes, including skills, installers, extensions, configuration, validators, and tests; it does not apply to the installed runtime kernel or create a generic runtime policy. Necessary compatibility/security fixes remain in scope, so slimness never demands cosmetic reduction.
-Evidence: `AGENTS.md`, `README.md`, `REFERENCE.md`, `tooling/validate/decision_design.py`.
+  This decision applies to future b-agentic repository source, docs, tooling, and CI changes, including skills, installers, extensions, configuration, validators, and tests; it does not apply to the installed runtime kernel or create a generic runtime policy. Necessary compatibility/security fixes remain in scope, so slimness never demands cosmetic reduction.
+  Evidence: `AGENTS.md`, `README.md`, `REFERENCE.md`, `tooling/validate/decision_design.py`.
 
 ## Product boundary and architecture
 
@@ -208,6 +209,12 @@ Evidence: `install.sh`, `pi/scripts/install.sh`, `tooling/install/common.sh`,
 
 ## Verification and change discipline
 
+- Repository-development quality is separate from the installed runtime. The
+  root package owns locked Husky, lint-staged, ESLint, Prettier, and Markdownlint
+  tools; pinned Python requirements own Ruff and ShellCheck; the repository
+  quality entrypoint enumerates tracked supported files, runs check-only quality gates, and includes
+  strict Pi TypeScript checks. The pre-commit hook remains staged-only and does
+  not run behavioral or installer suites.
 - Source and generated synchronization uses
   `python3 tooling/generate/registry_sync.py --check`. Local validation is
   dependency-light: `scripts/validate-skills.sh` runs generated, skill,

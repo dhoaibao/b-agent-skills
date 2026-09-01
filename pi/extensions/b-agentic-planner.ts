@@ -1,6 +1,11 @@
 /** Planner collaboration prompt. */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { PLANNER_PROMPT, SKILL_OWNERS, SKILL_OWNERSHIP_CRITERION, skillOwner } from "./b-agentic-support/role.ts";
+import {
+  PLANNER_PROMPT,
+  SKILL_OWNERS,
+  SKILL_OWNERSHIP_CRITERION,
+  skillOwner,
+} from "./b-agentic-support/role.ts";
 import { getRole } from "./b-agentic-support/state.ts";
 
 export default function bAgenticPlanner(pi: ExtensionAPI): void {
@@ -11,4 +16,9 @@ export default function bAgenticPlanner(pi: ExtensionAPI): void {
   });
 }
 
-export const __test__ = { PLANNER_PROMPT, SKILL_OWNERS, SKILL_OWNERSHIP_CRITERION, skillOwner };
+export const __test__ = {
+  PLANNER_PROMPT,
+  SKILL_OWNERS,
+  SKILL_OWNERSHIP_CRITERION,
+  skillOwner,
+};
