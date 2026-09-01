@@ -1048,13 +1048,14 @@ run_pi_lsp_package_lifecycle_case() {
 	local sandbox="$WORK_DIR/pi-lsp-package-lifecycle"
 	local install_log="$sandbox/install.log"
 	local package_log="$sandbox/smoke-bin/pi-install.log"
-	local package_count ask_package_count smoke_path
+	local package_count ask_package_count todo_package_count smoke_path
 	local rc=0
 
 	mkdir -p "$sandbox/home"
 	smoke_path="$(smoke_runtime_cli_path "$sandbox")"
 	: >"$sandbox/smoke-bin/pi-ask-user-question-versioned-installed"
 	: >"$sandbox/smoke-bin/pi-lsp-ranged-installed"
+	: >"$sandbox/smoke-bin/pi-todo-versioned-installed"
 	set +e
 	HOME="$sandbox/home" PATH="$smoke_path" \
 		B_AGENTIC_REPO="$snapshot_repo" B_AGENTIC_DIR="$sandbox/source" \
@@ -1064,41 +1065,59 @@ run_pi_lsp_package_lifecycle_case() {
 	[ "$rc" -eq 0 ] || fail "expected optional Pi package dry-run exit 0, got $rc"
 	assert_contains "$install_log" '[dry-run] pi install npm:@juicesharp/rpiv-ask-user-question'
 	assert_contains "$install_log" '[dry-run] pi install npm:@narumitw/pi-lsp'
+	assert_contains "$install_log" '[dry-run] pi install npm:@juicesharp/rpiv-todo'
 	assert_not_contains "$install_log" 'npm:@juicesharp/rpiv-ask-user-question@'
 	assert_not_contains "$install_log" 'npm:@narumitw/pi-lsp@'
+	assert_not_contains "$install_log" 'npm:@juicesharp/rpiv-todo@'
 	assert_no_path "$sandbox/smoke-bin/pi-ask-user-question-installed"
 	assert_no_path "$sandbox/smoke-bin/pi-lsp-installed"
+	assert_no_path "$sandbox/smoke-bin/pi-todo-installed"
 	assert_file "$sandbox/smoke-bin/pi-ask-user-question-versioned-installed"
 	assert_file "$sandbox/smoke-bin/pi-lsp-ranged-installed"
+	assert_file "$sandbox/smoke-bin/pi-todo-versioned-installed"
 
 	expect_install_status 0 "$sandbox" "$snapshot_repo"
 	assert_contains "$package_log" 'npm:@juicesharp/rpiv-ask-user-question'
 	assert_contains "$package_log" 'npm:@narumitw/pi-lsp'
+	assert_contains "$package_log" 'npm:@juicesharp/rpiv-todo'
 	assert_not_contains "$package_log" 'npm:@juicesharp/rpiv-ask-user-question@'
 	assert_not_contains "$package_log" 'npm:@narumitw/pi-lsp@'
+	assert_not_contains "$package_log" 'npm:@juicesharp/rpiv-todo@'
 	assert_no_path "$sandbox/smoke-bin/pi-ask-user-question-versioned-installed"
 	assert_no_path "$sandbox/smoke-bin/pi-lsp-ranged-installed"
+	assert_no_path "$sandbox/smoke-bin/pi-todo-versioned-installed"
 	assert_file "$sandbox/smoke-bin/pi-ask-user-question-installed"
 	assert_file "$sandbox/smoke-bin/pi-lsp-installed"
+	assert_file "$sandbox/smoke-bin/pi-todo-installed"
 	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piAskUserQuestionAction": "install"'
 	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piAskUserQuestionState": "ready"'
 	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piLspAction": "install"'
 	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piLspState": "ready"'
+	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piTodoAction": "install"'
+	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piTodoState": "ready"'
+	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilities']['states']['package.pi-todo']['action'] == 'install'"
+	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilities']['states']['package.pi-todo']['state'] == 'ready'"
 	package_count="$(grep -Fc 'npm:@narumitw/pi-lsp' "$package_log")"
 	ask_package_count="$(grep -Fc 'npm:@juicesharp/rpiv-ask-user-question' "$package_log")"
+	todo_package_count="$(grep -Fc 'npm:@juicesharp/rpiv-todo' "$package_log")"
 	[ "$package_count" -eq 1 ] || fail "expected initial pi-lsp install exactly once"
 	[ "$ask_package_count" -eq 1 ] || fail "expected initial ask-user-question install exactly once"
+	[ "$todo_package_count" -eq 1 ] || fail "expected initial pi-todo install exactly once"
 	assert_contains "$install_log" 'update --extensions'
 
 	expect_install_status 0 "$sandbox" "$snapshot_repo"
 	expect_install_status 0 "$sandbox" "$snapshot_repo" --update
 	[ "$(grep -Fc 'npm:@narumitw/pi-lsp' "$package_log")" -eq "$package_count" ] || fail "pi-lsp was reinstalled after package detection"
 	[ "$(grep -Fc 'npm:@juicesharp/rpiv-ask-user-question' "$package_log")" -eq "$ask_package_count" ] || fail "ask-user-question was reinstalled after package detection"
+	[ "$(grep -Fc 'npm:@juicesharp/rpiv-todo' "$package_log")" -eq "$todo_package_count" ] || fail "pi-todo was reinstalled after package detection"
 	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piLspState": "ready"'
+	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piTodoAction": "present"'
+	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piTodoState": "ready"'
 	assert_contains "$sandbox/smoke-bin/pi-install.log" 'update --extensions'
 
 	expect_install_status 0 "$sandbox" "$snapshot_repo" --uninstall
 	assert_file "$sandbox/smoke-bin/pi-lsp-installed"
+	assert_file "$sandbox/smoke-bin/pi-todo-installed"
 	assert_no_path "$sandbox/home/.pi/agent/b-agentic/install.json"
 }
 

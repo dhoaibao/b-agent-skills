@@ -11,6 +11,7 @@ for additional releases on the same day (`vYYYY.MM.DD.N`).
 ### Added
 
 - Add a canonical managed-capability activation contract with trigger, prerequisite, readiness, and fallback guidance, plus a privacy-preserving `/b-status` snapshot that reports local metadata without inspecting MCP credentials or claiming operational LSP readiness.
+- Integrate the installer-managed Pi todo extension with unpinned package lifecycle reconciliation, capability/status tracking, installer smoke coverage, and lightweight guidance for tracking non-trivial multi-step work.
 
 ## [v2026.09.01] - 2026-09-01
 

@@ -326,6 +326,8 @@ def validate_capabilities(contract: dict) -> list[str]:
         "piAskUserQuestionState",
         "piLspAction",
         "piLspState",
+        "piTodoAction",
+        "piTodoState",
     }
     for index, capability in enumerate(capabilities, start=1):
         label = f"capabilities[{index}]"
@@ -399,6 +401,7 @@ def validate_capabilities(contract: dict) -> list[str]:
                     "pi-intercom": ("piIntercomAction", "piIntercomState"),
                     "@juicesharp/rpiv-ask-user-question": ("piAskUserQuestionAction", "piAskUserQuestionState"),
                     "@narumitw/pi-lsp": ("piLspAction", "piLspState"),
+                    "@juicesharp/rpiv-todo": ("piTodoAction", "piTodoState"),
                 }
                 if package_name in package_state_keys and isinstance(install_state, dict):
                     expected_action, expected_state = package_state_keys[package_name]

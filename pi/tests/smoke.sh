@@ -491,7 +491,7 @@ const statusCommand = commands['b-status'];
 const statusSnapshot = await statusTest.buildCapabilitySnapshot(extensionHost, {
   packageListing: [
     'pi-mcp-adapter', 'pi-observational-memory', '@sreetej510/pi-usage',
-    '@gotgenes/pi-anthropic-auth', 'pi-intercom', '@juicesharp/rpiv-ask-user-question', '@narumitw/pi-lsp',
+    '@gotgenes/pi-anthropic-auth', 'pi-intercom', '@juicesharp/rpiv-ask-user-question', '@narumitw/pi-lsp', '@juicesharp/rpiv-todo',
   ].join('\n'),
   extensionRoot: installedRoot,
   mcpConfigPresent: true,
@@ -2326,8 +2326,9 @@ run_pi_smoke_cases() {
 	assert_file "$sandbox/home/.pi/agent/b-agentic/install.json"
 	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilityContractVersion'] == 1"
 	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilities']['contractVersion'] == 1"
-	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "len(data['capabilities']['states']) == 27"
+	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "len(data['capabilities']['states']) == 28"
 	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilities']['states']['package.pi-mcp-adapter']['state'] == 'ready'"
+	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilities']['states']['package.pi-todo']['state'] == 'ready'"
 	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilities']['states']['package.pi-lsp']['state'] == 'unknown'"
 	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilities']['states']['mcp.linear']['state'] == 'ready'"
 	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilities']['states']['extension.b-agentic-status']['state'] == 'ready'"
@@ -2351,14 +2352,18 @@ run_pi_smoke_cases() {
 	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:pi-intercom'
 	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@juicesharp/rpiv-ask-user-question'
 	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@narumitw/pi-lsp'
+	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@juicesharp/rpiv-todo'
 	assert_not_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@juicesharp/rpiv-ask-user-question@'
 	assert_not_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@narumitw/pi-lsp@'
+	assert_not_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@juicesharp/rpiv-todo@'
 	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piAskUserQuestionState": "ready"'
 	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piAnthropicAuthState": "ready"'
 	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piLspState": "ready"'
-	local initial_anthropic_auth_install_count initial_lsp_install_count
+	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piTodoState": "ready"'
+	local initial_anthropic_auth_install_count initial_lsp_install_count initial_todo_install_count
 	initial_anthropic_auth_install_count="$(grep -Fc 'npm:@gotgenes/pi-anthropic-auth' "$sandbox/smoke-bin/pi-install.log")"
 	initial_lsp_install_count="$(grep -Fc 'npm:@narumitw/pi-lsp' "$sandbox/smoke-bin/pi-install.log")"
+	initial_todo_install_count="$(grep -Fc 'npm:@juicesharp/rpiv-todo' "$sandbox/smoke-bin/pi-install.log")"
 
 	# Split in-session modes: sync pulls/assets only; update uses installed source without Git.
 	# Exercise sync with the default environment so package, Pi CLI, and MCP setup
@@ -2408,7 +2413,9 @@ EOF
 	assert_contains "$sandbox/smoke-bin/pi-install.log" 'update --extensions'
 	[ "$(grep -Fc 'npm:@gotgenes/pi-anthropic-auth' "$sandbox/smoke-bin/pi-install.log")" -eq "$initial_anthropic_auth_install_count" ] || fail "Pi update reinstalled pi-anthropic-auth despite package being present"
 	[ "$(grep -Fc 'npm:@narumitw/pi-lsp' "$sandbox/smoke-bin/pi-install.log")" -eq "$initial_lsp_install_count" ] || fail "Pi update reinstalled pi-lsp despite package being present"
+	[ "$(grep -Fc 'npm:@juicesharp/rpiv-todo' "$sandbox/smoke-bin/pi-install.log")" -eq "$initial_todo_install_count" ] || fail "Pi update reinstalled pi-todo despite package being present"
 	assert_not_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@narumitw/pi-lsp@'
+	assert_not_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@juicesharp/rpiv-todo@'
 
 	local behavioral_pid
 	run_pi_permission_behavioral_fixture "$sandbox" &
@@ -2438,10 +2445,13 @@ EOF
 	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:@gotgenes/pi-anthropic-auth'
 	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:@juicesharp/rpiv-ask-user-question'
 	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:@narumitw/pi-lsp'
+	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:@juicesharp/rpiv-todo'
 	assert_not_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:@juicesharp/rpiv-ask-user-question@'
 	assert_not_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:@narumitw/pi-lsp@'
+	assert_not_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:@juicesharp/rpiv-todo@'
 	assert_contains "$sandbox_adapter/home/.pi/agent/b-agentic/install.json" '"piAskUserQuestionState": "ready"'
 	assert_contains "$sandbox_adapter/home/.pi/agent/b-agentic/install.json" '"piLspState": "ready"'
+	assert_contains "$sandbox_adapter/home/.pi/agent/b-agentic/install.json" '"piTodoState": "ready"'
 	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'update --extensions'
 
 	# Preserve user-owned kernel.

@@ -270,6 +270,8 @@ unsafe diagnostics calls, and other custom LSP calls retain the generic
 custom-tool approval behavior, and authoritative repository validation remains
 required.
 
+b-agentic installs `@juicesharp/rpiv-todo` automatically at the latest release. This Pi package provides the todo tool, `/todos` command, and persistent overlay; the kernel guides lightweight task tracking for non-trivial multi-step work when available, without requiring it for small or routine tasks or imposing workflow orchestration, persistence, or telemetry.
+
 b-agentic installs `pi-intercom` automatically for its planner/worker workflow and installs
 `@juicesharp/rpiv-ask-user-question` at the latest release for structured planner decisions and blockers.
 Planner questions group 1–4 related questions, offer 2–4 concrete options with
@@ -313,7 +315,7 @@ repository, validates `dracula.json`, copies it to the theme cache, and links
 settings or selection. User files and unrelated symlinks at the theme destination
 are preserved with a warning. Uninstall removes only unchanged managed content
 and symlinks, restores recorded user backups, preserves modified or
-symlinked files, and never removes installed packages, including `@gotgenes/pi-anthropic-auth` and `@narumitw/pi-lsp`.
+symlinked files, and never removes installed packages, including `@gotgenes/pi-anthropic-auth`, `@narumitw/pi-lsp`, and `@juicesharp/rpiv-todo`.
 
 ## Roles and coordination
 

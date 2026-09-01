@@ -144,6 +144,26 @@
       "source": {"installer": "pi/scripts/install.sh"}
     },
     {
+      "id": "package.pi-todo",
+      "kind": "package",
+      "purpose": "Provide Pi's todo tool, /todos command, and persistent overlay.",
+      "owner": "Pi Todo extension",
+      "trigger": "Use when a Pi session needs its todo tool, /todos command, or persistent overlay; this package does not add a b-agentic todo workflow policy.",
+      "prerequisites": ["Pi CLI"],
+      "readiness": "The package is present in the local Pi package listing.",
+      "fallback": "Continue without Pi todo support or report that the todo tool is unavailable.",
+      "status_signal": {
+        "source": "local-package-listing",
+        "states": ["installed", "missing", "unknown"],
+        "description": "Reports only local package presence; it does not inspect todo content, overlay state, or session usage.",
+        "sensitive": false
+      },
+      "probe": {"type": "package", "name": "@juicesharp/rpiv-todo"},
+      "package": {"name": "@juicesharp/rpiv-todo", "spec": "npm:@juicesharp/rpiv-todo"},
+      "install_state": {"action": "piTodoAction", "state": "piTodoState"},
+      "source": {"installer": "pi/scripts/install.sh"}
+    },
+    {
       "id": "mcp.serena",
       "kind": "mcp",
       "purpose": "Answer exact symbol, reference, implementation, diagnostic, and semantic-edit questions.",

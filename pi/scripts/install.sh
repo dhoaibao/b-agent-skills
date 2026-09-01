@@ -78,6 +78,8 @@ PI_ASK_USER_QUESTION_SPEC="npm:@juicesharp/rpiv-ask-user-question"
 PI_ASK_USER_QUESTION_PACKAGE="@juicesharp/rpiv-ask-user-question"
 PI_LSP_SPEC="npm:@narumitw/pi-lsp"
 PI_LSP_PACKAGE="@narumitw/pi-lsp"
+PI_TODO_SPEC="npm:@juicesharp/rpiv-todo"
+PI_TODO_PACKAGE="@juicesharp/rpiv-todo"
 MCP_ROOT_KEY="mcpServers"
 MCP_PLACEHOLDER_STYLE="env-brace"
 MCP_CONTEXT7_SECTION="headers"
@@ -94,7 +96,8 @@ set_pi_readonly \
 	PI_MCP_ADAPTER_SPEC PI_MCP_ADAPTER_PACKAGE PI_OBSERVATIONAL_MEMORY_SPEC \
 	PI_OBSERVATIONAL_MEMORY_PACKAGE PI_USAGE_SPEC PI_USAGE_PACKAGE \
 	PI_ANTHROPIC_AUTH_SPEC PI_ANTHROPIC_AUTH_PACKAGE PI_INTERCOM_SPEC PI_INTERCOM_PACKAGE \
-	PI_ASK_USER_QUESTION_SPEC PI_ASK_USER_QUESTION_PACKAGE PI_LSP_SPEC PI_LSP_PACKAGE MCP_ROOT_KEY MCP_PLACEHOLDER_STYLE \
+	PI_ASK_USER_QUESTION_SPEC PI_ASK_USER_QUESTION_PACKAGE PI_LSP_SPEC PI_LSP_PACKAGE \
+	PI_TODO_SPEC PI_TODO_PACKAGE MCP_ROOT_KEY MCP_PLACEHOLDER_STYLE \
 	MCP_CONTEXT7_SECTION MCP_BRAVE_SECTION MCP_FIRECRAWL_SECTION MCP_BACKUP_KEY \
 	EXTENSION_BACKUP_KEY THEMES_DST THEME_DST THEMES_SNAPSHOT_DST THEME_CACHED_DST \
 	DRACULA_REPO_URL
@@ -120,6 +123,8 @@ INSTALL_PI_ASK_USER_QUESTION_ACTION="skip"
 INSTALL_PI_ASK_USER_QUESTION_STATE="missing"
 INSTALL_PI_LSP_ACTION="skip"
 INSTALL_PI_LSP_STATE="missing"
+INSTALL_PI_TODO_ACTION="skip"
+INSTALL_PI_TODO_STATE="missing"
 INSTALL_THEME_ACTION="skip"
 INSTALL_THEME_STATE="none"
 
@@ -144,6 +149,9 @@ runtime_warn_missing_cli() {
 	fi
 	if command -v pi >/dev/null 2>&1 && ! pi_lsp_installed; then
 		warn "@narumitw/pi-lsp not installed; optional LSP diagnostics and code actions are unavailable."
+	fi
+	if command -v pi >/dev/null 2>&1 && ! pi_todo_installed; then
+		warn "@juicesharp/rpiv-todo not installed; the Pi todo tool, /todos command, and persistent overlay are unavailable."
 	fi
 }
 
@@ -252,6 +260,10 @@ pi_ask_user_question_installed() {
 
 pi_lsp_installed() {
 	pi_package_installed "$PI_LSP_PACKAGE"
+}
+
+pi_todo_installed() {
+	pi_package_installed "$PI_TODO_PACKAGE"
 }
 
 maybe_install_pi_mcp_adapter() {
@@ -445,6 +457,45 @@ maybe_install_pi_lsp() {
 		INSTALL_PI_LSP_ACTION="failed"
 		INSTALL_PI_LSP_STATE="missing"
 		warn "Failed to install $PI_LSP_PACKAGE"
+		return 1
+	fi
+}
+
+maybe_install_pi_todo() {
+	local package_state
+	package_state="$(pi_package_state "$PI_TODO_PACKAGE")"
+	if [ "$package_state" = "present" ]; then
+		INSTALL_PI_TODO_ACTION="present"
+		INSTALL_PI_TODO_STATE="ready"
+		log "Pi Todo $PI_TODO_PACKAGE already installed"
+		return 0
+	fi
+
+	if ! command -v pi >/dev/null 2>&1 && ! dry_run_enabled; then
+		warn "Pi CLI missing; cannot install $PI_TODO_PACKAGE"
+		return 1
+	fi
+
+	if dry_run_enabled; then
+		printf '[dry-run] pi install %s\n' "$PI_TODO_SPEC" >&2
+		INSTALL_PI_TODO_ACTION="install"
+		INSTALL_PI_TODO_STATE="dry-run"
+		return 0
+	fi
+
+	if [ "$package_state" = "versioned" ]; then
+		log "Migrating $PI_TODO_PACKAGE to its latest unpinned release"
+	else
+		log "Installing $PI_TODO_PACKAGE"
+	fi
+	if pi install "$PI_TODO_SPEC"; then
+		INSTALL_PI_TODO_ACTION="install"
+		INSTALL_PI_TODO_STATE="ready"
+		log "Installed $PI_TODO_PACKAGE"
+	else
+		INSTALL_PI_TODO_ACTION="failed"
+		INSTALL_PI_TODO_STATE="missing"
+		warn "Failed to install $PI_TODO_PACKAGE"
 		return 1
 	fi
 }
@@ -700,6 +751,7 @@ runtime_install_configs() {
 	maybe_install_pi_intercom || return $?
 	maybe_install_pi_ask_user_question || return $?
 	maybe_install_pi_lsp || return $?
+	maybe_install_pi_todo || return $?
 	run_stage "Updating Pi extensions" update_pi_extensions || return $?
 	run_install_triplet_stage "Installing Pi permission extension" install_permissions_extension "skip" "none" "none" \
 		INSTALL_EXTENSION_ACTION INSTALL_EXTENSION_STATE INSTALL_EXTENSION_BACKUP || return $?
@@ -745,6 +797,8 @@ runtime_write_manifest() {
 		PI_ASK_USER_QUESTION_STATE="$INSTALL_PI_ASK_USER_QUESTION_STATE" \
 		PI_LSP_ACTION="$INSTALL_PI_LSP_ACTION" \
 		PI_LSP_STATE="$INSTALL_PI_LSP_STATE" \
+		PI_TODO_ACTION="$INSTALL_PI_TODO_ACTION" \
+		PI_TODO_STATE="$INSTALL_PI_TODO_STATE" \
 		THEME_ACTION="$INSTALL_THEME_ACTION" \
 		THEME_STATE="$INSTALL_THEME_STATE" \
 		PI_AGENT_DIR="$PI_AGENT_DIR" \
@@ -808,6 +862,8 @@ legacy_states = {
     'piAskUserQuestionState': os.environ['PI_ASK_USER_QUESTION_STATE'],
     'piLspAction': os.environ['PI_LSP_ACTION'],
     'piLspState': os.environ['PI_LSP_STATE'],
+    'piTodoAction': os.environ['PI_TODO_ACTION'],
+    'piTodoState': os.environ['PI_TODO_STATE'],
     'themeAction': os.environ['THEME_ACTION'],
     'themeState': os.environ['THEME_STATE'],
 }
@@ -859,6 +915,8 @@ manifest = {
     'piAskUserQuestionState': os.environ['PI_ASK_USER_QUESTION_STATE'],
     'piLspAction': os.environ['PI_LSP_ACTION'],
     'piLspState': os.environ['PI_LSP_STATE'],
+    'piTodoAction': os.environ['PI_TODO_ACTION'],
+    'piTodoState': os.environ['PI_TODO_STATE'],
     'themeAction': os.environ['THEME_ACTION'],
     'themeState': os.environ['THEME_STATE'],
     'paths': {
@@ -938,6 +996,7 @@ runtime_print_install_report() {
 	else
 		attention+=("pi-lsp: install $PI_LSP_PACKAGE with 'pi install $PI_LSP_SPEC'")
 	fi
+	[ "$INSTALL_PI_TODO_STATE" = "ready" ] || attention+=("pi-todo: install $PI_TODO_PACKAGE with 'pi install $PI_TODO_SPEC'")
 
 	shell_status="$(shell_tool_readiness_status)"
 	case "$shell_status" in
@@ -1020,7 +1079,7 @@ PY
 	elif [ -e "$theme_path" ]; then
 		warn "preserving modified Pi theme: $theme_path"
 	fi
-	# Intentionally leave Pi packages installed, including pi-lsp, pi-anthropic-auth, and the ask-user-question extension.
+	# Intentionally leave Pi packages installed, including pi-lsp, pi-anthropic-auth, the ask-user-question extension, and pi-todo.
 }
 
 
@@ -1033,7 +1092,7 @@ pi_sync() {
 }
 
 pi_update() {
-	set_install_stage_total 11
+	set_install_stage_total 12
 	run_stage "Updating Pi CLI" runtime_upgrade_cli || return $?
 	run_stage "Installing Pi MCP adapter" maybe_install_pi_mcp_adapter || return $?
 	run_stage "Installing observational memory" maybe_install_pi_observational_memory || return $?
@@ -1042,6 +1101,7 @@ pi_update() {
 	run_stage "Installing Pi intercom" maybe_install_pi_intercom || return $?
 	run_stage "Installing ask-user-question extension" maybe_install_pi_ask_user_question || return $?
 	run_stage "Installing Pi LSP" maybe_install_pi_lsp || return $?
+	run_stage "Installing Pi todo" maybe_install_pi_todo || return $?
 	run_stage "Syncing first-party extensions" install_permissions_extension >/dev/null || return $?
 	run_stage "Updating Pi extensions" update_pi_extensions || return $?
 	run_stage "Updating Dracula theme" install_dracula_theme
