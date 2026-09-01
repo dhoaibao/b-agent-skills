@@ -200,12 +200,21 @@ symlinked content, and never removes installed packages or unrelated user data.
 missing launchers or credentials, configured-but-unverified OAuth, and ready
 servers. `scripts/skill-doctor.sh` checks installed skill payloads and kernel
 discovery. Live MCP schema probing is opt-in, reports drift without editing
-policy, and does not acquire OAuth tokens.
+policy, and does not acquire OAuth tokens. `references/capabilities.yaml` is the
+single activation contract for managed Pi packages, MCP servers, and first-party
+extension entrypoints; it records task triggers, prerequisites, local readiness,
+fallbacks, and non-sensitive status signals. The installed contract is
+`~/.pi/agent/b-agentic/references/capabilities.yaml`. `/b-status` renders a
+read-only local snapshot using file/package/launcher metadata only: it does not
+parse MCP configuration, inspect credential/API-key values, start MCP/auth/
+browser probes, or persist session content. Pi LSP package presence remains
+separate from operational language-server readiness.
 
 Evidence: `install.sh`, `pi/scripts/install.sh`, `tooling/install/common.sh`,
 `tooling/install/manifest_uninstall.py`, `pi/configs/mcp.user.template.json`,
 `tooling/validate/mcp_doctor.py`, `tooling/validate/skill_doctor.py`,
-`scripts/mcp-doctor.sh`.
+`tooling/validate/capabilities.py`, `scripts/mcp-doctor.sh`,
+`pi/extensions/b-agentic-support/status.ts`.
 
 ## Verification and change discipline
 

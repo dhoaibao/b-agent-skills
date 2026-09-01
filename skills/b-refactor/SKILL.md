@@ -37,6 +37,11 @@ Run concrete behavior-preserving transforms: rename, extract, move, inline, simp
 - `read`/`edit` - routine file work, prose, comments, config keys, and Serena
   fallbacks. Prefer native edits unless a reference-aware Serena refactor is
   materially safer.
+- `lsp_diagnostics` / `lsp_fix` - use diagnostics for changed source when the relevant server is ready; use source actions only with explicit authorization, then fall back to repository checks if the route is unavailable.
+
+## Capability activation
+
+Use only the semantic capability required by the named transform: Serena is for exact symbol/reference precision after native discovery, while LSP is for diagnostics on supported changed source. `recall` is optional and requires a supplied compacted-memory ID. Intercom, authentication, and usage reporting are not part of a mechanical refactor unless their explicit task trigger is present.
 
 ## Steps
 

@@ -22,9 +22,14 @@ Own code-level and simulated-DOM tests: add coverage, fix test-only failures, an
   symbol, reference, or diagnostic materially improves safety or precision; use
   native `read`/`edit`/`write` for routine inspection and edits, and serialize
   requests rather than parallelizing or batching them.
+- `lsp_diagnostics` / `lsp_fix` - use diagnostics on changed source when the relevant server is ready; use source actions only with explicit authorization, and fall back to the selected repository checks when unsupported or unavailable.
 - `read`/`edit` - use Pi native tools for routine and unsupported file work.
 - `codegraph` - only for a concrete repository-wide source-to-test impact or affected-test question that native discovery cannot settle; do not initialize an absent local index merely because the change spans files.
 - `context7` - versioned test-framework/API semantics only when local tests and contracts do not settle them.
+
+## Capability activation
+
+Use LSP only when it has a ready route for the changed file; it does not replace the affected test run. Use Serena only for a concrete semantic test/source question, CodeGraph only for a concrete repository-wide affected-test question, and `recall` only when a supplied memory ID is relevant. Do not invoke usage, authentication, Intercom, or browser capabilities for test mechanics unless their task trigger is explicit.
 
 ## Steps
 

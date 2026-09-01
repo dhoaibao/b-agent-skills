@@ -934,7 +934,7 @@ for required in ["authorized", "Diagnosis-only requests stop"]:
         )
 
 MCP_SERVERS = {"serena", "codegraph", "context7", "linear", "mobbin", "brave-search", "firecrawl", "playwright"}
-LOCAL_TOOLS = {"bash", "read", "edit", "write", "recall"}
+LOCAL_TOOLS = {"bash", "read", "edit", "write", "recall", "lsp_diagnostics", "lsp_fix"}
 KNOWN_TOOLS = MCP_SERVERS | LOCAL_TOOLS
 
 
@@ -971,6 +971,8 @@ TOKEN_TO_DISPLAY_NAME = {
     "edit": "edit",
     "write": "write",
     "recall": "recall",
+    "lsp_diagnostics": "LSP",
+    "lsp_fix": "LSP",
 }
 
 referenced_servers: set[str] = set()

@@ -350,9 +350,11 @@ validate_pi_source_layout() {
 	[ -d "$SKILLS_SRC" ] || die "missing source directory: $SKILLS_SRC"
 	[ -f "$SKILLS_SRC/registry.yaml" ] || die "missing skill registry: $SKILLS_SRC/registry.yaml"
 	[ -d "$REFERENCES_SRC" ] || die "missing source directory: $REFERENCES_SRC"
+	[ -f "$REFERENCES_SRC/capabilities.yaml" ] || die "missing capability contract: $REFERENCES_SRC/capabilities.yaml"
 	[ -d "$TEMPLATES_SRC" ] || die "missing Pi config directory: $TEMPLATES_SRC"
 	[ -f "$KERNEL_SRC" ] || die "missing Pi kernel source: $KERNEL_SRC"
 	[ -f "$SOURCE_DIR/pi/scripts/install.sh" ] || die "missing Pi installer: $SOURCE_DIR/pi/scripts/install.sh"
+	[ -f "$SOURCE_DIR/pi/extensions/b-agentic-support/capabilities.ts" ] || die "missing generated capability module: $SOURCE_DIR/pi/extensions/b-agentic-support/capabilities.ts"
 	[ -f "$SOURCE_DIR/tooling/install/common.sh" ] || die "missing installer core: $SOURCE_DIR/tooling/install/common.sh"
 	python3 - "$SKILLS_SRC/registry.yaml" "$SKILLS_SRC" <<'PY' || die "Pi skill payload does not match registry: $SKILLS_SRC"
 import json

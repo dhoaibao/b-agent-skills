@@ -101,6 +101,13 @@ EOF
 	assert_json_value "$mcp_path" "data['mcpServers']['linear'] == {'url': 'https://mcp.linear.app/mcp/readonly', 'auth': 'oauth', 'oauth': {'scope': 'read'}, 'includeTools': ['get_issue'], 'lifecycle': 'lazy'}"
 	assert_json_value "$mcp_path" "data['mcpServers']['mobbin'] == {'url': 'https://api.mobbin.com/mcp', 'auth': 'oauth', 'includeTools': ['mobbin_search_screens', 'mobbin_search_flows', 'mobbin_search_sections'], 'lifecycle': 'lazy'}"
 	assert_json_value "$mcp_path" "data['settings']['requestTimeoutMs'] == 30000"
+	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilityContractVersion'] == 1"
+	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilities']['contractVersion'] == 1"
+	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilities']['states']['package.pi-mcp-adapter']['state'] == 'ready'"
+	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilities']['states']['package.pi-lsp']['state'] == 'unknown'"
+	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilities']['states']['mcp.linear']['state'] == 'ready'"
+	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilities']['states']['extension.b-agentic-status']['state'] == 'ready'"
+	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['paths']['capabilityContract'].endswith('/references/capabilities.yaml')"
 
 	python3 - "$mcp_path" <<'PY'
 import json

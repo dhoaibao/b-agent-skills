@@ -24,6 +24,11 @@ Create or refresh `docs/DESIGN.md`, the repo-local frontend design standard. Do 
   reference only when it materially improves precision about code ownership or
   component patterns; use native `read`/`edit`/`write` for routine file work and
   serialize requests.
+- `lsp_diagnostics` - use only when a changed supported source file has a ready language server; fall back to repository checks when it does not.
+
+## Capability activation
+
+Use LSP diagnostics only for supported changed source when a relevant server is ready, with repository checks as fallback. Use Mobbin only for the explicit standalone precedent or competitive-comparison trigger, never as general research or visual QA. Use browser evidence only when requested and route it to `b-browser`; do not invoke authentication, usage reporting, or Intercom for an ordinary design-standard edit.
 
 ## Steps
 

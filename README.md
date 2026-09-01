@@ -7,7 +7,9 @@ evidence, and verifies before claiming completion. It installs a compact Pi
 kernel, native skills, first-party extensions, and recommended MCP configuration.
 
 - **[Read the operational reference](REFERENCE.md)** for installation details,
-  package lifecycle, MCP readiness, safety behavior, and validation.
+  package lifecycle, MCP readiness, safety behavior, and validation. `/b-status` provides a local, read-only capability snapshot
+without reading MCP configuration contents or API-key values, starting MCP
+services, authenticating providers, or claiming session usage.
 - **[See the installed Pi layout](pi/configs/README.md)** for managed paths and
   user-owned configuration boundaries.
 - Maintainer and project context: [AGENTS.md](AGENTS.md),

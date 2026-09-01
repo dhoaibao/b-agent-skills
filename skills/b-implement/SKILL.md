@@ -41,8 +41,13 @@ Make the scoped non-UI change in the smallest coherent step, and hand back to pl
 - `read`/`edit`/`write` - use Pi native file tools by default for routine inspection and changes; also use them for unsupported files or as a fallback when Serena precision work fails.
 - `bash` - `rtk git status --short`, verification commands, and modern discovery routed through `rtk` whenever that command family is supported.
 - `codegraph` - only for a concrete repository-wide architecture, dependency/call flows, impact, or affected-test question that native inspection cannot settle; do not initialize an absent local index merely because the task spans files.
+- `lsp_diagnostics` / `lsp_fix` - use diagnostics on changed source when Pi LSP and a relevant language server are ready; use source actions only when explicitly authorized, and fall back to repository checks when unsupported or unavailable.
 - `context7` - narrow versioned third-party API checks when needed.
 - `recall` - recover compacted observational-memory ids when present instead of guessing prior context.
+
+## Capability activation
+
+Use the capability contract by trigger rather than by availability: use LSP diagnostics on supported changed source when its server is ready, then fall back to repository checks; use Serena only for concrete semantic precision after native inspection, CodeGraph only for the repository-wide questions above, and `recall` only when a supplied compacted-memory ID materially helps. In a two-role workflow use Intercom only for the explicit worker/planner handoff; use `ask_user_question` only for a material user-facing choice. Do not invoke usage reporting or authentication for unrelated implementation, and do not persist telemetry or session content.
 
 ## Steps
 

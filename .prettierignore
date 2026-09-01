@@ -16,4 +16,5 @@ skills/*/prompt.md
 # These YAML-suffixed registries intentionally remain JSON-compatible for the
 # dependency-light generator and validators.
 skills/registry.yaml
+references/capabilities.yaml
 references/mcp_operations.yaml

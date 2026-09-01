@@ -208,6 +208,23 @@ authenticated adapter probe path exists; the doctor never acquires OAuth tokens.
 `--suggestions-json=<path>` for a machine-readable report; suggestion mode
 never edits policy or configuration.
 
+## Capability contract and local status
+
+The installed [`~/.pi/agent/b-agentic/references/capabilities.yaml`](references/capabilities.yaml)
+contract records activation triggers, prerequisites, local readiness, fallbacks,
+and non-sensitive status signals for every managed package, MCP server, and
+first-party extension. `/b-status` renders a local, read-only snapshot from
+that contract using only package-listing, extension-file, MCP-config-file
+existence, and non-sensitive launcher metadata. It does not parse `mcp.json`,
+inspect environment/API-key values, start MCP servers, authenticate providers,
+run browser probes, or persist prompts, code, URLs, secrets, or usage telemetry.
+Managed MCP configuration and credentials remain unknown or unverified in this
+snapshot; use `mcp-doctor` or an explicitly approved operation for readiness
+that requires config content or authentication. Pi LSP package presence is
+reported separately from operational diagnostics readiness, which requires a
+relevant configured language-server executable. The snapshot complements
+`mcp-doctor` and approved live/browser evidence rather than replacing them.
+
 ## Pi integration and packages
 
 Pi discovers native skills from `~/.pi/agent/skills/` and MCP configuration from
@@ -236,8 +253,11 @@ shell, and yaml-language-server for YAML), so no configuration is required for
 those defaults. It starts servers only when its tools are called and does not
 install their binaries: the actual prerequisite is that the relevant
 language-server command is already on `PATH`; without one, diagnostics have no
-server to route the repository's file types to. Custom configuration replaces,
-rather than merges with, that default map. Resolution is `PI_LSP_CONFIG` (inline
+server to route the repository's file types to. Package installation alone does
+not establish operational LSP readiness: `/b-status` reports the package as
+unknown until a relevant route can be safely verified. Custom configuration
+replaces, rather than merges with, that default map. Resolution is
+`PI_LSP_CONFIG` (inline
 JSON or a JSON-file path), then `<workspace>/.pi/pi-lsp.json`, then
 `~/.pi/agent/pi-lsp.json`; the installer writes none of these files and leaves
 user and trusted-project configuration owner-controlled. Validated

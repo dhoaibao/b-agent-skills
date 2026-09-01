@@ -59,9 +59,9 @@ if (process.env.PI_PACKAGE_ROOT) {
 const extensionModules = await Promise.all([
   'b-agentic-permissions.ts', 'b-agentic-mcp-permissions.ts', 'b-agentic-auto-mode.ts', 'b-agentic-role.ts',
   'b-agentic-planner.ts', 'b-agentic-worker.ts', 'b-agentic-sync.ts', 'b-agentic-planner-notify.ts',
-  'b-agentic-preview-markdown.ts', 'b-agentic-consult.ts', 'b-agentic-rule-guard.ts',
+  'b-agentic-preview-markdown.ts', 'b-agentic-consult.ts', 'b-agentic-rule-guard.ts', 'b-agentic-status.ts',
 ].map((name) => import(pathToFileURL(path.join(installedRoot, name)).href)));
-for (const name of ['shell.ts', 'mcp.ts', 'role.ts', 'role-models.ts', 'consult.ts', 'worker.ts', 'state.ts', 'auto.ts']) {
+for (const name of ['shell.ts', 'mcp.ts', 'role.ts', 'role-models.ts', 'consult.ts', 'worker.ts', 'state.ts', 'auto.ts', 'capabilities.ts', 'status.ts']) {
   await import(pathToFileURL(path.join(installedRoot, 'b-agentic-support', name)).href);
 }
 const autoStateTest = await import(pathToFileURL(path.join(installedRoot, 'b-agentic-support', 'state.ts')).href);
@@ -75,8 +75,9 @@ const roleTest = extensionModules[3].__test__;
 const plannerTest = extensionModules[4].__test__;
 const plannerNotifyTest = extensionModules[7].__test__;
 const ruleGuardTest = extensionModules[10].__test__;
-if (!t || !plannerTest || !plannerNotifyTest || !ruleGuardTest) {
-  console.error('permission extension missing __test__ exports');
+const statusTest = extensionModules[11].__test__;
+if (!t || !plannerTest || !plannerNotifyTest || !ruleGuardTest || !statusTest) {
+  console.error('permission or status extension missing __test__ exports');
   process.exit(1);
 }
 const handlers = {};
@@ -486,6 +487,25 @@ rmSync(failureAgentDir, { force: true });
 const [autoSessionStartHandler, roleSessionStartHandler] = registrations.session_start;
 const toolCallHandler = handlers.tool_call;
 const ruleGuardHandler = registrations.tool_call.at(-1);
+const statusCommand = commands['b-status'];
+const statusSnapshot = await statusTest.buildCapabilitySnapshot(extensionHost, {
+  packageListing: [
+    'pi-mcp-adapter', 'pi-observational-memory', '@sreetej510/pi-usage',
+    '@gotgenes/pi-anthropic-auth', 'pi-intercom', '@juicesharp/rpiv-ask-user-question', '@narumitw/pi-lsp',
+  ].join('\n'),
+  extensionRoot: installedRoot,
+  mcpConfigPresent: true,
+  commandAvailable: (command) => command !== 'missing-launcher',
+});
+expect(statusCommand && statusCommand.description.includes('read-only'), 'b-status must register a read-only command');
+expect(statusSnapshot.includes('Capability contract v1'), 'b-status snapshot must include the contract version');
+expect(statusSnapshot.includes('Overall: degraded'), 'b-status must remain degraded when MCP contents and LSP routes are unverified');
+expect(statusSnapshot.includes('local, read-only; no MCP/auth/browser probes'), 'b-status snapshot must disclaim live probes');
+expect(statusSnapshot.includes('pi-mcp-adapter: installed'), 'b-status must report installed package presence');
+expect(statusSnapshot.includes('linear: unknown'), 'b-status must not claim OAuth configuration from parsed MCP content');
+expect(statusSnapshot.includes('pi-lsp: unknown'), 'b-status must not claim operational LSP readiness from package presence');
+expect(statusSnapshot.includes('b-agentic-status: installed'), 'b-status must report its managed extension presence');
+expect(!statusSnapshot.includes('Bearer configured') && !statusSnapshot.includes('BRAVE_API_KEY'), 'status fixture should not expose configured secret values');
 
 function expect(cond, msg) {
   if (!cond) throw new Error(msg);
@@ -2292,17 +2312,26 @@ run_pi_smoke_cases() {
 	assert_no_path "$sandbox/home/.pi/agent/skills/b-plan/prompt.md"
 	assert_file "$sandbox/home/.pi/agent/b-agentic/references/kernel.template.md"
 	assert_file "$sandbox/home/.pi/agent/b-agentic/references/mcp_operations.yaml"
+	assert_file "$sandbox/home/.pi/agent/b-agentic/references/capabilities.yaml"
 	assert_no_path "$sandbox/home/.pi/agent/b-agentic/references/contract"
 	assert_file "$sandbox/home/.pi/agent/mcp.json"
 	for extension in b-agentic-permissions.ts b-agentic-mcp-permissions.ts b-agentic-auto-mode.ts b-agentic-role.ts b-agentic-planner.ts b-agentic-planner-notify.ts b-agentic-worker.ts b-agentic-consult.ts b-agentic-sync.ts; do
 		assert_file "$sandbox/home/.pi/agent/extensions/$extension"
 		assert_file "$sandbox/home/.pi/agent/b-agentic/extensions/$extension"
 	done
-	for support in shell.ts mcp.ts role.ts role-models.ts consult.ts worker.ts state.ts auto.ts; do
+	for support in shell.ts mcp.ts role.ts role-models.ts consult.ts worker.ts state.ts auto.ts capabilities.ts status.ts; do
 		assert_file "$sandbox/home/.pi/agent/extensions/b-agentic-support/$support"
 		assert_file "$sandbox/home/.pi/agent/b-agentic/extensions/b-agentic-support/$support"
 	done
 	assert_file "$sandbox/home/.pi/agent/b-agentic/install.json"
+	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilityContractVersion'] == 1"
+	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilities']['contractVersion'] == 1"
+	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "len(data['capabilities']['states']) == 27"
+	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilities']['states']['package.pi-mcp-adapter']['state'] == 'ready'"
+	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilities']['states']['package.pi-lsp']['state'] == 'unknown'"
+	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilities']['states']['mcp.linear']['state'] == 'ready'"
+	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilities']['states']['extension.b-agentic-status']['state'] == 'ready'"
+	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['paths']['capabilityContract'].endswith('/references/capabilities.yaml')"
 	assert_contains "$sandbox/home/.pi/agent/mcp.json" '"codegraph"'
 	assert_contains "$sandbox/home/.pi/agent/mcp.json" '"linear"'
 	assert_contains "$sandbox/home/.pi/agent/mcp.json" '"url": "https://mcp.linear.app/mcp/readonly"'

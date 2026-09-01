@@ -18,7 +18,10 @@ root = Path('.')
 errors = []
 kernel = root / 'references/kernel.template.md'
 mcp = root / 'pi/configs/mcp.user.template.json'
+capabilities = root / 'references/capabilities.yaml'
+capabilities_module = root / 'pi/extensions/b-agentic-support/capabilities.ts'
 extension = root / 'pi/extensions/b-agentic-permissions.ts'
+status_extension = root / 'pi/extensions/b-agentic-status.ts'
 preview_extension = root / 'pi/packages/preview-markdown/extensions/b-agentic-preview-markdown.ts'
 preview_package = root / 'pi/packages/preview-markdown/package.json'
 public_readme = root / 'README.md'
@@ -52,11 +55,14 @@ extension_files = [
     root / 'pi/extensions/b-agentic-support/consult.ts',
     root / 'pi/extensions/b-agentic-support/worker.ts',
     root / 'pi/extensions/b-agentic-support/auto.ts',
+    status_extension,
+    root / 'pi/extensions/b-agentic-support/capabilities.ts',
+    root / 'pi/extensions/b-agentic-support/status.ts',
 ]
 config_readme = root / 'pi/configs/README.md'
 standalone_preview_installer = root / 'pi/scripts/install-preview-markdown.sh'
 
-for path in [kernel, mcp, *extension_files, config_readme, standalone_preview_installer, preview_package]:
+for path in [kernel, mcp, capabilities, capabilities_module, *extension_files, config_readme, standalone_preview_installer, preview_package]:
     if not path.exists():
         errors.append(f'{path}: missing')
 
@@ -70,6 +76,9 @@ if kernel.exists():
         'Worker is the sole worktree writer', 'same-CWD roster',
         'ask_user_question', '2–4 concrete options', ' (Recommended)', 'automatic custom-answer row',
         'focused plain-text question',
+        '~/.pi/agent/b-agentic/references/capabilities.yaml',
+        'package installation alone is not LSP readiness',
+        'never parse MCP configuration or inspect credential/API-key values',
     ]:
         if marker not in text:
             errors.append(f'{kernel}: missing {marker!r}')
@@ -111,6 +120,37 @@ for marker in [
 ]:
     if marker not in role_prompt:
         errors.append(f"{root / 'pi/extensions/b-agentic-support/role.ts'}: missing {marker!r}")
+
+if capabilities.exists():
+    contract = json.loads(capabilities.read_text())
+    contract_entries = contract.get('capabilities', [])
+    if contract.get('schema_version') != 1 or not isinstance(contract_entries, list) or not contract_entries:
+        errors.append(f'{capabilities}: must contain schema_version 1 and a non-empty capabilities array')
+    if len({entry.get('id') for entry in contract_entries if isinstance(entry, dict)}) != len(contract_entries):
+        errors.append(f'{capabilities}: capability ids must be unique')
+    if any(name in capabilities.read_text() for name in ['pi-lens', 'pi-subagents', 'background-task']):
+        errors.append(f'{capabilities}: forbidden packages must not be managed')
+if capabilities_module.exists():
+    text = capabilities_module.read_text()
+    for marker in ['Generated from references/capabilities.yaml', 'CAPABILITY_CONTRACT_VERSION', 'CAPABILITIES', 'package.pi-mcp-adapter', 'mcp.playwright', 'extension.b-agentic-status']:
+        if marker not in text:
+            errors.append(f'{capabilities_module}: missing generated capability marker {marker!r}')
+if status_extension.exists():
+    text = status_extension.read_text()
+    for marker in ['registerCommand("b-status"', 'buildCapabilitySnapshot', 'read-only local capability', 'no MCP/auth/browser probes', 'pi.exec("pi", ["list"]']:
+        if marker not in text:
+            errors.append(f'{status_extension}: missing status marker {marker!r}')
+    if 'writeFile' in text or 'appendEntry' in text:
+        errors.append(f'{status_extension}: status snapshot must not persist session content')
+status_support = root / 'pi/extensions/b-agentic-support/status.ts'
+if status_support.exists():
+    text = status_support.read_text()
+    for marker in ['mcpConfigPresent', 'MCP configuration contents and credential/key readiness are intentionally unverified', 'Pi LSP is installed, but a relevant language-server route']:
+        if marker not in text:
+            errors.append(f'{status_support}: missing privacy/readiness marker {marker!r}')
+    for forbidden in ['readFileSync', 'readLocalJsonConfig', 'hasConfiguredValue', 'process.env[']:
+        if forbidden in text:
+            errors.append(f'{status_support}: status snapshot must not inspect MCP content or credential environment values ({forbidden!r})')
 
 if mcp.exists():
     data = json.loads(mcp.read_text())

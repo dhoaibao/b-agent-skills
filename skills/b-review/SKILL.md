@@ -33,6 +33,7 @@ Flags: `--skip-tests`, `--baseline=<path|url>`, `--range=<ref>..<ref>`.
 
 - `bash` - `rtk git status`, metadata-only Git path lists, targeted safe-path diffs, logs, and narrow verification; modern discovery routed through `rtk` whenever supported.
 - `read` - open changed files directly.
+- `lsp_diagnostics` - use only for changed supported source when the relevant language server is ready; it is read-only evidence and does not replace targeted diff review or repository checks.
 - `codegraph` - only for a concrete repository-wide changed-flow, impact, or
   affected-test question that native inspection cannot settle; use an available
   index for that question. In planner mode, do not initialize an absent index;
@@ -44,6 +45,10 @@ Flags: `--skip-tests`, `--baseline=<path|url>`, `--range=<ref>..<ref>`.
   rather than parallelizing or batching them.
 - `brave-search` - one narrow independent public lookup; use specialized Brave tools only when news/local/image/video/place evidence matters.
 - `recall` - recover compacted audit or prior-review memory ids when present.
+
+## Capability activation
+
+Use LSP diagnostics only as bounded read-only evidence for supported changed source with a ready server; do not use source actions during review. Use Serena only for a concrete exact changed-symbol/reference question after native inspection, CodeGraph only for a concrete repository-wide impact question, and `recall` only with a supplied prior-review ID. Research, authentication, usage reporting, Intercom, and browser operations are not implicit review steps.
 
 ## Steps
 

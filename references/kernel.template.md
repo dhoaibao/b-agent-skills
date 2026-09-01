@@ -57,6 +57,16 @@ Unclear work -> `b-plan`. `b-commit` and `b-pr-summary` need explicit request. R
 - MCP: CodeGraph, Serena, Context7, Linear, Mobbin, Firecrawl, Brave, and Playwright; nested tools keep policy. Roles do not alter MCP availability/approval; prompt ownership directs execution. Managed Serena/CodeGraph names bypass generic gating only in namespace; protected/outside-project and mismatched tools stay gated.
 - Use CodeGraph only when native inspection leaves a concrete repository-wide architecture or impact question; run exact `codegraph init` only then and only when its index is absent. Use Serena only for a concrete exact-symbol or diagnostic/refactor need; onboarding, memories, and dashboard are exceptions. Do not install missing tools; fall back to local evidence and state the resulting gap.
 
+## Capability activation
+
+`~/.pi/agent/b-agentic/references/capabilities.yaml` is canonical. Activate a capability only for its task trigger; when prerequisites are unavailable, state the local fallback. Configured is not authenticated, externally verified, or used here.
+
+For changed supported source, use `lsp_diagnostics` only with a ready relevant route; package installation alone is not LSP readiness. Use `lsp_fix` only for an explicitly authorized source action, then fall back to repository checks. Use Serena after native search/read only for concrete exact-symbol, reference, implementation, diagnostic, or semantic-edit needs. Use CodeGraph only for concrete repository-wide architecture, dependency/call-flow, impact, route, or affected-test questions native inspection cannot settle.
+
+Use Context7 for versioned official facts, Firecrawl for bounded primary public research, Brave for current corroboration, Playwright for requested real-browser/e2e/visual evidence, Linear for an exact supplied issue ID, and Mobbin for an explicit standalone UI/UX precedent study. Use Intercom only for same-CWD role coordination, `ask_user_question` only for material grouped choices, `recall` only with a supplied memory ID, usage reporting only when requested, and authentication only when user action is needed.
+
+A status snapshot must never start live MCP/auth/browser probes, never parse MCP configuration or inspect credential/API-key values, or persist prompts, code, URLs, secrets, or usage telemetry.
+
 ### Managed MCP operations
 
 Canonical policy: `~/.pi/agent/b-agentic/references/mcp_operations.yaml`. Auto-approve classified Serena, read-only, and safe conditional-read operations. Other MCP/custom operations need approval.

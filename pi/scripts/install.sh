@@ -24,6 +24,7 @@ SKILLS_SNAPSHOT_DST="$METADATA_DIR/skills"
 KERNEL_DST="$PI_AGENT_DIR/AGENTS.md"
 KERNEL_SNAPSHOT_DST="$METADATA_DIR/AGENTS.md"
 REFERENCES_DST="$METADATA_DIR/references"
+CAPABILITIES_SRC="$SOURCE_DIR/references/capabilities.yaml"
 TEMPLATES_DST="$METADATA_DIR/templates"
 MANIFEST_DST="$METADATA_DIR/install.json"
 MCP_CONFIG_DST="${B_AGENTIC_PI_MCP_JSON:-$PI_AGENT_DIR/mcp.json}"
@@ -45,6 +46,7 @@ EXTENSION_NAMES=(
 	b-agentic-consult.ts
 	b-agentic-sync.ts
 	b-agentic-rule-guard.ts
+	b-agentic-status.ts
 	b-agentic-support/shell.ts
 	b-agentic-support/mcp.ts
 	b-agentic-support/role.ts
@@ -53,6 +55,8 @@ EXTENSION_NAMES=(
 	b-agentic-support/worker.ts
 	b-agentic-support/state.ts
 	b-agentic-support/auto.ts
+	b-agentic-support/capabilities.ts
+	b-agentic-support/status.ts
 )
 LEGACY_EXTENSION_NAMES=(
 	b-agentic-consultant.ts
@@ -85,7 +89,7 @@ EXTENSION_BACKUP_KEY="permissionsExtension"
 set_pi_readonly \
 	RUNTIME_UNINSTALL_LABEL RUNTIME_PRESERVE_LABEL PI_AGENT_DIR METADATA_DIR \
 	BACKUPS_DIR SKILLS_DST SKILLS_SNAPSHOT_DST KERNEL_DST KERNEL_SNAPSHOT_DST \
-	REFERENCES_DST TEMPLATES_DST MANIFEST_DST MCP_CONFIG_DST EXTENSIONS_DST \
+	REFERENCES_DST CAPABILITIES_SRC TEMPLATES_DST MANIFEST_DST MCP_CONFIG_DST EXTENSIONS_DST \
 	EXTENSION_NAMES LEGACY_EXTENSION_NAMES EXTENSION_DST EXTENSION_SNAPSHOT_DST EXTENSION_SRC \
 	PI_MCP_ADAPTER_SPEC PI_MCP_ADAPTER_PACKAGE PI_OBSERVATIONAL_MEMORY_SPEC \
 	PI_OBSERVATIONAL_MEMORY_PACKAGE PI_USAGE_SPEC PI_USAGE_PACKAGE \
@@ -752,6 +756,7 @@ runtime_write_manifest() {
 		SKILLS_DST="$SKILLS_DST" \
 		REFERENCES_DST="$REFERENCES_DST" \
 		TEMPLATES_DST="$TEMPLATES_DST" \
+		CAPABILITY_CONTRACT_SRC="$CAPABILITIES_SRC" \
 		KERNEL_DST="$KERNEL_DST" \
 		THEME_DST="$THEME_DST" \
 		THEME_CACHED_DST="$THEME_CACHED_DST" \
@@ -775,11 +780,66 @@ for item in os.environ['EXTENSION_BACKUP'].split():
     elif '=' in item:  # legacy triplet output
         name, backup = item.split('=', 1)
         extension_backups[name] = backup
+try:
+    capability_contract = json.loads(Path(os.environ['CAPABILITY_CONTRACT_SRC']).read_text())
+    if not isinstance(capability_contract, dict) or not isinstance(capability_contract.get('capabilities'), list):
+        raise ValueError('invalid capability contract shape')
+except Exception:
+    # Keep manifests readable for source checkouts predating the capability contract.
+    capability_contract = {'schema_version': 1, 'capabilities': []}
+
+legacy_states = {
+    'memoryAction': os.environ['MEMORY_ACTION'],
+    'extensionAction': os.environ['EXTENSION_ACTION'],
+    'extensionState': os.environ['EXTENSION_STATE'],
+    'mcpAction': os.environ['MCP_ACTION'],
+    'mcpState': os.environ['MCP_STATE'],
+    'mcpAdapterAction': os.environ['MCP_ADAPTER_ACTION'],
+    'mcpAdapterState': os.environ['MCP_ADAPTER_STATE'],
+    'piObservationalMemoryAction': os.environ['PI_OBSERVATIONAL_MEMORY_ACTION'],
+    'piObservationalMemoryState': os.environ['PI_OBSERVATIONAL_MEMORY_STATE'],
+    'piUsageAction': os.environ['PI_USAGE_ACTION'],
+    'piUsageState': os.environ['PI_USAGE_STATE'],
+    'piAnthropicAuthAction': os.environ['PI_ANTHROPIC_AUTH_ACTION'],
+    'piAnthropicAuthState': os.environ['PI_ANTHROPIC_AUTH_STATE'],
+    'piIntercomAction': os.environ['PI_INTERCOM_ACTION'],
+    'piIntercomState': os.environ['PI_INTERCOM_STATE'],
+    'piAskUserQuestionAction': os.environ['PI_ASK_USER_QUESTION_ACTION'],
+    'piAskUserQuestionState': os.environ['PI_ASK_USER_QUESTION_STATE'],
+    'piLspAction': os.environ['PI_LSP_ACTION'],
+    'piLspState': os.environ['PI_LSP_STATE'],
+    'themeAction': os.environ['THEME_ACTION'],
+    'themeState': os.environ['THEME_STATE'],
+}
+def capability_state(capability, value):
+    # LSP package installation does not prove a usable language-server route.
+    if capability.get('id') == 'package.pi-lsp' and value in ('active', 'ready', 'dry-run'):
+        return 'unknown'
+    # The legacy installer calls an active managed asset ready in the capability view.
+    return 'ready' if value == 'active' else value
+
+capability_states = {}
+for capability in capability_contract.get('capabilities', []):
+    if not isinstance(capability, dict) or not isinstance(capability.get('id'), str):
+        continue
+    install_state = capability.get('install_state', {})
+    if not isinstance(install_state, dict):
+        install_state = {}
+    capability_states[capability['id']] = {
+        'action': legacy_states.get(install_state.get('action'), 'unknown'),
+        'state': capability_state(capability, legacy_states.get(install_state.get('state'), 'unknown')),
+    }
+
 manifest = {
     'suite': 'b-agentic',
     'runtime': os.environ['RUNTIME'],
     'installedAt': os.environ['TIMESTAMP'],
     'activationState': os.environ['ACTIVATION_STATE'],
+    'capabilityContractVersion': capability_contract.get('schema_version', 1),
+    'capabilities': {
+        'contractVersion': capability_contract.get('schema_version', 1),
+        'states': capability_states,
+    },
     'memoryAction': os.environ['MEMORY_ACTION'],
     'extensionAction': os.environ['EXTENSION_ACTION'],
     'extensionState': os.environ['EXTENSION_STATE'],
@@ -812,6 +872,7 @@ manifest = {
         'kernel': os.environ['KERNEL_DST'],
         'skills': os.environ['SKILLS_DST'],
         'references': os.environ['REFERENCES_DST'],
+        'capabilityContract': str(Path(os.environ['REFERENCES_DST']) / 'capabilities.yaml'),
         'templates': os.environ['TEMPLATES_DST'],
         'theme': os.environ['THEME_DST'],
         'cachedTheme': os.environ['THEME_CACHED_DST'],
@@ -855,6 +916,8 @@ runtime_print_install_report() {
 	case "$status" in ready:*) ;; *) attention+=("context7: $status") ;; esac
 	status="$(linear_readiness_status)"
 	case "$status" in configured:*) attention+=("linear: $status") ;; ready:*) ;; *) attention+=("linear: $status") ;; esac
+	status="$(mobbin_readiness_status)"
+	case "$status" in configured:*) attention+=("mobbin: $status") ;; ready:*) ;; *) attention+=("mobbin: $status") ;; esac
 	status="$(brave_search_readiness_status)"
 	case "$status" in ready:*) ;; *) attention+=("brave-search: $status") ;; esac
 	status="$(firecrawl_readiness_status)"
@@ -870,7 +933,11 @@ runtime_print_install_report() {
 	[ "$INSTALL_PI_ANTHROPIC_AUTH_STATE" = "ready" ] || attention+=("anthropic-auth: install $PI_ANTHROPIC_AUTH_PACKAGE with 'pi install $PI_ANTHROPIC_AUTH_SPEC'")
 	[ "$INSTALL_PI_INTERCOM_STATE" = "ready" ] || attention+=("pi-intercom: install $PI_INTERCOM_PACKAGE with 'pi install $PI_INTERCOM_SPEC'")
 	[ "$INSTALL_PI_ASK_USER_QUESTION_STATE" = "ready" ] || attention+=("ask-user-question: install $PI_ASK_USER_QUESTION_PACKAGE with 'pi install $PI_ASK_USER_QUESTION_SPEC'")
-	[ "$INSTALL_PI_LSP_STATE" = "ready" ] || attention+=("pi-lsp: install $PI_LSP_PACKAGE with 'pi install $PI_LSP_SPEC'")
+	if [ "$INSTALL_PI_LSP_STATE" = "ready" ]; then
+		attention+=("pi-lsp: package installed; relevant language-server executable/configuration remains unverified (see /b-status)")
+	else
+		attention+=("pi-lsp: install $PI_LSP_PACKAGE with 'pi install $PI_LSP_SPEC'")
+	fi
 
 	shell_status="$(shell_tool_readiness_status)"
 	case "$shell_status" in

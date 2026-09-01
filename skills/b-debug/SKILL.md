@@ -36,10 +36,15 @@ Find the real cause of broken behavior, then fix it minimally only when the user
   tooling materially improves safety or precision. Use native
   `read`/`edit`/`write` for routine work; serialize requests rather than
   parallelizing or batching them.
+- `lsp_diagnostics` / `lsp_fix` - after reproducing the issue, use diagnostics on changed source when a relevant server is ready; use source actions only with explicit authorization, and fall back to repository checks when unavailable.
 - `read`/`edit` - use Pi native tools by default for routine inspection and changes; also use them for unsupported files or as a fallback when Serena precision work fails.
 - `codegraph` - only for a concrete repository-wide dependency/call-flow or impact question that native inspection cannot settle; do not initialize an absent local index merely because the suspect spans files.
 - `context7` - versioned dependency/API behavior only when a library suspect remains after local evidence.
 - `recall` - recover compacted repro or prior-diagnosis memory ids when present.
+
+## Capability activation
+
+Do not call external capabilities merely because the symptom spans files. Use LSP diagnostics for supported changed source when a relevant server is ready, then use repository checks as the fallback. Use Serena for a concrete semantic ownership or diagnostic question after native inspection, CodeGraph only for a concrete repository-wide flow or impact question, and `recall` only for a supplied compacted repro or diagnosis ID. Authentication, Intercom, and usage reporting are unrelated unless explicitly requested.
 
 ## Steps
 

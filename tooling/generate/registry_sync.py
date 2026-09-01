@@ -14,6 +14,8 @@ ROOT = Path(__file__).resolve().parents[2]
 SKILL_REGISTRY_PATH = ROOT / "skills" / "registry.yaml"
 KERNEL_TEMPLATE_PATH = ROOT / "references" / "kernel.template.md"
 MCP_OPERATIONS_PATH = ROOT / "references" / "mcp_operations.yaml"
+CAPABILITIES_PATH = ROOT / "references" / "capabilities.yaml"
+CAPABILITIES_OUTPUT_PATH = ROOT / "pi" / "extensions" / "b-agentic-support" / "capabilities.ts"
 
 README_SKILLS_START = "<!-- generated:skills-table:start -->"
 README_SKILLS_END = "<!-- generated:skills-table:end -->"
@@ -256,6 +258,308 @@ def load_skills() -> list[dict]:
     return skills
 
 
+def load_capabilities() -> dict:
+    contract = load_json_subset_yaml(CAPABILITIES_PATH)
+    capabilities = contract.get("capabilities")
+    if not isinstance(capabilities, list):
+        raise SystemExit(f"{CAPABILITIES_PATH}: missing capabilities array")
+    return contract
+
+
+def _non_empty_string_list(value: object, label: str, errors: list[str]) -> None:
+    if not isinstance(value, list) or not value or not all(isinstance(item, str) and item for item in value):
+        errors.append(f"{label}: expected a non-empty string array")
+
+
+def _installer_package_metadata() -> tuple[set[str], set[str]]:
+    installer = ROOT / "pi" / "scripts" / "install.sh"
+    text = installer.read_text() if installer.exists() else ""
+    specs = set(re.findall(r'^\s*PI_[A-Z0-9_]+_SPEC="([^"]+)"\s*$', text, re.MULTILINE))
+    names = set(re.findall(r'^\s*PI_[A-Z0-9_]+_PACKAGE="([^"]+)"\s*$', text, re.MULTILINE))
+    return specs, names
+
+
+def _installer_extension_names() -> set[str]:
+    installer = ROOT / "pi" / "scripts" / "install.sh"
+    text = installer.read_text() if installer.exists() else ""
+    match = re.search(r"EXTENSION_NAMES=\(\n(.*?)\n\)", text, re.DOTALL)
+    if not match:
+        return set()
+    return {line.strip() for line in match.group(1).splitlines() if line.strip() and not line.lstrip().startswith("#")}
+
+
+def validate_capabilities(contract: dict) -> list[str]:
+    errors: list[str] = []
+    if contract.get("schema_version") != 1:
+        errors.append(f"{CAPABILITIES_PATH}: schema_version must be 1")
+    if contract.get("format") != "json-subset-of-yaml":
+        errors.append(f"{CAPABILITIES_PATH}: format must be json-subset-of-yaml")
+
+    capabilities = contract.get("capabilities")
+    if not isinstance(capabilities, list) or not capabilities:
+        errors.append(f"{CAPABILITIES_PATH}: capabilities must be a non-empty array")
+        return errors
+
+    ids: list[str] = []
+    package_names: set[str] = set()
+    package_specs: set[str] = set()
+    mcp_servers: set[str] = set()
+    extension_names: set[str] = set()
+    expected_state_keys = {"action", "state"}
+    allowed_kinds = {"package", "mcp", "extension"}
+    known_install_state_keys = {
+        "extensionAction",
+        "extensionState",
+        "mcpAction",
+        "mcpState",
+        "mcpAdapterAction",
+        "mcpAdapterState",
+        "piObservationalMemoryAction",
+        "piObservationalMemoryState",
+        "piUsageAction",
+        "piUsageState",
+        "piAnthropicAuthAction",
+        "piAnthropicAuthState",
+        "piIntercomAction",
+        "piIntercomState",
+        "piAskUserQuestionAction",
+        "piAskUserQuestionState",
+        "piLspAction",
+        "piLspState",
+    }
+    for index, capability in enumerate(capabilities, start=1):
+        label = f"capabilities[{index}]"
+        if not isinstance(capability, dict):
+            errors.append(f"{label}: expected object")
+            continue
+        capability_id = ensure_string(capability.get("id"), f"{label}.id", errors)
+        if capability_id:
+            ids.append(capability_id)
+        kind = ensure_string(capability.get("kind"), f"{label}.kind", errors)
+        if kind and kind not in allowed_kinds:
+            errors.append(f"{label}.kind: expected one of {sorted(allowed_kinds)}, got {kind!r}")
+        for field in ("purpose", "owner", "trigger", "readiness", "fallback"):
+            ensure_string(capability.get(field), f"{label}.{field}", errors)
+        _non_empty_string_list(capability.get("prerequisites"), f"{label}.prerequisites", errors)
+
+        signal = capability.get("status_signal")
+        if not isinstance(signal, dict):
+            errors.append(f"{label}.status_signal: expected object")
+        else:
+            for field in ("source", "description"):
+                ensure_string(signal.get(field), f"{label}.status_signal.{field}", errors)
+            _non_empty_string_list(signal.get("states"), f"{label}.status_signal.states", errors)
+            if signal.get("sensitive") is not False:
+                errors.append(f"{label}.status_signal.sensitive: must be false")
+
+        probe = capability.get("probe")
+        if not isinstance(probe, dict):
+            errors.append(f"{label}.probe: expected object")
+        else:
+            probe_type = ensure_string(probe.get("type"), f"{label}.probe.type", errors)
+            if probe_type != kind:
+                errors.append(f"{label}.probe.type: must match capability kind {kind!r}")
+
+        install_state = capability.get("install_state")
+        if not isinstance(install_state, dict) or set(install_state) != expected_state_keys:
+            errors.append(f"{label}.install_state: expected action and state keys")
+        else:
+            for field in sorted(expected_state_keys):
+                value = ensure_string(install_state.get(field), f"{label}.install_state.{field}", errors)
+                if value and value not in known_install_state_keys:
+                    errors.append(f"{label}.install_state.{field}: unknown manifest field {value!r}")
+
+        source = capability.get("source")
+        if (
+            not isinstance(source, dict)
+            or not source
+            or not all(
+                isinstance(key, str) and key and isinstance(value, str) and value for key, value in source.items()
+            )
+        ):
+            errors.append(f"{label}.source: expected a non-empty string reference map")
+
+        if kind == "package":
+            package = capability.get("package")
+            package_meta = package if isinstance(package, dict) else {}
+            if not isinstance(package, dict):
+                errors.append(f"{label}.package: expected name and spec")
+            else:
+                package_name = ensure_string(package.get("name"), f"{label}.package.name", errors)
+                package_spec = ensure_string(package.get("spec"), f"{label}.package.spec", errors)
+                if package_name:
+                    package_names.add(package_name)
+                if package_spec:
+                    package_specs.add(package_spec)
+                package_state_keys = {
+                    "pi-mcp-adapter": ("mcpAdapterAction", "mcpAdapterState"),
+                    "pi-observational-memory": ("piObservationalMemoryAction", "piObservationalMemoryState"),
+                    "@sreetej510/pi-usage": ("piUsageAction", "piUsageState"),
+                    "@gotgenes/pi-anthropic-auth": ("piAnthropicAuthAction", "piAnthropicAuthState"),
+                    "pi-intercom": ("piIntercomAction", "piIntercomState"),
+                    "@juicesharp/rpiv-ask-user-question": ("piAskUserQuestionAction", "piAskUserQuestionState"),
+                    "@narumitw/pi-lsp": ("piLspAction", "piLspState"),
+                }
+                if package_name in package_state_keys and isinstance(install_state, dict):
+                    expected_action, expected_state = package_state_keys[package_name]
+                    if install_state.get("action") != expected_action or install_state.get("state") != expected_state:
+                        errors.append(f"{label}.install_state: package mapping does not match installer state fields")
+            if not isinstance(probe, dict) or probe.get("name") != package_meta.get("name"):
+                errors.append(f"{label}.probe.name: must match package.name")
+        elif kind == "mcp":
+            mcp = capability.get("mcp")
+            mcp_meta = mcp if isinstance(mcp, dict) else {}
+            if not isinstance(mcp, dict):
+                errors.append(f"{label}.mcp: expected server metadata")
+            else:
+                server = ensure_string(mcp.get("server"), f"{label}.mcp.server", errors)
+                if server:
+                    mcp_servers.add(server)
+                for field in ("auth",):
+                    ensure_string(mcp.get(field), f"{label}.mcp.{field}", errors)
+                required_env = mcp.get("required_env")
+                if not isinstance(required_env, list) or not all(isinstance(item, str) for item in required_env):
+                    errors.append(f"{label}.mcp.required_env: expected a string array")
+                if isinstance(probe, dict):
+                    for field in ("launcher", "required_env", "auth"):
+                        if probe.get(field) != mcp.get(field):
+                            errors.append(f"{label}.probe.{field}: must match mcp.{field}")
+            if not isinstance(probe, dict) or probe.get("server") != mcp_meta.get("server"):
+                errors.append(f"{label}.probe.server: must match mcp.server")
+        elif kind == "extension":
+            extension = capability.get("extension")
+            extension_meta = extension if isinstance(extension, dict) else {}
+            if not isinstance(extension, dict):
+                errors.append(f"{label}.extension: expected name and source")
+            else:
+                extension_name = ensure_string(extension.get("name"), f"{label}.extension.name", errors)
+                source = ensure_string(extension.get("source"), f"{label}.extension.source", errors)
+                if extension_name:
+                    extension_names.add(extension_name)
+                    source_path = ROOT / source if source else None
+                    if source_path is not None:
+                        try:
+                            source_path.relative_to(ROOT)
+                        except ValueError:
+                            errors.append(f"{label}.extension.source: must stay inside the repository")
+                        if not source_path.exists():
+                            errors.append(f"{label}.extension.source: missing {source!r}")
+                        if extension_name and source_path.name != extension_name:
+                            errors.append(f"{label}.extension.source: basename must match extension.name")
+            if not isinstance(probe, dict) or probe.get("name") != extension_meta.get("name"):
+                errors.append(f"{label}.probe.name: must match extension.name")
+
+    if len(ids) != len(set(ids)):
+        errors.append(f"{CAPABILITIES_PATH}: capability ids must be unique")
+
+    installer_specs, installer_names = _installer_package_metadata()
+    if package_specs != installer_specs:
+        errors.append(
+            f"{CAPABILITIES_PATH}: package specs must match pi/scripts/install.sh "
+            f"(contract={sorted(package_specs)}, installer={sorted(installer_specs)})"
+        )
+    if package_names != installer_names:
+        errors.append(
+            f"{CAPABILITIES_PATH}: package names must match pi/scripts/install.sh "
+            f"(contract={sorted(package_names)}, installer={sorted(installer_names)})"
+        )
+
+    forbidden_packages = {"pi-lens", "pi-subagents", "background-task", "background-tasks"}
+    forbidden_found = sorted((package_names | package_specs) & forbidden_packages)
+    if forbidden_found:
+        errors.append(f"{CAPABILITIES_PATH}: forbidden packages are not managed: {forbidden_found}")
+
+    installer_extensions = _installer_extension_names()
+    expected_entrypoints = {path.name for path in (ROOT / "pi" / "extensions").glob("*.ts")}
+    preview_source = ROOT / "pi" / "packages" / "preview-markdown" / "extensions" / "b-agentic-preview-markdown.ts"
+    if preview_source.exists():
+        expected_entrypoints.add(preview_source.name)
+    if extension_names != expected_entrypoints:
+        errors.append(
+            f"{CAPABILITIES_PATH}: extension names must cover first-party entrypoints "
+            f"(contract={sorted(extension_names)}, entrypoints={sorted(expected_entrypoints)})"
+        )
+    missing_installer_extensions = sorted(extension_names - installer_extensions)
+    if missing_installer_extensions:
+        errors.append(
+            f"{CAPABILITIES_PATH}: first-party entrypoints missing from installer EXTENSION_NAMES: "
+            f"{missing_installer_extensions}"
+        )
+
+    try:
+        template = json.loads((ROOT / "pi" / "configs" / "mcp.user.template.json").read_text())
+    except Exception as exc:
+        errors.append(f"pi/configs/mcp.user.template.json: invalid JSON: {exc}")
+        template = {}
+    template_servers = set((template.get("mcpServers") or {}).keys())
+    try:
+        policy = load_json_subset_yaml(MCP_OPERATIONS_PATH)
+    except SystemExit as exc:
+        errors.append(str(exc))
+        policy = {}
+    policy_servers = set((policy.get("servers") or {}).keys())
+    if template_servers != policy_servers:
+        errors.append(
+            f"MCP template/policy server sets differ (template={sorted(template_servers)}, policy={sorted(policy_servers)})"
+        )
+    if mcp_servers != template_servers:
+        errors.append(
+            f"{CAPABILITIES_PATH}: MCP capabilities must match template servers "
+            f"(contract={sorted(mcp_servers)}, template={sorted(template_servers)})"
+        )
+
+    return errors
+
+
+def render_capability_module(contract: dict) -> str:
+    capabilities = json.dumps(contract["capabilities"], indent=2, ensure_ascii=False)
+    return """/** Generated from references/capabilities.yaml. Do not edit this file. */
+export type CapabilityKind = "package" | "mcp" | "extension";
+
+export type CapabilityDefinition = {
+  readonly id: string;
+  readonly kind: CapabilityKind;
+  readonly purpose: string;
+  readonly owner: string;
+  readonly trigger: string;
+  readonly prerequisites: readonly string[];
+  readonly readiness: string;
+  readonly fallback: string;
+  readonly status_signal: {
+    readonly source: string;
+    readonly states: readonly string[];
+    readonly description: string;
+    readonly sensitive: false;
+  };
+  readonly probe: {
+    readonly type: CapabilityKind;
+    readonly name?: string;
+    readonly server?: string;
+    readonly launcher?: string | null;
+    readonly required_env?: readonly string[];
+    readonly auth?: string;
+  };
+  readonly package?: { readonly name: string; readonly spec: string };
+  readonly mcp?: {
+    readonly server: string;
+    readonly launcher?: string | null;
+    readonly required_env: readonly string[];
+    readonly auth: string;
+  };
+  readonly extension?: { readonly name: string; readonly source: string };
+  readonly install_state: { readonly action: string; readonly state: string };
+  readonly source: Record<string, string>;
+};
+
+export const CAPABILITY_CONTRACT_VERSION = %d as const;
+// prettier-ignore
+export const CAPABILITIES: readonly CapabilityDefinition[] = %s as const;
+export const CAPABILITY_IDS = new Set(
+  CAPABILITIES.map((capability) => capability.id),
+);
+""" % (contract["schema_version"], capabilities)
+
+
 def validate_kernel_template(errors: list[str]) -> None:
     if not KERNEL_TEMPLATE_PATH.exists():
         errors.append(f"{KERNEL_TEMPLATE_PATH}: missing Pi kernel template")
@@ -488,7 +792,7 @@ def replace_block(text: str, start_marker: str, end_marker: str, body: str) -> s
     return text[:start] + "\n" + body.rstrip() + "\n" + text[end:]
 
 
-def render_outputs(skills: list[dict]) -> dict[Path, str]:
+def render_outputs(skills: list[dict], capabilities: dict) -> dict[Path, str]:
     outputs: dict[Path, str] = {}
     readme = ROOT / "README.md"
     outputs[readme] = replace_block(
@@ -552,9 +856,54 @@ def render_outputs(skills: list[dict]) -> dict[Path, str]:
     outputs[extension] = replace_block(
         extension.read_text(), MCP_RUNTIME_POLICY_START, MCP_RUNTIME_POLICY_END, runtime_policy
     )
+    outputs[CAPABILITIES_OUTPUT_PATH] = render_capability_module(capabilities)
     for skill in skills:
         outputs[ROOT / "skills" / skill["name"] / "SKILL.md"] = render_skill_file(skill)
     return outputs
+
+
+def validate_capability_regressions(contract: dict) -> list[str]:
+    errors: list[str] = []
+    capabilities = contract.get("capabilities", [])
+    if not capabilities:
+        return ["capability regression: baseline contract is empty"]
+
+    missing_signal = json.loads(json.dumps(contract))
+    missing_signal["capabilities"][0].pop("status_signal", None)
+    if validate_capabilities(missing_signal):
+        pass
+    else:
+        errors.append("capability regression: missing status signal must be rejected")
+
+    missing_source = json.loads(json.dumps(contract))
+    missing_source["capabilities"][0].pop("source", None)
+    if validate_capabilities(missing_source):
+        pass
+    else:
+        errors.append("capability regression: missing source references must be rejected")
+
+    duplicate_id = json.loads(json.dumps(contract))
+    if len(duplicate_id["capabilities"]) >= 2:
+        duplicate_id["capabilities"][1]["id"] = duplicate_id["capabilities"][0]["id"]
+        if validate_capabilities(duplicate_id):
+            pass
+        else:
+            errors.append("capability regression: duplicate ids must be rejected")
+    else:
+        errors.append("capability regression: baseline must contain at least two capabilities")
+
+    mismatched_server = json.loads(json.dumps(contract))
+    mcp = next(
+        (item for item in mismatched_server["capabilities"] if isinstance(item, dict) and item.get("kind") == "mcp"),
+        None,
+    )
+    if isinstance(mcp, dict):
+        mcp["mcp"]["server"] = "unmanaged-server"
+        if validate_capabilities(mismatched_server):
+            pass
+        else:
+            errors.append("capability regression: MCP coverage mismatch must be rejected")
+    return errors
 
 
 def validate_owner_regressions(skills: list[dict]) -> list[str]:
@@ -572,12 +921,14 @@ def validate_owner_regressions(skills: list[dict]) -> list[str]:
 
 def sync_outputs(check: bool) -> int:
     skills = load_skills()
+    capabilities = load_capabilities()
     errors = validate_skills(skills)
+    errors.extend(validate_capabilities(capabilities))
     if errors:
         print("\n".join(errors), file=sys.stderr)
         return 1
     dirty: list[str] = []
-    for path, content in render_outputs(skills).items():
+    for path, content in render_outputs(skills, capabilities).items():
         if path.exists() and path.read_text() == content:
             continue
         dirty.append(str(path.relative_to(ROOT)))
@@ -601,10 +952,11 @@ def main() -> int:
     args = parser.parse_args()
     if args.self_test:
         errors = validate_owner_regressions(load_skills())
+        errors.extend(validate_capability_regressions(load_capabilities()))
         if errors:
             print("\n".join(errors), file=sys.stderr)
             return 1
-        print("Skill ownership validation regressions passed.")
+        print("Skill ownership and capability contract validation regressions passed.")
     return sync_outputs(args.check)
 
 

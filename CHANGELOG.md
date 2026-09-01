@@ -8,6 +8,10 @@ for additional releases on the same day (`vYYYY.MM.DD.N`).
 
 ## [Unreleased]
 
+### Added
+
+- Add a canonical managed-capability activation contract with trigger, prerequisite, readiness, and fallback guidance, plus a privacy-preserving `/b-status` snapshot that reports local metadata without inspecting MCP credentials or claiming operational LSP readiness.
+
 ## [v2026.09.01] - 2026-09-01
 
 ### Added
