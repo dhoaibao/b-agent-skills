@@ -17,3 +17,4 @@ for additional releases on the same day (`vYYYY.MM.DD.N`).
 ### Changed
 
 - Require workers to send reliable terminal results to the assigning planner and defer worktree-changing reviews to planner-owned b-review.
+- Document agent-maintained daily changelog updates, including same-day release aggregation and human-facing entries.
