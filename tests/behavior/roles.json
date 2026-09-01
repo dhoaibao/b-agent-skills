@@ -150,17 +150,42 @@
       "role": "worker",
       "skill": "b-implement",
       "observed_failure": "A worker paused without reporting when no edits were needed or when the task ended with a gap, leaving the assigning planner without a terminal result.",
-      "intended_behavior": "Every terminal outcome for any assigned worker task—completed, no-change, blocked, or reported gap—is successfully sent to the same assigning planner before pausing, with evidence and remaining gaps.",
+      "intended_behavior": "Every terminal outcome for any assigned worker task—completed, no-change, blocked, or reported gap—is successfully sent to the same assigning planner before pausing, with evidence and remaining gaps under the five fixed headings Changed, Verification, Coverage, Deviations, and Gaps; worktree-changing results also ask the assigning planner to run actual b-review.",
       "prompt": "Your assigned task completes, needs no edits, becomes blocked, or ends with a reported gap. Describe the terminal message you send, its target and contents, and whether you pause afterward.",
       "must": [
         "For every assigned task, send a terminal completion/result to the same assigning planner before pausing",
-        "Report the completed, no-change, blocked, or reported-gap outcome along with evidence, checks, and remaining gaps",
-        "Pause only after successful delivery rather than stopping silently"
+        "Use the five fixed headings Changed, Verification, Coverage, Deviations, and Gaps in every terminal report",
+        "Report the completed, no-change, blocked, or reported-gap outcome along with changed paths, acceptance coverage, exact checks, deviations, and gaps",
+        "Pause only after successful delivery rather than stopping silently",
+        "For a worktree-changing result, ask the assigning planner to run actual b-review and do not self-review"
       ],
       "avoid": [
         "Stop without sending because no edits were needed",
         "Omit the terminal result because a gap remains",
-        "Send the result to another worker or an unspecified session"
+        "Send the result to another worker or an unspecified session",
+        "Pause before successful delivery or treat an attempted send as delivered",
+        "Invoke, load, or execute b-review yourself"
+      ]
+    },
+    {
+      "id": "worker-delegates-b-review-to-planner",
+      "role": "worker",
+      "skill": "b-implement",
+      "observed_failure": "Workers loaded or ran planner-owned b-review on their own worktree diff, mistaking a terminal review request for performing the review.",
+      "intended_behavior": "Worker mode never invokes, loads, or executes planner-owned b-review. For a worktree-changing result it successfully sends a terminal report/review request to the same assigning planner, asking that planner to run actual b-review, then pauses.",
+      "prompt": "You completed a worktree-changing task assigned by planner-7. Describe whether you load or run b-review yourself, the terminal report you send to planner-7, how you request actual review, and when you pause.",
+      "must": [
+        "Never invoke, load, or execute planner-owned b-review yourself",
+        "Distinguish the terminal report/review request to the assigning planner from executing b-review",
+        "Successfully send planner-7 the terminal report under Changed, Verification, Coverage, Deviations, and Gaps",
+        "Ask planner-7 to run actual b-review against the approved baseline for the worktree-changing result",
+        "Pause after successful delivery and wait for findings or new work"
+      ],
+      "avoid": [
+        "Load or invoke b-review to inspect or approve your own diff",
+        "Treat a terminal report or review request as the b-review result",
+        "Pause before the terminal send is successfully delivered",
+        "Send the worktree result to another worker or an unspecified session"
       ]
     },
     {

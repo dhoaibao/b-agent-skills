@@ -13,3 +13,7 @@ for additional releases on the same day (`vYYYY.MM.DD.N`).
 ### Added
 
 - Initial release of b-agentic, providing a Pi workflow kernel, skills, extensions, validation, and installer tooling.
+
+### Changed
+
+- Require workers to send reliable terminal results to the assigning planner and defer worktree-changing reviews to planner-owned b-review.
