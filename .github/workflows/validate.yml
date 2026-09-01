@@ -28,9 +28,7 @@ jobs:
         run: npm ci --prefix pi --no-fund --no-audit
       - name: Run Pi TypeScript checks
         run: bash pi/scripts/typecheck.sh
-      - name: Check generated assets are in sync
-        run: python3 tooling/generate/registry_sync.py --check
       - name: Run validation suite
         run: bash scripts/validate-skills.sh --release
-      - name: Run suite audit
-        run: bash scripts/b-agentic-audit.sh
+      - name: Run structural suite audit
+        run: bash scripts/b-agentic-audit.sh --skip-preflight

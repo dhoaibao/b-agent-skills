@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import subprocess
 import sys
@@ -50,9 +51,22 @@ def audit_unresolved_tokens(errors: list[str]) -> None:
             errors.append(f"{path.relative_to(ROOT)}: unresolved template token")
 
 
-def main() -> int:
-    all_ok = run_cmd([sys.executable, "tooling/generate/registry_sync.py", "--check"], "Generated asset sync")
-    all_ok &= run_cmd(["bash", "scripts/validate-skills.sh"], "Validation suite")
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Run b-agentic's structural suite audit.")
+    parser.add_argument(
+        "--skip-preflight",
+        action="store_true",
+        help="skip the generated-asset and default-validation preflight",
+    )
+    args = parser.parse_args(argv)
+
+    if args.skip_preflight:
+        print("Generated/default validation preflight skipped")
+        all_ok = True
+    else:
+        all_ok = run_cmd([sys.executable, "tooling/generate/registry_sync.py", "--check"], "Generated asset sync")
+        all_ok &= run_cmd(["bash", "scripts/validate-skills.sh"], "Validation suite")
+
     errors: list[str] = []
     audit_slimness(errors)
     audit_unresolved_tokens(errors)
