@@ -142,7 +142,13 @@ prompt_regression_contracts = {
     "b-commit": ["Ask before staging or committing; do not push or create a PR."],
     "b-pr-summary": [
         "Do not contact remotes, fetch, push, inspect merge bases, or open PR state.",
-        "optionally offer or render the finished Markdown source with `preview_markdown`",
+        "After producing the normal PR title and description, invoke `preview_markdown` exactly once",
+        "complete original finished PR Markdown source",
+        "Rendering is mandatory; do not make a separate optional offer.",
+        "Never invoke the tool for any BLOCKED outcome; return the exact single-line BLOCKED output above.",
+        "Pass only an object with string `markdown` and, when included, string `title`; use no extra keys",
+        "pass the original Markdown source rather than rendered text",
+        "Do not write a file or send a separate prose response after the tool call.",
     ],
 }
 for skill_name, markers in prompt_regression_contracts.items():
@@ -150,6 +156,20 @@ for skill_name, markers in prompt_regression_contracts.items():
     for marker in markers:
         if marker not in text:
             errors.append(f"skills/{skill_name}/prompt.md: missing behavior regression anchor {marker!r}")
+
+# Regression: b-pr-summary preview rendering was skippable, so completed PR copy
+# could be returned without the required formatted preview while blocked outcomes
+# still needed to remain tool-free.
+b_pr_summary_prompt = read_text(ROOT / "skills" / "b-pr-summary" / "prompt.md")
+for forbidden in [
+    "optionally offer or render the finished Markdown source with `preview_markdown`",
+    "Keep this skippable",
+]:
+    if forbidden in b_pr_summary_prompt:
+        errors.append(
+            "skills/b-pr-summary/prompt.md: obsolete optional preview behavior remains "
+            f"{forbidden!r}"
+        )
 
 # Regression: quality guidance could equate passing checks with quality, skip
 # proportionate alternatives for material work, or add ceremony to obvious tasks.

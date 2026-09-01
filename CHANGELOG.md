@@ -21,3 +21,4 @@ for additional releases on the same day (`vYYYY.MM.DD.N`).
 - Redesign b-init repository guidance around a concise, evidence-backed operating guide with explicit migration and developer-rule preservation.
 - Streamline two-role b-commit execution: the planner makes one exact, user-approved read-only proposal; the same worker resumes the unchanged approved handoff without duplicate approval, and snapshot or proposal mismatches stop the commit.
 - Limit root `AGENTS.md` verification guidance to a concise set of normal repository checks.
+- Make b-pr-summary render completed PR descriptions with the Markdown preview tool instead of offering an optional preview.
