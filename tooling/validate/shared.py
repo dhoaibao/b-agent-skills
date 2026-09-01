@@ -191,9 +191,9 @@ QUALITY_GATE_REGRESSION = {
             "do not turn every review into an architecture report",
         ],
         "skills/b-init/prompt.md": [
-            "canonical standards sources and their precedence",
-            "formatter, lint, type, architecture/design, tests, and CI",
-            "generic best-practice catalog",
+            "slim, strong, and usable",
+            "evidence-backed orientation and links",
+            "generic best-practice or security catalog",
         ],
     },
 }
@@ -206,110 +206,156 @@ for relative_path, markers in QUALITY_GATE_REGRESSION["anchors"].items():
                 f"observed failure: {QUALITY_GATE_REGRESSION['observed_failure']}"
             )
 
-# Regression: b-init produced generic project guidance without first profiling the
-# local stack and risk surfaces, and its overlapping section contract duplicated
-# verification and split ownership/navigation across generated AGENTS.md files; durable
-# project changes could also leave recorded facts stale or missing.
+# Regression: b-init could produce a stripped metadata file or an exhaustive
+# catalog instead of an actionable operating guide, and refresh could silently
+# discard developer-owned rules or unknown legacy content.
 B_INIT_GUIDANCE_REGRESSION = {
     "observed_failure": (
-        "b-init guidance could produce generic AGENTS.md content without inventorying "
-        "the local stack and technical surfaces; its seven overlapping top-level sections "
-        "could duplicate verification and separate canonical ownership from navigation, "
-        "while durable project changes could leave recorded facts stale or omit new facts."
+        "b-init guidance could omit the concrete architecture, source-to-output flow, "
+        "and project boundaries an agent needs, or could copy an exhaustive catalog into "
+        "AGENTS.md while silently replacing developer-owned or unknown legacy content."
     ),
     "intended_behavior": (
-        "b-init first inventories manifests, tooling, docs, and observable risk surfaces; "
-        "generated AGENTS.md content uses exactly four ordered sections—Repository Purpose, "
-        "Project Profile, Project Map and Ownership, and Verification. Project Profile "
-        "distinguishes enforced conventions from contextual secure-coding practices, while "
-        "Project Map and Ownership combines navigation, canonical-source/generated-output "
-        "ownership, and local edit boundaries. Verification lists each existing command once "
-        "and uses focused gaps when evidence is absent. When a change makes a recorded project "
-        "fact stale or introduces a durable project purpose, convention, boundary, ownership "
-        "rule, map entry, or verification command, update the relevant AGENTS.md fact in the "
-        "same change; otherwise leave it unchanged, including for unrelated code edits, without "
-        "restating generic kernel policy."
+        "b-init inventories only evidence needed for actionable orientation, then writes a "
+        "slim, strong, usable managed block with exactly three ordered sections—Repository "
+        "Purpose, Project Operating Guide, and Verification. The operating guide covers only "
+        "architecture/change map, canonical sources/generated outputs and required change flows, "
+        "and project-specific constraints/boundaries. Developer-owned Project Rules remain "
+        "outside the markers and verbatim; unmarked replacement and legacy four-section "
+        "migration require an explicit material choice. Non-actionable catalogs, invented facts, "
+        "and generic kernel policy stay out, while absent evidence becomes a focused gap."
     ),
     "anchors": {
         "skills/b-init/prompt.md": [
-            "language/package manifests and lockfiles",
+            "language and package manifests, lockfiles",
             "lint, format, type, test, and CI configuration or scripts",
-            "observable technical risk surfaces",
+            "observable technical surfaces",
             "Treat absent evidence as absence",
-            "exactly these four top-level sections, in this order",
+            "exactly these ordered top-level sections",
             "`## Repository Purpose`",
-            "`## Project Profile`",
-            "`## Project Map and Ownership`",
-            "canonical-source/generated-output ownership",
-            "sole owner of navigation",
-            "so each fact appears once",
-            "non-structural scope gaps",
-            "do not repeat verification commands in the profile",
-            "Under its local edit-boundaries guidance, keep durable guidance current",
-            "keep durable guidance current",
-            "when a change makes a recorded project fact stale",
-            "durable project purpose, convention, boundary, ownership rule, map entry, or verification command",
-            "update the relevant `AGENTS.md` fact in the same change",
-            "Do not update `AGENTS.md` for unrelated code edits",
+            "`## Project Operating Guide`",
             "`## Verification`",
-            "list each existing repository command once",
-            "Do not use headings named `Working Rules`, `Safety Rules`, `Maintainer Guide`, `Sources and Generated Assets`, or `Codebase Map` at any Markdown heading depth",
-            "Descriptive nested headings are allowed",
-            "Distinguish enforced local conventions",
-            "contextual secure-coding practices",
-            "Every project-specific bullet names its applicable scope and `Evidence:` source",
-            "Use established, narrowly relevant language or area practices",
-            "do not fabricate commands, owners, policies, or security coverage",
-            "bounded profile and focused TODO/gap",
-            "always-loaded kernel owns generic workflow, tool, and secret policy",
-            "do not restate, weaken, or replace it",
+            "`## Project Rules` is developer-owned",
+            "must stay outside those markers",
+            "preserved verbatim",
+            "must never be regenerated, moved, or deleted",
+            "unmarked-content replacement remains a material choice",
+            "legacy four-section managed block",
+            "Do not silently discard unknown content",
+            "request a material migration choice",
+            "Offer a preserve option, a clean-baseline migration option only when the user explicitly approves it, and a stop option",
+            "slim, strong, usable operating guide",
+            "architecture and change map",
+            "canonical sources, generated outputs, and required change flows",
+            "project-specific constraints and boundaries",
+            "Include only facts that answer where to change, source of truth, required companion or regeneration changes, a non-obvious project constraint, or how to verify",
+            "Omit non-actionable catalogs or link to deeper docs instead of copying them into `AGENTS.md`",
+            "list each existing, applicable repository verification command once",
+            "focused gap or TODO",
+            "The always-loaded kernel owns that guidance",
+            "generic best-practice or security catalog",
         ],
         "skills/b-init/SKILL.md": [
-            "language/package manifests and lockfiles",
-            "exactly these four top-level sections, in this order",
+            "language and package manifests, lockfiles",
+            "exactly these ordered top-level sections",
             "`## Repository Purpose`",
-            "`## Project Profile`",
-            "`## Project Map and Ownership`",
-            "canonical-source/generated-output ownership",
-            "sole owner of navigation",
-            "so each fact appears once",
-            "non-structural scope gaps",
+            "`## Project Operating Guide`",
             "`## Verification`",
-            "list each existing repository command once",
-            "Do not use headings named `Working Rules`, `Safety Rules`, `Maintainer Guide`, `Sources and Generated Assets`, or `Codebase Map` at any Markdown heading depth",
-            "Descriptive nested headings are allowed",
-            "Under its local edit-boundaries guidance, keep durable guidance current",
-            "keep durable guidance current",
-            "when a change makes a recorded project fact stale",
-            "durable project purpose, convention, boundary, ownership rule, map entry, or verification command",
-            "update the relevant `AGENTS.md` fact in the same change",
-            "Do not update `AGENTS.md` for unrelated code edits",
-            "Distinguish enforced local conventions",
-            "contextual secure-coding practices",
-            "Every project-specific bullet names its applicable scope and `Evidence:` source",
-            "bounded profile and focused TODO/gap",
-            "always-loaded kernel owns generic workflow, tool, and secret policy",
+            "`## Project Rules` is developer-owned",
+            "must stay outside those markers",
+            "preserved verbatim",
+            "must never be regenerated, moved, or deleted",
+            "unmarked-content replacement remains a material choice",
+            "legacy four-section managed block",
+            "Do not silently discard unknown content",
+            "request a material migration choice",
+            "slim, strong, usable operating guide",
+            "architecture and change map",
+            "canonical sources, generated outputs, and required change flows",
+            "project-specific constraints and boundaries",
+            "Omit non-actionable catalogs or link to deeper docs instead of copying them into `AGENTS.md`",
+            "list each existing, applicable repository verification command once",
+            "focused gap or TODO",
+            "The always-loaded kernel owns that guidance",
         ],
     },
     "fixture_contract": {
-        "must": [
-            "Use exactly four top-level sections in this order: Repository Purpose, Project Profile, Project Map and Ownership, Verification",
-            "Keep enforced conventions and contextual boundaries/gaps under Project Profile",
-            "Combine navigation, canonical-source/generated-output ownership, and local edit boundaries under Project Map and Ownership",
-            "Project Profile owns evidence-backed conventions and non-structural scope gaps; Project Map and Ownership is the sole owner of navigation, canonical-source/generated-output ownership, and local edit boundaries, so each fact appears once",
-            "List each existing repository command once under Verification",
-            "Use focused TODOs/gaps only when an applicable command is absent",
-            "Allow descriptive nested headings without creating duplicate fact buckets",
-            "Update AGENTS.md in the same change for stale or newly introduced durable project facts",
-            "Place the durable stale-guidance rule under Project Map and Ownership's local edit-boundaries guidance",
-            "Leave AGENTS.md unchanged for unrelated code edits",
-        ],
-        "avoid": [
-            "Use legacy names at any Markdown heading depth",
-            "Repeat verification commands in the profile",
-            "Present the durable stale-guidance rule as a standalone instruction after the four-section list",
-            "Update AGENTS.md for unrelated code edits",
-        ],
+        "required_scenarios": {
+            "typescript-web-actionable-guide": {
+                "must": [
+                    "Inventory the detected TypeScript tooling and existing verification commands",
+                    "Orient the agent with concrete change locations, canonical sources, generated outputs, and required companion or regeneration flow",
+                    "Include scoped input, authentication, and rendering boundaries only for the observed web surfaces",
+                    "Use evidence paths or links for non-obvious project-specific claims",
+                    "Omit non-actionable catalogs or link to deeper docs instead of copying them into AGENTS.md",
+                    "Use exactly three top-level sections in this order: Repository Purpose, Project Operating Guide, Verification",
+                    "List only existing, applicable verification commands once under Verification",
+                    "Preserve the developer-owned Project Rules section verbatim outside the managed markers",
+                    "Keep the guide slim, strong, and usable",
+                    "Do not claim security coverage beyond the observed auth middleware and sanitizer",
+                ],
+                "avoid": [
+                    "Invent commands, owners, policies, enforcement, or technical surfaces",
+                    "Turn the operating guide into a setup, release, readiness, or diagnostic catalog",
+                    "Create Project Profile or Project Map and Ownership sections",
+                    "Put Project Rules inside the managed block",
+                    "Restate generic kernel workflow, tool, or secret policy",
+                ],
+            },
+            "minimal-repo-bounded-guide": {
+                "must": [
+                    "State that the evidence is insufficient for a specialized language or technical-area profile",
+                    "Provide bounded gaps or TODOs only for missing applicable guidance or verification",
+                    "Use exactly three top-level sections in this order: Repository Purpose, Project Operating Guide, Verification",
+                    "Avoid unsupported commands, owners, policies, and risk surfaces",
+                    "Keep the operating guide limited to actionable orientation and links",
+                    "Keep the result slim, strong, and usable",
+                    "Leave Project Rules outside markers and preserve it when present",
+                ],
+                "avoid": [
+                    "Assume TypeScript, Python, web, or another unsupported stack",
+                    "Invent lint, test, CI, or verification commands",
+                    "Add a broad secure-coding or language standards catalog",
+                    "Claim technical risk surfaces that the inventory did not observe",
+                    "Copy an exhaustive command or tool-readiness catalog",
+                    "Restate generic kernel workflow, tool, or secret policy",
+                ],
+            },
+            "developer-rules-and-legacy-migration": {
+                "must": [
+                    "Recognize a legacy four-section managed block",
+                    "Do not silently discard unknown managed content",
+                    "Request a material migration choice before replacing that block",
+                    "Preserve the existing developer-owned Project Rules section verbatim outside the markers",
+                    "Offer preserve, explicitly approved clean-baseline, and stop choices",
+                    "Do not edit until the material migration choice is resolved",
+                ],
+                "avoid": [
+                    "Assume every line in the legacy block was generated",
+                    "Automatically translate, drop, or move unknown content",
+                    "Regenerate, move, or delete Project Rules",
+                    "Treat the legacy shape as permission to replace unmarked content",
+                ],
+            },
+            "approved-clean-baseline-migration": {
+                "must": [
+                    "Use the explicit clean-baseline approval as the migration decision",
+                    "Remove old generated Project Profile and Project Map and Ownership boilerplate",
+                    "Move the specifically identified changelog rule into Project Rules after the managed end marker",
+                    "Preserve that developer rule verbatim",
+                    "Write exactly three top-level sections in this order: Repository Purpose, Project Operating Guide, Verification",
+                    "Keep only relevant orientation, sources/flows/boundaries, and applicable verification",
+                    "Do not add a changelog entry for an uncommitted change",
+                ],
+                "avoid": [
+                    "Retain legacy Project Profile or Project Map and Ownership headings",
+                    "Place Project Rules inside the managed markers",
+                    "Keep the old exhaustive setup, release, or diagnostic command inventory",
+                    "Invent project facts or verification commands",
+                    "Discard the identified changelog rule",
+                ],
+            },
+        },
     },
 }
 for relative_path, markers in B_INIT_GUIDANCE_REGRESSION["anchors"].items():
@@ -600,10 +646,7 @@ else:
 init_guidance_path = ROOT / "tests" / "behavior" / "init-guidance.json"
 init_guidance_fixture = load_json(init_guidance_path)
 init_guidance_scenarios = init_guidance_fixture.get("scenarios", [])
-required_init_guidance_ids = {
-    "typescript-web-evidence-profile",
-    "minimal-repo-bounded-profile",
-}
+required_init_guidance_ids = set(B_INIT_GUIDANCE_REGRESSION["fixture_contract"]["required_scenarios"])
 if init_guidance_fixture.get("version") != 1:
     errors.append(f"{rel(init_guidance_path)}: expected fixture version 1")
 if not isinstance(init_guidance_fixture.get("source"), str) or not init_guidance_fixture["source"]:
@@ -627,12 +670,17 @@ for index, scenario in enumerate(init_guidance_scenarios, start=1):
     for field in ("prompt", "observed_failure", "intended_behavior"):
         if not isinstance(scenario.get(field), str) or not scenario[field]:
             errors.append(f"{label} {field} must be a non-empty string")
+    scenario_contract = B_INIT_GUIDANCE_REGRESSION["fixture_contract"]["required_scenarios"].get(scenario_id)
     for field in ("must", "avoid"):
         values = scenario.get(field)
         if not isinstance(values, list) or not values or not all(isinstance(value, str) and value for value in values):
             errors.append(f"{label} {field} must be a non-empty string array")
             continue
-        for marker in B_INIT_GUIDANCE_REGRESSION["fixture_contract"][field]:
+        if len(values) != len(set(values)):
+            errors.append(f"{label} {field} entries must be unique")
+        if scenario_contract is None:
+            continue
+        for marker in scenario_contract[field]:
             if marker not in values:
                 errors.append(
                     f"{label} {field} missing b-init guidance fixture contract marker {marker!r}; "
@@ -648,8 +696,8 @@ if set(init_guidance_ids) != required_init_guidance_ids:
         f"intended behavior: {B_INIT_GUIDANCE_REGRESSION['intended_behavior']}"
     )
 
-# Validate only this repository's managed example. Keep the check deliberately
-# small: section ownership is structural, while the rest remains prompt-driven.
+# Validate only this repository's managed example. The structural checks protect
+# ownership and actionable shape; the fixture contract covers model behavior.
 managed_agents_path = ROOT / "AGENTS.md"
 managed_agents = read_text(managed_agents_path)
 managed_start_marker = "<!-- b-init-managed:start -->"
@@ -675,8 +723,7 @@ else:
         managed_block = managed_agents[managed_start:managed_end]
         required_managed_headings = [
             "Repository Purpose",
-            "Project Profile",
-            "Project Map and Ownership",
+            "Project Operating Guide",
             "Verification",
         ]
         managed_headings = re.findall(r"^##\s+(.+?)\s*$", managed_block, re.MULTILINE)
@@ -687,21 +734,88 @@ else:
                 f"{managed_marker_error_context}"
             )
 
-        legacy_heading_names = [
-            "Working Rules",
-            "Safety Rules",
-            "Maintainer Guide",
-            "Sources and Generated Assets",
-            "Codebase Map",
-        ]
-        for raw_heading in re.findall(r"^#{1,6}\s+(.+?)\s*$", managed_block, re.MULTILINE):
-            heading = raw_heading.rstrip("#").strip()
-            for legacy_name in legacy_heading_names:
-                if heading == legacy_name:
+        operating_match = re.search(
+            r"^##\s+Project Operating Guide\s*$([\s\S]*?)(?=^##\s+|\Z)",
+            managed_block,
+            re.MULTILINE,
+        )
+        if operating_match is None:
+            errors.append(
+                f"{rel(managed_agents_path)}: missing ## Project Operating Guide section; "
+                f"{managed_marker_error_context}"
+            )
+        else:
+            operating_body = operating_match.group(1)
+            nested_headings = re.findall(r"^#{3,6}\s+(.+?)\s*$", operating_body, re.MULTILINE)
+            required_topics = {
+                "architecture/change map": r"architecture|change map",
+                "canonical sources/change flows": r"canonical source|generated output|change flow",
+                "project constraints/boundaries": r"constraint|boundary",
+            }
+            for topic, pattern in required_topics.items():
+                if not any(re.search(pattern, heading, re.IGNORECASE) for heading in nested_headings):
                     errors.append(
-                        f"{rel(managed_agents_path)}: legacy heading {legacy_name!r} "
-                        f"is forbidden at any Markdown heading depth; found {raw_heading!r}; "
-                        f"{managed_marker_error_context}"
+                        f"{rel(managed_agents_path)}: Project Operating Guide lacks a descriptive "
+                        f"nested heading for {topic}; {managed_marker_error_context}"
+                    )
+
+            legacy_heading_names = {
+                "Project Profile",
+                "Project Map and Ownership",
+                "Working Rules",
+                "Safety Rules",
+                "Maintainer Guide",
+                "Sources and Generated Assets",
+                "Codebase Map",
+            }
+            for raw_heading in re.findall(r"^#{1,6}\s+(.+?)\s*$", operating_body, re.MULTILINE):
+                heading = raw_heading.rstrip("#").strip()
+                if heading in legacy_heading_names:
+                    errors.append(
+                        f"{rel(managed_agents_path)}: legacy heading {heading!r} is forbidden in "
+                        f"Project Operating Guide; found {raw_heading!r}; {managed_marker_error_context}"
+                    )
+
+            required_operating_content = [
+                "skills/",
+                "references/",
+                "pi/",
+                "tooling/",
+                "tests/",
+                "skills/registry.yaml",
+                "tooling/generate/registry_sync.py",
+                "references/kernel.template.md",
+                "references/mcp_operations.yaml",
+                "slim, strong, and usable",
+            ]
+            for marker in required_operating_content:
+                if marker not in operating_body:
+                    errors.append(
+                        f"{rel(managed_agents_path)}: Project Operating Guide missing actionable "
+                        f"orientation marker {marker!r}; {managed_marker_error_context}"
+                    )
+
+        project_rules_matches = list(
+            re.finditer(r"^##\s+Project Rules\s*$", managed_agents, re.MULTILINE)
+        )
+        if len(project_rules_matches) != 1:
+            errors.append(
+                f"{rel(managed_agents_path)}: expected exactly one developer-owned ## Project Rules "
+                f"section outside the managed markers; {managed_marker_error_context}"
+            )
+        else:
+            project_rules_match = project_rules_matches[0]
+            if project_rules_match.start() < managed_end:
+                errors.append(
+                    f"{rel(managed_agents_path)}: ## Project Rules must be outside and after the "
+                    f"managed block; {managed_marker_error_context}"
+                )
+            project_rules_body = managed_agents[project_rules_match.end() :]
+            for marker in ["developer-owned", "preserve it verbatim", "Agents preparing a commit", "CHANGELOG.md"]:
+                if marker not in project_rules_body:
+                    errors.append(
+                        f"{rel(managed_agents_path)}: Project Rules missing preserved developer-rule "
+                        f"marker {marker!r}; {managed_marker_error_context}"
                     )
 
         verification_match = re.search(
@@ -715,14 +829,38 @@ else:
                 f"{managed_marker_error_context}"
             )
         else:
+            verification_body = verification_match.group(1)
+            verification_commands = re.findall(r"`([^`\n]+)`", verification_body)
+            if len(verification_commands) > 6:
+                errors.append(
+                    f"{rel(managed_agents_path)}: Verification should remain a concise applicable "
+                    f"set, found {len(verification_commands)} commands; {managed_marker_error_context}"
+                )
             seen_commands: set[str] = set()
-            for command in re.findall(r"`([^`\n]+)`", verification_match.group(1)):
+            for command in verification_commands:
                 if command in seen_commands:
                     errors.append(
                         f"{rel(managed_agents_path)}: duplicate Verification inline-code command "
                         f"{command!r}; {managed_marker_error_context}"
                     )
                 seen_commands.add(command)
+            for command in [
+                "python3 tooling/generate/registry_sync.py --check",
+                "scripts/validate-skills.sh",
+                "npm run quality",
+                "rtk git diff --check",
+            ]:
+                if command not in verification_commands:
+                    errors.append(
+                        f"{rel(managed_agents_path)}: Verification missing applicable command "
+                        f"{command!r}; {managed_marker_error_context}"
+                    )
+            for catalog_marker in ["npm ci", "pip install", "--release", "mcp-doctor", "skill-doctor", "smoke-install"]:
+                if catalog_marker in verification_body:
+                    errors.append(
+                        f"{rel(managed_agents_path)}: Verification includes non-applicable catalog marker "
+                        f"{catalog_marker!r}; {managed_marker_error_context}"
+                    )
 
 prompt_runner_path = ROOT / "pi" / "tests" / "prompt_effectiveness.py"
 prompt_runner = read_text(prompt_runner_path)

@@ -18,3 +18,4 @@ for additional releases on the same day (`vYYYY.MM.DD.N`).
 
 - Require workers to send reliable terminal results to the assigning planner and defer worktree-changing reviews to planner-owned b-review.
 - Document agent-maintained daily changelog updates, including same-day release aggregation and human-facing entries.
+- Redesign b-init repository guidance around a concise, evidence-backed operating guide with explicit migration and developer-rule preservation.

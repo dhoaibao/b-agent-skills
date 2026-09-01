@@ -2,50 +2,40 @@
 
 ## Repository Purpose
 
-b-agentic is a slim workflow kernel built around Pi. It ships the always-loaded kernel, native skills, first-party Pi extensions, recommended MCP configuration, and installer/validation tooling. **Evidence:** `README.md`, `REFERENCE.md`.
+b-agentic is a slim personal workflow kernel integrated with Pi. It ships the always-loaded kernel, native skills, first-party Pi extensions, recommended MCP configuration, and installer/validation tooling. See the [public overview](README.md) and [operational reference](REFERENCE.md).
 
-## Project Profile
+## Project Operating Guide
 
-- **Scope: Pi TypeScript integration (enforced local convention).** Root Pi extensions and the standalone preview package use strict TypeScript configuration; CI installs locked dependencies before running the Pi checks. **Evidence:** `pi/tsconfig.json`, `pi/packages/preview-markdown/tsconfig.json`, `pi/package.json`, `.github/workflows/validate.yml`.
-- **Scope: skill and MCP policy sources (enforced local convention).** `skills/registry.yaml` and `references/mcp_operations.yaml` use the JSON-compatible YAML subset consumed by the Python generator and validators. **Evidence:** `skills/registry.yaml`, `references/mcp_operations.yaml`, `tooling/generate/registry_sync.py`, `tooling/validate/shared.py`.
-- **Scope: repository validation (enforced local convention).** CI provisions Python 3.12 and Node 22, installs the pinned repository quality tools and locked Pi dependencies, runs the full quality check, release validation, and suite audit on Ubuntu and macOS. **Evidence:** `.github/workflows/validate.yml`, `requirements-dev-quality.txt`, `scripts/quality-check.sh`, `tooling/validate/run.sh`, `scripts/validate-skills.sh`, `scripts/b-agentic-audit.sh`.
-- **Scope: installer and Pi configuration boundaries (contextual secure-coding practice).** `install.sh` accepts command-line and environment inputs; `tooling/install/` merges user-owned configuration and tracks managed content; `pi/configs/` defines lazy MCP entries and deferred key/OAuth values. Review changes as input, configuration, and authentication/readiness boundaries rather than inferring live readiness from templates. **Evidence:** `install.sh`, `tooling/install/common.sh`, `pi/configs/mcp.user.template.json`, `tests/smoke/install.sh`.
-- **Scope: managed MCP integrations (contextual boundary).** The repository configures Serena, CodeGraph, Context7, Linear, Mobbin, Brave Search, Firecrawl, and Playwright; Linear and Mobbin use read-scoped/allowlisted configuration, while other readiness depends on local tools or user credentials. **Evidence:** `pi/configs/mcp.user.template.json`, `references/mcp_operations.yaml`, `REFERENCE.md`, `scripts/mcp-doctor.sh`.
-- **Scope: inline Markdown preview (contextual rendering boundary).** The standalone package renders terminal Markdown, persists a global theme preference, retains selectable preview history, and supports exact source copying; its package manifest contains no bundled runtime dependencies. **Evidence:** `pi/packages/preview-markdown/README.md`, `pi/packages/preview-markdown/package.json`, `REFERENCE.md`.
-- **Scope: repository quality tooling (enforced local convention).** Root `package.json` and `package-lock.json` own development-only Husky, lint-staged, ESLint, Prettier, and Markdownlint tooling; `pyproject.toml` and `requirements-dev-quality.txt` own pinned Ruff and ShellCheck tooling; `scripts/quality-check.sh` checks tracked supported source/config files without rewriting them, while generated delivery outputs remain under registry synchronization, and runs strict Pi TypeScript checks. **Evidence:** `package.json`, `package-lock.json`, `pyproject.toml`, `requirements-dev-quality.txt`, `scripts/quality-check.sh`, `.husky/pre-commit`.
-- **Scope: changelog maintenance (enforced local convention).** Agents preparing a commit—including b-commit work—must update `CHANGELOG.md` before committing. Retain `## [Unreleased]` before dated releases; create or locate that commit date's single `## [vYYYY.MM.DD] - YYYY-MM-DD` section, never a separate ordinal release for another same-day commit, and append a cohesive human-facing entry under the appropriate standard Keep a Changelog category (`Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, or `Security`). Keep dated sections one per date and newest-first. Never copy or mechanically reuse raw commit-subject text as the entry. This is agent-maintained policy, not Git-hook or other commit automation; do not create a release entry merely for an uncommitted change. **Evidence:** `CHANGELOG.md`, `tooling/validate/changelog.py`.
-- **Scope: repository-wide gaps.** No database or migration files, infrastructure/deployment manifests, or external-service client source beyond the installer/MCP integration was found. Do not invent conventions for those areas; reassess when evidence appears. **Evidence:** tracked-file inventory, `pi/package.json`, `.github/workflows/validate.yml`.
+### Architecture and change map
 
-## Project Map and Ownership
+- `skills/` holds skill metadata, canonical prompts, and generated skill files; `references/` holds shared kernel and MCP policy; `pi/` holds Pi extensions, configuration, packages, scripts, and smoke coverage; `tooling/` holds generation, installation, and validation; `tests/` holds behavior and installer smoke coverage.
+- Change shared guidance in `references/`, Pi behavior in `pi/`, installer behavior in `install.sh` or `tooling/install/`, and validation in `tooling/validate/` or `scripts/`. Use the [decision record](docs/decision_design.md) when a change crosses these boundaries.
 
-- **Scope: documentation navigation.** `README.md` is the public overview; `REFERENCE.md` is the operational guide; `docs/decision_design.md` records evidence-backed decisions; `docs/publish-preview-markdown.md` documents the standalone package procedure; `pi/configs/README.md` documents Pi configuration layout. **Evidence:** those tracked documentation paths.
-- **Scope: canonical sources and generated outputs.** `skills/registry.yaml` owns skill metadata and routing, each `skills/*/prompt.md` owns a canonical skill body, `references/kernel.template.md` owns the Pi kernel, and `references/mcp_operations.yaml` owns managed MCP classifications. `tooling/generate/registry_sync.py` renders generated skill files, README/kernel blocks, role and MCP policy helpers, validation markers, and Pi smoke markers; generated assets are delivery outputs, not sources. **Evidence:** `tooling/generate/registry_sync.py`, `skills/registry.yaml`, `references/kernel.template.md`, `references/mcp_operations.yaml`.
-- **Scope: Pi package ownership.** The canonical preview package is `pi/packages/preview-markdown/`, with extension source `pi/packages/preview-markdown/extensions/b-agentic-preview-markdown.ts`; its package validator and publishing procedure are `pi/scripts/validate-preview-markdown-package.sh` and `docs/publish-preview-markdown.md`. **Evidence:** `pi/packages/preview-markdown/package.json`, `pi/packages/preview-markdown/README.md`, those validator/procedure paths.
-- **Scope: local edit boundaries.** Keep shared kernel and MCP guidance in `references/`; Pi configuration, extensions, packages, scripts, and Pi smoke coverage in `pi/`; installer implementation in `tooling/install/`; repository validation in `tooling/validate/` and `scripts/`; behavior and installer smoke coverage in `tests/`. Root development quality configuration lives in `package.json`, `eslint.config.mjs`, `.prettierrc.json`, `.markdownlint-cli2.jsonc`, and `pyproject.toml`; root `install.sh` is the bootstrap entrypoint. **Evidence:** tracked-file inventory, `install.sh`, `package.json`, `scripts/quality-check.sh`, `.github/workflows/validate.yml`.
-- Keep durable guidance current: when a change makes a recorded project fact stale or introduces a durable project purpose, convention, boundary, ownership rule, map entry, or verification command, update the relevant `AGENTS.md` fact in the same change; otherwise leave it unchanged. Do not update `AGENTS.md` for unrelated code edits.
+### Canonical sources and change flows
+
+- `skills/registry.yaml` owns skill metadata, routing, phase, and execution ownership; each `skills/*/prompt.md` owns its canonical skill body. `tooling/generate/registry_sync.py` renders `SKILL.md` files and other generated delivery blocks, so edit the sources and regenerate rather than hand-editing outputs.
+- `references/kernel.template.md` and `references/mcp_operations.yaml` own shared runtime guidance and managed MCP classifications. Generated Pi policy and validation assets follow those sources; the [operational reference](REFERENCE.md) documents their runtime boundaries.
+- The standalone preview package is owned by `pi/packages/preview-markdown/`; use its [package guide](pi/packages/preview-markdown/README.md) and [publishing procedure](docs/publish-preview-markdown.md) for package-specific changes.
+
+### Project constraints and boundaries
+
+- Keep this supplement slim, strong, and usable: retain evidence-backed orientation, ownership, boundaries, and required flows, and link to deeper docs instead of copying setup, release, readiness, or diagnostic catalogs. This is the repository's b-init output quality standard; see [decision design](docs/decision_design.md).
+- `skills/registry.yaml` and `references/mcp_operations.yaml` use the JSON-compatible YAML subset consumed by the generator and validators. Do not treat generated assets as canonical sources.
+- Installer and Pi configuration changes cross a user-owned boundary: `tooling/install/` merges user configuration and preserves unrelated content, while templates do not prove live MCP readiness. See [Pi configuration layout](pi/configs/README.md) and the [operational reference](REFERENCE.md).
+- No database or migration files, infrastructure/deployment manifests, or external-service client source beyond installer/MCP integration is present. Do not invent conventions for absent surfaces; reassess when evidence appears.
 
 ## Verification
 
-- `python3 tooling/generate/registry_sync.py` — refresh generated delivery assets after canonical source changes. **Evidence:** tooling/generate/registry_sync.py.
-- `python3 tooling/generate/registry_sync.py --check` — confirm generated assets are synchronized. **Evidence:** .github/workflows/validate.yml, tooling/validate/run.sh.
-- `npm ci --no-fund --no-audit` — install the locked repository development-tooling dependency set and enable the Husky hook through `prepare`. **Evidence:** package.json, package-lock.json, .husky/pre-commit.
-- `python3 -m pip install -r requirements-dev-quality.txt` — install the pinned Ruff and cross-platform ShellCheck provider used by the repository quality checks. **Evidence:** requirements-dev-quality.txt, scripts/quality-check.sh.
-- `npm run quality` — check tracked supported TypeScript, Python, shell, Markdown, and config source files without rewriting them, leave generator-owned delivery outputs to registry synchronization, then run strict Pi TypeScript checks; install root and Pi dependencies plus Python quality tools first. **Evidence:** package.json, scripts/quality-check.sh, pi/scripts/typecheck.sh.
-- `npm ci --prefix pi --no-fund --no-audit` — install the locked Pi dependency set used by CI. **Evidence:** .github/workflows/validate.yml, pi/package-lock.json.
-- `npm install --prefix pi` — provision Pi dependencies for the documented development path. **Evidence:** REFERENCE.md, pi/package.json.
-- `bash pi/scripts/typecheck.sh` — type-check root Pi extensions and the preview package when dependencies are available. **Evidence:** .github/workflows/validate.yml, pi/scripts/typecheck.sh.
-- `bash pi/scripts/typecheck-preview-markdown.sh` — type-check the standalone preview package alone. **Evidence:** pi/scripts/typecheck-preview-markdown.sh.
-- `bash pi/scripts/validate.sh` — run Pi extension and generated role-prompt validation. **Evidence:** tooling/validate/run.sh, pi/scripts/validate.sh.
-- `scripts/validate-skills.sh` — run the default synchronization, validation, behavior, policy, readiness, and Pi integration checks. **Evidence:** scripts/validate-skills.sh, tooling/validate/run.sh.
-- `scripts/validate-skills.sh --release` — add RTK compatibility and isolated installer smoke coverage. **Evidence:** tooling/validate/run.sh, .github/workflows/validate.yml.
-- `scripts/b-agentic-audit.sh` — run decision-design and suite-audit checks. **Evidence:** scripts/b-agentic-audit.sh.
-- `scripts/smoke-install.sh` — run isolated installer smoke coverage. **Evidence:** scripts/smoke-install.sh, tests/smoke/install.sh.
-- `bash pi/scripts/validate-preview-markdown-package.sh` — validate the standalone package manifest and packed contents. **Evidence:** pi/scripts/validate-preview-markdown-package.sh, docs/publish-preview-markdown.md.
-- `bash -n install.sh tests/smoke/install.sh` — syntax-check installer entrypoints. **Evidence:** install.sh, tests/smoke/install.sh.
-- `bash -n pi/scripts/install-preview-markdown.sh` — syntax-check the standalone preview installer. **Evidence:** pi/scripts/install-preview-markdown.sh.
-- `python3 pi/tests/prompt_effectiveness.py --fixtures tests/behavior/init-guidance.json --skill skills/b-init/SKILL.md --validate-inputs` — validate b-init fixture inputs without model calls. **Evidence:** tests/behavior/init-guidance.json, pi/tests/prompt_effectiveness.py, tooling/validate/run.sh.
-- `scripts/skill-doctor.sh` — check installed Pi skill payloads and kernel discovery. **Evidence:** scripts/skill-doctor.sh, tooling/validate/skill_doctor.py.
-- `scripts/mcp-doctor.sh` — inspect local MCP readiness; add its opt-in schema-probe option only when live process/network checks are intended. **Evidence:** scripts/mcp-doctor.sh, REFERENCE.md.
-- `rtk git diff --check` — check changed paths for whitespace errors. **Evidence:** repository maintainer guidance and the installed RTK command family.
+- `python3 tooling/generate/registry_sync.py --check` — confirm generated delivery assets match canonical sources.
+- `scripts/validate-skills.sh` — run the default synchronization, behavior, policy, readiness, and Pi integration checks.
+- `python3 pi/tests/prompt_effectiveness.py --fixtures tests/behavior/init-guidance.json --skill skills/b-init/SKILL.md --validate-inputs` — validate b-init fixture inputs without model calls.
+- `npm run quality` — run tracked source quality checks and strict Pi TypeScript checks when dependencies are installed.
+- `rtk git diff --check` — check changed paths for whitespace errors.
 
 <!-- b-init-managed:end -->
+
+## Project Rules
+
+This section is developer-owned. b-init refreshes must preserve it verbatim and never regenerate, move, or delete it.
+
+- **Scope: changelog maintenance (enforced local convention).** Agents preparing a commit—including b-commit work—must update `CHANGELOG.md` before committing. Retain `## [Unreleased]` before dated releases; create or locate that commit date's single `## [vYYYY.MM.DD] - YYYY-MM-DD` section, never a separate ordinal release for another same-day commit, and append a cohesive human-facing entry under the appropriate standard Keep a Changelog category (`Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, or `Security`). Keep dated sections one per date and newest-first. Never copy or mechanically reuse raw commit-subject text as the entry. This is agent-maintained policy, not Git-hook or other commit automation; do not create a release entry merely for an uncommitted change. **Evidence:** `CHANGELOG.md`, `tooling/validate/changelog.py`.
