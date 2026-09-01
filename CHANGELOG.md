@@ -3,21 +3,16 @@
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog 2.0.0](https://keepachangelog.com/en/2.0.0/),
-and this project adheres to Calendar Versioning: `vYYYY.MM.DD`, with `.N`
-for additional releases on the same day (`vYYYY.MM.DD.N`).
-
-## [Unreleased]
-
-### Added
-
-- Add a canonical managed-capability activation contract with trigger, prerequisite, readiness, and fallback guidance, plus a privacy-preserving `/b-status` snapshot that reports local metadata without inspecting MCP credentials or claiming operational LSP readiness.
-- Integrate the installer-managed Pi todo extension with unpinned package lifecycle reconciliation, capability/status tracking, installer smoke coverage, and lightweight guidance for tracking non-trivial multi-step work.
+and this project adheres to Calendar Versioning: `vYYYY.MM.DD`, with one release
+section per date and same-day changes aggregated in that section.
 
 ## [v2026.09.01] - 2026-09-01
 
 ### Added
 
 - Initial release of b-agentic, providing a Pi workflow kernel, skills, extensions, validation, and installer tooling.
+- Add a canonical managed-capability activation contract with trigger, prerequisite, readiness, and fallback guidance, plus a privacy-preserving `/b-status` snapshot that reports local metadata without inspecting MCP credentials or claiming operational LSP readiness.
+- Integrate the installer-managed Pi todo extension with unpinned package lifecycle reconciliation, capability/status tracking, installer smoke coverage, and lightweight guidance for tracking non-trivial multi-step work.
 
 ### Changed
 

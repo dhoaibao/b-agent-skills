@@ -12,14 +12,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 CHANGELOG_PATH = ROOT / "CHANGELOG.md"
-UNRELEASED_NAME = "[Unreleased]"
 CATEGORY_NAMES = ("Added", "Changed", "Deprecated", "Removed", "Fixed", "Security")
 CATEGORY_SET = set(CATEGORY_NAMES)
 H2_RE = re.compile(r"^##(?:[ \t]+(?P<name>.*?))?[ \t]*$", re.MULTILINE)
 H3_RE = re.compile(r"^###[ \t]+(?P<name>.+?)[ \t]*$", re.MULTILINE)
 RELEASE_HEADING_RE = re.compile(
-    r"^\[(?P<version>v(?P<year>\d{4})\.(?P<month>\d{2})\.(?P<day>\d{2})"
-    r"(?:\.(?P<ordinal>\d+))?)\] - (?P<date>\d{4}-\d{2}-\d{2})$"
+    r"^\[(?P<version>v(?P<year>\d{4})\.(?P<month>\d{2})\.(?P<day>\d{2}))"
+    r"\] - (?P<date>\d{4}-\d{2}-\d{2})$"
 )
 
 
@@ -30,27 +29,22 @@ def line_number(text: str, offset: int) -> int:
 def validate(text: str) -> list[str]:
     errors: list[str] = []
     headings = list(H2_RE.finditer(text))
-    unreleased = []
     releases = []
     release_versions: set[str] = set()
-    sortable_releases: list[tuple[date, int, str, int]] = []
+    release_dates: set[date] = set()
+    sortable_releases: list[tuple[date, str, int]] = []
 
     for heading in headings:
         raw_name = heading.group("name")
         name = raw_name.strip() if raw_name is not None else ""
         line = line_number(text, heading.start())
         if not name:
-            errors.append(f"CHANGELOG.md:{line}: empty level-2 heading; expected an Unreleased or release section")
-            continue
-        if name == UNRELEASED_NAME:
-            unreleased.append((heading, line))
+            errors.append(f"CHANGELOG.md:{line}: empty level-2 heading; expected a release section")
             continue
 
         match = RELEASE_HEADING_RE.fullmatch(name)
         if match is None:
-            errors.append(
-                f"CHANGELOG.md:{line}: invalid release heading {name!r}; expected [vYYYY.MM.DD[.N]] - YYYY-MM-DD"
-            )
+            errors.append(f"CHANGELOG.md:{line}: invalid release heading {name!r}; expected [vYYYY.MM.DD] - YYYY-MM-DD")
             continue
 
         version = match.group("version")
@@ -82,30 +76,27 @@ def validate(text: str) -> list[str]:
             )
         releases.append((heading, line))
         if version_date is not None and release_date is not None:
-            sortable_releases.append((version_date, int(match.group("ordinal") or "0"), version, line))
+            if version_date in release_dates:
+                errors.append(
+                    f"CHANGELOG.md:{line}: duplicate release date {version_date.isoformat()!r}; "
+                    "combine same-day changes in one release section"
+                )
+            else:
+                release_dates.add(version_date)
+            sortable_releases.append((version_date, version, line))
 
-    previous_key: tuple[date, int] | None = None
+    previous_date: date | None = None
     previous_version: str | None = None
-    for release_date, ordinal, version, line in sortable_releases:
-        key = (release_date, ordinal)
-        if previous_key is not None and key >= previous_key:
+    for release_date, version, line in sortable_releases:
+        if previous_date is not None and release_date >= previous_date:
             errors.append(
                 f"CHANGELOG.md:{line}: release {version!r} is not older than preceding "
                 f"release {previous_version!r}; releases must be newest first"
             )
-        previous_key = key
+        previous_date = release_date
         previous_version = version
 
-    if not unreleased:
-        errors.append("CHANGELOG.md: missing ## [Unreleased] section")
-    elif len(unreleased) > 1:
-        errors.append("CHANGELOG.md: duplicate ## [Unreleased] sections")
-
-    if unreleased and releases and unreleased[0][0].start() > releases[0][0].start():
-        errors.append("CHANGELOG.md: ## [Unreleased] section must appear before releases")
-
-    sections = [(heading, line) for heading, line in unreleased]
-    sections.extend(releases)
+    sections = releases
     for heading, line in sections:
         next_heading = next(
             (candidate for candidate in headings if candidate.start() > heading.start()),
