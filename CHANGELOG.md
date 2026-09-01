@@ -20,3 +20,4 @@ for additional releases on the same day (`vYYYY.MM.DD.N`).
 - Document agent-maintained daily changelog updates, including same-day release aggregation and human-facing entries.
 - Redesign b-init repository guidance around a concise, evidence-backed operating guide with explicit migration and developer-rule preservation.
 - Streamline two-role b-commit execution: the planner makes one exact, user-approved read-only proposal; the same worker resumes the unchanged approved handoff without duplicate approval, and snapshot or proposal mismatches stop the commit.
+- Limit root `AGENTS.md` verification guidance to a concise set of normal repository checks.
