@@ -30,6 +30,15 @@ Create approved, cohesive commits from the current working tree, or draft one me
 
 - `bash` - `rtk git status --short`, metadata-only Git path lists, targeted safe-path diffs, exact staging, and approved commit creation.
 
+## Two-role workflow
+
+`b-commit` remains worker-owned. In planner mode, an explicit user commit request starts a read-only proposal phase; the planner may inspect and capture state for handoff but never stage, commit, or run a mutating command.
+
+- The planner records the initial index and working-tree snapshot, classifies protected paths, and forms exact ordered commit groups with exact paths and proposed messages. It presents that unchanged proposal in exactly one user approval question, using `ask_user_question` with `Approve (Recommended)` and `Decline` or the focused plain-text fallback when unavailable or noninteractive. It must not ask once per group or regroup after approval.
+- After approval, the planner delegates the unchanged proposal to the same worker with the original explicit user request, captured snapshot, exact ordered groups/paths/messages, and approval. The worker remains the sole writer.
+- The worker treats the original explicit user request plus the planner-relayed exact approval as satisfying the b-commit request/approval gate. A worker receiving the complete, unchanged planner handoff resumes at step 9 and does not repeat steps 3–8; it still performs the existing snapshot/proposal, protected-path, targeted-staging, and targeted pre-commit diff checks required by steps 9–10. It then stages and commits exactly that proposal without re-proposing or re-asking. If the snapshot or proposal differs, stop and report—not regroup or reuse approval—and do not stage or commit.
+- Preserve the protected-path and user-curated pre-existing staged-index rules, targeted staging, no broad staging/history rewrite/push, and the reviewed-snapshot/b-review rules.
+
 ## Steps
 
 1. If the user asks for PR copy for staged changes, return `BLOCKED: commit staged changes before generating PR copy` and stop. Do not inspect commit history or stage or commit changes.
@@ -40,7 +49,7 @@ Create approved, cohesive commits from the current working tree, or draft one me
 6. Block if a group mixes unrelated concerns, a protected file needs permission, or a file cannot be assigned confidently.
 7. For each group, choose the narrowest accurate type: `feat`, `fix`, `refactor`, `perf`, `docs`, `test`, `chore`, or `style`; write an imperative subject of at most 50 characters with no trailing punctuation.
 8. Present the groups, exact file paths, and proposed commit messages. This is a material user-facing approval: when `ask_user_question` is available in planner or solo/Off work, ask one structured question with `Approve (Recommended)` and `Decline` options, preserving the exact proposal and the extension's custom-answer row. In a two-role worker, keep worker→planner coordination in Intercom and let the planner obtain the user decision. If the questionnaire is unavailable or noninteractive, ask one focused plain-text confirmation in chat. In every case, require explicit approval before staging or committing; stop on a decline or any non-approval.
-9. After confirmation, verify the snapshot is unchanged. Stage only the approved paths for each unstaged group; do not use broad staging commands that can capture unrelated files.
+9. After the user approval (or the exact planner-relayed approval in a two-role worker), verify the snapshot and proposal are unchanged. Stage only the approved paths for each unstaged group; do not use broad staging commands that can capture unrelated files.
 10. Reinspect each staged group immediately before committing with a targeted non-protected-path diff. Create its commit on the current branch, then continue to the next approved group. Stop on the first Git error; do not amend, reset, push, or retry by changing history.
 11. Report commit hashes, messages, remaining changes, and any blockers. Recommend `b-pr-summary <commit-count>` for PR copy.
 

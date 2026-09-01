@@ -100,6 +100,13 @@ for marker in [
     "location, evidence, impact, violated baseline, smallest correction, and regression check",
     "For audit/review verification you cannot run, request bounded worker evidence",
     "same worker may b-commit only on explicit user request",
+    "b-commit remains worker-owned",
+    "read-only proposal analysis",
+    "exactly one user approval",
+    "captured snapshot",
+    "without re-proposing or re-asking",
+    "snapshot or proposal differs",
+    "stop and report—not regroup or reuse approval",
 # generated:role-prompt-markers:validate:end
 ]:
     if marker not in role_prompt:

@@ -31,6 +31,13 @@ b-agentic is a slim personal workflow kernel integrated with Pi. It ships the al
 - `python3 pi/tests/prompt_effectiveness.py --fixtures tests/behavior/init-guidance.json --skill skills/b-init/SKILL.md --validate-inputs` — validate b-init fixture inputs without model calls.
 - `npm run quality` — run tracked source quality checks and strict Pi TypeScript checks when dependencies are installed.
 - `rtk git diff --check` — check changed paths for whitespace errors.
+- `.husky/pre-commit` runs `npx --no-install lint-staged`, the exact staged-file hook.
+- `eslint --max-warnings=0 --no-warn-ignored` — check staged `**/*.{ts,tsx}` files.
+- `prettier --check` — check staged `**/*.{ts,tsx}`, `**/*.md`, and `**/*.{json,jsonc,yaml,yml}` files.
+- `bash pi/scripts/typecheck.sh` — when staged `**/*.{ts,tsx}` paths are present, typecheck the Pi and preview-markdown TypeScript projects.
+- `ruff check` and `ruff format --check` — check staged `**/*.py` files, honoring `pyproject.toml` exclusions.
+- `shellcheck --shell=bash --external-sources` — check staged `**/*.{sh,bash}` files.
+- `markdownlint-cli2` — check staged `**/*.md` files.
 
 <!-- b-init-managed:end -->
 

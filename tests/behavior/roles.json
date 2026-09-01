@@ -533,6 +533,71 @@
         "Pause before successful delivery",
         "Claim completion without reporting the gap or checks"
       ]
+    },
+    {
+      "id": "planner-b-commit-one-approval-handoff",
+      "role": "planner",
+      "skill": "b-commit",
+      "observed_failure": "Planner mode staged or committed an explicit commit request, asked for approval per group, or sent an altered proposal to a worker.",
+      "intended_behavior": "For an explicit user commit request, the planner performs only read-only b-commit proposal analysis, captures the index/worktree snapshot, presents exact ordered groups with paths and messages for one approval, then delegates the unchanged approved proposal with the original request, snapshot, and approval to the same worker.",
+      "prompt": "In planner mode, the user explicitly asks you to split and commit the current working-tree changes, and a same-CWD worker is ready. Describe the b-commit proposal and approval handoff, including what you inspect and capture, what exact proposal you present, how many approval questions you ask, what you send after approval, and what you must not do.",
+      "must": [
+        "Keep b-commit worker-owned and perform only read-only proposal analysis; never stage or commit in planner mode",
+        "Capture the initial index/worktree snapshot and preserve protected-path and pre-existing staged-index rules",
+        "Present exact ordered commit groups with exact paths and proposed messages in exactly one user approval",
+        "Use the normal Approve (Recommended)/Decline approval path or its focused plain-text fallback",
+        "After approval, delegate the unchanged proposal to the same worker with the original explicit request, captured snapshot, exact groups/paths/messages, and approval",
+        "Do not ask once per group, regroup, alter the proposal, or commit"
+      ],
+      "avoid": [
+        "Stage or commit from planner mode",
+        "Ask the user to approve each group separately",
+        "Delegate before approval or send a rewritten proposal",
+        "Treat the handoff as permission for the planner to write"
+      ]
+    },
+    {
+      "id": "worker-b-commit-resumes-without-repeat",
+      "role": "worker",
+      "skill": "b-commit",
+      "observed_failure": "The worker re-proposed approved groups or asked the user for a second approval instead of resuming the exact planner handoff.",
+      "intended_behavior": "The worker treats the original explicit request plus the planner-relayed exact approval as sufficient authorization, resumes at step 9 from a complete unchanged planner handoff without repeating steps 3–8, verifies the snapshot and proposal, and stages and commits exactly that proposal without a duplicate approval or regrouping.",
+      "prompt": "The planner relays the original explicit user request, a captured index/worktree snapshot, exact ordered approved groups with paths and messages, and the user's one approval. Describe what you verify and execute, state which numbered step you resume at, and identify which proposal or approval steps you do not repeat.",
+      "must": [
+        "Treat the original explicit user request plus the planner-relayed exact approval as satisfying the b-commit request/approval gate",
+        "Resume at step 9 from a complete, unchanged planner handoff and do not repeat steps 3–8",
+        "Verify the captured snapshot and exact proposal are unchanged before staging",
+        "Stage only exact approved paths and commit exact approved messages as the sole writer",
+        "Preserve the pre-existing staged set as one user-curated group and use targeted staged diffs",
+        "Do not re-propose, re-ask, regroup, or use broad staging",
+        "Preserve no-history-rewrite/push, protected-path, and reviewed-snapshot rules"
+      ],
+      "avoid": [
+        "Ask the user for approval again",
+        "Invent a new grouping or message or commit a changed snapshot",
+        "Use git add -A or git add .",
+        "Commit before snapshot verification or push, amend, or reset"
+      ]
+    },
+    {
+      "id": "worker-b-commit-stops-on-mismatch",
+      "role": "worker",
+      "skill": "b-commit",
+      "observed_failure": "The worker reused a valid approval after the working-tree snapshot or approved proposal changed, regrouping or committing a partial match.",
+      "intended_behavior": "The worker compares the captured snapshot and exact proposal before staging; on any mismatch it stops and reports to the assigning planner instead of regrouping or reusing the approval.",
+      "prompt": "The planner's approved handoff names exact ordered groups, but before you resume one file changes and the current snapshot no longer matches, or an approved path, order, or message differs. Describe your response and whether you stage, commit, regroup, or ask for approval yourself.",
+      "must": [
+        "Compare the current snapshot and exact proposal with the captured handoff before staging",
+        "Stop and report the snapshot or proposal mismatch to the assigning planner",
+        "Do not regroup, reuse the approval, re-propose, re-ask, stage, or commit",
+        "Preserve the worker sole-writer boundary and protected-path, pre-existing-index, review, no-push, and no-history-rewrite rules"
+      ],
+      "avoid": [
+        "Commit a subset that still appears to match",
+        "Regroup the changed files and reuse the old approval",
+        "Ask the user directly or silently continue after the mismatch",
+        "Use broad staging, amend, reset, or push to recover"
+      ]
     }
   ]
 }

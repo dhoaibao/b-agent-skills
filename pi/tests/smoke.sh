@@ -1042,6 +1042,15 @@ for (const marker of [
   "Only delegated worktree-changing tasks require actual b-review",
   "location, evidence, impact, violated baseline, smallest correction, and regression check",
   "For audit/review verification you cannot run, request bounded worker evidence",
+  "For an explicit user b-commit request",
+  "b-commit remains worker-owned",
+  "read-only proposal analysis",
+  "capture the snapshot",
+  "exactly one user approval",
+  "exact ordered paths/messages",
+  "unchanged proposal",
+  "same worker",
+  "never stage, commit, regroup, or re-ask",
 // generated:role-prompt-markers:planner:end
 ]) {
   expect(plannerStart.systemPrompt.includes(marker), `planner prompt must retain ${marker}`);
@@ -1136,6 +1145,14 @@ for (const marker of [
   "pause all edits",
   "explicitly requests b-commit",
   "unchanged reviewed snapshot; any content change reopens review",
+  "When resuming an explicit b-commit request",
+  "original explicit user request plus the planner-relayed exact approval",
+  "b-commit request/approval gate",
+  "verify the captured snapshot and proposal are unchanged",
+  "exactly the approved paths/messages",
+  "without re-proposing or re-asking",
+  "If the snapshot or proposal differs, stop and report—not regroup or reuse approval",
+  "do not stage or commit",
 // generated:role-prompt-markers:worker:end
 ]) {
   expect(workerStart.systemPrompt.includes(marker), `worker role must include ${marker}`);
