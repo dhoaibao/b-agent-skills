@@ -11,6 +11,7 @@ section per date and same-day changes aggregated in that section.
 ### Changed
 
 - Guide `b-implement` and `b-frontend` toward evidence-backed minimal implementations—reusing repository or native capabilities before dependencies or bespoke code—while preserving product/design authority, accessibility, trust-boundary safeguards, error/data-loss handling, compatibility, security, and verification; add behavior scenarios covering these choices.
+- Optimize Playwright MCP evidence collection with a headless isolated launcher, faster targeted browser guidance, and installer/validation migration coverage.
 
 ## [v2026.09.01] - 2026-09-01
 

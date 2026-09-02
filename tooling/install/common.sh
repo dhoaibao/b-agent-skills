@@ -400,6 +400,30 @@ def migrate_managed_values(data):
             if server.get('command') in legacy_commands:
                 server['command'] = list(incoming_command)
 
+    def migrate_playwright_launcher(server, incoming_server, old_command, old_args=None):
+        if isinstance(old_args, list):
+            legacy_args = [list(old_args)]
+            if old_args and old_args[-1] == '--isolated':
+                prefix = old_args[:-1]
+                legacy_args.extend([
+                    [*prefix, '--headless', '--isolated'],
+                    [*prefix, '--isolated', '--headless'],
+                ])
+            for args in legacy_args:
+                migrate_managed_launcher(server, incoming_server, old_command, args)
+            return
+
+        if isinstance(old_command, list):
+            legacy_commands = [list(old_command)]
+            if old_command and old_command[-1] == '--isolated':
+                prefix = old_command[:-1]
+                legacy_commands.extend([
+                    [*prefix, '--headless', '--isolated'],
+                    [*prefix, '--isolated', '--headless'],
+                ])
+            for command in legacy_commands:
+                migrate_managed_launcher(server, incoming_server, command)
+
     def replace_managed_package(server_name, server, incoming_server):
         if not isinstance(server, dict) or not isinstance(incoming_server, dict):
             return
@@ -479,23 +503,29 @@ def migrate_managed_values(data):
                 'bunx',
                 ['firecrawl-mcp'],
             )
-            migrate_managed_launcher(
+            migrate_playwright_launcher(
                 servers.get('playwright'),
                 recommended_servers.get('playwright'),
                 'npx',
                 ['-y', '@playwright/mcp@latest', '--isolated'],
             )
-            migrate_managed_launcher(
+            migrate_playwright_launcher(
                 servers.get('playwright'),
                 recommended_servers.get('playwright'),
                 'pnpm',
                 ['dlx', '@playwright/mcp', '--isolated'],
             )
-            migrate_managed_launcher(
+            migrate_playwright_launcher(
                 servers.get('playwright'),
                 recommended_servers.get('playwright'),
                 'bunx',
                 ['@playwright/mcp@latest', '--isolated'],
+            )
+            migrate_playwright_launcher(
+                servers.get('playwright'),
+                recommended_servers.get('playwright'),
+                'bunx',
+                ['@playwright/mcp', '--isolated'],
             )
             for server_name in ('brave-search', 'firecrawl', 'playwright'):
                 replace_managed_package(server_name, servers.get(server_name), recommended_servers.get(server_name))
@@ -532,20 +562,25 @@ def migrate_managed_values(data):
             recommended_servers.get('firecrawl'),
             ['bunx', 'firecrawl-mcp'],
         )
-        migrate_managed_launcher(
+        migrate_playwright_launcher(
             servers.get('playwright'),
             recommended_servers.get('playwright'),
             ['npx', '-y', '@playwright/mcp@latest', '--isolated'],
         )
-        migrate_managed_launcher(
+        migrate_playwright_launcher(
             servers.get('playwright'),
             recommended_servers.get('playwright'),
             ['pnpm', 'dlx', '@playwright/mcp', '--isolated'],
         )
-        migrate_managed_launcher(
+        migrate_playwright_launcher(
             servers.get('playwright'),
             recommended_servers.get('playwright'),
             ['bunx', '@playwright/mcp@latest', '--isolated'],
+        )
+        migrate_playwright_launcher(
+            servers.get('playwright'),
+            recommended_servers.get('playwright'),
+            ['bunx', '@playwright/mcp', '--isolated'],
         )
         for server_name in ('brave-search', 'firecrawl', 'playwright'):
             replace_managed_package(server_name, servers.get(server_name), recommended_servers.get(server_name))
@@ -1123,9 +1158,9 @@ firecrawl_readiness_status() {
 
 playwright_readiness_status() {
   if command -v bunx >/dev/null 2>&1; then
-    printf 'ready: bunx available'
+    printf 'ready: bunx available for headless isolated Playwright MCP'
   else
-    printf 'blocked: install Bun (bunx)'
+    printf 'blocked: install Bun (bunx) for headless isolated Playwright MCP'
   fi
 }
 

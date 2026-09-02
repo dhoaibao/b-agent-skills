@@ -28,6 +28,22 @@
         "Using mcpScript for browser mutations without approval",
         "Replacing the evidence bundle with an unbounded script result"
       ]
+    },
+    {
+      "id": "fast-playwright-regression-workflow",
+      "prompt": "Use b-browser for a repeatable Playwright regression path. Prefer existing Playwright CLI/CI evidence before MCP; use Playwright MCP only for exploratory or state-specific evidence. Locate controls with browser_find before shallow targeted snapshots, filter console/network output to the requested state, and avoid duplicate full-page snapshots while preserving requested screenshot truthfulness.",
+      "must": [
+        "Prefer existing Playwright CLI/CI for repeatable regression paths",
+        "Use Playwright MCP for exploratory or state-specific evidence",
+        "Use browser_find before shallow targeted snapshots",
+        "Filter console/network output to the requested state",
+        "Preserve requested screenshot truthfulness"
+      ],
+      "avoid": [
+        "Starting MCP when existing CLI/CI evidence covers the repeatable path",
+        "Taking duplicate full-page snapshots",
+        "Claiming visual coverage without a requested collected screenshot"
+      ]
     }
   ]
 }

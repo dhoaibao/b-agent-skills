@@ -79,6 +79,35 @@ def _normalize_managed_launcher(normalized, incoming_server, old_command, old_ar
             normalized["command"] = list(incoming_command)
 
 
+def _normalize_playwright_launcher(normalized, incoming_server, old_command, old_args=None):
+    if isinstance(old_args, list):
+        legacy_args = [list(old_args)]
+        if old_args and old_args[-1] == "--isolated":
+            prefix = old_args[:-1]
+            legacy_args.extend(
+                [
+                    [*prefix, "--headless", "--isolated"],
+                    [*prefix, "--isolated", "--headless"],
+                ]
+            )
+        for args in legacy_args:
+            _normalize_managed_launcher(normalized, incoming_server, old_command, args)
+        return
+
+    if isinstance(old_command, list):
+        legacy_commands = [list(old_command)]
+        if old_command and old_command[-1] == "--isolated":
+            prefix = old_command[:-1]
+            legacy_commands.extend(
+                [
+                    [*prefix, "--headless", "--isolated"],
+                    [*prefix, "--isolated", "--headless"],
+                ]
+            )
+        for command in legacy_commands:
+            _normalize_managed_launcher(normalized, incoming_server, command)
+
+
 def managed_mcp_server(current_server, incoming_server, server_name):
     """Return True if current_server matches the managed template for server_name."""
     if not isinstance(current_server, dict) or not isinstance(incoming_server, dict):
@@ -154,29 +183,33 @@ def managed_mcp_server(current_server, incoming_server, server_name):
             _normalize_managed_launcher(normalized, incoming_server, ["bunx", "firecrawl-mcp"])
     elif server_name == "playwright":
         if isinstance(incoming_server.get("command"), str):
-            _normalize_managed_launcher(
+            _normalize_playwright_launcher(
                 normalized, incoming_server, "npx", ["-y", "@playwright/mcp@latest", "--isolated"]
             )
-            _normalize_managed_launcher(normalized, incoming_server, "pnpm", ["dlx", "@playwright/mcp", "--isolated"])
-            _normalize_managed_launcher(normalized, incoming_server, "bunx", ["@playwright/mcp@latest", "--isolated"])
-            _normalize_managed_launcher(normalized, incoming_server, "bunx", ["@playwright/mcp", "--isolated"])
+            _normalize_playwright_launcher(
+                normalized, incoming_server, "pnpm", ["dlx", "@playwright/mcp", "--isolated"]
+            )
+            _normalize_playwright_launcher(
+                normalized, incoming_server, "bunx", ["@playwright/mcp@latest", "--isolated"]
+            )
+            _normalize_playwright_launcher(normalized, incoming_server, "bunx", ["@playwright/mcp", "--isolated"])
         else:
-            _normalize_managed_launcher(
+            _normalize_playwright_launcher(
                 normalized,
                 incoming_server,
                 ["npx", "-y", "@playwright/mcp@latest", "--isolated"],
             )
-            _normalize_managed_launcher(
+            _normalize_playwright_launcher(
                 normalized,
                 incoming_server,
                 ["pnpm", "dlx", "@playwright/mcp", "--isolated"],
             )
-            _normalize_managed_launcher(
+            _normalize_playwright_launcher(
                 normalized,
                 incoming_server,
                 ["bunx", "@playwright/mcp@latest", "--isolated"],
             )
-            _normalize_managed_launcher(
+            _normalize_playwright_launcher(
                 normalized,
                 incoming_server,
                 ["bunx", "@playwright/mcp", "--isolated"],

@@ -498,6 +498,39 @@ EOF
 	assert_json_value "$config_path" "data['mcpServers']['firecrawl']['env']['FIRECRAWL_API_URL'] == 'https://test.firecrawl.dev'"
 }
 
+run_playwright_mcp_migration_case() {
+	local snapshot_repo="$1"
+	local sandbox_root="$WORK_DIR/playwright-mcp-migration"
+	local sandbox mcp_path case_name
+	local -a cases=(npx pnpm bunx-versioned bunx-unversioned npx-headless-first bunx-headless-first bunx-isolated-first)
+
+	for case_name in "${cases[@]}"; do
+		sandbox="$sandbox_root/$case_name"
+		mcp_path="$sandbox/home/.pi/agent/mcp.json"
+		mkdir -p "$(dirname "$mcp_path")"
+		python3 - "$mcp_path" "$case_name" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+case_name = sys.argv[2]
+legacy = {
+    "npx": {"command": "npx", "args": ["-y", "@playwright/mcp@latest", "--isolated"]},
+    "pnpm": {"command": "pnpm", "args": ["dlx", "@playwright/mcp", "--isolated"]},
+    "bunx-versioned": {"command": "bunx", "args": ["@playwright/mcp@latest", "--isolated"]},
+    "bunx-unversioned": {"command": "bunx", "args": ["@playwright/mcp", "--isolated"]},
+    "npx-headless-first": {"command": "npx", "args": ["-y", "@playwright/mcp@latest", "--headless", "--isolated"]},
+    "bunx-headless-first": {"command": "bunx", "args": ["@playwright/mcp", "--headless", "--isolated"]},
+    "bunx-isolated-first": {"command": "bunx", "args": ["@playwright/mcp", "--isolated", "--headless"]},
+}[case_name]
+path.write_text(json.dumps({"mcpServers": {"playwright": legacy}}, indent=2) + "\n")
+PY
+		expect_install_status 0 "$sandbox" "$snapshot_repo"
+		assert_json_value "$mcp_path" "data['mcpServers']['playwright'] == {'command': 'bunx', 'args': ['@playwright/mcp', '--isolated', '--headless'], 'env': {}, 'lifecycle': 'lazy'}"
+	done
+}
+
 run_mcp_doctor_case() {
 	local snapshot_repo="$1"
 	local sandbox="$WORK_DIR/mcp-doctor-pi"
@@ -573,6 +606,7 @@ EOF
 	assert_contains "$doctor_log" 'brave-search: ready:'
 	assert_contains "$doctor_log" 'firecrawl: ready:'
 	assert_contains "$doctor_log" 'playwright: ready:'
+	assert_json_value "$sandbox/home/.pi/agent/mcp.json" "data['mcpServers']['playwright']['args'] == ['@playwright/mcp', '--isolated', '--headless']"
 	assert_contains "$doctor_log" 'schema-probe: not run; live tool inventory is unverified'
 
 	python3 - "$sandbox/home/.pi/agent/mcp.json" <<'PY'
@@ -1791,6 +1825,7 @@ run_base_smoke_cases() {
 		run_output_contract_case
 		run_optional_shell_tool_case
 		run_prompted_mcp_key_pipe_case
+		run_playwright_mcp_migration_case
 		run_mcp_doctor_case
 		run_runtime_cli_default_skip_case
 		run_runtime_cli_prompt_case
