@@ -301,6 +301,52 @@
         "Perform a quality-dimension matrix",
         "Research or design alternatives without a material uncertainty"
       ]
+    },
+    {
+      "id": "evidence-first-reuse",
+      "principle": "simplicity-first",
+      "skill": "b-implement",
+      "prompt": "Use b-implement. After discovery, an existing repository capability satisfies the requested behavior, and the standard library or native platform is also sufficient; an installed dependency, bespoke abstraction, and direct new code are possible but add no needed capability. State the order you would consider and what evidence would justify descending; do not edit files.",
+      "must": [
+        "Prefer an existing repository capability before adding new code",
+        "Consider the standard library or native platform before an installed dependency or bespoke abstraction",
+        "Descend only when the earlier option cannot satisfy the requested behavior or constraints"
+      ],
+      "avoid": [
+        "Add a new dependency or abstraction without evidence",
+        "Treat evidence-first minimality as unconditional when an earlier option is insufficient"
+      ]
+    },
+    {
+      "id": "semantic-native-frontend",
+      "principle": "simplicity-first",
+      "skill": "b-frontend",
+      "prompt": "Use b-frontend. A scoped settings control can use supported semantic HTML and native HTML/CSS/browser behavior, and the repository's UI/design guidance permits that choice; no bespoke component or new dependency is needed. State the smallest implementation you would choose and how you preserve keyboard, focus, and other relevant accessible behavior; do not edit files.",
+      "must": [
+        "Prefer semantic HTML and native HTML/CSS/browser features when requirements and target support allow",
+        "Retain the repository's UI/design authority",
+        "Preserve accessible behavior while choosing the smaller implementation"
+      ],
+      "avoid": [
+        "Introduce a bespoke component or new dependency without a requirement or evidence",
+        "Override product/design evidence for convenience"
+      ]
+    },
+    {
+      "id": "minimality-keeps-guards",
+      "principle": "goal-driven-execution",
+      "skill": "b-implement",
+      "prompt": "Use b-implement. A smaller direct implementation meets the visible request, but the change crosses a trust boundary, can expose an error or data-loss risk, and affects an accessible interaction. Explain which safeguards remain mandatory and when you would reject the smaller option; do not edit files.",
+      "must": [
+        "Preserve requested behavior, compatibility, and security constraints",
+        "Keep trust-boundary validation, error/data-loss handling, and relevant accessibility behavior",
+        "Verify the smaller solution against those constraints before claiming completion",
+        "Reject or escalate a smaller option that would violate a required guard"
+      ],
+      "avoid": [
+        "Remove validation, error handling, or accessibility behavior just to reduce code",
+        "Claim the smaller implementation is sufficient without checking its constraints"
+      ]
     }
   ]
 }
