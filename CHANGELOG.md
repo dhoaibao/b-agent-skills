@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog 2.0.0](https://keepachangelog.com/en/2.
 and this project adheres to Calendar Versioning: `vYYYY.MM.DD`, with one release
 section per date and same-day changes aggregated in that section.
 
+## [v2026.09.03] - 2026-09-03
+
+### Changed
+
+- Align Pi development tooling to 0.84.4 and extend RTK policy coverage to CTest, Maven Daemon, and PHPT command families.
+
 ## [v2026.09.02] - 2026-09-02
 
 ### Changed

@@ -1717,10 +1717,10 @@ for (const command of ['yarn why lodash', 'bun --version']) {
 const rtkRequiredCommands = [
   'git', 'gh', 'glab', 'aws', 'psql', 'pnpm',
   'dotnet', 'docker', 'kubectl', 'oc', 'wget',
-  'jest', 'vitest', 'prisma', 'tsc', 'next', 'lint', 'prettier', 'format',
+  'jest', 'vitest', 'ctest', 'prisma', 'tsc', 'next', 'lint', 'prettier', 'format',
   'playwright', 'cargo', 'npm', 'npx', 'curl', 'ruff', 'pytest', 'mypy',
-  'rake', 'rubocop', 'rspec', 'pip', 'go', 'gt', 'golangci-lint', 'gradlew', 'mvn',
-  'ecs', 'paratest', 'pest', 'php', 'phpstan', 'phpunit', 'pint', 'sbt', 'uv',
+  'rake', 'rubocop', 'rspec', 'pip', 'go', 'gt', 'golangci-lint', 'gradlew', 'mvn', 'mvnd',
+  'ecs', 'paratest', 'pest', 'phpt', 'php', 'phpstan', 'phpunit', 'pint', 'sbt', 'uv',
 ];
 const rtkDiscoveryCommands = ['ls', 'tree', 'find', 'diff', 'grep', 'rg', 'wc'];
 for (const command of [...rtkRequiredCommands, ...rtkDiscoveryCommands]) {
