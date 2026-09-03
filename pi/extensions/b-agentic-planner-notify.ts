@@ -47,9 +47,17 @@ export function notificationRepositoryLabel(
   if (process.env[NOTIFICATION_CONTEXT_ENV] !== NOTIFICATION_CONTEXT_OPT_IN)
     return;
   if (!cwd) return;
-  const candidate = cwd.replace(/[\\/]+$/, "").split(/[\\/]/).pop() ?? "";
-  const label = candidate
-    .replace(/[\u0000-\u001f\u007f-\u009f]/g, "")
+  const candidate =
+    cwd
+      .replace(/[\\/]+$/, "")
+      .split(/[\\/]/)
+      .pop() ?? "";
+  const label = [...candidate]
+    .filter((character) => {
+      const codePoint = character.codePointAt(0) ?? 0;
+      return codePoint > 0x1f && (codePoint < 0x7f || codePoint > 0x9f);
+    })
+    .join("")
     .trim();
   if (
     !label ||

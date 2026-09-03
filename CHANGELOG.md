@@ -16,6 +16,10 @@ section per date and same-day changes aggregated in that section.
 
 - Align Pi development tooling to 0.84.4 and extend RTK policy coverage to CTest, Maven Daemon, and PHPT command families.
 
+### Fixed
+
+- Keep planner-notification repository labels free of control characters without triggering ESLint's control-regex rule.
+
 ## [v2026.09.02] - 2026-09-02
 
 ### Changed
