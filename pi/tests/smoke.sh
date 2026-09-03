@@ -485,6 +485,7 @@ expect(failedSaveResult.details.theme === 'day' && inlineInvalidationCount === i
 process.env.PI_CODING_AGENT_DIR = previewAgentDir;
 rmSync(failureAgentDir, { force: true });
 const [autoSessionStartHandler, roleSessionStartHandler] = registrations.session_start;
+const plannerNotifySessionStartHandler = registrations.session_start[2];
 const toolCallHandler = handlers.tool_call;
 const ruleGuardHandler = registrations.tool_call.at(-1);
 const statusCommand = commands['b-status'];
@@ -603,6 +604,7 @@ const consultantDependencies = {
 let rolePickerCalls = 0;
 let modelPickerCalls = 0;
 const consultantPickerRenders = [];
+const terminalTitles = [];
 let roleColorMode = 'truecolor';
 const roleContext = {
   get model() { return activeModel; },
@@ -641,6 +643,7 @@ const roleContext = {
       return 'Allow once';
     },
     notify(message, level) { roleNotifications.push({ message, level }); },
+    setTitle(title) { terminalTitles.push(title); },
     theme: {
       fg(color, text) { return `<${color}>${text}</${color}>`; },
       getColorMode() { return roleColorMode; },
@@ -783,12 +786,41 @@ await roleSessionStartHandler({}, roleContext);
 expect(activeTools.length === 8 && activeTools.includes('edit') && activeTools.includes('write'), 'Off role application must preserve normal active tools');
 const notifierCalls = [];
 const taskCompleteSignal = plannerNotifyTest.PLANNER_ATTENTION_SIGNALS.TASK_COMPLETE;
+const previousNotificationContext = process.env[plannerNotifyTest.NOTIFICATION_CONTEXT_ENV];
+delete process.env[plannerNotifyTest.NOTIFICATION_CONTEXT_ENV];
 await plannerNotifyTest.notifyDesktop(async (command, args, options) => { notifierCalls.push({ command, args, options }); }, taskCompleteSignal, 'linux');
 await plannerNotifyTest.notifyUserInputNeeded(async (command, args, options) => { notifierCalls.push({ command, args, options }); }, 'darwin');
 await plannerNotifyTest.notifyDesktop(async (command, args, options) => { notifierCalls.push({ command, args, options }); }, taskCompleteSignal, 'freebsd');
 await plannerNotifyTest.notifyDesktop(async () => { throw new Error('notifier unavailable'); }, taskCompleteSignal, 'linux');
 expect(notifierCalls.length === 2 && notifierCalls[0].command === 'notify-send' && JSON.stringify(notifierCalls[0].args) === JSON.stringify(['Task complete']) && notifierCalls[0].options?.timeout === plannerNotifyTest.NOTIFICATION_TIMEOUT_MS, 'Linux planner notifications must use fixed task-complete text with a bounded timeout');
 expect(notifierCalls[1].command === 'osascript' && notifierCalls[1].args[0] === '-e' && notifierCalls[1].args[1] === 'display notification "User input needed" with title "b-agentic"' && notifierCalls[1].options?.timeout === plannerNotifyTest.NOTIFICATION_TIMEOUT_MS, 'macOS planner notifications must use fixed user-input text with a bounded timeout');
+const notificationCwd = '/private/workspace/notification-repo';
+process.env[plannerNotifyTest.NOTIFICATION_CONTEXT_ENV] = '1';
+expect(plannerNotifyTest.notificationRepositoryLabel(notificationCwd) === 'notification-repo', 'opt-in notification context must derive only the cwd basename');
+await plannerNotifyTest.notifyDesktop(async (command, args, options) => { notifierCalls.push({ command, args, options }); }, taskCompleteSignal, 'linux', notificationCwd);
+await plannerNotifyTest.notifyUserInputNeeded(async (command, args, options) => { notifierCalls.push({ command, args, options }); }, 'darwin', notificationCwd);
+expect(notifierCalls[2].command === 'notify-send' && JSON.stringify(notifierCalls[2].args) === JSON.stringify(['--app-name=b-agentic', 'Task complete — notification-repo']) && notifierCalls[2].options?.timeout === plannerNotifyTest.NOTIFICATION_TIMEOUT_MS && !JSON.stringify(notifierCalls[2]).includes(notificationCwd), 'opt-in Linux notifications must identify b-agentic and expose only the repository basename');
+expect(notifierCalls[3].command === 'osascript' && notifierCalls[3].args[0] === '-e' && notifierCalls[3].args[1] === plannerNotifyTest.MACOS_CONTEXT_SCRIPT && notifierCalls[3].args[2] === 'User input needed — notification-repo' && !notifierCalls[3].args[1].includes('notification-repo') && notifierCalls[3].options?.timeout === plannerNotifyTest.NOTIFICATION_TIMEOUT_MS, 'opt-in macOS notifications must pass the repository label as an argv value, not AppleScript source');
+const unsafeNotificationCwd = '/private/workspace/repo"; do shell script "touch tmp-pwned"\u001b\nname';
+const sanitizedUnsafeRepository = 'repo"; do shell script "touch tmp-pwned"name';
+expect(plannerNotifyTest.notificationRepositoryLabel(unsafeNotificationCwd) === sanitizedUnsafeRepository && !sanitizedUnsafeRepository.includes('\u001b'), 'notification context must remove control characters from repository labels');
+await plannerNotifyTest.notifyUserInputNeeded(async (command, args, options) => { notifierCalls.push({ command, args, options }); }, 'darwin', unsafeNotificationCwd);
+expect(notifierCalls[4].args[1] === plannerNotifyTest.MACOS_CONTEXT_SCRIPT && !notifierCalls[4].args[1].includes(sanitizedUnsafeRepository) && notifierCalls[4].args[2] === `User input needed — ${sanitizedUnsafeRepository}`, 'macOS repository labels must remain outside AppleScript source even when they contain quoting syntax');
+const titleContext = { ...roleContext, mode: 'tui', cwd: notificationCwd };
+const titleCountBeforeDefault = terminalTitles.length;
+if (previousNotificationContext === undefined) delete process.env[plannerNotifyTest.NOTIFICATION_CONTEXT_ENV];
+else process.env[plannerNotifyTest.NOTIFICATION_CONTEXT_ENV] = previousNotificationContext;
+expect(typeof plannerNotifySessionStartHandler === 'function', 'planner notification extension must register session startup handling');
+await plannerNotifySessionStartHandler({}, titleContext);
+expect(terminalTitles.length === titleCountBeforeDefault, 'notification context must not set a terminal title without opt-in');
+process.env[plannerNotifyTest.NOTIFICATION_CONTEXT_ENV] = '1';
+await plannerNotifySessionStartHandler({}, titleContext);
+expect(terminalTitles.at(-1) === 'pi — notification-repo' && !terminalTitles.at(-1).includes(notificationCwd), 'opt-in interactive sessions must set a title containing only the repository basename');
+const titleCountBeforeUnusable = terminalTitles.length;
+await plannerNotifySessionStartHandler({}, { ...titleContext, cwd: '/' });
+expect(terminalTitles.length === titleCountBeforeUnusable, 'unusable repository basenames must omit the terminal title');
+if (previousNotificationContext === undefined) delete process.env[plannerNotifyTest.NOTIFICATION_CONTEXT_ENV];
+else process.env[plannerNotifyTest.NOTIFICATION_CONTEXT_ENV] = previousNotificationContext;
 expect(typeof handlers.agent_start === 'function' && typeof handlers.agent_end === 'function' && typeof handlers.agent_settled === 'function' && typeof handlers.tool_call === 'function', 'planner notification extension must register agent lifecycle and tool-call handlers');
 branchEntries.push({
   type: 'custom', customType: 'b-agentic-role',

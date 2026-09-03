@@ -8,6 +8,10 @@ section per date and same-day changes aggregated in that section.
 
 ## [v2026.09.03] - 2026-09-03
 
+### Added
+
+- Add opt-in repository-aware planner notifications and interactive Pi titles while preserving privacy-safe defaults.
+
 ### Changed
 
 - Align Pi development tooling to 0.84.4 and extend RTK policy coverage to CTest, Maven Daemon, and PHPT command families.
