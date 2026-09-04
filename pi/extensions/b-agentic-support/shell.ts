@@ -1630,6 +1630,20 @@ export function isGitDestructiveWorktreeOrStashOperation(
   );
 }
 
+/** Shared-scope Git config writes require approval; project-local config remains autonomous. */
+export function hasGitSharedScopeConfigRisk(tokens: string[]): boolean {
+  if (tokens[0] !== "git" || tokens[1] !== "config") return false;
+  return tokens
+    .slice(2)
+    .some(
+      (token) =>
+        token === "--global" ||
+        token === "--system" ||
+        token.startsWith("--global=") ||
+        token.startsWith("--system="),
+    );
+}
+
 export function hasGitMutationRisk(tokens: string[]): boolean {
   if (tokens[0] !== "git") return false;
   const operation = tokens[1];
@@ -1997,6 +2011,14 @@ export function segmentDecision(
       decision: "ask",
       reason:
         "Requires approval: shell command reads or mutates outside the project or removes local files",
+    };
+  }
+
+  if (hasGitSharedScopeConfigRisk(tokens)) {
+    return {
+      decision: "ask",
+      reason:
+        "Requires approval: Git configuration may mutate shared user/system scope",
     };
   }
 

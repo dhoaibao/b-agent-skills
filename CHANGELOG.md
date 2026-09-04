@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog 2.0.0](https://keepachangelog.com/en/2.
 and this project adheres to Calendar Versioning: `vYYYY.MM.DD`, with one release
 section per date and same-day changes aggregated in that section.
 
+## [v2026.09.04] - 2026-09-04
+
+### Changed
+
+- Clarify explicit frontend/UI versus non-UI implementation handoffs across canonical skills, and restore kernel headroom without weakening policy.
+
+### Fixed
+
+- Gate shared user/system Git configuration behind approval and add deterministic coverage for Serena's fail-closed traversal bound.
+
 ## [v2026.09.03] - 2026-09-03
 
 ### Added

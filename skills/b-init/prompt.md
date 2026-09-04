@@ -12,7 +12,7 @@ Initialize or refresh repo-local agent instruction docs. `AGENTS.md` is canonica
 
 - The task is runtime-home installation or adapter config -> use repo docs or installer flow.
 - The user wants a broader plan before writing docs -> use **b-plan**.
-- The user wants code or product behavior changes -> use **b-implement**.
+- The user wants frontend/UI code or behavior changes -> use **b-frontend**; other code or product behavior changes -> use **b-implement**.
 
 ## Tool guidance
 

@@ -37,7 +37,7 @@ Use LSP only when it has a ready route for the changed file; it does not replace
 2. Confirm intended behavior from user intent, product contract, source change, existing passing tests, and materially relevant repo context. Use Context7 only for unresolved versioned framework semantics.
 3. For failing tests, run the narrow target, read the test and exercised source, edit tests only after classifying the failure.
 4. For new tests, cover requested or changed behavior through the highest practical public interface first; add edge cases only when risk requires them.
-5. For explicitly requested TDD, use vertical tracer bullets: add one failing behavior test, make the smallest production change needed to pass it, verify, then continue to the next behavior. Outside explicit TDD, route production changes to **b-implement**.
+5. For explicitly requested TDD, use vertical tracer bullets: add one failing behavior test, make the smallest production change needed to pass it, verify, then continue to the next behavior. Outside explicit TDD, route frontend/UI production changes to **b-frontend** and other production changes to **b-implement**.
 6. Select affected tests before broad suites: use local search, test discovery, and repository scripts by default. When a current CodeGraph index is already available and a concrete repository-wide impact question remains, ask it for changed-symbol/file impact and affected tests; do not initialize one solely for this selection. Run the narrow affected set first, then expand only when the change or risk requires it.
 7. Report the selected tests, whether CodeGraph or fallback discovery supplied them, and any remaining coverage gap. A partial or affected-only run must never be described as full-suite coverage.
 8. Run diagnostics when useful, then the narrowest relevant test, and verify the test proves the intended behavior.
@@ -54,7 +54,7 @@ Test scope, changes, verification, and remaining gaps.
 
 - Never change production code only because a test is red.
 - When an edit anchor (oldText) fails to match, re-read the target region and re-anchor the edit from current content; never blind-retry the same anchor or widen context speculatively.
-- Keep production-code changes in **b-implement** unless the user explicitly requested a tightly scoped TDD red-green loop.
+- Keep production-code changes in **b-implement** unless they are frontend/UI changes, which belong to **b-frontend**, or the user explicitly requested a tightly scoped TDD red-green loop.
 - Never update assertions, snapshots, or goldens without confirming intended behavior. If the intended contract is materially unresolved, in planner or solo/Off work use `ask_user_question` with 2–4 concrete intent options (for example, keep the current expectation (`Keep current contract (Recommended)`), adopt the changed behavior, or defer the test change), using the automatic custom-answer row; if unavailable or noninteractive, ask one focused plain-text question. In a two-role worker, ask the assigning planner through Intercom. In planner mode, an actual `ask_user_question` tool call triggers a fixed privacy-safe desktop notification; solo/Off workers emit no planner notifications. Do not use the questionnaire for routine test-result updates or no-choice confirmations.
 - Avoid implementation-coupled tests and mocks derived from buggy implementation instead of the real interface.
 - Do not introduce frameworks without approval.

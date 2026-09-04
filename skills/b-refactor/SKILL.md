@@ -22,7 +22,7 @@ Run concrete behavior-preserving transforms: rename, extract, move, inline, simp
 ## When NOT to use
 
 - The request is vague cleanup or changes behavior -> use **b-plan**.
-- The work adds behavior -> use **b-implement**.
+- The work adds frontend/UI behavior -> use **b-frontend**; other new behavior -> use **b-implement**.
 - The work fixes a bug -> use **b-debug**.
 - The work is test-only -> use **b-test**.
 

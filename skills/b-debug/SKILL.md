@@ -26,7 +26,7 @@ Find the real cause of broken behavior, then fix it minimally only when the user
 
 - The problem is only a test assertion, mock, fixture, or setup issue -> use **b-test**.
 - The task is external docs/API lookup only -> use **b-research**.
-- The task is new scoped work -> use **b-plan** or **b-implement**.
+- New scoped frontend/UI work -> use **b-frontend**; a clear non-UI change -> use **b-implement**; an unclear change -> use **b-plan**.
 
 ## Tool guidance
 

@@ -46,8 +46,9 @@ prose semantics and never substitutes for changed-code `b-review`.
 
 - Reviewing a working-tree, staged, checkpoint, or commit-range code diff -> use
   **b-review**.
-- Implementing an audit finding -> use **b-implement** or **b-refactor** after
-  the audit, depending on whether the fix is behavioral or mechanical.
+- Implementing an audit finding -> use **b-frontend** for frontend/UI production changes,
+  **b-implement** for other production changes, or **b-refactor** for a named
+  behavior-preserving transform after the audit.
 - Planning an ambiguous audit scope -> use **b-plan**.
 - General UI/design review or broad external research -> use **b-browser**,
   **b-design**, or **b-research** as appropriate.
@@ -101,8 +102,10 @@ prose semantics and never substitutes for changed-code `b-review`.
 8. Separate deterministic results from semantic findings. Order findings by
    severity and cite repository-relative paths, evidence, impact, and the
    smallest follow-up route. State what was not mechanically proven.
-9. Keep the audit read-only. If a finding needs a change, route it to
-   **b-implement** or **b-refactor**; do not edit during the audit.
+9. Keep the audit read-only. If a finding needs a change, route frontend/UI
+   production fixes to **b-frontend**, other production fixes to
+   **b-implement**, and named behavior-preserving transforms to
+   **b-refactor**; do not edit during the audit.
 
 ## Output format
 
@@ -118,7 +121,9 @@ residual limitations, and follow-up. Verdict:
 ## Rules
 
 - Keep the audit strictly read-only: do not edit, stage, commit, push, or apply
-  fixes. Route fixes to **b-implement** or **b-refactor**.
+  fixes. Route frontend/UI production fixes to **b-frontend**, other behavioral
+  fixes to **b-implement**, and named behavior-preserving transforms to
+  **b-refactor**; do not edit during the audit.
 - Prefer repository evidence over assumptions and cite repository-relative paths.
 - Do not claim that passing structural or traceability checks proves all prose
   semantics, production readiness, health, currentness, or the absence of drift.

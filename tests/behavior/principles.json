@@ -347,6 +347,39 @@
         "Remove validation, error handling, or accessibility behavior just to reduce code",
         "Claim the smaller implementation is sufficient without checking its constraints"
       ]
+    },
+    {
+      "id": "cross-skill-ui-handoff-from-plan",
+      "principle": "goal-driven-execution",
+      "skill": "b-plan",
+      "observed_failure": "Generic planning handoffs sent frontend/UI production work to b-implement, bypassing dedicated frontend ownership.",
+      "intended_behavior": "A settled frontend/UI production plan hands implementation to b-frontend, while non-UI production work goes to b-implement.",
+      "prompt": "Use b-plan. The implementation direction is settled for a settings-page layout and responsive interaction change. State the next skill for this frontend/UI production work and contrast it with a server-side validation change; do not edit files.",
+      "must": [
+        "Route frontend/UI production work to b-frontend",
+        "Route non-UI production work to b-implement"
+      ],
+      "avoid": [
+        "Hand frontend/UI production work to b-implement",
+        "Edit files during planning"
+      ]
+    },
+    {
+      "id": "cross-skill-ui-handoff-from-review",
+      "principle": "goal-driven-execution",
+      "skill": "b-review",
+      "observed_failure": "Review findings routed frontend/UI production fixes to b-implement instead of the dedicated frontend implementation skill.",
+      "intended_behavior": "Review remains read-only and routes frontend/UI fixes to b-frontend and other production fixes to b-implement.",
+      "prompt": "Use b-review. Review a changed settings component and find a frontend/UI production defect plus a server-side validation defect. State the post-review handoff for each and remain read-only; do not edit files.",
+      "must": [
+        "Keep the review read-only",
+        "Route the frontend/UI production fix to b-frontend",
+        "Route the server-side production fix to b-implement"
+      ],
+      "avoid": [
+        "Route the frontend/UI production fix to b-implement",
+        "Apply either fix during review"
+      ]
     }
   ]
 }

@@ -11,7 +11,8 @@ Own real-browser, visual, screenshot, live UI, browser-session, and e2e evidence
 ## When NOT to use
 
 - Unit, integration, contract, mock, fixture, snapshot, or simulated-DOM work -> use **b-test**.
-- Implementing UI behavior or fixing app code -> use **b-implement** or **b-debug**.
+- Implementing frontend/UI behavior or fixing frontend/UI code -> use **b-frontend**.
+- Implementing non-UI behavior -> use **b-implement**; diagnosing a runtime bug -> use **b-debug**.
 - Changed-code review with sufficient browser evidence already supplied -> use **b-review**.
 
 ## Tool guidance

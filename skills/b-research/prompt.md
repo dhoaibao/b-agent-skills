@@ -37,7 +37,7 @@ Fetch outside truth at the lightest reliable depth, with sourced evidence and a 
 9. Deduplicate sources and preserve URL, version, and provenance. Label each claim as direct evidence, corroboration, or unresolved uncertainty. If one research server is unavailable, continue with the approved fallback sources and state the resulting coverage gap.
 10. Keep private/local material out of external tools unless explicitly approved.
 11. Synthesize only from gathered evidence and cite sources.
-12. When the research points directly to a local code or config change, state that the next step belongs in **b-implement**; when uncertainty remains, say what is still unknown.
+12. When research points directly to a local change, hand frontend/UI production work to **b-frontend** and non-UI code/config work to **b-implement**; when uncertainty remains, say what is still unknown.
 
 ## Output format
 
@@ -52,4 +52,4 @@ Use Mobbin only when the requested output is an explicit standalone UI/UX preced
 - Use the lightest depth that answers correctly.
 - Prefer primary sources over tutorials.
 - Do not send private or internal material to public tools without approval.
-- Hand off code changes to **b-implement** and tracing to **b-debug**.
+- Hand off frontend/UI production changes to **b-frontend**, other code/config changes to **b-implement**, and tracing to **b-debug**.

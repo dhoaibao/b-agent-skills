@@ -1530,7 +1530,23 @@ for (const command of ['env', 'env -i', 'env X=1']) {
   expect(t.commandDecision(command).decision === 'ask', `${command} must require rtk env`);
 }
 expect(t.commandDecision('rtk env').decision === 'allow', 'rtk env must allow');
-expect(t.commandDecision('rtk git commit -m x').decision === 'allow', 'regular project-local Git commands must allow');
+for (const command of [
+  'git config --global user.name agent',
+  'git config --system user.name agent',
+  'rtk git config --global user.name agent',
+  'rtk git config --system user.name agent',
+  'rtk proxy git config --global user.name agent',
+]) {
+  expect(t.commandDecision(command).decision === 'ask', `${command} must require shared-scope approval`);
+  expect((await toolCallHandler({ toolName: 'bash', input: { command } }, noUiContext))?.block === true, `${command} must fail closed without approval UI`);
+}
+for (const command of [
+  'git config user.name agent',
+  'git config --local user.name agent',
+  'rtk git config user.name agent',
+  'rtk git config --local user.name agent',
+  'rtk git commit -m x',
+]) expect(t.commandDecision(command).decision === 'allow', `${command} must retain project-local Git behavior`);
 expect(t.commandDecision('rtk proxy git reset --hard').decision === 'deny', 'rtk proxy must preserve deny decisions');
 for (const wrapper of ['err', 'test', 'summary']) {
   expect(t.RTK_EXECUTION_WRAPPERS.has(wrapper), `rtk ${wrapper} must be classified as an execution wrapper`);
@@ -2156,6 +2172,21 @@ try {
   expect(t.isTrustedManagedTool('serena', 'serena_replace_content', { relative_path: protectedSerenaLink }) === false, 'Serena edits through protected symlinks remain gated');
 } finally {
   rmSync(serenaProtectedFixture, { recursive: true, force: true });
+}
+const serenaBoundFixture = mkdtempSync(path.join(root, 'pi/tests/', '.b-agentic-serena-bound-'));
+try {
+  for (let index = 0; index <= 20_000; index += 1) {
+    writeFileSync(path.join(serenaBoundFixture, `entry-${index}.txt`), '');
+  }
+  expect(t.isTrustedManagedTool('serena', 'serena_replace_in_files', {
+    relative_path: serenaBoundFixture,
+    needle: 'old',
+    repl: 'new',
+    mode: 'literal',
+    dry_run: true,
+  }) === false, 'Serena directory traversal must fail closed beyond 20,000 entries');
+} finally {
+  rmSync(serenaBoundFixture, { recursive: true, force: true });
 }
 const protectedPathFixture = mkdtempSync(path.join(os.tmpdir(), 'b-agentic-protected-path-'));
 try {
