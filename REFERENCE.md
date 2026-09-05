@@ -310,8 +310,10 @@ explicit accepted disposition and cannot waive safety evidence; `NEEDS FIXES`, a
 verdict, missing baseline, wrong reviewer/snapshot, untracked change, or skipped or
 failed check blocks shipping. Corrections require re-verification and re-review.
 Review completion, task acceptance, and commit creation are distinct. No automatic
-commit or push occurs. Prepare the same-day changelog only when preparing a
-user-authorized commit; include it in the reviewed snapshot or reopen review.
+commit or push occurs without an explicit user commit request; once requested,
+b-commit executes its snapshot-verified plan without a second confirmation. Prepare
+the same-day changelog only when preparing a user-authorized commit; include it in
+the reviewed snapshot or reopen review.
 
 ## In-session refresh
 

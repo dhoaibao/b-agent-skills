@@ -279,10 +279,10 @@
       "name": "b-commit",
       "owner": "implementer",
       "phase": "Ship",
-      "use": "Split working-tree changes into approved cohesive commits",
+      "use": "Split working-tree changes into cohesive commits from an explicit user request",
       "routing": null,
       "prompt": {
-        "description": "Analyze tracked, staged, and untracked working-tree changes; propose cohesive commits; then stage and create approved commits on the current branch without pushing."
+        "description": "Analyze tracked, staged, and untracked working-tree changes; select cohesive commits after an explicit user request, then stage and create them on the current branch without a second approval prompt or pushing."
       }
     },
     {

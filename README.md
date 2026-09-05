@@ -39,7 +39,7 @@ safety, MCP, and coordination behavior.
 | **Decide** | `b-plan`, `b-research`, `b-design` | Resolve ambiguity, gather outside facts, or define a frontend standard. |
 | **Build** | `b-frontend`, `b-implement`, `b-init`, `b-refactor` | Make the smallest approved change. |
 | **Validate** | `b-debug`, `b-test`, `b-browser`, `b-agentic-audit`, `b-review` | Confirm runtime behavior, tests, browser evidence, repository conformance, and changed-code quality. |
-| **Ship** | `b-commit`, `b-pr-summary` | Create explicitly approved local commits or write PR copy from local history. |
+| **Ship** | `b-commit`, `b-pr-summary` | Create explicitly requested local commits or write PR copy from local history. |
 
 ## Skills
 
@@ -58,7 +58,7 @@ safety, MCP, and coordination behavior.
 | `b-browser` | Validate | Collect real-browser, visual, screenshot, live UI, or e2e evidence |
 | `b-agentic-audit` | Validate | Audit b-agentic repository conformance, health, skill/kernel quality, and currentness |
 | `b-review` | Validate | Review changed code |
-| `b-commit` | Ship | Split working-tree changes into approved cohesive commits |
+| `b-commit` | Ship | Split working-tree changes into cohesive commits from an explicit user request |
 | `b-pr-summary` | Ship | Write general PR copy for recent commits or commits ahead of cached origin |
 <!-- generated:skills-table:end -->
 

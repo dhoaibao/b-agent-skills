@@ -140,7 +140,7 @@ prompt_regression_contracts = {
         "READY WITH FOLLOW-UPS",
         "READY FOR PR",
     ],
-    "b-commit": ["Ask before staging or committing; do not push or create a PR."],
+    "b-commit": ["explicit user commit request", "Do not ask for a second approval", "exact candidate snapshot", "reopen **b-review**"],
     "b-pr-summary": [
         "Do not contact remotes, fetch, push, inspect merge bases, or open PR state.",
         "After producing the normal PR title and description, invoke `preview_markdown` exactly once",
@@ -390,16 +390,15 @@ for relative_path, markers in B_INIT_GUIDANCE_REGRESSION["anchors"].items():
             )
 
 # Regression: the questionnaire package was installed, but worker-facing material
-# decisions still prescribed plain chat and b-commit lacked a structured approval
-# path. Check canonical and generated guidance, not only package installation.
+# decisions still bypassed the direct user-question contract. b-commit now uses the
+# explicit commit request as its authorization, so its redundant second approval
+# prompt is intentionally not part of this interactive-decision check.
 INTERACTIVE_DECISION_REGRESSION = {
     "observed_failure": "Material questions or notifications could bypass the explicit role contract.",
     "anchors": {
         "references/kernel.template.md": ["Interactive, user-facing material decisions or blockers use installed `ask_user_question`", "Implementer calls surface a fixed privacy-safe"],
         "pi/extensions/b-agentic-support/role.ts": ["Work directly with the user", "ask_user_question", "No automatic commit or push"],
         "pi/extensions/b-agentic-planner-notify.ts": ["tool_call", "ask_user_question", "User input needed", "getRole() !== \"implementer\""],
-        "skills/b-commit/prompt.md": ["Approve (Recommended)", "Decline", "focused plain-text confirmation in chat", "exact candidate snapshot", "reopen **b-review**"],
-        "skills/b-commit/SKILL.md": ["Approve (Recommended)", "Decline", "focused plain-text confirmation in chat", "exact candidate snapshot", "reopen **b-review**"],
     },
 }
 for relative_path, markers in INTERACTIVE_DECISION_REGRESSION["anchors"].items():

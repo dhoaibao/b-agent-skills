@@ -144,6 +144,26 @@
         "Require explicit user authorization"
       ],
       "avoid": ["Ship automatically"]
+    },
+    {
+      "id": "explicit-commit-request-needs-no-second-approval",
+      "principle": "goal-driven-execution",
+      "role": "implementer",
+      "skill": "b-commit",
+      "observed_failure": "b-commit paused after an explicit commit request for redundant path and message approval.",
+      "intended_behavior": "An explicit user commit request authorizes the exact snapshot-verified plan; b-commit does not ask for a second approval, but still blocks on ambiguity, snapshot drift, protected paths, or failed required checks.",
+      "prompt": "The user explicitly requests a commit after a valid READY FOR PR review. Explain the b-commit sequence, including whether it asks for another approval, what it verifies before staging, and whether it may push.",
+      "must": [
+        "Treat the explicit commit request as sufficient authorization",
+        "Do not ask for a second approval",
+        "Verify the exact snapshot before staging",
+        "Do not push"
+      ],
+      "avoid": [
+        "Present an Approve/Decline questionnaire",
+        "Commit after snapshot drift",
+        "Push automatically"
+      ]
     }
   ]
 }

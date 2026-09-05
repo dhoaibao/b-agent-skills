@@ -108,8 +108,9 @@ Evidence: `references/kernel.template.md`, `skills/registry.yaml`,
 
 Approval is a policy guard, not a process sandbox: repository-controlled build
 and test tools can execute code. Use Pi sandboxing or an isolated environment for
-untrusted code. Commit creation requires an exact proposal and explicit
-approval; b-agentic never pushes.
+untrusted code. Commit creation requires an exact snapshot-verified proposal and
+an explicit user request; b-commit adds no second confirmation and b-agentic never
+pushes.
 
 Evidence: `references/kernel.template.md`,
 `pi/extensions/b-agentic-support/shell.ts`,
