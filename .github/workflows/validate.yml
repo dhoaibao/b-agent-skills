@@ -28,10 +28,10 @@ jobs:
             pi/package-lock.json
       - name: Install locked repository development tools
         run: npm ci --no-fund --no-audit
-      - name: Install Pi runtime for extension smoke tests
-        run: npm install --global --no-fund --no-audit @earendil-works/pi-coding-agent@0.84.2
       - name: Install locked Pi TypeScript dependencies
         run: npm ci --prefix pi --no-fund --no-audit
+      - name: Use the locked Pi runtime
+        run: echo "$GITHUB_WORKSPACE/pi/node_modules/.bin" >> "$GITHUB_PATH"
       - name: Run repository quality checks
         run: npm run quality
       - name: Run validation suite

@@ -28,6 +28,7 @@ section per date and same-day changes aggregated in that section.
 - Bring the Pi workflow kernel back within enforced slimness limits while preserving bounded-MCP safeguards, fixing the Validate workflow failure.
 - Restore macOS Validate smoke compatibility by safely handling symlinked temporary paths and Bash 3 argument expansion.
 - Allow manifest-only cleanup to handle canonical defaults through symlinked HOME aliases without weakening symlink safeguards.
+- Use the repository-pinned Pi 0.84.4 runtime in Validate workflow checks instead of an untested global 0.84.2 install.
 
 ## [v2026.09.04] - 2026-09-04
 
