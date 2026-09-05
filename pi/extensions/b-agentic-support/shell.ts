@@ -1112,10 +1112,10 @@ function isNativeProjectConfinedPath(
       if (parent === existing) return false;
       existing = parent;
     }
-    return (
-      isConfinedRelativePath(effectivePath, projectRoot) &&
-      isConfinedRelativePath(realpathSync(existing), projectRoot)
-    );
+    // Resolve the existing ancestor before comparing it with the canonical
+    // project root. `cwd` may itself use a symlinked macOS path such as /tmp,
+    // while realpathSync(cwd) uses its /private/tmp target.
+    return isConfinedRelativePath(realpathSync(existing), projectRoot);
   } catch {
     return false;
   }

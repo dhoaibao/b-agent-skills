@@ -1862,6 +1862,11 @@ try {
       expect(decision === expectedDecision, `${toolName} ${rawPath} must use its Pi-resolved target`);
     }
   }
+  const projectAlias = path.join(nativeResolutionFixture, 'project-alias');
+  symlinkSync(project, projectAlias, 'dir');
+  for (const toolName of ['read', 'write', 'edit']) {
+    expect(t.nativePathDecision(toolName, 'unicode\u202Fspace.txt', projectAlias).decision === 'allow', `${toolName} must permit a Pi-resolved path below a symlinked cwd`);
+  }
   const fallbackRawPath = 'Meeting 10 AM.txt';
   writeFileSync(path.join(project, 'Meeting 10\u202FAM.txt'), 'Pi read fallback');
   if (piPathUtils) {

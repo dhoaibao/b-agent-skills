@@ -56,10 +56,13 @@ def remove_file(path: Path) -> None:
 def has_symlink_ancestor(path: Path) -> bool:
     candidate = path.expanduser()
     while True:
+        # Stop at the supplied HOME spelling before inspecting ancestors
+        # outside it (for example macOS /tmp -> /private/tmp). A symlink below
+        # HOME must still be rejected even if it resolves back to HOME.
+        if candidate == home_spelling:
+            return False
         if candidate.is_symlink():
             return True
-        if candidate == home:
-            return False
         parent = candidate.parent
         if parent == candidate:
             return True
@@ -196,8 +199,10 @@ def main() -> None:
 
     manifest_path = Path(sys.argv[1]).expanduser()
 
+    global home_spelling
+    home_spelling = Path.home()
     global home
-    home = Path.home().resolve()
+    home = home_spelling.resolve()
     global allowed_roots
     allowed_roots = [home]
     if not confined_regular_path(manifest_path, "manifest") or not manifest_path.exists():

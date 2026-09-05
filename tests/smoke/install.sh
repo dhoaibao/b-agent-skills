@@ -62,6 +62,32 @@ EOF
 	assert_no_path "$skill_dir"
 	assert_no_path "$kernel_path"
 	assert_no_path "$sandbox_custom/home/custom-meta"
+
+	# macOS resolves /tmp through /private/tmp. A HOME spelling through that
+	# symlink must remain trusted while symlinks below HOME are still rejected.
+	local alias_home="$sandbox_custom/home-alias"
+	local alias_manifest="$alias_home/.pi/agent/b-agentic/install.json"
+	mkdir -p "$sandbox_custom/home/.pi/agent/b-agentic"
+	ln -s "$sandbox_custom/home" "$alias_home"
+	printf '%s\n' '{"runtime":"pi","paths":{},"skills":[]}' >"$alias_manifest"
+	HOME="$alias_home" python3 "$ROOT_DIR/tooling/install/manifest_uninstall.py" "$alias_manifest" >"$sandbox_custom/alias-uninstall.log" 2>&1
+	assert_contains "$sandbox_custom/alias-uninstall.log" 'Manifest-only uninstall complete for pi'
+	assert_no_path "$sandbox_custom/home/.pi/agent/b-agentic"
+
+	# A symlink below HOME must remain untrusted even if it resolves to HOME.
+	local nested_symlink_home="$sandbox_custom/nested-symlink-home"
+	local nested_symlink_manifest="$nested_symlink_home/.pi/agent/b-agentic/install.json"
+	local rc=0
+	mkdir -p "$nested_symlink_home/agent/b-agentic"
+	ln -s "$nested_symlink_home" "$nested_symlink_home/.pi"
+	printf '%s\n' '{"runtime":"pi","paths":{},"skills":[]}' >"$nested_symlink_manifest"
+	set +e
+	HOME="$nested_symlink_home" python3 "$ROOT_DIR/tooling/install/manifest_uninstall.py" "$nested_symlink_manifest" >"$sandbox_custom/nested-symlink-uninstall.log" 2>&1
+	rc=$?
+	set -e
+	[ "$rc" -ne 0 ] || fail "manifest-only uninstall accepted a symlink below HOME"
+	assert_contains "$sandbox_custom/nested-symlink-uninstall.log" 'preserving symlinked manifest:'
+	assert_file "$nested_symlink_home/agent/b-agentic/install.json"
 }
 
 run_manifest_only_mcp_symlink_preservation_case() {
@@ -316,14 +342,18 @@ EOF
 	cp "$mcp_path" "$before_path"
 
 	for mode in install update; do
-		local -a mode_args=()
-		[ "$mode" = update ] && mode_args=(--update)
+		# Bash 3 treats an empty array expansion as unset under set -u.
+		if [ "$mode" = update ]; then
+			set -- --update
+		else
+			set --
+		fi
 		HOME="$sandbox/home" \
 		PATH="$(smoke_runtime_cli_path "$sandbox")" \
 		B_AGENTIC_REPO="$snapshot_repo" \
 		B_AGENTIC_DIR="$sandbox/source" \
 		B_AGENTIC_PROMPT_API_KEYS=N \
-		bash "$ROOT_DIR/install.sh" "${mode_args[@]}" >"$install_log" 2>&1
+		bash "$ROOT_DIR/install.sh" "$@" >"$install_log" 2>&1
 
 		python3 - "$mcp_path" "$before_path" <<'PY'
 import json

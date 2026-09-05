@@ -25,6 +25,7 @@ section per date and same-day changes aggregated in that section.
 - Recognize Bun, Bunx, and Deno in RTK policy readiness without weakening approval for opaque execution.
 - Keep the full Pi behavioral smoke suite runnable when the linked Pi SDK lacks its undeclared `@earendil-works/pi-server` runtime dependency, using a reviewed test-only, fail-closed fallback that bypasses itself when the real dependency is available.
 - Bring the Pi workflow kernel back within enforced slimness limits while preserving bounded-MCP safeguards, fixing the Validate workflow failure.
+- Restore macOS Validate smoke compatibility by safely handling symlinked temporary paths and Bash 3 argument expansion.
 
 ## [v2026.09.04] - 2026-09-04
 
