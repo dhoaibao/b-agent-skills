@@ -40,4 +40,5 @@ For either ready disposition, emit `B_AGENTIC_REVIEW_COMPLETE` on its own line i
 
 - Review is strictly read-only with respect to project files.
 - Do not claim `READY FOR PR` without baseline, unchanged candidate, acceptance, fresh passing required checks, no blockers/material gaps, and valid independent review.
+- Keep review read-only. For actionable findings, name the next owner: frontend/UI production fixes -> **b-frontend**, other production fixes -> **b-implement**, test-only fixes -> **b-test**, and named behavior-preserving transforms -> **b-refactor**.
 - Generic review cannot substitute for this loaded skill's actual review gate.

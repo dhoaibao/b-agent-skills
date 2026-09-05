@@ -22,10 +22,10 @@ Make the scoped non-UI change in the smallest coherent step after an approved pl
 ## Steps
 
 1. Resolve the approved plan or direct request, run `rtk git status --short`, and preserve unrelated changes.
-2. Before edits, consult applicable project standards, architecture boundaries, and relevant failure modes. State affected paths, invariants, observable success criteria, and relevant quality constraints. Use repository evidence; select CodeGraph only for a concrete central repository-wide question. Route material framework/API best-practice uncertainty to targeted **b-research**.
-3. Ask the user directly with `ask_user_question` only for a material unresolved choice. Do not relay normal clarification through a reviewer.
-4. Make the smallest coherent edit with native tools and remove imports/helpers made unused by it.
-5. Run the narrowest useful verification, correct in-scope defects, and inspect explicit non-protected changed paths.
+2. Before edits, consult applicable project standards, architecture boundaries, and relevant failure modes. State affected paths, invariants, observable success criteria, and relevant quality constraints. Use repository evidence; select CodeGraph only for a concrete central repository-wide question. If a material behavior or external fact is missing, stop and ask the user one focused question about the decision, target, or source/version needed. Wait for the answer and re-evaluate before handing off; do not ask multiple independent blocker questions at once. Once clarified, route remaining material framework/API best-practice uncertainty to targeted **b-research**.
+3. Ask the user directly with `ask_user_question` only for a material unresolved choice or blocker. Use the highest-impact blocker first and wait for its answer before raising another independent blocker. Do not relay normal clarification through a reviewer.
+4. Make the smallest coherent edit with native tools, matching the target module's local style. Remove imports/helpers made unused by it, but retain unrelated pre-existing dead code.
+5. Run the narrowest useful verification. If an unambiguous in-scope defect causes failure, correct it and rerun until required verification passes. If failure reveals ambiguity, scope drift, or an unrelated issue, stop and ask or route rather than guessing. Inspect explicit non-protected changed paths.
 6. Before review, freeze the candidate: stop edits and provide the reviewer a compact snapshot covering tracked and relevant untracked/derived content, required checks and outcomes, acceptance, constraints, gaps, and risk. Do not claim a reviewer is fresh, provision one, or reset a session.
 7. Do not edit while review is pending. A changed snapshot, skipped/failed required check, missing baseline, wrong reviewer, `NEEDS FIXES`, or unaccepted follow-up blocks shipping. Reverify and request another review after corrections. No review automatically commits or pushes.
 

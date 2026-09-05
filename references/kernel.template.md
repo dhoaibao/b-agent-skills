@@ -2,8 +2,6 @@
 
 # b-agentic - Pi Workflow Kernel
 
-Use these rules before any skill-specific instruction.
-
 ## Core Rules
 
 1. Route the user's intent to one active skill; load it by reading its `SKILL.md` before acting, and follow it. Naming or paraphrasing an unloaded skill is not using it; sequence phases, not blend them.
@@ -20,7 +18,6 @@ Use these rules before any skill-specific instruction.
 ## Intercom roles
 
 - b-agentic defaults to Off; select `implementer` or `reviewer` with `/b-role` or `pi --b-role`. The implementer is the sole user-facing worktree writer; the reviewer is an independent prompt-governed read-only gate. Use only compatible same-CWD peers; legacy planner/worker state stays inactive until explicitly reselected.
-
 <!-- generated:skill-ownership:start -->
 - Implementer-owned skills: `b-plan`, `b-research`, `b-design`, `b-frontend`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, `b-commit`, `b-pr-summary`. The implementer is the sole user-facing worktree writer.
 - Reviewer-owned skills: `b-agentic-audit`, `b-review`. The reviewer executes only the independent read-only gate.
@@ -29,7 +26,6 @@ Use these rules before any skill-specific instruction.
 - Interactive, user-facing material decisions or blockers use installed `ask_user_question`: group 1–4 questions, offer 2–4 concrete options/trade-offs, mark first ` (Recommended)`, and use its automatic custom-answer row. Never author `Other`, `Type something.`, or `Next`. If unavailable/noninteractive, ask one focused plain-text question. Implementer calls surface a fixed privacy-safe `User input needed` notification only with UI. Omit this for routine activity, review fixes, and no-choice confirmations.
 
 ## Routing
-
 <!-- generated:kernel-routing:start -->
 - Clarify fuzzy work, compare approaches, decompose execution -> `b-plan` (triggers: plan, decompose, approach, explore, not sure, figure out, "how should I", implementation plan, clarify, requirements, scope).
 - External docs, API facts, versions, comparisons -> `b-research` (triggers: library docs, API docs, look up, compare APIs, versioned docs, external documentation).
@@ -46,7 +42,6 @@ Use these rules before any skill-specific instruction.
 - Split and commit working-tree changes -> `b-commit` only on explicit user request.
 - PR summary for a commit count or commits ahead of cached origin -> `b-pr-summary` only on explicit user request.
 <!-- generated:kernel-routing:end -->
-
 Unclear work -> `b-plan`; `b-commit`/`b-pr-summary` require explicit request.
 
 ## Safety and tools
@@ -79,17 +74,13 @@ else {
   }
 }
 ```
-
 - Research: resolve a Context7 library ID first; discover and describe one read-only search path each: Firecrawl, Brave; call each with schema args, 3-result cap; normalize/deduplicate corroboration. Firecrawl search max 5; select one primary public URL; at most one `firecrawl_scrape` call for it; never add unsafe browser/lifecycle/auth/arbitrary nested calls. Do not install missing tools; fall back to local evidence and state the resulting gap.
 
 ## Capability activation
 
 `~/.pi/agent/b-agentic/references/capabilities.yaml` is canonical. Activate on triggers; unavailable prerequisites require a local fallback. Configured is not authenticated, externally verified, or used here.
-
 For changed source, run behavior/quality checks; report gaps instead of guessing.
-
 Use Context7: versioned official facts; Firecrawl: bounded primary research; Brave: corroboration; Playwright: requested browser/e2e/visual evidence. Intercom: compatible same-CWD coordination only; `ask_user_question`: material choices only; `recall`: supplied memory ID only; usage only on request; auth only when needed. Candidate review freezes implementer edits and requires an unchanged snapshot covering tracked and relevant untracked/derived content, fresh passing required checks, acceptance, no blockers/material gaps, and a valid reviewer disposition; it never auto-commits or pushes.
-
 A status snapshot must never start live MCP/auth/browser probes, never parse MCP configuration or inspect credential/API-key values, or persist prompts, code, URLs, secrets, or usage telemetry.
 
 ### Managed MCP operations
@@ -108,13 +99,10 @@ Canonical policy: `~/.pi/agent/b-agentic/references/mcp_operations.yaml`. Auto-a
 | `local-mutation` | Approval required | Mutates local repo/agent state |
 | `auth` | Approval required | MCP auth |
 <!-- generated:mcp-operations:end -->
-
 Pi enforces this policy, failing closed without UI for non-managed tools.
 
 ## Shell commands
 
 Prefer modern shell tools when available: `rg`, `fdfind`, `batcat`, `eza`, `sd`, and `jq`; otherwise fall back. Do not use Pi built-in `grep`/`find`/`ls`; use bash.
-
 Use `rtk` for every command family it supports; otherwise use modern fallbacks. Destructive/privileged, ambiguous, outside-project, and external/shared mutations stay gated.
-
 If `rtk` is missing for a supported family, stop and report it.

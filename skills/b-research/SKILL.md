@@ -32,7 +32,7 @@ Fetch outside truth at the lightest reliable depth, with sourced evidence and a 
 ## Tool guidance
 
 - `context7` - versioned official library/framework docs; use top-level `mcp` for exactly one search, describe, status, auth, or tool call, and use `mcpScript` only for two or more operations sharing chaining, filtering, or bounded fan-out. It is not a general scripting or isolation boundary.
-- `firecrawl` - primary bounded public search (`firecrawl_search` limit ≤10), `firecrawl_developer_search` for programming/API/library questions, scrape/map/extract for known public URLs, and `research_search_papers` / `research_inspect_paper` / `research_read_paper` / `research_related_papers` / `research_search_github` for papers or prior-art/issue history.
+- `firecrawl` - primary bounded public search (`firecrawl_search` limit ≤5), `firecrawl_developer_search` for programming/API/library questions, scrape/map/extract for known public URLs, and `research_search_papers` / `research_inspect_paper` / `research_read_paper` / `research_related_papers` / `research_search_github` for papers or prior-art/issue history.
 - `brave-search` - independent web corroboration; use `brave_news_search`, `brave_local_search`, `brave_image_search`, `brave_video_search`, `brave_place_search`, `brave_summarizer`, or `brave_llm_context` only when that modality is required.
 
 ## Steps
@@ -40,7 +40,7 @@ Fetch outside truth at the lightest reliable depth, with sourced evidence and a 
 1. Classify the question and required source quality.
 2. Pin version from resolved lockfiles (e.g., package-lock.json, poetry.lock, Cargo.lock, pnpm-lock.yaml) or go.mod when API details matter. Use manifests (e.g., package.json, pyproject.toml) only as a fallback, and state the uncertainty when versions are not pinned.
 3. Use Context7 first for versioned library/framework APIs when suitable.
-4. Use Firecrawl search first for public web discovery and current sources when library docs alone do not answer the question. Set an explicit result limit of at most 10.
+4. Use Firecrawl search first for public web discovery and current sources when library docs alone do not answer the question. Set an explicit result limit of at most 5.
 5. Use Firecrawl for bounded extraction from known public URLs. Ask before deep autonomous research, broad crawls, or private/internal material.
 6. Use Brave web search for independent corroboration. Switch to Brave's specialized tools only when the question needs news, local, image, video, place, summarizer, or llm-context results.
 7. For academic/paper-grounded questions or prior-art/issue history, call Firecrawl `research_*` tools directly instead of generic web search. Do not submit Firecrawl feedback, start crawls/agents, or handle private material without approval.
