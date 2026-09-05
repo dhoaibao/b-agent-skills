@@ -64,6 +64,84 @@ EOF
 	assert_no_path "$sandbox_custom/home/custom-meta"
 }
 
+run_manifest_only_mcp_symlink_preservation_case() {
+	local sandbox="$WORK_DIR/manifest-only-mcp-symlink"
+	local managed='{"mcpServers":{"managed":{"command":"synthetic"}},"unrelated":{"preserve":true}}'
+	local template='{"mcpServers":{"managed":{"command":"synthetic"}}}'
+	local case_name home metadata mcp_path target manifest_path
+
+	for case_name in external-target in-home-target; do
+		home="$sandbox/$case_name/home"
+		metadata="$home/.pi/agent/b-agentic"
+		mcp_path="$home/.pi/agent/mcp.json"
+		if [ "$case_name" = external-target ]; then
+			target="$sandbox/$case_name/outside-target.json"
+		else
+			target="$home/user-owned-target.json"
+		fi
+		mkdir -p "$metadata/templates" "$(dirname "$target")"
+		printf '%s\n' "$managed" >"$target"
+		cp "$target" "$target.before"
+		ln -s "$target" "$mcp_path"
+		printf '%s\n' "$template" >"$metadata/templates/mcp.user.template.json"
+		manifest_path="$metadata/install.json"
+		printf '%s\n' '{"runtime":"pi","paths":{},"skills":[],"mcpAction":"write","backups":{}}' >"$manifest_path"
+
+		HOME="$home" python3 "$ROOT_DIR/tooling/install/manifest_uninstall.py" "$manifest_path" >"$sandbox/$case_name.log" 2>&1
+		assert_equal_files "$target" "$target.before"
+		[ -L "$mcp_path" ] || fail "expected manifest-only uninstall to preserve symlinked mcp.json"
+		assert_contains "$sandbox/$case_name.log" 'preserving symlinked mcp.json'
+	done
+
+	# An explicit outside manifest path must safely fall back to the confined default.
+	home="$sandbox/invalid-fallback/home"
+	metadata="$home/.pi/agent/b-agentic"
+	mcp_path="$home/.pi/agent/mcp.json"
+	mkdir -p "$metadata/templates"
+	printf '%s\n' "$managed" >"$mcp_path"
+	printf '%s\n' "$template" >"$metadata/templates/mcp.user.template.json"
+	manifest_path="$metadata/install.json"
+	printf '%s\n' "{\"runtime\":\"pi\",\"paths\":{\"mcpConfig\":\"$sandbox/outside-mcp.json\"},\"skills\":[],\"mcpAction\":\"write\",\"backups\":{}}" >"$manifest_path"
+	HOME="$home" python3 "$ROOT_DIR/tooling/install/manifest_uninstall.py" "$manifest_path" >"$sandbox/invalid-fallback.log" 2>&1
+	assert_contains "$sandbox/invalid-fallback.log" 'ignoring manifest path outside home for mcpConfig'
+	assert_contains "$mcp_path" '"unrelated"'
+	assert_not_contains "$mcp_path" '"managed"'
+
+	# An explicit path through a symlinked ancestor escaping HOME must not be followed.
+	home="$sandbox/ancestor-escape/home"
+	metadata="$home/.pi/agent/b-agentic"
+	mcp_path="$home/.pi/agent/mcp.json"
+	target="$sandbox/ancestor-escape/outside-config/mcp.json"
+	mkdir -p "$metadata/templates" "$(dirname "$target")"
+	printf '%s\n' "$managed" >"$mcp_path"
+	printf '%s\n' "$managed" >"$target"
+	cp "$target" "$target.before"
+	ln -s "$sandbox/ancestor-escape/outside-config" "$home/config-link"
+	printf '%s\n' "$template" >"$metadata/templates/mcp.user.template.json"
+	manifest_path="$metadata/install.json"
+	printf '%s\n' "{\"runtime\":\"pi\",\"paths\":{\"mcpConfig\":\"$home/config-link/mcp.json\"},\"skills\":[],\"mcpAction\":\"write\",\"backups\":{}}" >"$manifest_path"
+	HOME="$home" python3 "$ROOT_DIR/tooling/install/manifest_uninstall.py" "$manifest_path" >"$sandbox/ancestor-escape.log" 2>&1
+	assert_equal_files "$target" "$target.before"
+	assert_contains "$sandbox/ancestor-escape.log" 'ignoring manifest path outside home for mcpConfig'
+	assert_contains "$mcp_path" '"unrelated"'
+	assert_not_contains "$mcp_path" '"managed"'
+
+	# A template symlink must not be followed before cleanup reads it.
+	home="$sandbox/template-symlink/home"
+	metadata="$home/.pi/agent/b-agentic"
+	mcp_path="$home/.pi/agent/mcp.json"
+	mkdir -p "$metadata/templates"
+	printf '%s\n' "$managed" >"$mcp_path"
+	cp "$mcp_path" "$mcp_path.before"
+	printf '%s\n' "$template" >"$sandbox/template-target.json"
+	ln -s "$sandbox/template-target.json" "$metadata/templates/mcp.user.template.json"
+	manifest_path="$metadata/install.json"
+	printf '%s\n' '{"runtime":"pi","paths":{},"skills":[],"mcpAction":"write","backups":{}}' >"$manifest_path"
+	HOME="$home" python3 "$ROOT_DIR/tooling/install/manifest_uninstall.py" "$manifest_path" >"$sandbox/template-symlink.log" 2>&1
+	assert_equal_files "$mcp_path" "$mcp_path.before"
+	assert_contains "$sandbox/template-symlink.log" 'preserving symlinked mcp.json template'
+}
+
 run_manifest_only_modified_skill_case() {
 	local snapshot_repo="$1"
 	local sandbox="$WORK_DIR/manifest-only-modified-skill"
@@ -2042,6 +2120,7 @@ run_base_smoke_cases() {
 		run_ref_install_case
 		run_manifest_only_corrupted_manifest_case
 		run_manifest_only_custom_paths_case
+		run_manifest_only_mcp_symlink_preservation_case
 		run_manifest_only_modified_skill_case
 		run_manifest_only_merged_config_case
 		run_user_owned_serena_preservation_case

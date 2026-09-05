@@ -6,25 +6,15 @@
  * This entry point remains the compatibility module for policy helpers and
  * owns only local command/path gates.
  */
-import { realpathSync } from "node:fs";
-import { resolve } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import {
+  canonicalNativeToolPath,
   commandDecision,
   nativePathDecision,
 } from "./b-agentic-support/shell.ts";
 import * as shell from "./b-agentic-support/shell.ts";
 import * as mcp from "./b-agentic-support/mcp.ts";
 import { isAutoModeEnabled } from "./b-agentic-support/state.ts";
-
-function canonicalNativePath(pathValue: string, cwd: string): string {
-  const absolutePath = resolve(cwd, pathValue);
-  try {
-    return realpathSync(absolutePath);
-  } catch {
-    return absolutePath;
-  }
-}
 
 function hasExactOldTextError(content: readonly unknown[]): boolean {
   const text = content
@@ -80,15 +70,18 @@ export default function bAgenticPermissions(pi: ExtensionAPI): void {
       event.toolName === "read"
     ) {
       const pathValue = String((event.input as { path?: string }).path || "");
-      const decision = nativePathDecision(event.toolName, pathValue);
+      const cwd = ctx.cwd || process.cwd();
+      const decision = nativePathDecision(event.toolName, pathValue, cwd);
       if (decision.decision === "deny")
         return { block: true, reason: decision.reason };
 
       if (event.toolName === "edit" && pathValue) {
-        const canonicalPath = canonicalNativePath(
-          pathValue,
-          ctx.cwd || process.cwd(),
-        );
+        let canonicalPath: string;
+        try {
+          canonicalPath = canonicalNativeToolPath(pathValue, cwd);
+        } catch {
+          canonicalPath = pathValue;
+        }
         if (editedPathsThisTurn.has(canonicalPath)) {
           return {
             block: true,

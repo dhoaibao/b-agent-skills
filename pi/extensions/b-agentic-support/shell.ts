@@ -1,6 +1,7 @@
 import { existsSync, realpathSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, dirname, isAbsolute, relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 export type Decision = "allow" | "ask" | "deny";
 export const ASK_COMMANDS: string[][] = [
@@ -170,6 +171,9 @@ export const RTK_REQUIRED_COMMANDS = new Set([
   "pint",
   "sbt",
   "uv",
+  "bun",
+  "bunx",
+  "deno",
   "ls",
   "tree",
   "find",
@@ -200,6 +204,7 @@ export const INTERPRETER_BASES = new Set([
   "lua",
   "deno",
   "bun",
+  "bunx",
   "pwsh",
   "powershell",
 ]);
@@ -983,6 +988,49 @@ export function expandLocalPath(pathValue: string): string {
   return resolve(pathValue);
 }
 
+const UNICODE_SPACES = /[\u00A0\u2000-\u200A\u202F\u205F\u3000]/g;
+
+/** Mirror Pi's native-tool path resolution without changing shell path syntax. */
+export function resolveNativeToolPath(
+  pathValue: string,
+  cwd: string = process.cwd(),
+  read = false,
+): string {
+  let normalized = pathValue.replace(UNICODE_SPACES, " ");
+  if (normalized.startsWith("@")) normalized = normalized.slice(1);
+  if (normalized === "~") normalized = homedir();
+  else if (normalized.startsWith("~/"))
+    normalized = resolve(homedir(), normalized.slice(2));
+  if (/^file:\/\//.test(normalized)) normalized = fileURLToPath(normalized);
+  const resolved = resolve(cwd, normalized);
+  if (!read || existsSync(resolved)) return resolved;
+
+  const macOsScreenshotPath = resolved.replace(/ (AM|PM)\./gi, "\u202F$1.");
+  if (macOsScreenshotPath !== resolved && existsSync(macOsScreenshotPath))
+    return macOsScreenshotPath;
+  const nfdPath = resolved.normalize("NFD");
+  if (nfdPath !== resolved && existsSync(nfdPath)) return nfdPath;
+  const curlyQuotePath = resolved.replace(/'/g, "\u2019");
+  if (curlyQuotePath !== resolved && existsSync(curlyQuotePath))
+    return curlyQuotePath;
+  const nfdCurlyQuotePath = nfdPath.replace(/'/g, "\u2019");
+  if (nfdCurlyQuotePath !== resolved && existsSync(nfdCurlyQuotePath))
+    return nfdCurlyQuotePath;
+  return resolved;
+}
+
+export function canonicalNativeToolPath(
+  pathValue: string,
+  cwd: string,
+): string {
+  const resolved = resolveNativeToolPath(pathValue, cwd);
+  try {
+    return realpathSync(resolved);
+  } catch {
+    return resolved;
+  }
+}
+
 export function isConfinedRelativePath(
   pathValue: string,
   projectRoot: string,
@@ -997,14 +1045,15 @@ export function isConfinedRelativePath(
   );
 }
 
-export function isInstalledBAgenticSkillPath(pathValue: string): boolean {
-  if (!pathValue || isProtectedLocalPath(pathValue)) return false;
+export function isInstalledBAgenticSkillPath(effectivePath: string): boolean {
+  if (!effectivePath) return false;
   try {
     const configuredAgentDir =
       process.env.PI_CODING_AGENT_DIR?.trim() ||
       resolve(homedir(), ".pi", "agent");
     const agentRoot = realpathSync(expandLocalPath(configuredAgentDir));
-    const absoluteTarget = realpathSync(expandLocalPath(pathValue));
+    const absoluteTarget = realpathSync(effectivePath);
+    if (isProtectedLocalPath(absoluteTarget)) return false;
     const targetParts = relative(agentRoot, absoluteTarget).split(/[\\/]/);
     if (
       targetParts.length !== 3 ||
@@ -1049,6 +1098,27 @@ export function isExistingProjectConfinedLocalPath(pathValue: string): boolean {
     existsSync(expandLocalPath(pathValue)) &&
     isProjectConfinedLocalPath(pathValue)
   );
+}
+
+function isNativeProjectConfinedPath(
+  effectivePath: string,
+  cwd: string,
+): boolean {
+  try {
+    const projectRoot = realpathSync(cwd);
+    let existing = effectivePath;
+    while (!existsSync(existing)) {
+      const parent = dirname(existing);
+      if (parent === existing) return false;
+      existing = parent;
+    }
+    return (
+      isConfinedRelativePath(effectivePath, projectRoot) &&
+      isConfinedRelativePath(realpathSync(existing), projectRoot)
+    );
+  } catch {
+    return false;
+  }
 }
 
 export function isExternalUrl(value: string): boolean {
@@ -2236,8 +2306,19 @@ export function commandDecision(
 export function nativePathDecision(
   toolName: string,
   pathValue: string,
+  cwd: string = process.cwd(),
 ): { decision: Decision; reason: string } {
-  if (pathValue && isProtectedLocalPath(pathValue)) {
+  if (!pathValue) return { decision: "allow", reason: "" };
+  let effectivePath: string;
+  try {
+    effectivePath = resolveNativeToolPath(pathValue, cwd, toolName === "read");
+  } catch {
+    return {
+      decision: "ask",
+      reason: `Requires approval: malformed native path: ${pathValue}`,
+    };
+  }
+  if (isProtectedLocalPath(effectivePath)) {
     if (toolName === "read") {
       return {
         decision: "ask",
@@ -2249,10 +2330,10 @@ export function nativePathDecision(
       reason: `Blocked ${toolName} of protected path: ${pathValue}`,
     };
   }
-  if (toolName === "read" && isInstalledBAgenticSkillPath(pathValue)) {
+  if (toolName === "read" && isInstalledBAgenticSkillPath(effectivePath)) {
     return { decision: "allow", reason: "" };
   }
-  if (!pathValue || isProjectConfinedLocalPath(pathValue)) {
+  if (isNativeProjectConfinedPath(effectivePath, cwd)) {
     return { decision: "allow", reason: "" };
   }
   return {

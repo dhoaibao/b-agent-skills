@@ -53,15 +53,41 @@ def remove_file(path: Path) -> None:
         path.unlink()
 
 
-def manifest_managed_path(paths: dict, key: str, fallback: Path) -> Path:
+def has_symlink_ancestor(path: Path) -> bool:
+    candidate = path.expanduser()
+    while True:
+        if candidate.is_symlink():
+            return True
+        if candidate == home:
+            return False
+        parent = candidate.parent
+        if parent == candidate:
+            return True
+        candidate = parent
+
+
+def confined_regular_path(path: Path, label: str) -> bool:
+    if has_symlink_ancestor(path):
+        warn(f"preserving symlinked {label}: {path}")
+        return False
+    if not under_home(path):
+        warn(f"preserving {label} outside home: {path}")
+        return False
+    return True
+
+
+def manifest_managed_path(paths: dict, key: str, fallback: Path, *, require_confined: bool = False) -> Path | None:
+    path = fallback
     value = paths.get(key)
-    if not isinstance(value, str) or not value:
-        return fallback
-    path = Path(value).expanduser()
-    if under_home(path):
-        return path
-    warn(f"ignoring manifest path outside home for {key}: {path}")
-    return fallback
+    if isinstance(value, str) and value:
+        candidate = Path(value).expanduser()
+        if under_home(candidate):
+            path = candidate
+        else:
+            warn(f"ignoring manifest path outside home for {key}: {candidate}")
+    if require_confined and not confined_regular_path(path, fallback.name):
+        return None
+    return path
 
 
 def files_equal(left: Path, right: Path) -> bool:
@@ -123,6 +149,8 @@ def remove_merged_json_config(
     if not isinstance(path_value, str):
         return
     path = Path(path_value).expanduser()
+    if not confined_regular_path(path, label) or not confined_regular_path(template, f"{label} template"):
+        return
     if not path.exists() or not template.exists():
         return
 
@@ -135,7 +163,7 @@ def remove_merged_json_config(
     original_path = None
     if backup:
         original_path = Path(backup).expanduser()
-        if not original_path.exists():
+        if not confined_regular_path(original_path, f"{label} backup") or not original_path.exists():
             warn(f"preserving modified {label}: {path}")
             return
     elif action != "write":
@@ -167,14 +195,14 @@ def main() -> None:
         sys.exit(1)
 
     manifest_path = Path(sys.argv[1]).expanduser()
-    if not manifest_path.exists():
-        print(f"error: manifest not found: {manifest_path}", file=sys.stderr)
-        sys.exit(1)
 
     global home
     home = Path.home().resolve()
     global allowed_roots
     allowed_roots = [home]
+    if not confined_regular_path(manifest_path, "manifest") or not manifest_path.exists():
+        print(f"error: manifest not found or not confined: {manifest_path}", file=sys.stderr)
+        sys.exit(1)
     data = json.loads(manifest_path.read_text())
     runtime = data.get("runtime")
     paths = data.get("paths", {})
@@ -196,8 +224,8 @@ def main() -> None:
     defaults = runtime_defaults.get(runtime)
     if defaults is None:
         raise SystemExit(f"unsupported manifest runtime: {runtime!r}")
-    if not under_home(metadata):
-        raise SystemExit(f"manifest path is outside home: {manifest_path}")
+    if not confined_regular_path(metadata, "manifest metadata"):
+        raise SystemExit(f"manifest path is outside home or symlinked: {manifest_path}")
 
     def managed_skill_dir(path: Path) -> bool:
         skill_file = path / "SKILL.md"
@@ -212,6 +240,9 @@ def main() -> None:
     skills_root = manifest_managed_path(paths, "skills", defaults["skills"])
     skills_snapshot_root = metadata / "skills"
     for name in data.get("skills", []):
+        if skills_root is None:
+            warn("preserving skills because managed path is not confined")
+            break
         if not safe_name(name):
             warn("preserving skill with unsafe manifest name")
             continue
@@ -225,8 +256,8 @@ def main() -> None:
             warn(f"preserving modified or unsnapshotted skill: {skill_dir}")
 
     kernel_path = manifest_managed_path(paths, "kernel", defaults["kernel"])
-    kernel_snapshot = metadata / kernel_path.name
-    if kernel_path.exists():
+    kernel_snapshot = metadata / kernel_path.name if kernel_path else None
+    if kernel_path and kernel_snapshot and kernel_path.exists():
         try:
             kernel_text = kernel_path.read_text()
         except Exception:
@@ -241,14 +272,16 @@ def main() -> None:
             warn(f"preserving modified managed kernel: {kernel_path}")
 
     if runtime == "pi":
-        remove_merged_json_config(
-            str(manifest_managed_path(paths, "mcpConfig", defaults["mcpConfig"])),
-            metadata / "templates" / "mcp.user.template.json",
-            "mcp.json",
-            "mcpConfig",
-            "mcpAction",
-            data,
-        )
+        mcp_config_path = manifest_managed_path(paths, "mcpConfig", defaults["mcpConfig"], require_confined=True)
+        if mcp_config_path:
+            remove_merged_json_config(
+                str(mcp_config_path),
+                metadata / "templates" / "mcp.user.template.json",
+                "mcp.json",
+                "mcpConfig",
+                "mcpAction",
+                data,
+            )
         extensions = paths.get("extensions")
         if not isinstance(extensions, dict):
             extensions = {
@@ -272,6 +305,9 @@ def main() -> None:
             fallback = defaults["extensions"] / name
             extension_path = manifest_managed_path({"extension": configured_path}, "extension", fallback)
             extension_snapshot = metadata / "extensions" / name
+            if extension_path is None:
+                warn("preserving Pi extension because its managed path is not confined")
+                continue
             if extension_path.is_symlink():
                 label = "Pi permission extension" if name == "b-agentic-permissions.ts" else "Pi extension"
                 warn(f"preserving symlinked {label}: {extension_path}")
@@ -295,7 +331,9 @@ def main() -> None:
                 warn(f"preserving Pi extension because its original backup is unavailable: {extension_path}")
         theme_path = manifest_managed_path(paths, "theme", defaults["theme"])
         cached_theme = manifest_managed_path(paths, "cachedTheme", defaults["cachedTheme"])
-        if theme_path.is_symlink():
+        if theme_path is None or cached_theme is None:
+            warn("preserving Pi theme because its managed path is not confined")
+        elif theme_path.is_symlink():
             try:
                 target = Path(os.readlink(theme_path))
                 if not target.is_absolute():

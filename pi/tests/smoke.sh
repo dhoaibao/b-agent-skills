@@ -7,8 +7,14 @@ fi
 run_pi_permission_behavioral_fixture() {
 	local sandbox="$1"
 	# Behavioral permission coverage via node --experimental-strip-types (no Pi runtime).
-	local pi_package_root=""
-	if command -v pi >/dev/null 2>&1; then
+	# Prefer the repository's pinned Pi dependency for resolver-contract assertions.
+	local pi_package_root="$ROOT_DIR/pi/node_modules/@earendil-works/pi-coding-agent"
+	local pi_package_source="repo-local pinned dependency"
+	if [ ! -f "$pi_package_root/package.json" ]; then
+		pi_package_root=""
+		pi_package_source="global Pi fallback"
+	fi
+	if [ -z "$pi_package_root" ] && command -v pi >/dev/null 2>&1; then
 		local pi_path
 		pi_path="$(command -v pi)"
 		# Resolve the CLI symlink and walk to the package manifest instead of
@@ -33,6 +39,9 @@ while (true) {
   directory = parent;
 }
 ' "$pi_path" 2>/dev/null || true)"
+	fi
+	if [ -z "$pi_package_root" ]; then
+		pi_package_source="no Pi package anchor"
 	fi
 
 	local pi_server_loader="$sandbox/pi-server-loader.mjs"
@@ -128,7 +137,7 @@ for (const [name, module] of [["createUnixServer", shim], ["getUnixSocketPath", 
 	elif [ "$pi_server_resolution_status" -ne 0 ]; then
 		fail "unable to resolve Pi package dependency anchor"
 	fi
-	ROOT_DIR="$ROOT_DIR" PI_TEST_HOME="$sandbox/home" PI_CODING_AGENT_DIR="$sandbox/home/.pi/agent" PI_PACKAGE_ROOT="$pi_package_root" node "${node_loader_args[@]}" --experimental-strip-types --input-type=module - <<'NODE'
+	ROOT_DIR="$ROOT_DIR" PI_TEST_HOME="$sandbox/home" PI_CODING_AGENT_DIR="$sandbox/home/.pi/agent" PI_PACKAGE_ROOT="$pi_package_root" PI_PACKAGE_SOURCE="$pi_package_source" node "${node_loader_args[@]}" --experimental-strip-types --input-type=module - <<'NODE'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -138,6 +147,20 @@ const root = process.env.ROOT_DIR || process.cwd();
 process.env.B_AGENTIC_DIR = path.join(root, '.b-agentic-test');
 const installedRoot = path.join(process.env.PI_TEST_HOME || '', '.pi/agent/extensions');
 const packageLinks = path.join(process.env.PI_CODING_AGENT_DIR || '', 'node_modules', '@earendil-works');
+const piPackageRoot = process.env.PI_PACKAGE_ROOT;
+const piPathUtils = piPackageRoot
+  ? await import(pathToFileURL(path.join(piPackageRoot, 'dist/core/tools/path-utils.js')).href)
+  : null;
+if (piPathUtils) {
+  const piVersion = JSON.parse(readFileSync(path.join(piPackageRoot, 'package.json'), 'utf8')).version;
+  const source = process.env.PI_PACKAGE_SOURCE;
+  const label = source === 'repo-local pinned dependency'
+    ? 'native resolver contract'
+    : 'native resolver fallback gap (not pinned parity)';
+  console.log(`${label}: ${source} Pi ${piVersion}`);
+} else {
+  console.warn('native resolver contract skipped: no Pi package anchor');
+}
 if (process.env.PI_PACKAGE_ROOT) {
   mkdirSync(packageLinks, { recursive: true });
   for (const [name, target] of [
@@ -1685,7 +1708,7 @@ const rtkRequiredCommands = [
   'jest', 'vitest', 'ctest', 'prisma', 'tsc', 'next', 'lint', 'prettier', 'format',
   'playwright', 'cargo', 'npm', 'npx', 'curl', 'ruff', 'pytest', 'mypy',
   'rake', 'rubocop', 'rspec', 'pip', 'go', 'gt', 'golangci-lint', 'gradlew', 'mvn', 'mvnd',
-  'ecs', 'paratest', 'pest', 'phpt', 'php', 'phpstan', 'phpunit', 'pint', 'sbt', 'uv',
+  'ecs', 'paratest', 'pest', 'phpt', 'php', 'phpstan', 'phpunit', 'pint', 'sbt', 'uv', 'bun', 'bunx', 'deno',
 ];
 const rtkDiscoveryCommands = ['ls', 'tree', 'find', 'diff', 'grep', 'rg', 'wc'];
 for (const command of [...rtkRequiredCommands, ...rtkDiscoveryCommands]) {
@@ -1693,6 +1716,14 @@ for (const command of [...rtkRequiredCommands, ...rtkDiscoveryCommands]) {
   expect(t.commandDecision(`${command} --version`, noModernTools).decision === 'allow', `${command} version checks must not require RTK`);
 }
 expect(t.RTK_OPTIONAL_COMMANDS.size === 0, 'RTK-supported command families retain a single documentation list');
+for (const command of ['bun', 'bunx', 'deno']) {
+  expect(t.commandDecision(`${command} --version`, noModernTools).decision === 'allow', `${command} version checks must remain allowed`);
+  expect(t.commandDecision(`rtk ${command} --version`, noModernTools).decision === 'allow', `rtk ${command} version checks must remain allowed`);
+}
+for (const command of ['bun run untrusted.ts', 'bunx untrusted-package', 'deno run untrusted.ts']) {
+  expect(t.commandDecision(command, noModernTools).decision === 'ask', `${command} must retain opaque-execution approval`);
+  expect(t.commandDecision(`rtk ${command}`, noModernTools).decision === 'ask', `rtk-wrapped ${command} must retain opaque-execution approval`);
+}
 expect(t.SPECIALIZED_TOOLS.has('recall'), 'recall must be a first-party specialized tool');
 expect(t.SPECIALIZED_TOOLS.has('ask_user_question'), 'ask_user_question must be a first-party specialized tool');
 expect(t.SPECIALIZED_TOOLS.has('mcpScript'), 'mcpScript must be a trusted container whose nested calls retain policy');
@@ -1802,6 +1833,88 @@ expect(t.nativePathDecision('read', 'src/main.ts').decision === 'allow', 'normal
 expect(t.nativePathDecision('read', '/etc/passwd').decision === 'ask', 'outside-project native reads must ask');
 expect(t.nativePathDecision('write', '/etc/hosts').decision === 'ask', 'outside-project native writes must ask');
 expect(t.nativePathDecision('write', 'pi/tests/new-file.ts').decision === 'allow', 'project-local native writes must allow');
+const nativeResolutionFixture = mkdtempSync(path.join(os.tmpdir(), 'b-agentic-native-resolution-'));
+try {
+  const project = path.join(nativeResolutionFixture, 'project');
+  const protectedPath = path.join(project, 'credentials.ts');
+  const outsidePath = path.join(nativeResolutionFixture, 'outside.txt');
+  const ordinaryPath = path.join(project, 'ordinary.ts');
+  mkdirSync(project, { recursive: true });
+  writeFileSync(protectedPath, 'synthetic protected target');
+  writeFileSync(outsidePath, 'synthetic outside target');
+  writeFileSync(ordinaryPath, 'ordinary');
+  const rawPaths = [
+    ['@credentials.ts', 'protected'],
+    ['@../outside.txt', 'outside'],
+    [`file://${outsidePath}`, 'outside'],
+    ['unicode\u202Fspace.txt', 'ordinary'],
+    ['~/b-agentic-native-tool-path', 'outside'],
+  ];
+  writeFileSync(path.join(project, 'unicode space.txt'), 'unicode normalized');
+  for (const [rawPath, kind] of rawPaths) {
+    if (piPathUtils) {
+      const expected = piPathUtils.resolveToCwd(rawPath, project);
+      expect(t.resolveNativeToolPath(rawPath, project) === expected, `native resolver must match Pi resolveToCwd for ${rawPath}`);
+    }
+    for (const toolName of ['read', 'write', 'edit']) {
+      const decision = t.nativePathDecision(toolName, rawPath, project).decision;
+      const expectedDecision = kind === 'protected' ? (toolName === 'read' ? 'ask' : 'deny') : kind === 'outside' ? 'ask' : 'allow';
+      expect(decision === expectedDecision, `${toolName} ${rawPath} must use its Pi-resolved target`);
+    }
+  }
+  const fallbackRawPath = 'Meeting 10 AM.txt';
+  writeFileSync(path.join(project, 'Meeting 10\u202FAM.txt'), 'Pi read fallback');
+  if (piPathUtils) {
+    expect(t.resolveNativeToolPath(fallbackRawPath, project, true) === piPathUtils.resolveReadPath(fallbackRawPath, project), 'native read resolver must match Pi filename fallbacks');
+  }
+  expect(t.nativePathDecision('read', fallbackRawPath, project).decision === 'allow', 'resolved Pi read fallback inside project must allow');
+  const protectedLink = path.join(project, 'protected-link');
+  symlinkSync(protectedPath, protectedLink);
+  expect(t.nativePathDecision('read', protectedLink, project).decision === 'ask', 'native reads through Pi-resolved protected symlinks must ask');
+  expect(t.nativePathDecision('write', protectedLink, project).decision === 'deny', 'native writes through Pi-resolved protected symlinks must deny');
+  expect(t.nativePathDecision('edit', protectedLink, project).decision === 'deny', 'native edits through Pi-resolved protected symlinks must deny');
+  expect(t.nativePathDecision('write', 'missing/new-file.ts', project).decision === 'allow', 'missing native writes below a confined existing ancestor must allow');
+  expect(t.nativePathDecision('read', 'file://invalid-host/path', project).decision === 'ask', 'malformed native paths must fail closed');
+
+  const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+  const asciiAgentRoot = path.join(nativeResolutionFixture, 'agent space');
+  const unicodeAgentRoot = path.join(nativeResolutionFixture, 'agent\u00A0space');
+  const genuineInstalledSkill = path.join(asciiAgentRoot, 'skills', 'b-plan', 'SKILL.md');
+  const unicodeOutsideSkill = path.join(unicodeAgentRoot, 'skills', 'b-plan', 'SKILL.md');
+  const protectedInstalledSkill = path.join(asciiAgentRoot, 'skills', 'b-implement', 'SKILL.md');
+  try {
+    mkdirSync(path.dirname(genuineInstalledSkill), { recursive: true });
+    mkdirSync(path.dirname(unicodeOutsideSkill), { recursive: true });
+    mkdirSync(path.dirname(protectedInstalledSkill), { recursive: true });
+    writeFileSync(genuineInstalledSkill, 'genuine installed skill');
+    writeFileSync(unicodeOutsideSkill, 'unicode-space outside skill');
+    symlinkSync(protectedPath, protectedInstalledSkill);
+    process.env.PI_CODING_AGENT_DIR = asciiAgentRoot;
+    const unicodeOutsideUrl = pathToFileURL(unicodeOutsideSkill).href;
+    if (piPathUtils) {
+      expect(piPathUtils.resolveReadPath(unicodeOutsideUrl, project) === unicodeOutsideSkill, 'Pi resolver must retain URL-decoded Unicode spaces in effective targets');
+    }
+    expect(t.nativePathDecision('read', unicodeOutsideUrl, project).decision === 'ask', 'installed-skill allowance must not normalize an already-resolved outside target twice');
+    expect(t.nativePathDecision('read', genuineInstalledSkill, project).decision === 'allow', 'genuine installed skill reads must remain allowed');
+    expect(t.nativePathDecision('read', protectedInstalledSkill, project).decision === 'ask', 'protected installed-skill targets must still ask before any installed-skill allowance');
+  } finally {
+    if (originalAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = originalAgentDir;
+  }
+
+  const nativeResolverContext = { ...noUiContext, cwd: project };
+  await handlers.turn_start({ type: 'turn_start', turnIndex: 100, timestamp: 100 }, nativeResolverContext);
+  for (const toolName of ['read', 'write', 'edit']) {
+    const result = await toolCallHandler({ toolName, input: { path: '@credentials.ts' } }, nativeResolverContext);
+    expect(result?.block === true, `permission integration must use ctx.cwd for ${toolName} @credentials.ts`);
+  }
+  await handlers.turn_start({ type: 'turn_start', turnIndex: 101, timestamp: 101 }, nativeResolverContext);
+  expect(await toolCallHandler({ toolName: 'edit', input: { path: '@ordinary.ts', edits: [] } }, nativeResolverContext) === undefined, 'first Pi-normalized native edit must allow');
+  const normalizedDuplicate = await toolCallHandler({ toolName: 'edit', input: { path: 'ordinary.ts', edits: [] } }, nativeResolverContext);
+  expect(normalizedDuplicate?.block === true, 'Pi-normalized duplicate native edits must share one canonical path');
+} finally {
+  rmSync(nativeResolutionFixture, { recursive: true, force: true });
+}
 const nativeToolContext = { ...noUiContext, cwd: root };
 await handlers.turn_start({ type: 'turn_start', turnIndex: 1, timestamp: 1 }, nativeToolContext);
 expect(await toolCallHandler({ toolName: 'edit', input: { path: 'README.md', edits: [{ oldText: 'one', newText: 'two' }] } }, nativeToolContext) === undefined, 'first native edit for a path must remain allowed');
