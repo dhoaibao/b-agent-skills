@@ -203,9 +203,7 @@ inspect environment/API-key values, start MCP servers, authenticate providers,
 run browser probes, or persist prompts, code, URLs, secrets, or usage telemetry.
 Managed MCP configuration and credentials remain unknown or unverified in this
 snapshot; use `mcp-doctor` or an explicitly approved operation for readiness
-that requires config content or authentication. Pi LSP package presence is
-reported separately from operational diagnostics readiness, which requires a
-relevant configured language-server executable. The snapshot complements
+that requires config content or authentication. The snapshot complements
 `mcp-doctor` and approved live/browser evidence rather than replacing them.
 
 ## Pi integration and packages
@@ -228,30 +226,6 @@ b-agentic installs the `@sreetej510/pi-usage` extension automatically.
 
 b-agentic installs `@gotgenes/pi-anthropic-auth` automatically for Anthropic authentication support.
 
-b-agentic installs `@narumitw/pi-lsp` automatically at the latest release for optional, on-demand
-`lsp_diagnostics` and `lsp_fix` capabilities and source-action previews. pi-lsp
-ships a built-in default server map for roughly 28 languages (including Biome for
-JavaScript/TypeScript/JSON/CSS, ty and Ruff for Python, bash-language-server for
-shell, and yaml-language-server for YAML), so no configuration is required for
-those defaults. It starts servers only when its tools are called and does not
-install their binaries: the actual prerequisite is that the relevant
-language-server command is already on `PATH`; without one, diagnostics have no
-server to route the repository's file types to. Package installation alone does
-not establish operational LSP readiness: `/b-status` reports the package as
-unknown until a relevant route can be safely verified. Custom configuration
-replaces, rather than merges with, that default map. Resolution is
-`PI_LSP_CONFIG` (inline
-JSON or a JSON-file path), then `<workspace>/.pi/pi-lsp.json`, then
-`~/.pi/agent/pi-lsp.json`; the installer writes none of these files and leaves
-user and trusted-project configuration owner-controlled. Validated
-`lsp_diagnostics` calls with project-confined, unprotected paths bypass generic
-custom-tool approval; for directory arguments and the project-root default,
-`.git`, `node_modules`, and `.venv` are not scanned, while protected files
-elsewhere still fail closed. The LSP path check remains bounded and fail-closed. `lsp_fix` actions (including read-only-looking calls), malformed or
-unsafe diagnostics calls, and other custom LSP calls retain the generic
-custom-tool approval behavior, and authoritative repository validation remains
-required.
-
 b-agentic installs `@juicesharp/rpiv-todo` automatically at the latest release. This Pi package provides the todo tool, `/todos` command, and persistent overlay; the kernel guides lightweight task tracking for non-trivial multi-step work when available, without requiring it for small or routine tasks or imposing workflow orchestration, persistence, or telemetry.
 
 b-agentic installs `pi-intercom` automatically for its planner/worker workflow and installs
@@ -272,7 +246,7 @@ purpose-specific `tool_call` extensions under `~/.pi/agent/extensions/`:
 - `b-agentic-mcp-permissions.ts` for managed MCP and custom-tool approval.
 - `b-agentic-auto-mode.ts` for confirmed automatic approval with explicit-deny protection.
 - `b-agentic-role.ts` for role selection and persistence.
-- `b-agentic-planner.ts`, `b-agentic-worker.ts`, and `b-agentic-consult.ts` for planner collaboration and on-demand consultation.
+- `b-agentic-planner.ts` and `b-agentic-worker.ts` for planner-worker collaboration.
 - `b-agentic-planner-notify.ts` for privacy-safe desktop notifications from explicit planner task-complete and user-input attention signals.
 - `b-agentic-sync.ts` for in-session refresh commands.
 
@@ -304,7 +278,7 @@ repository, validates `dracula.json`, copies it to the theme cache, and links
 settings or selection. User files and unrelated symlinks at the theme destination
 are preserved with a warning. Uninstall removes only unchanged managed content
 and symlinks, restores recorded user backups, preserves modified or
-symlinked files, and never removes installed packages, including `@gotgenes/pi-anthropic-auth`, `@narumitw/pi-lsp`, and `@juicesharp/rpiv-todo`.
+symlinked files, and never removes installed packages, including `@gotgenes/pi-anthropic-auth` and `@juicesharp/rpiv-todo`.
 
 ## Roles and coordination
 
@@ -313,15 +287,7 @@ session is not automatically promoted to planner. Explicitly start a planner or 
 or `pi --b-role planner|worker`. Use `/b-role off` to return to solo work. Role
 selection does not open a model picker; explicit startup selections and `/model`
 changes update planner/worker preferences under
-`~/.pi/agent/b-agentic/role-models.json` without credentials. Use the planner-only
-`b_consult` tool for a hard decision or plan review when independent advice is
-useful; choose its provider, model, and thinking level with `/b-consult-model`.
-The command accepts an exact `provider/model [thinking-level]`, or a fuzzy model
-search query with an optional thinking level; with UI it opens a searchable model picker with a visible
-input and filtered model options. Model completions follow Pi's provider/model search shape, mark the
-current active model, and the selected consultant preference is stored in the
-shared `role-models.json` file. Each isolated call starts a fresh in-memory session, independently inspects the current repository with bounded read-only tools, and may use the managed MCP research gateway only under normal approval/auth and operation policy. It receives no outer conversation history and has no write, shell, Intercom, delegation, or worktree access. It returns bounded natural-language advice; repository findings inform that advice but do not replace authoritative review. An existing legacy `~/.pi/agent/b-agentic/consult-model.json` file is
-left untouched and is not migrated or read.
+`~/.pi/agent/b-agentic/role-models.json` without credentials.
 
 `/b-auto-mode` is an explicit opt-in that warns and requires an interactive Y/N
 confirmation before enabling. While enabled it auto-allows every `ask` decision,

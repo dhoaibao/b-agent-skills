@@ -23,12 +23,10 @@ see the [operational reference](../../REFERENCE.md).
 
 The installer manages the b-agentic files and caches under the Pi agent
 directory while preserving unrelated files, configuration, and symlinks. User
-`~/.pi/agent/AGENTS.md`, `~/.pi/agent/mcp.json`, Pi settings, and pi-lsp files
-remain owner-controlled; MCP configuration is merged rather than replaced.
+`~/.pi/agent/AGENTS.md`, `~/.pi/agent/mcp.json`, and Pi settings remain
+owner-controlled; MCP configuration is merged rather than replaced.
 
-The installed `b-agentic-consult.ts` is planner-only advisory tooling. It may
-inspect the current repository with read-only `read`, `grep`, `find`, and `ls`,
-and may use managed `mcp` under its normal policy; it cannot write, edit, run
-shell commands, browse, coordinate through Intercom, delegate, or modify the
-worktree. See [REFERENCE.md](../../REFERENCE.md) for the operational contract
-and coordination behavior.
+Role selection and planner-worker coordination are prompt-governed; the role
+extensions preserve normal Pi tools and shared approval policy. See
+[REFERENCE.md](../../REFERENCE.md) for the operational contract and
+coordination behavior.

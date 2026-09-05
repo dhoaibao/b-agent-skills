@@ -97,15 +97,6 @@ function packageStatus(
         "missing: package is not present in the local Pi package listing; no authentication, external health, or session usage is claimed",
     };
   }
-  if (capability.id === "package.pi-lsp") {
-    return {
-      id: capability.id,
-      kind: capability.kind,
-      state: "unknown",
-      detail:
-        "unknown: Pi LSP is installed, but a relevant language-server route and project configuration are not inspected; diagnostics and source actions are not claimed",
-    };
-  }
   return {
     id: capability.id,
     kind: capability.kind,

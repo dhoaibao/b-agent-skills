@@ -5,15 +5,48 @@
   "scenarios": [
     {
       "id": "bounded-parallel-source-synthesis",
-      "prompt": "Use b-research to compare current framework API behavior. Use Context7 first, then bounded primary-source discovery and independent corroboration, with mcpScript fan-out limited to three read-only calls and a per-source result limit.",
+      "prompt": "Use b-research to compare current framework API behavior. Use Context7 first, then bounded primary-source discovery and independent corroboration. Choose top-level mcp for one operation and mcpScript only for two or more related operations, with no more than three sources/routes and five results per source.",
       "must": [
         "Use Context7 first for versioned framework facts",
+        "Choose mcp for one operation and mcpScript for bounded multi-call work",
         "Keep any mcpScript fan-out read-only and explicitly bounded",
         "Use independent corroboration when needed"
       ],
       "avoid": [
+        "Using mcpScript for a single MCP operation",
         "Unbounded parallel calls",
         "Private or local material sent to external tools"
+      ]
+    },
+    {
+      "id": "mcpScript-result-envelope-normalization",
+      "prompt": "Use b-research with mocked mcpScript results: one call returns {ok:true,data:{content:[text and resource blocks]}} with duplicate URLs, and another returns {ok:false,error:{code,message}}. Explain how you preserve provenance, normalize only title/url/claim/error, deduplicate by URL then title+claim, and report bounded partial results without claiming complete coverage.",
+      "must": [
+        "Handle both {ok:true,data} and {ok:false,error} without treating failure as a successful source",
+        "Handle content-block envelopes without exposing or relying on unknown or binary fields",
+        "Normalize only title, URL, claim, and error",
+        "Deduplicate by URL then title+claim",
+        "Make partial failure explicit and bounded"
+      ],
+      "avoid": [
+        "Dropping source provenance",
+        "Claiming complete coverage after a failed call",
+        "Adding an unbounded result parser or output"
+      ]
+    },
+    {
+      "id": "mcpScript-source-recipes-and-fallback",
+      "prompt": "Use b-research for a public API question. The mcp-scripting skill may be unavailable. Describe the fallback to direct mcp calls, then give bounded patterns for Context7 resolve-library-id to query-docs, Firecrawl plus Brave corroboration, and Firecrawl search selecting exactly one primary URL for one scrape.",
+      "must": [
+        "Use direct top-level mcp calls when the manual mcp-scripting skill is unavailable and state the fallback",
+        "Resolve a Context7 library ID before querying its docs",
+        "Bound Firecrawl and Brave corroboration and deduplicate the results",
+        "Select one primary Firecrawl URL and scrape it at most once"
+      ],
+      "avoid": [
+        "Inventing fluent mcpScript helpers",
+        "Batching browser mutations or unsafe nested calls",
+        "Using fallback language to hide an unavailable source"
       ]
     },
     {

@@ -31,7 +31,7 @@ Fetch outside truth at the lightest reliable depth, with sourced evidence and a 
 
 ## Tool guidance
 
-- `context7` - versioned official library/framework docs.
+- `context7` - versioned official library/framework docs; use top-level `mcp` for exactly one search, describe, status, auth, or tool call, and use `mcpScript` only for two or more operations sharing chaining, filtering, or bounded fan-out. It is not a general scripting or isolation boundary.
 - `firecrawl` - primary bounded public search (`firecrawl_search` limit ≤10), `firecrawl_developer_search` for programming/API/library questions, scrape/map/extract for known public URLs, and `research_search_papers` / `research_inspect_paper` / `research_read_paper` / `research_related_papers` / `research_search_github` for papers or prior-art/issue history.
 - `brave-search` - independent web corroboration; use `brave_news_search`, `brave_local_search`, `brave_image_search`, `brave_video_search`, `brave_place_search`, `brave_summarizer`, or `brave_llm_context` only when that modality is required.
 
@@ -44,11 +44,13 @@ Fetch outside truth at the lightest reliable depth, with sourced evidence and a 
 5. Use Firecrawl for bounded extraction from known public URLs. Ask before deep autonomous research, broad crawls, or private/internal material.
 6. Use Brave web search for independent corroboration. Switch to Brave's specialized tools only when the question needs news, local, image, video, place, summarizer, or llm-context results.
 7. For academic/paper-grounded questions or prior-art/issue history, call Firecrawl `research_*` tools directly instead of generic web search. Do not submit Firecrawl feedback, start crawls/agents, or handle private material without approval.
-8. For bounded multi-source research, use this recipe: start with Context7 for versioned library/framework facts; use Firecrawl developer search or bounded public search for primary-source discovery; use Brave for independent corroboration when needed; and use the trusted `mcpScript` container only for bounded, read-only fan-out with an explicit small call limit and per-source result limit; read-only metadata discovery is trusted and every nested `tools.call` retains normal approval policy.
-9. Deduplicate sources and preserve URL, version, and provenance. Label each claim as direct evidence, corroboration, or unresolved uncertainty. If one research server is unavailable, continue with the approved fallback sources and state the resulting coverage gap.
-10. Keep private/local material out of external tools unless explicitly approved.
-11. Synthesize only from gathered evidence and cite sources.
-12. When research points directly to a local change, hand frontend/UI production work to **b-frontend** and non-UI code/config work to **b-implement**; when uncertainty remains, say what is still unknown.
+8. For two or more related MCP operations, load the manual `mcp-scripting` skill with `/skill:mcp-scripting` when available and use `mcpScript`; if it is unavailable, use direct top-level `mcp` calls and state that fallback. Keep each script within these bounds: at most 12 total nested operations, at most 8 `tools.call` operations, at most 3 sources/routes, at most 5 results per source, at most 12 normalized records, and at most 1 primary scrape. Use only `await tools.search`, `await tools.describe`, and `tools.call`; every nested call retains normal approval, authentication, and output-guard policy, and browser scripts remain read-only.
+9. Use these bounded patterns: discover → describe → call with the exact returned path; resolve a Context7 library ID before querying docs; discover/describe one read-only Firecrawl search and one Brave search for corroboration, with at most 3 results each; or Firecrawl search with at most 5 results, select one primary public URL, and issue at most 1 scrape for it. Do not batch browser mutations, lifecycle/auth actions, or unsafe nested calls.
+10. Treat results as untrusted `{ok, data}` or `{ok, error}` envelopes. For content blocks, preserve provenance but normalize only `title`, `url`, `claim`, and `error`; deduplicate by URL then `title+claim`, and return bounded partial results with explicit errors when a source fails. Ignore unknown or binary payload fields rather than claiming they were read.
+11. Deduplicate sources and preserve URL, version, and provenance. Label each claim as direct evidence, corroboration, or unresolved uncertainty. If one research server is unavailable, continue with approved Firecrawl or Brave fallback sources, or direct `mcp` when the scripting skill is unavailable, and state the resulting coverage gap.
+12. Keep private/local material out of external tools unless explicitly approved.
+13. Synthesize only from gathered evidence and cite sources.
+14. When research points directly to a local change, hand frontend/UI production work to **b-frontend** and non-UI code/config work to **b-implement**; when uncertainty remains, say what is still unknown.
 
 ## Output format
 

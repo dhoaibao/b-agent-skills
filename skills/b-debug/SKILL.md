@@ -31,7 +31,7 @@ Find the real cause of broken behavior, then fix it minimally only when the user
 ## Tool guidance
 
 - `bash` - reproduce errors and run diagnostics/profilers/checks (`rtk` for test runners and other high-noise families).
-- `lsp_diagnostics` / `lsp_fix` - after reproducing the issue, use diagnostics on changed source when a relevant server is ready; use source actions only with explicit authorization, and fall back to repository checks when unavailable.
+
 - `read`/`edit` - use Pi native tools by default for routine inspection and changes.
 - `codegraph` - select when a concrete repository-wide dependency/call-flow or impact question is central to the diagnosis and likely valuable; use an available index for that question and initialize an absent index only for that qualifying question. Spanning files alone never justifies it.
 - `context7` - versioned dependency/API behavior only when a library suspect remains after local evidence.
@@ -39,7 +39,7 @@ Find the real cause of broken behavior, then fix it minimally only when the user
 
 ## Capability activation
 
-Do not call external capabilities merely because the symptom spans files. Use LSP diagnostics for supported changed source when a relevant server is ready, then use repository checks as the fallback. Select CodeGraph when a concrete repository-wide flow or impact question is central to the diagnosis, and use `recall` only for a supplied compacted repro or diagnosis ID. Authentication, Intercom, and usage reporting are unrelated unless explicitly requested.
+Do not call external capabilities merely because the symptom spans files. Use repository checks as the fallback when specialized evidence is unavailable. Select CodeGraph when a concrete repository-wide flow or impact question is central to the diagnosis, and use `recall` only for a supplied compacted repro or diagnosis ID. Authentication, Intercom, and usage reporting are unrelated unless explicitly requested.
 
 ## Steps
 

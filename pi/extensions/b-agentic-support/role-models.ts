@@ -16,7 +16,7 @@ export type RoleModelPreference = {
   model: string;
   thinkingLevel?: ThinkingLevel;
 };
-export type RoleModelKey = Exclude<BAgenticRole, "off"> | "consultant";
+export type RoleModelKey = Exclude<BAgenticRole, "off">;
 export type RoleModelPreferences = Partial<
   Record<RoleModelKey, RoleModelPreference>
 >;
@@ -76,9 +76,6 @@ export function loadRoleModelPreferences(
         : {}),
       ...(parsePreference(parsed.worker)
         ? { worker: parsePreference(parsed.worker) }
-        : {}),
-      ...(parsePreference(parsed.consultant)
-        ? { consultant: parsePreference(parsed.consultant) }
         : {}),
     };
   } catch {

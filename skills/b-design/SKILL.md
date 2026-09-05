@@ -33,11 +33,10 @@ Create or refresh `docs/DESIGN.md`, the repo-local frontend design standard. Do 
 
 - `bash` - `rtk git status --short`, diffs, and modern discovery (`rg`, `fdfind`, `eza`).
 - `read`/`edit`/`write` - inspect sources and update only `docs/DESIGN.md` unless broader docs were approved.
-- `lsp_diagnostics` - use only when a changed supported source file has a ready language server; fall back to repository checks when it does not.
 
 ## Capability activation
 
-Use LSP diagnostics only for supported changed source when a relevant server is ready, with repository checks as fallback. Use browser evidence only when requested and route it to `b-browser`; do not invoke authentication, usage reporting, or Intercom for an ordinary design-standard edit.
+Use repository checks to verify the changed design guidance. Use browser evidence only when requested and route it to `b-browser`; do not invoke authentication, usage reporting, or Intercom for an ordinary design-standard edit.
 
 ## Steps
 

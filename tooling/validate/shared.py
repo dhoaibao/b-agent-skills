@@ -490,8 +490,8 @@ MCP_WORKFLOW_REGRESSION = {
         ],
         "b-debug": ["versioned dependency suspects"],
         "b-test": ["versioned framework semantics"],
-        "b-browser": ["existing CI/script evidence; approved navigation"],
-        "b-research": ["independent corroboration", "research_*"],
+        "b-browser": ["existing CI/script evidence; approved navigation", "mcpScript", "browser mutations"],
+        "b-research": ["independent corroboration", "research_*", "mcpScript", "direct top-level `mcp` calls"],
         "b-review": [
             "specialized Brave tools",
             "Do not initialize an absent index in planner mode;",
@@ -505,6 +505,88 @@ for skill_name, markers in MCP_WORKFLOW_REGRESSION["anchors"].items():
             errors.append(
                 f"skills/{skill_name}/prompt.md: missing MCP workflow anchor {marker!r}; "
                 f"observed failure: {MCP_WORKFLOW_REGRESSION['observed_failure']}"
+            )
+
+MCP_SCRIPT_GUIDANCE_REGRESSION = {
+    "observed_failure": (
+        "MCP scripting guidance did not consistently distinguish one-call mcp use from "
+        "bounded multi-call mcpScript use, or omitted result-envelope, fallback, and "
+        "nested-policy safeguards."
+    ),
+    "kernel": [
+        "Use top-level `mcp` for exactly one",
+        "Use `mcpScript` only for two or more",
+        "at most 12 total nested operations",
+        "at most 8 `tools.call` operations",
+        "at most 3 source/server branches or browser routes",
+        "at most 5 candidate results per source",
+        "at most 12 normalized output records",
+        "at most one `firecrawl_scrape` call",
+        "normal approval, authentication, and output-guard policy",
+        "Content-block envelopes",
+        "deduplicate by URL then `title+claim`",
+        "bounded partial results with explicit errors",
+        "direct top-level `mcp` calls and state that fallback",
+        "must not batch navigation, clicks, typing, evaluation, uploads, or other mutations",
+    ],
+    "research": [
+        "manual `mcp-scripting` skill",
+        "direct top-level `mcp` calls and state that fallback",
+        "at most 12 total nested operations",
+        "resolve a Context7 library ID",
+        "one primary public URL",
+        "bounded partial results with explicit errors",
+    ],
+    "browser": [
+        "top-level `mcp` for one browser observation",
+        "manual `mcp-scripting` skill",
+        "at most 12 total nested operations",
+        "Keep browser scripts read-only",
+        "normal approval, authentication, and output-guard policy",
+        "partial failures",
+    ],
+}
+for path, markers in (
+    (ROOT / "references" / "kernel.template.md", MCP_SCRIPT_GUIDANCE_REGRESSION["kernel"]),
+    (ROOT / "skills" / "b-research" / "prompt.md", MCP_SCRIPT_GUIDANCE_REGRESSION["research"]),
+    (ROOT / "skills" / "b-browser" / "prompt.md", MCP_SCRIPT_GUIDANCE_REGRESSION["browser"]),
+):
+    text = read_text(path)
+    for marker in markers:
+        if marker not in text:
+            errors.append(
+                f"{rel(path)}: missing bounded mcpScript guidance anchor {marker!r}; "
+                f"observed failure: {MCP_SCRIPT_GUIDANCE_REGRESSION['observed_failure']}"
+            )
+
+kernel_template_path = ROOT / "references" / "kernel.template.md"
+kernel_template = read_text(kernel_template_path)
+chained_example_match = re.search(
+    r"Use this direct adapter API for a chained operation:\n\n```js\n(?P<code>.*?)\n```",
+    kernel_template,
+    re.DOTALL,
+)
+if not chained_example_match:
+    errors.append(
+        f"{rel(kernel_template_path)}: missing executable mcpScript chained example; "
+        f"observed failure: {MCP_SCRIPT_GUIDANCE_REGRESSION['observed_failure']}"
+    )
+else:
+    chained_example = chained_example_match.group("code")
+    if "emit(" not in chained_example or re.search(r"\breturn\b", chained_example):
+        errors.append(
+            f"{rel(kernel_template_path)}: chained mcpScript example must emit terminal outcomes "
+            "and must not return an undocumented script value"
+        )
+    for marker in (
+        'emit({ error: "No matching tool" })',
+        "emit(details)",
+        "emit({ error: result.error })",
+        "emit(result.data)",
+    ):
+        if marker not in chained_example:
+            errors.append(
+                f"{rel(kernel_template_path)}: chained mcpScript example missing terminal emit {marker!r}"
             )
 
 # Regression: suite audit found skills under-specified Pi native file tools, optional
@@ -928,7 +1010,7 @@ for required in ["authorized", "Diagnosis-only requests stop"]:
         )
 
 MCP_SERVERS = {"codegraph", "context7", "brave-search", "firecrawl", "playwright"}
-LOCAL_TOOLS = {"bash", "read", "edit", "write", "recall", "lsp_diagnostics", "lsp_fix"}
+LOCAL_TOOLS = {"bash", "read", "edit", "write", "recall"}
 KNOWN_TOOLS = MCP_SERVERS | LOCAL_TOOLS
 RETIRED_MCP_REFERENCE_ALLOWLIST = {
     "CHANGELOG.md",
@@ -1022,8 +1104,6 @@ TOKEN_TO_DISPLAY_NAME = {
     "edit": "edit",
     "write": "write",
     "recall": "recall",
-    "lsp_diagnostics": "LSP",
-    "lsp_fix": "LSP",
 }
 
 referenced_servers: set[str] = set()

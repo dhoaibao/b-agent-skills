@@ -130,7 +130,6 @@ ROLE_PROMPT_MARKERS = {
         "standalone `Verdict:` line",
         "Reviewer prose without that artifact is not a passed gate",
         "Use send for task delegation, terminal results, review requests/findings, and any question/request needing material work",
-        "use `b_consult` selectively for a hard decision or plan review",
         "one focused question whose answer needs no substantial investigation, implementation, or waiting",
         "never use ask to wait",
         "Before every outbound Intercom send or ask",
@@ -324,8 +323,6 @@ def validate_capabilities(contract: dict) -> list[str]:
         "piIntercomState",
         "piAskUserQuestionAction",
         "piAskUserQuestionState",
-        "piLspAction",
-        "piLspState",
         "piTodoAction",
         "piTodoState",
     }
@@ -400,7 +397,6 @@ def validate_capabilities(contract: dict) -> list[str]:
                     "@gotgenes/pi-anthropic-auth": ("piAnthropicAuthAction", "piAnthropicAuthState"),
                     "pi-intercom": ("piIntercomAction", "piIntercomState"),
                     "@juicesharp/rpiv-ask-user-question": ("piAskUserQuestionAction", "piAskUserQuestionState"),
-                    "@narumitw/pi-lsp": ("piLspAction", "piLspState"),
                     "@juicesharp/rpiv-todo": ("piTodoAction", "piTodoState"),
                 }
                 if package_name in package_state_keys and isinstance(install_state, dict):

@@ -266,45 +266,6 @@ export const CAPABILITIES: readonly CapabilityDefinition[] = [
     }
   },
   {
-    "id": "package.pi-lsp",
-    "kind": "package",
-    "purpose": "Route on-demand diagnostics and source actions through configured language servers.",
-    "owner": "Pi LSP extension",
-    "trigger": "Use on changed source when its file type has a ready configured language server and diagnostics or a source action reduces uncertainty.",
-    "prerequisites": [
-      "Pi CLI",
-      "Relevant language-server command on PATH",
-      "Project or user LSP configuration when defaults are insufficient"
-    ],
-    "readiness": "The package is present in the local Pi package listing, but operational diagnostics require a relevant configured language-server executable; this status surface does not inspect that route.",
-    "fallback": "Use repository-local lint, typecheck, and tests and report the missing or unsupported language-server route.",
-    "status_signal": {
-      "source": "local-package-listing-and-route-availability",
-      "states": [
-        "installed",
-        "missing",
-        "unknown"
-      ],
-      "description": "Reports package presence only; it does not inspect language-server configuration or executables, start servers, inspect source, or persist diagnostics.",
-      "sensitive": false
-    },
-    "probe": {
-      "type": "package",
-      "name": "@narumitw/pi-lsp"
-    },
-    "package": {
-      "name": "@narumitw/pi-lsp",
-      "spec": "npm:@narumitw/pi-lsp"
-    },
-    "install_state": {
-      "action": "piLspAction",
-      "state": "piLspState"
-    },
-    "source": {
-      "installer": "pi/scripts/install.sh"
-    }
-  },
-  {
     "id": "package.pi-todo",
     "kind": "package",
     "purpose": "Provide Pi's todo tool, /todos command, and persistent overlay.",
@@ -831,44 +792,6 @@ export const CAPABILITIES: readonly CapabilityDefinition[] = [
     }
   },
   {
-    "id": "extension.b-agentic-consult",
-    "kind": "extension",
-    "purpose": "Offer bounded isolated read-only consultation for hard planner decisions and plan reviews.",
-    "owner": "b-agentic consult extension",
-    "trigger": "Use only when a planner has a hard decision or plan review that benefits from independent bounded advice.",
-    "prerequisites": [
-      "Installed Pi extension entrypoint",
-      "Planner role",
-      "Configured consultant model when selected"
-    ],
-    "readiness": "The managed entrypoint exists; model availability and consultation delivery are not probed.",
-    "fallback": "Reason from local evidence and state that independent consultation was not available.",
-    "status_signal": {
-      "source": "local-extension-file",
-      "states": [
-        "installed",
-        "missing"
-      ],
-      "description": "Reports only entrypoint presence; it does not persist or expose consultation prompts or responses.",
-      "sensitive": false
-    },
-    "probe": {
-      "type": "extension",
-      "name": "b-agentic-consult.ts"
-    },
-    "extension": {
-      "name": "b-agentic-consult.ts",
-      "source": "pi/extensions/b-agentic-consult.ts"
-    },
-    "install_state": {
-      "action": "extensionAction",
-      "state": "extensionState"
-    },
-    "source": {
-      "installer": "pi/scripts/install.sh"
-    }
-  },
-  {
     "id": "extension.b-agentic-sync",
     "kind": "extension",
     "purpose": "Refresh managed b-agentic assets or installed runtime tooling from an active Pi session.",
@@ -896,42 +819,6 @@ export const CAPABILITIES: readonly CapabilityDefinition[] = [
     "extension": {
       "name": "b-agentic-sync.ts",
       "source": "pi/extensions/b-agentic-sync.ts"
-    },
-    "install_state": {
-      "action": "extensionAction",
-      "state": "extensionState"
-    },
-    "source": {
-      "installer": "pi/scripts/install.sh"
-    }
-  },
-  {
-    "id": "extension.b-agentic-rule-guard",
-    "kind": "extension",
-    "purpose": "Guard canonical workflow rules that are not represented by a runtime permission decision.",
-    "owner": "b-agentic rule-guard extension",
-    "trigger": "Apply when a session attempts to bypass a canonical workflow or coordination rule.",
-    "prerequisites": [
-      "Installed Pi extension entrypoint"
-    ],
-    "readiness": "The managed entrypoint exists in the local Pi extensions directory.",
-    "fallback": "Do not weaken the kernel or claim rule-guard enforcement when the entrypoint is absent.",
-    "status_signal": {
-      "source": "local-extension-file",
-      "states": [
-        "installed",
-        "missing"
-      ],
-      "description": "Reports only the local managed entrypoint; it does not expose prompts or claim a blocked action occurred.",
-      "sensitive": false
-    },
-    "probe": {
-      "type": "extension",
-      "name": "b-agentic-rule-guard.ts"
-    },
-    "extension": {
-      "name": "b-agentic-rule-guard.ts",
-      "source": "pi/extensions/b-agentic-rule-guard.ts"
     },
     "install_state": {
       "action": "extensionAction",

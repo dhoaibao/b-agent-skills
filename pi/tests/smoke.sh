@@ -153,9 +153,9 @@ if (process.env.PI_PACKAGE_ROOT) {
 const extensionModules = await Promise.all([
   'b-agentic-permissions.ts', 'b-agentic-mcp-permissions.ts', 'b-agentic-auto-mode.ts', 'b-agentic-role.ts',
   'b-agentic-planner.ts', 'b-agentic-worker.ts', 'b-agentic-sync.ts', 'b-agentic-planner-notify.ts',
-  'b-agentic-preview-markdown.ts', 'b-agentic-consult.ts', 'b-agentic-rule-guard.ts', 'b-agentic-status.ts',
+  'b-agentic-preview-markdown.ts', 'b-agentic-status.ts',
 ].map((name) => import(pathToFileURL(path.join(installedRoot, name)).href)));
-for (const name of ['shell.ts', 'mcp.ts', 'role.ts', 'role-models.ts', 'consult.ts', 'worker.ts', 'state.ts', 'auto.ts', 'capabilities.ts', 'status.ts']) {
+for (const name of ['shell.ts', 'mcp.ts', 'role.ts', 'role-models.ts', 'worker.ts', 'state.ts', 'auto.ts', 'capabilities.ts', 'status.ts']) {
   await import(pathToFileURL(path.join(installedRoot, 'b-agentic-support', name)).href);
 }
 const autoStateTest = await import(pathToFileURL(path.join(installedRoot, 'b-agentic-support', 'state.ts')).href);
@@ -168,9 +168,8 @@ const t = mod.__test__;
 const roleTest = extensionModules[3].__test__;
 const plannerTest = extensionModules[4].__test__;
 const plannerNotifyTest = extensionModules[7].__test__;
-const ruleGuardTest = extensionModules[10].__test__;
-const statusTest = extensionModules[11].__test__;
-if (!t || !plannerTest || !plannerNotifyTest || !ruleGuardTest || !statusTest) {
+const statusTest = extensionModules[9].__test__;
+if (!t || !plannerTest || !plannerNotifyTest || !statusTest) {
   console.error('permission or status extension missing __test__ exports');
   process.exit(1);
 }
@@ -238,11 +237,7 @@ const extensionHost = {
   },
 };
 for (const extension of extensionModules) extension.default(extensionHost);
-const consultModule = extensionModules[9];
-const consultTest = consultModule.__test__;
-const consultTool = tools.b_consult;
-const consultCommand = commands['b-consult-model'];
-if (!consultTest || !consultTool || !consultCommand) throw new Error('consult extension must register the planner-only tool, command, and test surface');
+expect(!tools.b_consult && !commands['b-consult-model'], 'retired consult tool and model command must not register');
 const previewModule = extensionModules[8];
 const previewTest = previewModule.__test__;
 const previewTool = tools.preview_markdown;
@@ -581,12 +576,11 @@ rmSync(failureAgentDir, { force: true });
 const [autoSessionStartHandler, roleSessionStartHandler] = registrations.session_start;
 const plannerNotifySessionStartHandler = registrations.session_start[2];
 const toolCallHandler = handlers.tool_call;
-const ruleGuardHandler = registrations.tool_call.at(-1);
 const statusCommand = commands['b-status'];
 const statusSnapshot = await statusTest.buildCapabilitySnapshot(extensionHost, {
   packageListing: [
     'pi-mcp-adapter', 'pi-observational-memory', '@sreetej510/pi-usage',
-    '@gotgenes/pi-anthropic-auth', 'pi-intercom', '@juicesharp/rpiv-ask-user-question', '@narumitw/pi-lsp', '@juicesharp/rpiv-todo',
+    '@gotgenes/pi-anthropic-auth', 'pi-intercom', '@juicesharp/rpiv-ask-user-question', '@juicesharp/rpiv-todo',
   ].join('\n'),
   extensionRoot: installedRoot,
   mcpConfigPresent: true,
@@ -594,11 +588,13 @@ const statusSnapshot = await statusTest.buildCapabilitySnapshot(extensionHost, {
 });
 expect(statusCommand && statusCommand.description.includes('read-only'), 'b-status must register a read-only command');
 expect(statusSnapshot.includes('Capability contract v1'), 'b-status snapshot must include the contract version');
-expect(statusSnapshot.includes('Overall: degraded'), 'b-status must remain degraded when MCP contents and LSP routes are unverified');
+expect(statusSnapshot.includes('Overall: degraded'), 'b-status must remain degraded when MCP contents are unverified');
 expect(statusSnapshot.includes('local, read-only; no MCP/auth/browser probes'), 'b-status snapshot must disclaim live probes');
 expect(statusSnapshot.includes('pi-mcp-adapter: installed'), 'b-status must report installed package presence');
 expect(!statusSnapshot.includes('linear') && !statusSnapshot.includes('mobbin'), 'b-status must not advertise retired MCP integrations');
-expect(statusSnapshot.includes('pi-lsp: unknown'), 'b-status must not claim operational LSP readiness from package presence');
+expect(!statusSnapshot.includes('pi-lsp'), 'b-status must not advertise retired LSP integration');
+expect(!statusSnapshot.includes('rule-guard'), 'b-status must not advertise retired rule-guard integration');
+expect(!statusSnapshot.includes('b-agentic-consult'), 'b-status must not advertise retired consult integration');
 expect(statusSnapshot.includes('b-agentic-status: installed'), 'b-status must report its managed extension presence');
 expect(!statusSnapshot.includes('Bearer configured') && !statusSnapshot.includes('BRAVE_API_KEY'), 'status fixture should not expose configured secret values');
 
@@ -628,76 +624,14 @@ expect(t.isAutoApprovedIntercomCall('intercom', { action: 'cancel', messageId: 1
 expect(t.isAutoApprovedIntercomCall('intercom', { action: 'reply', replyTo: 'message-1' }) === true, 'targetless schema-valid Intercom replies remain auto-approved');
 
 expect(typeof toolCallHandler === 'function', 'permission extension must register a tool_call handler');
-expect(typeof ruleGuardHandler === 'function', 'rule guard extension must register a tool_call handler');
-const ruleViolation = (command) => ruleGuardTest.detectRuleViolations('bash', JSON.stringify({ command }));
-expect(ruleViolation('git push origin').some((value) => value.includes('git push')), 'rule guard must flag git push');
-expect(ruleViolation('git add .\ngit push').some((value) => value.includes('git push')), 'rule guard must flag git push after a newline');
-expect(ruleViolation('git reset --hard').some((value) => value.includes('git reset --hard')), 'rule guard must flag git reset --hard');
-expect(ruleViolation('git clean -fd').some((value) => value.includes('git clean')), 'rule guard must flag bundled git clean flags');
-expect(ruleViolation('cat .env').some((value) => value.includes('.env')), 'rule guard must flag .env reads');
-expect(ruleViolation('cat .env.local').some((value) => value.includes('.env.local')), 'rule guard must flag dotenv variants');
-expect(ruleViolation('cat server.pem').some((value) => value.includes('server.pem')), 'rule guard must flag PEM reads');
-expect(ruleViolation('cat src/main.ts\ncat .env').some((value) => value.includes('.env')), 'rule guard must flag secret reads after a newline');
-expect(ruleViolation('git status').length === 0, 'rule guard must not flag git status');
-expect(ruleViolation('echo git push').length === 0, 'rule guard must not flag echoed git commands');
-expect(ruleViolation('cat .env.example').length === 0, 'rule guard must not flag .env.example');
-expect(ruleViolation('cat src/main.ts').length === 0, 'rule guard must not flag ordinary source reads');
-const ruleGuardNotifications = [];
-const ruleGuardResult = await ruleGuardHandler({ toolName: 'bash', input: { command: 'git push origin' } }, {
-  ui: { notify(message, level) { ruleGuardNotifications.push({ message, level }); } },
-});
-expect(ruleGuardResult === undefined && ruleGuardNotifications.length === 1 && ruleGuardNotifications[0].level === 'warning' && ruleGuardNotifications[0].message.includes('git push'), 'rule guard must warn without blocking');
 expect(typeof mcpApprovalHandler === 'function', 'permission extension must register the MCP approval broker');
 expect(t.isTrustedPreviewMarkdownCall({ markdown: '# Preview' }) === true, 'preview_markdown policy must trust the required Markdown-only shape');
 expect(t.isTrustedPreviewMarkdownCall({ markdown: '# Preview', title: 'Example' }) === true, 'preview_markdown policy must trust an optional string title');
 expect(t.isTrustedPreviewMarkdownCall({ markdown: '# Preview', extra: true }) === false, 'preview_markdown policy must reject extra fields');
 expect(t.isTrustedPreviewMarkdownCall({ markdown: 42 }) === false, 'preview_markdown policy must reject non-string Markdown');
 const noUiContext = { hasUI: false, ui: { select: async () => 'Approve' } };
-const consultantCalls = [];
-let consultantStreamError;
-let consultantAuthError;
-let consultantAuthBaseUrl;
-let deferConsultAuth = false;
-let resolveDeferredConsultAuth;
-let consultantText = 'Choose the smallest reversible design. The evidence is limited; verify compatibility before committing to the choice.';
-let consultantSessionError;
-const consultantSessionCalls = [];
-let isolatedConsultantPrompt;
-const consultantProvider = {
-  streamSimple(model, context, options) {
-    consultantCalls.push({ model, context, options });
-    if (consultantStreamError) throw new Error(consultantStreamError);
-    return { result: async () => ({ content: [{ type: 'text', text: consultantText }], stopReason: 'stop' }) };
-  },
-};
-const consultantDependencies = {
-  createModelRuntime: async () => ({
-    registerNativeProvider() {},
-    getModel() {
-      return {
-        provider: 'anthropic', id: 'claude-sonnet-4-5', maxTokens: 4096,
-        contextWindow: 200000, input: ['text'], reasoning: true,
-        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-      };
-    },
-  }),
-  createAgentSession: async (options) => {
-    consultantSessionCalls.push(options);
-    if (consultantSessionError) throw new Error(consultantSessionError);
-    const session = {
-      state: { errorMessage: undefined },
-      getActiveToolNames: () => [...(options.tools || [])],
-      async prompt(text, promptOptions) { isolatedConsultantPrompt = { text, options: promptOptions }; },
-      getLastAssistantText: () => consultantText,
-      async abort() {},
-      dispose() {},
-    };
-    return { session };
-  },
-};
 let rolePickerCalls = 0;
 let modelPickerCalls = 0;
-const consultantPickerRenders = [];
 const terminalTitles = [];
 let roleColorMode = 'truecolor';
 const roleContext = {
@@ -707,23 +641,6 @@ const roleContext = {
   hasUI: true,
   ui: {
     confirm: async () => true,
-    custom: async (factory) => {
-      let selected;
-      const component = await factory(
-        { requestRender() {} },
-        { fg(_color, text) { return text; }, bold(text) { return text; } },
-        { matches(data, action) {
-          if (action === 'tui.select.confirm') return data === '\r' || data === '\n';
-          if (action === 'tui.select.cancel') return data === '\u001b' || data === '\u0003';
-          return false;
-        } },
-        (value) => { selected = value; },
-      );
-      consultantPickerRenders.push(component.render(120).join('\n'));
-      component.handleInput?.('\r');
-      component.dispose?.();
-      return selected;
-    },
     select: async (title) => {
       if (title === 'Select b-agentic role') {
         rolePickerCalls += 1;
@@ -733,7 +650,6 @@ const roleContext = {
         modelPickerCalls += 1;
         return 'anthropic/claude-sonnet-4-5';
       }
-      if (title === 'Select consultant thinking level') return 'high';
       return 'Allow once';
     },
     notify(message, level) { roleNotifications.push({ message, level }); },
@@ -746,135 +662,11 @@ const roleContext = {
   },
   modelRegistry: {
     find: (provider, id) => provider === 'anthropic' && id === 'claude-sonnet-4-5' ? { provider, id } : undefined,
-    getAvailable: () => [
-      { provider: 'anthropic', id: 'claude-sonnet-4-5' },
-      { provider: 'openrouter', id: 'anthropic/claude-3.5-sonnet' },
-    ],
-    hasConfiguredAuth: () => true,
-    getProvider: (provider) => provider === 'anthropic' ? consultantProvider : undefined,
-    getApiKeyAndHeaders: async () => {
-      if (deferConsultAuth) {
-        return await new Promise((resolve) => { resolveDeferredConsultAuth = resolve; });
-      }
-      if (consultantAuthError) throw new Error(consultantAuthError);
-      return {
-        ok: true,
-        apiKey: 'test-key',
-        ...(consultantAuthBaseUrl ? { baseUrl: consultantAuthBaseUrl } : {}),
-      };
-    },
   },
-  scopedModels: [],
   sessionManager: {
     getBranch: () => [...branchEntries],
   },
 };
-let consultantRefreshCalls = 0;
-let consultantSnapshotReady = false;
-const refreshingConsultContext = {
-  ...roleContext,
-  ui: {
-    ...roleContext.ui,
-    select: async (title, options) => {
-      if (title === 'Select consultant thinking level') return 'high';
-      return roleContext.ui.select(title, options);
-    },
-  },
-  modelRegistry: {
-    ...roleContext.modelRegistry,
-    getAvailable: () => consultantSnapshotReady ? roleContext.modelRegistry.getAvailable() : [],
-    refresh: async () => {
-      consultantRefreshCalls += 1;
-      consultantSnapshotReady = true;
-    },
-  },
-};
-const activeOutsideScopeConsultContext = {
-  ...roleContext,
-  scopedModels: [{ model: { provider: 'openrouter', id: 'anthropic/claude-3.5-sonnet' } }],
-  ui: {
-    ...roleContext.ui,
-    select: async (title, options) => title === 'Select consultant thinking level'
-      ? 'high'
-      : roleContext.ui.select(title, options),
-  },
-};
-const validConsultInput = { question: 'Which approach should the planner choose?', context: 'Only this supplied context is available.', plan: 'Use the smallest reversible design.' };
-expect(consultTest.isValidConsultToolInput(validConsultInput) === true, 'b_consult input helper must accept bounded question/context/plan text');
-expect(consultTest.parseModelSpec('openrouter/anthropic/claude-3.5-sonnet')?.provider === 'openrouter' && consultTest.parseModelSpec('openrouter/anthropic/claude-3.5-sonnet')?.model === 'anthropic/claude-3.5-sonnet', 'consultant model specs must preserve provider model ids containing slashes');
-autoStateTest.setRole('off');
-const offConsultResult = await consultTool.execute('consult-off', validConsultInput, new AbortController().signal, undefined, {});
-expect(offConsultResult.details.status === 'error' && offConsultResult.content[0].text.includes('only in planner role') && consultantCalls.length === 0, 'off-role b_consult calls must fail before provider work');
-autoStateTest.setRole('worker');
-const workerConsultResult = await consultTool.execute('consult-worker', validConsultInput, new AbortController().signal, undefined, {});
-expect(workerConsultResult.details.status === 'error' && workerConsultResult.content[0].text.includes('only in planner role') && consultantCalls.length === 0, 'worker-role b_consult calls must fail before provider work');
-autoStateTest.setRole('planner');
-expect(t.isMcpOrCustomTool('b_consult', validConsultInput) === true, 'b_consult calls must remain explicit custom-tool approval candidates');
-expect((await toolCallHandler({ toolName: 'b_consult', input: validConsultInput }, noUiContext))?.block === true, 'b_consult calls must fail closed without approval UI');
-const legacyConsultPath = path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic/consult-model.json');
-mkdirSync(path.dirname(legacyConsultPath), { recursive: true });
-writeFileSync(legacyConsultPath, JSON.stringify({ provider: 'legacy', model: 'legacy', thinkingLevel: 'high' }));
-const scopedConsultContext = { ...roleContext, scopedModels: [{ model: activeModel }] };
-expect(consultTest.getConsultantModels(scopedConsultContext).length === 1 && consultTest.getConsultantModels(scopedConsultContext)[0].id === activeModel.id, 'consultant model selection must honor the active Pi model scope');
-expect(consultTest.modelLabel(activeModel, activeModel).includes('current active'), 'consultant model labels must identify the current active model');
-expect(consultTest.searchConsultantModels(roleContext.modelRegistry.getAvailable(), 'claude-sonnet-4-5').length === 1, 'consultant model search must match a model by fuzzy id');
-expect(consultTest.searchConsultantModels(consultTest.getConsultantModels(activeOutsideScopeConsultContext), 'claude-sonnet-4-5').some((model) => model.id === activeModel.id), 'consultant search must retain the active model when it is outside the Pi model scope');
-await consultCommand.handler('', activeOutsideScopeConsultContext);
-expect(consultantPickerRenders[0]?.includes('Select consultant model (active: anthropic/claude-sonnet-4-5)') && consultantPickerRenders[0]?.includes('→ anthropic/claude-sonnet-4-5 (current active)'), 'interactive consultant setup must render the active model in the searchable picker');
-expect(roleNotifications.at(-1)?.message.includes('Consultant model set to anthropic/claude-sonnet-4-5'), 'consultant setup must allow selecting the active model when Pi scope excludes it');
-await consultCommand.handler('', refreshingConsultContext);
-expect(consultantRefreshCalls === 1 && consultantPickerRenders[1]?.includes('Select consultant model') && consultantPickerRenders[1]?.includes('anthropic/claude-sonnet-4-5 (current active)') && consultantPickerRenders[1]?.includes('openrouter/anthropic/claude-3.5-sonnet'), 'consultant model picker must refresh an empty Pi model snapshot and render visible matches in the search UI');
-await consultCommand.handler('', roleContext);
-expect(consultantPickerRenders[2]?.includes('Select consultant model (active: anthropic/claude-sonnet-4-5)') && consultantPickerRenders[2]?.includes('anthropic/claude-sonnet-4-5 (current active)') && consultantPickerRenders[2]?.includes('openrouter/anthropic/claude-3.5-sonnet'), 'interactive consultant setup must combine the search input and visible model options');
-expect(!roleStatuses.some(({ key }) => key === 'b-agentic-consult'), 'consultant model selection must not add a footer status');
-await consultCommand.handler('claude-sonnet-4-5 high', roleContext);
-expect(consultantPickerRenders[3]?.includes('claude-sonnet-4-5') && consultantPickerRenders[3]?.includes('Select consultant model'), 'consultant model search must prefill the combined search picker with the command query');
-const consultModelCompletions = consultCommand.getArgumentCompletions('claude-sonnet-4-5');
-expect(consultModelCompletions?.some((item) => item.value === 'anthropic/claude-sonnet-4-5' && item.label.includes('current active')), 'consultant command completions must search models and identify the current active model');
-await consultCommand.handler('anthropic/claude-sonnet-4-5 high', roleContext);
-const selectedConsultPreference = JSON.parse(readFileSync(path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic/role-models.json'), 'utf8'));
-expect(selectedConsultPreference.consultant.provider === 'anthropic' && selectedConsultPreference.consultant.model === 'claude-sonnet-4-5' && selectedConsultPreference.consultant.thinkingLevel === 'high', '/b-consult-model must persist the consultant preference in role-models.json');
-expect(readFileSync(legacyConsultPath, 'utf8').includes('legacy'), 'legacy consult-model.json must remain untouched and unmanaged');
-consultantAuthBaseUrl = 'https://consultant.example.invalid/api';
-const consultationResult = await consultTest.executeConsultation('consult-1', validConsultInput, new AbortController().signal, roleContext, consultantDependencies);
-expect(consultationResult.details.status === 'ok' && consultationResult.content[0].text.includes('Advisory consultation') && consultationResult.content[0].text.includes('smallest reversible'), 'configured b_consult must return bounded natural-language advisory output');
-const consultantSessionOptions = consultantSessionCalls.at(-1);
-expect(consultantSessionOptions?.model?.baseUrl === consultantAuthBaseUrl, 'consultant session must apply the authenticated baseUrl to the effective model');
-consultantAuthBaseUrl = undefined;
-expect(JSON.stringify(consultantSessionOptions?.tools) === JSON.stringify(['read', 'grep', 'find', 'ls', 'mcp']), 'consultant session must use the explicit read-only tool allowlist plus the MCP gateway');
-expect(!consultantSessionOptions?.tools.includes('bash') && !consultantSessionOptions?.tools.includes('edit') && !consultantSessionOptions?.tools.includes('write'), 'consultant session must not expose write-capable or shell tools');
-expect(consultantSessionOptions?.sessionManager?.isPersisted() === false && consultantSessionOptions?.sessionManager?.getEntries().length === 0, 'consultant session must start in-memory without caller history');
-expect(consultantSessionOptions?.resourceLoader?.getAgentsFiles().agentsFiles.length === 0 && !isolatedConsultantPrompt.text.includes(root) && isolatedConsultantPrompt.options.expandPromptTemplates === false, 'consultant prompt must omit context-file and cwd leakage while retaining bounded prompt expansion');
-expect(consultTest.CONSULTANT_SYSTEM_PROMPT.includes('normal adapter authentication, approval, and managed-operation policy') && consultTest.CONSULTANT_SYSTEM_PROMPT.includes('no outer planner'), 'consultant research must retain normal MCP gates and reject outer history');
-rmSync(path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic/role-models.json'), { force: true });
-const unconfiguredResult = await consultTool.execute('consult-unconfigured', { question: 'Can this be improved?' }, new AbortController().signal, undefined, roleContext);
-expect(unconfiguredResult.details.status === 'error' && unconfiguredResult.content[0].text.includes('/b-consult-model') && consultantSessionCalls.length === 1, 'unconfigured b_consult must return setup guidance without falling back');
-writeFileSync(path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic/role-models.json'), JSON.stringify({ consultant: { provider: 'missing', model: 'missing', thinkingLevel: 'high' } }));
-const unavailableResult = await consultTool.execute('consult-unavailable', { question: 'Can this be improved?' }, new AbortController().signal, undefined, roleContext);
-expect(unavailableResult.details.status === 'error' && unavailableResult.content[0].text.includes('unavailable'), 'unavailable consultant models must return actionable setup guidance');
-const abortedController = new AbortController();
-abortedController.abort();
-const abortedResult = await consultTool.execute('consult-aborted', { question: 'Can this be improved?' }, abortedController.signal, undefined, roleContext);
-expect(abortedResult.details.status === 'cancelled', 'aborted b_consult calls must return a cancellation result');
-await consultCommand.handler('anthropic/claude-sonnet-4-5 high', roleContext);
-const deferredConsultCalls = consultantSessionCalls.length;
-deferConsultAuth = true;
-const deferredAbortController = new AbortController();
-const deferredAbortConsultation = consultTool.execute('consult-abort-during-auth', { question: 'Can this be improved?' }, deferredAbortController.signal, undefined, roleContext);
-expect(typeof resolveDeferredConsultAuth === 'function', 'deferred consultant auth must be pending before abort');
-deferredAbortController.abort();
-resolveDeferredConsultAuth({ ok: true, apiKey: 'test-key' });
-const deferredAbortResult = await deferredAbortConsultation;
-deferConsultAuth = false;
-expect(deferredAbortResult.details.status === 'cancelled' && consultantSessionCalls.length === deferredConsultCalls, 'b_consult must cancel after auth abort without invoking the consultant session');
-const invalidConsultResult = await consultTool.execute('consult-invalid', { question: '', extra: true }, new AbortController().signal, undefined, roleContext);
-expect(invalidConsultResult.details.status === 'error' && invalidConsultResult.content[0].text.includes('Invalid b_consult input'), 'invalid consultant input must be rejected clearly');
-await consultCommand.handler('anthropic/claude-sonnet-4-5 high', roleContext);
-consultantStreamError = 'stream-secret Authorization: Bearer stream-token https://private.example.invalid';
-const streamFailureResult = await consultTool.execute('consult-stream-failure', { question: 'Can this be improved?' }, new AbortController().signal, undefined, roleContext);
-expect(streamFailureResult.details.status === 'error' && streamFailureResult.content[0].text.includes('Consultant request failed') && !streamFailureResult.content[0].text.includes('stream-secret') && !streamFailureResult.content[0].text.includes('stream-token') && !streamFailureResult.content[0].text.includes('private.example.invalid'), 'consultant provider failures must be sanitized');
-consultantStreamError = undefined;
-rmSync(path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic/role-models.json'), { force: true });
 expect(typeof roleSessionStartHandler === 'function', 'role extension must register session startup handling');
 await roleSessionStartHandler({}, roleContext);
 expect(activeTools.length === 8 && activeTools.includes('edit') && activeTools.includes('write'), 'Off role application must preserve normal active tools');
@@ -1090,6 +882,7 @@ expect(activeModel.provider === 'anthropic' && activeModel.id === 'claude-sonnet
 await handlers.model_select({ model: { provider: 'anthropic', id: 'claude-sonnet-4-5' } }, roleContext);
 const roleModelPreferences = JSON.parse(readFileSync(path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic', 'role-models.json'), 'utf8'));
 expect(roleModelPreferences.planner.model === 'claude-sonnet-4-5' && roleModelPreferences.planner.thinkingLevel === 'high', '/model changes must persist the active role preference');
+expect(!('consultant' in roleModelPreferences), 'retired consultant model preference must not persist');
 activeThinkingLevel = 'low';
 await handlers.thinking_level_select({ level: 'low', previousLevel: 'high' }, { ...roleContext, model: undefined });
 const updatedPlannerPreferences = JSON.parse(readFileSync(path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic', 'role-models.json'), 'utf8'));
@@ -1151,13 +944,34 @@ expect(await toolCallHandler({ toolName: 'mcp', input: { server: 'linear', tool:
 const kernelPrompt = readFileSync(path.join(root, 'references/kernel.template.md'), 'utf8');
 const plannerStart = await handlers.before_agent_start({ systemPrompt: `${kernelPrompt}\n\nbase`, systemPromptOptions: { skills: [] } }, roleContext);
 expect(plannerStart.systemPrompt.includes('planner profile (read-only coordinator)') && plannerStart.systemPrompt.includes('Planner-owned skills: `b-plan`, external `b-research`, `b-agentic-audit`, `b-review`, `b-pr-summary`') && plannerStart.systemPrompt.includes('Worker-owned skills: `b-design`, `b-frontend`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, `b-commit`'), 'planner system prompt must retain the composed kernel ownership mapping');
+for (const marker of [
+  'Use top-level `mcp` for exactly one',
+  'Use `mcpScript` only for two or more',
+  'at most 12 total nested operations',
+  'at most 8 `tools.call` operations',
+  'at most 3 source/server branches or browser routes',
+  'at most 5 candidate results per source',
+  'at most 12 normalized output records',
+  'normal approval, authentication, and output-guard policy',
+  'Content-block envelopes',
+  'deduplicate by URL then `title+claim`',
+  'bounded partial results with explicit errors',
+  'direct top-level `mcp` calls and state that fallback',
+  'must not batch navigation, clicks, typing, evaluation, uploads, or other mutations',
+]) {
+  expect(kernelPrompt.includes(marker), `kernel must retain bounded mcpScript guidance marker ${marker}`);
+}
+const chainedMcpScriptExample = kernelPrompt.match(/Use this direct adapter API for a chained operation:\n\n```js\n([\s\S]*?)\n```/)?.[1] || '';
+expect(chainedMcpScriptExample.includes('emit(') && !/\breturn\b/.test(chainedMcpScriptExample), 'canonical mcpScript chained example must emit terminal outcomes rather than return undocumented values');
+for (const marker of ['emit({ error: "No matching tool" })', 'emit(details)', 'emit({ error: result.error })', 'emit(result.data)']) {
+  expect(chainedMcpScriptExample.includes(marker), `canonical mcpScript chained example must include ${marker}`);
+}
 const plannerPromptBytes = Buffer.byteLength(plannerTest.PLANNER_PROMPT, 'utf8');
 const measuredPreDedupPlannerPromptBytes = 6711;
 expect(plannerPromptBytes < measuredPreDedupPlannerPromptBytes, `planner prompt addendum must be smaller than the measured pre-dedup baseline (got ${plannerPromptBytes} bytes)`);
 expect(!plannerTest.PLANNER_PROMPT.includes('Your in-scope planner skills are:') && !plannerTest.PLANNER_PROMPT.includes('Group 1–4 related questions per call'), 'planner prompt must defer shared ownership and questionnaire guidance to the kernel');
 expect(plannerStart.systemPrompt.includes('The planner keeps external b-research planner-owned and never delegates it.') && plannerStart.systemPrompt.includes('Use send for task delegation, terminal results, review requests/findings, and any question/request needing material work.') && plannerStart.systemPrompt.includes('Use ask only for one focused question whose answer needs no substantial investigation, implementation, or waiting; never use ask to wait.') && plannerStart.systemPrompt.includes('ask_user_question') && plannerStart.systemPrompt.includes('B_AGENTIC_TASK_COMPLETE') && plannerStart.systemPrompt.includes('2–4 concrete options') && plannerStart.systemPrompt.includes(' (Recommended)') && plannerStart.systemPrompt.includes('automatic custom-answer row') && plannerStart.systemPrompt.includes('fixed "User input needed" desktop notification'), 'planner system prompt must combine composed kernel questionnaire guidance with task-complete signal and tool-call notification guidance');
-expect(plannerStart.systemPrompt.includes('b_consult') && plannerStart.systemPrompt.includes('Do not use `b_consult` for routine or obvious work') && plannerStart.systemPrompt.includes('never evidence'), 'planner prompt must explain selective optional b_consult use and its advisory boundary');
-expect(plannerStart.systemPrompt.includes('If `b_consult` advice materially changes a hard decision') && plannerStart.systemPrompt.includes('`Consultation` note') && plannerStart.systemPrompt.includes('question, recommendation or trade-off, risks or missing evidence') && plannerStart.systemPrompt.includes('how repository evidence was weighed') && plannerStart.systemPrompt.includes('no artifact, store, command, or template'), 'planner prompt must constrain optional Consultation notes to material, advisory decisions');
+expect(!plannerStart.systemPrompt.includes('b_consult') && !plannerStart.systemPrompt.includes('b-consult-model') && !plannerStart.systemPrompt.includes('Consultation'), 'planner prompt must not advertise retired consult guidance');
 for (const marker of [
   // generated:role-prompt-markers:planner:start
   "Finish discovery before one bounded handoff",
@@ -1172,7 +986,6 @@ for (const marker of [
   "standalone `Verdict:` line",
   "Reviewer prose without that artifact is not a passed gate",
   "Use send for task delegation, terminal results, review requests/findings, and any question/request needing material work",
-  "use `b_consult` selectively for a hard decision or plan review",
   "one focused question whose answer needs no substantial investigation, implementation, or waiting",
   "never use ask to wait",
   "Before every outbound Intercom send or ask",
@@ -1454,12 +1267,20 @@ mcpApprovalHandler({
   claim(handler) { nestedScriptMutationClaim = handler; return true; },
 });
 expect(await nestedScriptMutationClaim() === 'deny', 'unsafe nested mcpScript operations must retain normal approval policy');
+let nestedScriptLocalUploadClaim;
+mcpApprovalHandler({
+  serverName: 'firecrawl', originalToolName: 'firecrawl_parse', prefixedToolName: 'firecrawl_firecrawl_parse', args: { url: 'https://example.com' }, origin: 'script',
+  claim(handler) { nestedScriptLocalUploadClaim = handler; return true; },
+});
+expect(await nestedScriptLocalUploadClaim() === 'deny', 'nested mcpScript local-upload operations must retain normal approval/auth policy');
+expect(await toolCallHandler({ toolName: 'mcpScript', input: { code: "return tools.call('firecrawl_firecrawl_search', { query: 'bounded check', limit: 1 });" } }, noUiContext) === undefined, 'a single nested tools.call must remain inside the shared mcpScript policy');
 expect(await toolCallHandler({ toolName: 'mcp', input: { server: 'firecrawl', tool: 'firecrawl_agent' } }, noUiContext) === undefined, 'top-level MCP mutations must reach the broker without generic blocking');
 expect(await toolCallHandler({ toolName: 'mcp', input: { server: 'firecrawl', tool: 'firecrawl_search', args: { query: 'collision check', limit: 1 } } }, noUiContext) === undefined, 'valid top-level MCP proxy calls must not require generic UI approval');
 for (const input of [
   { search: 'symbol' },
   { describe: 'tool' },
   { action: 'ui-messages' },
+  { server: 'firecrawl', action: 'auth-start' },
   { tool: 'firecrawl_developer_search', args: { query: 'collision check' } },
   { server: 'firecrawl', tool: 'firecrawl_search', extra: true },
 ]) {
@@ -1876,77 +1697,16 @@ expect(t.SPECIALIZED_TOOLS.has('recall'), 'recall must be a first-party speciali
 expect(t.SPECIALIZED_TOOLS.has('ask_user_question'), 'ask_user_question must be a first-party specialized tool');
 expect(t.SPECIALIZED_TOOLS.has('mcpScript'), 'mcpScript must be a trusted container whose nested calls retain policy');
 expect(t.isMcpOrCustomTool('recall', { id: 'aaaaaaaaaaaa' }) === false, 'recall must not require custom-tool approval');
-const protectedDiagnosticsDir = mkdtempSync(path.join(root, '.b-agentic-lsp-diagnostics-'));
-writeFileSync(path.join(protectedDiagnosticsDir, '.env'), 'SECRET=fixture\n');
-const trustedLocalToolCases = [
+const genericApprovalToolCases = [
   { name: 'ask_user_question', input: { questions: [] }, gated: false },
-  { name: 'lsp_diagnostics', input: { paths: ['README.md'] }, gated: false },
-  { name: 'lsp_diagnostics', input: { paths: ['pi'] }, gated: false },
+  { name: 'lsp_diagnostics', input: { paths: ['README.md'] }, gated: true },
   { name: 'lsp_diagnostics', input: {}, gated: true },
-  { name: 'lsp_diagnostics', input: { paths: [] }, gated: true },
-  { name: 'lsp_diagnostics', input: { paths: [os.tmpdir()] }, gated: true },
-  { name: 'lsp_diagnostics', input: { root: os.tmpdir(), paths: ['README.md'] }, gated: true },
-  { name: 'lsp_diagnostics', input: { paths: ['.env'] }, gated: true },
-  { name: 'lsp_diagnostics', input: { paths: [protectedDiagnosticsDir] }, gated: true },
-  { name: 'lsp_diagnostics', input: { root: protectedDiagnosticsDir }, gated: true },
-  { name: 'lsp_diagnostics', input: { paths: ['README.md'], extra: true }, gated: true },
-  { name: 'lsp_diagnostics', input: { paths: [42] }, gated: true },
   { name: 'lsp_fix', input: { path: 'README.md' }, gated: true },
-  { name: 'lsp_fix', input: { path: 'README.md', write: false }, gated: true },
-  { name: 'lsp_fix', input: { path: 'README.md', root }, gated: true },
 ];
-try {
-  for (const { name, input, gated } of trustedLocalToolCases) {
-    expect(t.isMcpOrCustomTool(name, input) === gated, `${name} trust classification must match the validated argument shape`);
-    const result = await toolCallHandler({ toolName: name, input }, noUiContext);
-    expect((result?.block === true) === gated, `${name} no-UI behavior must ${gated ? 'fail closed' : 'bypass approval'}`);
-  }
-  const directoryTrustFixtures = [
-    {
-      name: 'lsp_diagnostics directory skips dependency credentials',
-      gated: false,
-      setup: (directory) => {
-        mkdirSync(path.join(directory, 'node_modules'), { recursive: true });
-        writeFileSync(path.join(directory, 'node_modules', 'credentials.d.ts'), 'declare const dependencySecret: string;\n');
-      },
-    },
-    {
-      name: 'lsp_diagnostics directory gates top-level dotenv',
-      gated: true,
-      setup: (directory) => writeFileSync(path.join(directory, '.env'), 'SECRET=fixture\n'),
-    },
-    {
-      name: 'lsp_diagnostics directory gates nested dotenv',
-      gated: true,
-      setup: (directory) => {
-        mkdirSync(path.join(directory, 'nested', 'sub'), { recursive: true });
-        writeFileSync(path.join(directory, 'nested', 'sub', '.env'), 'SECRET=fixture\n');
-      },
-    },
-    {
-      name: 'lsp_diagnostics directory skips dependency dotenv',
-      gated: false,
-      setup: (directory) => {
-        // Accepted trade-off: dependency trees are not user-authored content.
-        mkdirSync(path.join(directory, 'node_modules'), { recursive: true });
-        writeFileSync(path.join(directory, 'node_modules', '.env'), 'SECRET=dependency-fixture\n');
-      },
-    },
-  ];
-  for (const { name, gated, setup } of directoryTrustFixtures) {
-    const fixtureDirectory = mkdtempSync(path.join(root, '.b-agentic-lsp-directory-'));
-    try {
-      setup(fixtureDirectory);
-      const input = { paths: [fixtureDirectory] };
-      expect(t.isMcpOrCustomTool('lsp_diagnostics', input) === gated, `${name} trust classification must match`);
-      const result = await toolCallHandler({ toolName: 'lsp_diagnostics', input }, noUiContext);
-      expect((result?.block === true) === gated, `${name} no-UI behavior must ${gated ? 'fail closed' : 'bypass approval'}`);
-    } finally {
-      rmSync(fixtureDirectory, { recursive: true, force: true });
-    }
-  }
-} finally {
-  rmSync(protectedDiagnosticsDir, { recursive: true, force: true });
+for (const { name, input, gated } of genericApprovalToolCases) {
+  expect(t.isMcpOrCustomTool(name, input) === gated, `${name} must use generic custom-tool approval`);
+  const result = await toolCallHandler({ toolName: name, input }, noUiContext);
+  expect((result?.block === true) === gated, `${name} no-UI behavior must fail closed for generic approval`);
 }
 expect(t.commandDecision('pip show requests').decision === 'allow', 'regular package metadata reads must not require RTK');
 for (const command of ['poetry show', 'printf x']) {
@@ -2108,17 +1868,6 @@ expect(t.isMcpOrCustomTool(codegraphTool, codegraphArgs) === false, 'CodeGraph d
 expect(t.isMcpOrCustomTool(`mcp__codegraph__${codegraphTool}`, codegraphArgs) === false, 'CodeGraph prefixed execution must auto-allow');
 expect(t.isMcpOrCustomTool('mcp__firecrawl__codegraph_codegraph_explore', codegraphArgs) === true, 'mismatched managed namespace must remain gated');
 expect(t.isMcpOrCustomTool('mcp__user_server__codegraph_codegraph_explore', codegraphArgs) === true, 'unmanaged prefixed namespaces must remain gated');
-const lspBoundFixture = mkdtempSync(path.join(root, 'pi/tests/', '.b-agentic-lsp-bound-'));
-try {
-  for (let index = 0; index <= 20_000; index += 1) {
-    writeFileSync(path.join(lspBoundFixture, `entry-${index}.txt`), '');
-  }
-  const lspBoundInput = { paths: [lspBoundFixture] };
-  expect(t.isMcpOrCustomTool('lsp_diagnostics', lspBoundInput) === true, 'LSP directory traversal must fail closed beyond 20,000 entries');
-  expect((await toolCallHandler({ toolName: 'lsp_diagnostics', input: lspBoundInput }, noUiContext))?.block === true, 'LSP directory traversal must remain blocked without UI');
-} finally {
-  rmSync(lspBoundFixture, { recursive: true, force: true });
-}
 const protectedPathFixture = mkdtempSync(path.join(os.tmpdir(), 'b-agentic-protected-path-'));
 try {
   const secretPath = path.join(protectedPathFixture, '.env');
@@ -2290,21 +2039,22 @@ run_pi_smoke_cases() {
 	assert_file "$sandbox/home/.pi/agent/b-agentic/references/capabilities.yaml"
 	assert_no_path "$sandbox/home/.pi/agent/b-agentic/references/contract"
 	assert_file "$sandbox/home/.pi/agent/mcp.json"
-	for extension in b-agentic-permissions.ts b-agentic-mcp-permissions.ts b-agentic-auto-mode.ts b-agentic-role.ts b-agentic-planner.ts b-agentic-planner-notify.ts b-agentic-worker.ts b-agentic-consult.ts b-agentic-sync.ts; do
+	for extension in b-agentic-permissions.ts b-agentic-mcp-permissions.ts b-agentic-auto-mode.ts b-agentic-role.ts b-agentic-planner.ts b-agentic-planner-notify.ts b-agentic-worker.ts b-agentic-sync.ts; do
 		assert_file "$sandbox/home/.pi/agent/extensions/$extension"
 		assert_file "$sandbox/home/.pi/agent/b-agentic/extensions/$extension"
 	done
-	for support in shell.ts mcp.ts role.ts role-models.ts consult.ts worker.ts state.ts auto.ts capabilities.ts status.ts; do
+	for support in shell.ts mcp.ts role.ts role-models.ts worker.ts state.ts auto.ts capabilities.ts status.ts; do
 		assert_file "$sandbox/home/.pi/agent/extensions/b-agentic-support/$support"
 		assert_file "$sandbox/home/.pi/agent/b-agentic/extensions/b-agentic-support/$support"
 	done
 	assert_file "$sandbox/home/.pi/agent/b-agentic/install.json"
 	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilityContractVersion'] == 1"
 	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilities']['contractVersion'] == 1"
-	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "len(data['capabilities']['states']) == 25"
+	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "len(data['capabilities']['states']) == 22"
+	assert_not_contains "$sandbox/home/.pi/agent/b-agentic/install.json" 'extension.b-agentic-consult'
 	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilities']['states']['package.pi-mcp-adapter']['state'] == 'ready'"
 	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilities']['states']['package.pi-todo']['state'] == 'ready'"
-	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilities']['states']['package.pi-lsp']['state'] == 'unknown'"
+	assert_not_contains "$sandbox/home/.pi/agent/b-agentic/install.json" 'package.pi-lsp'
 	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilities']['states']['extension.b-agentic-status']['state'] == 'ready'"
 	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['paths']['capabilityContract'].endswith('/references/capabilities.yaml')"
 	assert_contains "$sandbox/home/.pi/agent/mcp.json" '"codegraph"'
@@ -2322,18 +2072,16 @@ run_pi_smoke_cases() {
 	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@gotgenes/pi-anthropic-auth'
 	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:pi-intercom'
 	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@juicesharp/rpiv-ask-user-question'
-	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@narumitw/pi-lsp'
+	assert_not_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@narumitw/pi-lsp'
 	assert_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@juicesharp/rpiv-todo'
 	assert_not_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@juicesharp/rpiv-ask-user-question@'
-	assert_not_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@narumitw/pi-lsp@'
 	assert_not_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@juicesharp/rpiv-todo@'
 	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piAskUserQuestionState": "ready"'
 	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piAnthropicAuthState": "ready"'
-	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piLspState": "ready"'
+	assert_not_contains "$sandbox/home/.pi/agent/b-agentic/install.json" 'piLsp'
 	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piTodoState": "ready"'
-	local initial_anthropic_auth_install_count initial_lsp_install_count initial_todo_install_count
+	local initial_anthropic_auth_install_count initial_todo_install_count
 	initial_anthropic_auth_install_count="$(grep -Fc 'npm:@gotgenes/pi-anthropic-auth' "$sandbox/smoke-bin/pi-install.log")"
-	initial_lsp_install_count="$(grep -Fc 'npm:@narumitw/pi-lsp' "$sandbox/smoke-bin/pi-install.log")"
 	initial_todo_install_count="$(grep -Fc 'npm:@juicesharp/rpiv-todo' "$sandbox/smoke-bin/pi-install.log")"
 
 	# Split in-session modes: sync pulls/assets only; update uses installed source without Git.
@@ -2383,9 +2131,8 @@ EOF
 	assert_contains "$sandbox/smoke-bin/pi-install.log" 'update'
 	assert_contains "$sandbox/smoke-bin/pi-install.log" 'update --extensions'
 	[ "$(grep -Fc 'npm:@gotgenes/pi-anthropic-auth' "$sandbox/smoke-bin/pi-install.log")" -eq "$initial_anthropic_auth_install_count" ] || fail "Pi update reinstalled pi-anthropic-auth despite package being present"
-	[ "$(grep -Fc 'npm:@narumitw/pi-lsp' "$sandbox/smoke-bin/pi-install.log")" -eq "$initial_lsp_install_count" ] || fail "Pi update reinstalled pi-lsp despite package being present"
 	[ "$(grep -Fc 'npm:@juicesharp/rpiv-todo' "$sandbox/smoke-bin/pi-install.log")" -eq "$initial_todo_install_count" ] || fail "Pi update reinstalled pi-todo despite package being present"
-	assert_not_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@narumitw/pi-lsp@'
+	assert_not_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@narumitw/pi-lsp'
 	assert_not_contains "$sandbox/smoke-bin/pi-install.log" 'npm:@juicesharp/rpiv-todo@'
 
 	local behavioral_pid
@@ -2415,13 +2162,12 @@ EOF
 	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:@sreetej510/pi-usage'
 	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:@gotgenes/pi-anthropic-auth'
 	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:@juicesharp/rpiv-ask-user-question'
-	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:@narumitw/pi-lsp'
+	assert_not_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:@narumitw/pi-lsp'
 	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:@juicesharp/rpiv-todo'
 	assert_not_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:@juicesharp/rpiv-ask-user-question@'
-	assert_not_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:@narumitw/pi-lsp@'
 	assert_not_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'npm:@juicesharp/rpiv-todo@'
 	assert_contains "$sandbox_adapter/home/.pi/agent/b-agentic/install.json" '"piAskUserQuestionState": "ready"'
-	assert_contains "$sandbox_adapter/home/.pi/agent/b-agentic/install.json" '"piLspState": "ready"'
+	assert_not_contains "$sandbox_adapter/home/.pi/agent/b-agentic/install.json" 'piLsp'
 	assert_contains "$sandbox_adapter/home/.pi/agent/b-agentic/install.json" '"piTodoState": "ready"'
 	assert_contains "$sandbox_adapter/smoke-bin/pi-install.log" 'update --extensions'
 

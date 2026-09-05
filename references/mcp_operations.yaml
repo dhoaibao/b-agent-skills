@@ -120,6 +120,25 @@
       }
     }
   },
+  "mcpScript": {
+    "purpose": "bounded multi-call MCP orchestration; not a general scripting or isolation boundary",
+    "max_total_operations": 12,
+    "max_tool_calls": 8,
+    "max_sources_or_routes": 3,
+    "max_results_per_source": 5,
+    "max_normalized_records": 12,
+    "max_primary_scrapes": 1,
+    "allowed_operations": ["tools.search", "tools.describe", "tools.call"],
+    "result_envelope": {
+      "success": ["ok", "data"],
+      "failure": ["ok", "error"],
+      "content_block_types": ["text", "image", "audio", "resource", "resource_link"],
+      "normalized_fields": ["title", "url", "claim", "error"],
+      "deduplicate_by": ["url", "title+claim"],
+      "partial_failure": "Return bounded partial results with explicit errors; never claim complete coverage."
+    },
+    "fallback": "If the manual mcp-scripting skill is unavailable, use direct top-level mcp calls and state the fallback; use mcpScript only when this contract can be followed."
+  },
   "conditional_arguments": {
     "firecrawl:firecrawl_search": {
       "known": ["query", "limit", "tbs", "filter", "location", "includeDomains", "excludeDomains", "sources", "categories", "scrapeOptions", "enterprise", "highlights"]
@@ -150,6 +169,6 @@
     }
   },
   "runtime_enforcement": {
-    "pi": "The adapter approval broker and Pi tool_call trust classified safe operations. The top-level mcp gateway requires an explicit managed server and matching tool name; conditional tools also require validated arguments. mcpScript permits tools.search/tools.describe metadata and nested tools.call retains normal policy. Roles do not add MCP restrictions. Auth, lifecycle, UI actions, selector mixtures, unclassified tools, unmanaged servers, and local/external mutations remain blocked. Validation requires runtime safe sets to match this policy."
+    "pi": "The adapter approval broker and Pi tool_call trust classified safe operations. The top-level mcp gateway requires an explicit managed server and matching tool name; conditional tools also require validated arguments. mcpScript permits tools.search/tools.describe metadata and nested tools.call retains normal approval/auth/output-guard policy. It is a bounded multi-call surface, not a general scripting or isolation boundary: follow the mcpScript contract above, do not batch browser mutations, and do not use unapproved nested calls. Roles do not add MCP restrictions. Auth, lifecycle, UI actions, selector mixtures, unclassified tools, unmanaged servers, and local/external mutations remain blocked. Validation requires runtime safe sets to match this policy."
   }
 }

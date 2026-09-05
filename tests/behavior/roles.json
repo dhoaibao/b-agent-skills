@@ -496,22 +496,22 @@
       ]
     },
     {
-      "id": "planner-material-consultation-uses-send",
+      "id": "planner-material-decision-uses-questionnaire",
       "role": "planner",
       "skill": "b-plan",
-      "observed_failure": "The planner used ask for a hard decision or plan review even though b_consult's advice required material investigation and waiting.",
-      "intended_behavior": "For a hard decision or plan review involving competing options, consequential trade-offs, or unresolved evidence, the planner calls b_consult with a bounded question and minimal caller-supplied context; ask remains limited to one genuinely quick focused question.",
-      "prompt": "You face a hard decision or plan review with competing viable options, consequential risk, or unresolved evidence. Explain how you use the optional isolated b_consult tool, what context you provide, and how you treat its result.",
+      "observed_failure": "The planner used vague or unbounded coordination for a hard user-facing decision instead of grounding the choice in evidence and presenting concrete options.",
+      "intended_behavior": "For a material user-facing decision involving competing options, consequential trade-offs, or unresolved evidence, the planner first uses local evidence and normal research as appropriate, then asks for a decision with grouped concrete options; worker delegation and terminal coordination still use Intercom send.",
+      "prompt": "You face a hard user-facing decision with competing viable options, consequential risk, or unresolved evidence. Explain how you gather evidence, present the choices, ask the user, and keep worker coordination separate.",
       "must": [
-        "Call b_consult for a hard decision or plan review needing material advice",
-        "Provide a bounded question with minimal caller-supplied context",
-        "Treat b_consult output as advisory rather than repository evidence",
-        "Reserve ask for one focused question needing no substantial investigation, implementation, or waiting"
+        "Use bounded local evidence and normal research when needed before asking",
+        "Use ask_user_question for the material user-facing decision with 2–4 concrete options and a recommended first option",
+        "Use send for task delegation, terminal results, review requests/findings, and material coordination",
+        "Keep the user decision separate from implementation transfer"
       ],
       "avoid": [
-        "Use ask for hard-decision or plan-review consultation",
-        "Treat b_consult advice as repository evidence",
-        "Use b_consult for routine or obvious work"
+        "Use an unbounded prose question for a material user-facing decision",
+        "Use ask_user_question as a delegation or task-wait mechanism",
+        "Transfer implementation work through the user decision"
       ]
     },
     {

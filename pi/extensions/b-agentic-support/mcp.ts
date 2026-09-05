@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, realpathSync, statSync } from "node:fs";
+import { existsSync, realpathSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { isIP } from "node:net";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
@@ -393,50 +393,6 @@ export function isProjectConfinedOutputPath(pathValue: unknown): boolean {
   }
 }
 
-const CODE_FILE_PATTERN = /\.(?:[cm]?[jt]sx?|py|rb|go|rs|java|kt|kts|c|cc|cpp|cxx|h|hpp|cs|php|swift|scala|vue|svelte|astro|sh|bash|zsh|fish|ps1|sql|graphql|gql|proto|toml|ya?ml|json|xml|mdx?|s?css|sass|less|html?)$/i;
-const DEPENDENCY_SKIP_DIRS = new Set([".git", "node_modules", ".venv"]);
-
-/** Fail closed when a directory operation could reach protected or external descendants. */
-function hasUnsafeDescendant(pathValue: string, codeOnly: boolean, skipDependencyDirs = false): boolean {
-  const visited = new Set<string>();
-  const skippedDirectories = codeOnly || skipDependencyDirs ? DEPENDENCY_SKIP_DIRS : undefined;
-  let remainingEntries = 20_000;
-  const relevantFile = (value: string): boolean => !codeOnly || CODE_FILE_PATTERN.test(value);
-  const walk = (directory: string): boolean => {
-    try {
-      const resolvedDirectory = realpathSync(directory);
-      if (visited.has(resolvedDirectory)) return false;
-      visited.add(resolvedDirectory);
-      for (const entry of readdirSync(resolvedDirectory, { withFileTypes: true })) {
-        if (--remainingEntries < 0) return true;
-        if (entry.isDirectory() && skippedDirectories?.has(entry.name)) continue;
-        const candidate = resolve(resolvedDirectory, entry.name);
-        if (entry.isDirectory()) {
-          if (isProtectedLocalPath(candidate) || walk(candidate)) return true;
-          continue;
-        }
-        if (entry.isSymbolicLink()) {
-          const target = realpathSync(candidate);
-          const targetStat = statSync(target);
-          if (targetStat.isDirectory()) {
-            if (!isProjectConfinedPath(candidate) || walk(target)) return true;
-          } else if (targetStat.isFile() &&
-            (relevantFile(candidate) || relevantFile(target)) &&
-            (!isProjectConfinedPath(candidate) || isProtectedLocalPath(candidate))) {
-            return true;
-          }
-          continue;
-        }
-        if (entry.isFile() && relevantFile(entry.name) && isProtectedLocalPath(candidate)) return true;
-      }
-      return false;
-    } catch {
-      return true;
-    }
-  };
-  return walk(pathValue);
-}
-
 export function isSafeFirecrawlScrapeOptions(input: Record<string, unknown>): boolean {
   return hasOnlyKeys(input, FIRECRAWL_SCRAPE_OPTION_KEYS) &&
     input.storeInCache !== true &&
@@ -587,41 +543,10 @@ export function isTrustedPreviewMarkdownCall(input: unknown): boolean {
   return input.title === undefined || typeof input.title === "string";
 }
 
-const LSP_DIAGNOSTICS_FIELDS = new Set(["paths", "root", "limit", "server"]);
-
-function isTrustedLspPath(pathValue: unknown, inspectDirectory = false): boolean {
-  if (typeof pathValue !== "string" || isProtectedPath(pathValue) ||
-    isProtectedLocalPath(pathValue) || !isProjectConfinedPath(pathValue)) return false;
-  if (!inspectDirectory) return true;
-  try {
-    const resolvedPath = realpathSync(pathValue);
-    return !statSync(resolvedPath).isDirectory() || !hasUnsafeDescendant(resolvedPath, false, true);
-  } catch {
-    return false;
-  }
-}
-
-/** Return true only for a schema-valid, project-confined lsp_diagnostics call. */
-export function isTrustedLspDiagnosticsCall(input: unknown): boolean {
-  if (!isPlainObject(input) || !hasOnlyKeys(input, LSP_DIAGNOSTICS_FIELDS)) return false;
-  const paths = input.paths;
-  if (paths !== undefined && (!Array.isArray(paths) || paths.some((value) => typeof value !== "string"))) return false;
-  if (input.root !== undefined && typeof input.root !== "string") return false;
-  if (input.limit !== undefined && (typeof input.limit !== "number" || !Number.isFinite(input.limit))) return false;
-  if (input.server !== undefined && typeof input.server !== "string" &&
-    (!Array.isArray(input.server) || input.server.some((value) => typeof value !== "string"))) return false;
-
-  const root = input.root ?? process.cwd();
-  if (!isTrustedLspPath(root)) return false;
-  if (paths === undefined || paths.length === 0) return isTrustedLspPath(root, true);
-  return paths.every((pathValue) => isTrustedLspPath(pathValue, true));
-}
-
 /** Returns true when the top-level tool call needs the custom/MCP approval prompt. */
 export function isMcpOrCustomTool(toolName: string, input?: unknown): boolean {
   if (SPECIALIZED_TOOLS.has(toolName)) return false;
   if (toolName === "preview_markdown" && isTrustedPreviewMarkdownCall(input)) return false;
-  if (toolName === "lsp_diagnostics" && isTrustedLspDiagnosticsCall(input)) return false;
   // Only explicit adapter proxy executions reach the broker; metadata and
   // lifecycle selectors remain behind the generic custom-tool approval gate.
   if (toolName === "mcp") return !isMcpProxyToolExecution(input);

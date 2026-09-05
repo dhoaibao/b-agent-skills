@@ -30,11 +30,10 @@ Implement clearly scoped frontend/UI code, visual refreshes, landing pages, and 
 
 - Use native repository reads and edits plus the existing project commands. Inspect the package manifest and relevant lockfile before adding imports; do not assume React, Tailwind, GSAP, an icon library, or any other framework/library.
 - Use the repository's existing tokens, components, assets, content, and `docs/DESIGN.md` when present as the visual authority. Do not generate or fetch external assets as a prerequisite; use real repo assets/data only.
-- `lsp_diagnostics` / `lsp_fix` - use diagnostics on changed supported source when the relevant server is ready; use source actions only with explicit authorization, then fall back to repository checks when unavailable.
 
 ## Capability activation
 
-Use LSP for ready changed source before final checks when it can reduce implementation uncertainty; do not install or configure a server automatically. Route browser evidence to `b-browser` only when requested; authentication, usage reporting, and Intercom are not implicit frontend steps.
+Use repository checks on changed source before final checks when they can reduce implementation uncertainty. Route browser evidence to `b-browser` only when requested; authentication, usage reporting, and Intercom are not implicit frontend steps.
 
 ## Steps
 

@@ -33,7 +33,7 @@ Flags: `--skip-tests`, `--baseline=<path|url>`, `--range=<ref>..<ref>`.
 
 - `bash` - `rtk git status`, metadata-only Git path lists, targeted safe-path diffs, logs, and narrow verification; modern discovery routed through `rtk` whenever supported.
 - `read` - open changed files directly.
-- `lsp_diagnostics` - use only for changed supported source when the relevant language server is ready; it is read-only evidence and does not replace targeted diff review or repository checks.
+
 - `codegraph` - select when a concrete repository-wide changed-flow, impact, or
   affected-test question is central to the review and likely valuable; use an
   available index for that question. In planner mode, do not initialize an
@@ -45,7 +45,7 @@ Flags: `--skip-tests`, `--baseline=<path|url>`, `--range=<ref>..<ref>`.
 
 ## Capability activation
 
-Use LSP diagnostics only as bounded read-only evidence for supported changed source with a ready server; do not use source actions during review. Select CodeGraph for a concrete repository-wide impact question that is central to the review, and use `recall` only with a supplied prior-review ID. Research, authentication, usage reporting, Intercom, and browser operations are not implicit review steps.
+Use repository checks only as bounded read-only evidence for changed source; they do not replace targeted diff review. Select CodeGraph for a concrete repository-wide impact question that is central to the review, and use `recall` only with a supplied prior-review ID. Research, authentication, usage reporting, Intercom, and browser operations are not implicit review steps.
 
 ## Steps
 

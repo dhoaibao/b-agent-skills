@@ -71,14 +71,8 @@ worker is the sole worktree writer and does not re-delegate. Handoffs name
 expected paths or symbols, scope, invariants, acceptance criteria, and checks;
 delegated worktree changes require actual `b-review` before approval.
 
-### Consultation and coordination
+### Coordination
 
-- `b_consult` is an optional planner-only one-shot tool. Each call receives
-  bounded context in a fresh in-memory session with read-only repository
-  inspection and the existing MCP gateway only under normal policy. It has no
-  outer history, writes, shell, browser, Intercom, delegation, or worktree
-  access. Output is bounded natural language with sanitized failures and no
-  retry or model fallback.
 - Material handoffs use Intercom `send`; focused blockers use `ask`. Roles check
   `pending` before outbound coordination; an inbound ask is answered immediately,
   otherwise `list-cwd` supplies the current target. The planner waits for a
@@ -92,7 +86,6 @@ delegated worktree changes require actual `b-review` before approval.
 
 Evidence: `references/kernel.template.md`, `skills/registry.yaml`,
 `skills/b-plan/prompt.md`, `skills/b-review/prompt.md`,
-`pi/extensions/b-agentic-consult.ts`,
 `pi/extensions/b-agentic-support/role.ts`, `pi/tests/smoke.sh`.
 
 ## Safety and approval design
@@ -206,8 +199,7 @@ fallbacks, and non-sensitive status signals. The installed contract is
 `~/.pi/agent/b-agentic/references/capabilities.yaml`. `/b-status` renders a
 read-only local snapshot using file/package/launcher metadata only: it does not
 parse MCP configuration, inspect credential/API-key values, start MCP/auth/
-browser probes, or persist session content. Pi LSP package presence remains
-separate from operational language-server readiness.
+browser probes, or persist session content.
 
 Evidence: `install.sh`, `pi/scripts/install.sh`, `tooling/install/common.sh`,
 `tooling/install/manifest_uninstall.py`, `pi/configs/mcp.user.template.json`,

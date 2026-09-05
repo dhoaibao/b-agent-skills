@@ -152,9 +152,6 @@ if [ "${1:-}" = "list" ]; then
   if [ -f "$log_dir/pi-lsp-ranged-installed" ]; then
     printf 'npm:@narumitw/pi-lsp@^1.0.0\n'
     found=1
-  elif [ -f "$log_dir/pi-lsp-installed" ]; then
-    printf 'npm:@narumitw/pi-lsp\n'
-    found=1
   fi
   if [ -f "$log_dir/pi-todo-versioned-installed" ]; then
     printf 'npm:@juicesharp/rpiv-todo@1.0.0\n'
@@ -190,10 +187,6 @@ if [ "${1:-}" = "install" ]; then
   if [ "${2:-}" = "npm:@juicesharp/rpiv-ask-user-question" ]; then
     rm -f "$log_dir/pi-ask-user-question-versioned-installed"
     : > "$log_dir/pi-ask-user-question-installed"
-  fi
-  if [ "${2:-}" = "npm:@narumitw/pi-lsp" ]; then
-    rm -f "$log_dir/pi-lsp-ranged-installed"
-    : > "$log_dir/pi-lsp-installed"
   fi
   if [ "${2:-}" = "npm:@juicesharp/rpiv-todo" ]; then
     rm -f "$log_dir/pi-todo-versioned-installed"

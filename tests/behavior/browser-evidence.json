@@ -18,14 +18,17 @@
     },
     {
       "id": "bounded-mcp-browser-observation",
-      "prompt": "Use b-browser to compare the visible state of three live routes. Use mcpScript only for bounded read-only browser observations across at most three routes with a capped per-page result set, then collect the ordered snapshot, console, network, cleanup, and requested screenshot evidence.",
+      "prompt": "Use b-browser to compare the visible state of three live routes. Use mcpScript only for bounded read-only browser observations across at most three routes with a capped per-page result set, normalize only title/url/claim/error from content-block envelopes, report partial failures, and retain normal nested approval/auth/output guards before collecting the ordered snapshot, console, network, cleanup, and requested screenshot evidence.",
       "must": [
         "Keep each mcpScript browser fan-out to at most three routes and read-only",
+        "Normalize bounded content-block results and make partial failures explicit",
+        "Retain normal nested approval, authentication, and output-guard behavior",
         "Retain the ordered browser evidence workflow",
         "Collect requested screenshot evidence before claiming visual coverage"
       ],
       "avoid": [
         "Using mcpScript for browser mutations without approval",
+        "Treating a failed nested call as complete evidence",
         "Replacing the evidence bundle with an unbounded script result"
       ]
     },

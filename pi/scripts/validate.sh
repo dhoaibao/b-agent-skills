@@ -21,6 +21,9 @@ mcp = root / 'pi/configs/mcp.user.template.json'
 capabilities = root / 'references/capabilities.yaml'
 capabilities_module = root / 'pi/extensions/b-agentic-support/capabilities.ts'
 extension = root / 'pi/extensions/b-agentic-permissions.ts'
+rule_guard_source = root / 'pi/extensions/b-agentic-rule-guard.ts'
+consult_source = root / 'pi/extensions/b-agentic-consult.ts'
+consult_support_source = root / 'pi/extensions/b-agentic-support/consult.ts'
 status_extension = root / 'pi/extensions/b-agentic-status.ts'
 preview_extension = root / 'pi/packages/preview-markdown/extensions/b-agentic-preview-markdown.ts'
 preview_package = root / 'pi/packages/preview-markdown/package.json'
@@ -46,13 +49,11 @@ extension_files = [
     root / 'pi/extensions/b-agentic-planner.ts',
     root / 'pi/extensions/b-agentic-planner-notify.ts',
     root / 'pi/extensions/b-agentic-worker.ts',
-    root / 'pi/extensions/b-agentic-consult.ts',
     root / 'pi/extensions/b-agentic-sync.ts',
     root / 'pi/extensions/b-agentic-support/shell.ts',
     root / 'pi/extensions/b-agentic-support/mcp.ts',
     root / 'pi/extensions/b-agentic-support/role.ts',
     root / 'pi/extensions/b-agentic-support/role-models.ts',
-    root / 'pi/extensions/b-agentic-support/consult.ts',
     root / 'pi/extensions/b-agentic-support/worker.ts',
     root / 'pi/extensions/b-agentic-support/auto.ts',
     status_extension,
@@ -77,7 +78,6 @@ if kernel.exists():
         'ask_user_question', '2–4 concrete options', ' (Recommended)', 'automatic custom-answer row',
         'focused plain-text question',
         '~/.pi/agent/b-agentic/references/capabilities.yaml',
-        'package installation alone is not LSP readiness',
         'never parse MCP configuration or inspect credential/API-key values',
     ]:
         if marker not in text:
@@ -121,20 +121,43 @@ for marker in [
     if marker not in role_prompt:
         errors.append(f"{root / 'pi/extensions/b-agentic-support/role.ts'}: missing {marker!r}")
 
+if rule_guard_source.exists():
+    errors.append(f'{rule_guard_source}: retired managed rule-guard source must be absent')
+if consult_source.exists():
+    errors.append(f'{consult_source}: retired managed consult source must be absent')
+if consult_support_source.exists():
+    errors.append(f'{consult_support_source}: retired managed consult support source must be absent')
+
 if capabilities.exists():
-    contract = json.loads(capabilities.read_text())
+    capabilities_text = capabilities.read_text()
+    if 'b-agentic-rule-guard' in capabilities_text:
+        errors.append(f'{capabilities}: retired managed rule-guard capability must be absent')
+    contract = json.loads(capabilities_text)
     contract_entries = contract.get('capabilities', [])
     if contract.get('schema_version') != 1 or not isinstance(contract_entries, list) or not contract_entries:
         errors.append(f'{capabilities}: must contain schema_version 1 and a non-empty capabilities array')
     if len({entry.get('id') for entry in contract_entries if isinstance(entry, dict)}) != len(contract_entries):
         errors.append(f'{capabilities}: capability ids must be unique')
-    if any(name in capabilities.read_text() for name in ['pi-lens', 'pi-subagents', 'background-task']):
-        errors.append(f'{capabilities}: forbidden packages must not be managed')
+    if any(name in capabilities_text for name in ['pi-lens', 'pi-subagents', 'background-task', 'pi-lsp', '@narumitw/pi-lsp', 'piLspAction', 'piLspState', 'b-agentic-consult']):
+        errors.append(f'{capabilities}: retired or forbidden packages/integrations must not be managed')
 if capabilities_module.exists():
     text = capabilities_module.read_text()
+    if 'b-agentic-rule-guard' in text:
+        errors.append(f'{capabilities_module}: retired managed rule-guard capability must be absent')
     for marker in ['Generated from references/capabilities.yaml', 'CAPABILITY_CONTRACT_VERSION', 'CAPABILITIES', 'package.pi-mcp-adapter', 'mcp.playwright', 'extension.b-agentic-status']:
         if marker not in text:
             errors.append(f'{capabilities_module}: missing generated capability marker {marker!r}')
+installer = root / 'pi/scripts/install.sh'
+if installer.exists():
+    installer_text = installer.read_text()
+    installer_match = re.search(r'EXTENSION_NAMES=\(\n(.*?)\n\)', installer_text, re.DOTALL)
+    if installer_match:
+        for retired_name in ['b-agentic-rule-guard.ts', 'b-agentic-consult.ts', 'b-agentic-support/consult.ts']:
+            if retired_name in installer_match.group(1):
+                errors.append(f'{installer}: retired managed extension {retired_name} must not remain in EXTENSION_NAMES')
+if 'b_consult' in role_prompt or 'b-consult-model' in role_prompt:
+    errors.append(f'{root / "pi/extensions/b-agentic-support/role.ts"}: retired consult guidance must be absent')
+
 if status_extension.exists():
     text = status_extension.read_text()
     for marker in ['registerCommand("b-status"', 'buildCapabilitySnapshot', 'read-only local capability', 'no MCP/auth/browser probes', 'pi.exec("pi", ["list"]']:
@@ -145,7 +168,7 @@ if status_extension.exists():
 status_support = root / 'pi/extensions/b-agentic-support/status.ts'
 if status_support.exists():
     text = status_support.read_text()
-    for marker in ['mcpConfigPresent', 'MCP configuration contents and credential/key readiness are intentionally unverified', 'Pi LSP is installed, but a relevant language-server route']:
+    for marker in ['mcpConfigPresent', 'MCP configuration contents and credential/key readiness are intentionally unverified']:
         if marker not in text:
             errors.append(f'{status_support}: missing privacy/readiness marker {marker!r}')
     for forbidden in ['readFileSync', 'readLocalJsonConfig', 'hasConfiguredValue', 'process.env[']:
@@ -238,6 +261,8 @@ if extension.exists():
         errors.append(f'{extension}: browser_click must not be in PLAYWRIGHT_TRUSTED_TOOLS')
     if 'isTrustedManagedGatewayCall' not in text or 'isMcpProxyToolExecution' not in text or 'isTrustedPreviewMarkdownCall' not in text or 'if (toolName === "mcp") return !isMcpProxyToolExecution(input);' not in text:
         errors.append(f'{extension}: must route only explicit MCP proxy executions through the adapter broker')
+    if any(marker in text for marker in ['LSP_DIAGNOSTICS_FIELDS', 'isTrustedLspPath', 'isTrustedLspDiagnosticsCall']):
+        errors.append(f'{extension}: retired LSP-specific trust paths must be absent')
     if 'Blocked' not in text or 'protected path' not in text:
         errors.append(f'{extension}: must block protected paths')
     # read must share protected-path handling with write/edit
@@ -327,9 +352,9 @@ if config_readme.exists():
         '`~/.pi/agent/b-agentic/`',
         'ownership boundary',
         '[operational reference](../../REFERENCE.md)',
-        'planner-only advisory tooling',
-        'read-only `read`, `grep`, `find`, and `ls`',
-        'managed `mcp` under its normal policy',
+        'Role selection and planner-worker coordination',
+        'normal Pi tools',
+        'shared approval policy',
     ]:
         if marker not in text:
             errors.append(f'{config_readme}: missing layout/boundary marker {marker!r}')

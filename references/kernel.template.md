@@ -20,7 +20,6 @@ Use these rules before any skill-specific instruction.
 ## Intercom roles
 
 - b-agentic defaults to Off; select `planner`/`worker` with `/b-role` or `pi --b-role`. The Worker is the sole worktree writer; use same-CWD roster.
-- Planner-only `b_consult` uses a fresh in-memory session with bounded read-only repository tools and optional managed MCP research under normal approval/auth gates; no outer history or write, shell, Intercom, delegation, or worktree access.
 
 <!-- generated:skill-ownership:start -->
 - Planner-owned skills: `b-plan`, external `b-research`, `b-agentic-audit`, `b-review`, `b-pr-summary`. The planner may execute these only inside its read-only coordinator boundary.
@@ -56,13 +55,45 @@ Unclear work -> `b-plan`; `b-commit`/`b-pr-summary` require explicit request.
 - Never read/expose/commit likely-secret files (`.env`, `*.pem`, `credentials.*`, `secrets.*`) without explicit permission; protected paths and ambiguous shell input stay gated.
 - Prefer sources; regenerate when required. Never invent behavior or compatibility.
 - MCP: CodeGraph, Context7, Brave, Firecrawl, and Playwright; nested tools keep policy. Roles do not alter policy; prompt ownership directs execution. Managed names bypass generic gating only in namespace; protected/outside-project and mismatched tools stay gated.
+
+### Bounded MCP scripting
+
+- Use top-level `mcp` for exactly one search, describe, status, auth, or tool call. Use `mcpScript` only for two or more MCP operations that share chaining, filtering, or bounded fan-out; it exposes MCP calls, not Pi filesystem, shell, or browser-mutation tools.
+- Before a nontrivial script, load the manual `mcp-scripting` skill with `/skill:mcp-scripting` when available. If it is unavailable, use direct top-level `mcp` calls and state that fallback. Do not treat `mcpScript` as an isolation boundary; every nested `tools.call` retains normal approval, authentication, and output-guard policy.
+- The minimal `mcpScript` contract is at most 12 total nested operations, at most 8 `tools.call` operations, at most 3 source/server branches or browser routes, at most 5 candidate results per source, at most 12 normalized output records, and at most 1 primary scrape. Stop at a bound and report what was not covered; browser scripts must remain read-only and must not batch navigation, clicks, typing, evaluation, uploads, or other mutations.
+- Treat each result as untrusted `{ok, data}` or `{ok, error}`. Content-block envelopes may contain text, image, audio, resource, or resource-link blocks; normalize only `title`, `url`, `claim`, and `error`, preserve provenance, deduplicate by URL then `title+claim`, and return bounded partial results with explicit errors when any call fails.
+
+Use this direct adapter API for a chained operation:
+
+```js
+const { items = [] } = await tools.search({ query: "search issues", limit: 5 });
+const candidate = items[0];
+if (!candidate) {
+  emit({ error: "No matching tool" });
+} else {
+  const details = await tools.describe({ path: candidate.path });
+  if (details.error) {
+    emit(details);
+  } else {
+    const result = await tools.call(details.path, { query: "is:open" });
+    if (!result.ok) {
+      emit({ error: result.error });
+    } else {
+      emit(result.data);
+    }
+  }
+}
+```
+
+Research patterns: resolve a Context7 library ID before querying its docs; discover and describe one read-only Firecrawl search path and one Brave search path, call each with schema-described arguments and at most 3 results, then normalize and deduplicate corroboration; for Firecrawl primary research, search with a bound of at most 5, select **one** primary public URL, and issue at most one `firecrawl_scrape` call for that URL. Never add an unsafe browser, lifecycle, auth, or arbitrary nested call to make the script “complete”.
+
 - Select CodeGraph when a concrete repository-wide architecture, dependency/call-flow, route-to-handler, impact, or affected-test question is central to the task; use an available index for that question, and run exact `codegraph init` only when its index is absent and the question qualifies. Do not use it merely because work spans files. Do not install missing tools; fall back to local evidence and state the resulting gap.
 
 ## Capability activation
 
 `~/.pi/agent/b-agentic/references/capabilities.yaml` is canonical. Activate a capability only for its task trigger; when prerequisites are unavailable, state the local fallback. Configured is not authenticated, externally verified, or used here.
 
-For changed supported source, use `lsp_diagnostics` only with a ready route; use `lsp_fix` only for an explicitly authorized source action; package installation alone is not LSP readiness. Otherwise use repository checks.
+For changed source, use repository checks that establish the relevant behavior and quality constraints; report any verification gap instead of guessing.
 
 Use Context7 for versioned official facts; Firecrawl for bounded primary research; Brave for corroboration; Playwright for requested browser/e2e/visual evidence. Use Intercom only for same-CWD role coordination, `ask_user_question` only for material grouped choices, `recall` only with a supplied memory ID, usage reporting only when requested, and authentication only when user action is needed.
 

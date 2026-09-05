@@ -105,7 +105,7 @@ EOF
 	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilityContractVersion'] == 1"
 	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilities']['contractVersion'] == 1"
 	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilities']['states']['package.pi-mcp-adapter']['state'] == 'ready'"
-	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilities']['states']['package.pi-lsp']['state'] == 'unknown'"
+	assert_not_contains "$sandbox/home/.pi/agent/b-agentic/install.json" 'package.pi-lsp'
 	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilities']['states']['extension.b-agentic-status']['state'] == 'ready'"
 	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['paths']['capabilityContract'].endswith('/references/capabilities.yaml')"
 
@@ -306,8 +306,21 @@ run_legacy_consult_extension_removal_case() {
 	local old_extension_snapshot="$snapshots_dir/b-agentic-consult.ts"
 	local old_role_extension_snapshot="$snapshots_dir/b-agentic-consultant.ts"
 	local old_support_snapshot="$snapshots_dir/b-agentic-support/consult.ts"
+	local user_extension="$extensions_dir/user-owned-extension.ts"
+	local user_extension_snapshot="$sandbox/user-owned-extension.snapshot"
+	local mcp_path="$sandbox/home/.pi/agent/mcp.json"
+
+	mkdir -p "$extensions_dir" "$(dirname "$mcp_path")"
+	printf 'user-owned extension\n' >"$user_extension"
+	cp "$user_extension" "$user_extension_snapshot"
+	cat >"$mcp_path" <<'EOF'
+{"mcpServers":{"user-server":{"command":"user-server-cmd"}}}
+EOF
 
 	expect_install_status 0 "$sandbox" "$snapshot_repo"
+	assert_no_path "$old_extension"
+	assert_no_path "$old_role_extension"
+	assert_no_path "$old_support"
 	mkdir -p "$(dirname "$old_support")" "$(dirname "$old_support_snapshot")"
 	printf 'legacy managed consultant tool\n' >"$old_extension"
 	printf 'legacy managed consultant role\n' >"$old_role_extension"
@@ -315,13 +328,30 @@ run_legacy_consult_extension_removal_case() {
 	cp "$old_extension" "$old_extension_snapshot"
 	cp "$old_role_extension" "$old_role_extension_snapshot"
 	cp "$old_support" "$old_support_snapshot"
-	expect_install_status 0 "$sandbox" "$snapshot_repo"
-	assert_equal_files "$old_extension" "$sandbox/source/pi/extensions/b-agentic-consult.ts"
-	assert_equal_files "$old_extension_snapshot" "$sandbox/source/pi/extensions/b-agentic-consult.ts"
+	expect_install_status 0 "$sandbox" "$snapshot_repo" --update
+	assert_no_path "$old_extension"
+	assert_no_path "$old_extension_snapshot"
 	assert_no_path "$old_role_extension"
 	assert_no_path "$old_role_extension_snapshot"
-	assert_equal_files "$old_support" "$sandbox/source/pi/extensions/b-agentic-support/consult.ts"
-	assert_equal_files "$old_support_snapshot" "$sandbox/source/pi/extensions/b-agentic-support/consult.ts"
+	assert_no_path "$old_support"
+	assert_no_path "$old_support_snapshot"
+
+	printf 'legacy managed consultant support\n' >"$old_support"
+	cp "$old_support" "$old_support_snapshot"
+	printf 'user-modified consultant support\n' >"$old_support"
+	expect_install_status 0 "$sandbox" "$snapshot_repo" --update
+	assert_file "$old_support"
+	assert_file "$old_support_snapshot"
+	assert_contains "$old_support" 'user-modified consultant support'
+	assert_equal_files "$user_extension" "$user_extension_snapshot"
+	assert_contains "$mcp_path" 'user-server'
+
+	expect_install_status 0 "$sandbox" "$snapshot_repo" --uninstall
+	assert_file "$old_support"
+	assert_contains "$old_support" 'user-modified consultant support'
+	assert_no_path "$old_support_snapshot"
+	assert_equal_files "$user_extension" "$user_extension_snapshot"
+	assert_contains "$mcp_path" 'user-server'
 }
 
 run_manifest_only_extension_symlink_case() {
@@ -1130,82 +1160,228 @@ run_bun_mcp_package_lifecycle_case() {
 	assert_not_contains "$bun_log" 'bun install --global'
 }
 
-run_pi_lsp_package_lifecycle_case() {
+run_pi_package_lifecycle_preservation_case() {
 	local snapshot_repo="$1"
-	local sandbox="$WORK_DIR/pi-lsp-package-lifecycle"
+	local sandbox="$WORK_DIR/pi-package-lifecycle-preservation"
 	local install_log="$sandbox/install.log"
 	local package_log="$sandbox/smoke-bin/pi-install.log"
-	local package_count ask_package_count todo_package_count smoke_path
+	local project_dir="$sandbox/project"
+	local global_lsp_config="$sandbox/home/.pi/agent/lsp.json"
+	local project_lsp_config="$project_dir/.pi/lsp.json"
+	local global_lsp_snapshot="$sandbox/global-lsp.snapshot"
+	local project_lsp_snapshot="$sandbox/project-lsp.snapshot"
+	local ask_package_count todo_package_count smoke_path
 	local rc=0
 
-	mkdir -p "$sandbox/home"
+	mkdir -p "$sandbox/home/.pi/agent" "$project_dir/.pi"
+	cat >"$global_lsp_config" <<'EOF'
+{
+  "servers": {
+    "global-user": {"command": "user-global-lsp", "args": ["--keep"]}
+  }
+}
+EOF
+	cat >"$project_lsp_config" <<'EOF'
+{
+  "servers": {
+    "project-user": {"command": "user-project-lsp", "args": ["--keep"]}
+  }
+}
+EOF
+	cp "$global_lsp_config" "$global_lsp_snapshot"
+	cp "$project_lsp_config" "$project_lsp_snapshot"
 	smoke_path="$(smoke_runtime_cli_path "$sandbox")"
 	: >"$sandbox/smoke-bin/pi-ask-user-question-versioned-installed"
 	: >"$sandbox/smoke-bin/pi-lsp-ranged-installed"
 	: >"$sandbox/smoke-bin/pi-todo-versioned-installed"
 	set +e
-	HOME="$sandbox/home" PATH="$smoke_path" \
-		B_AGENTIC_REPO="$snapshot_repo" B_AGENTIC_DIR="$sandbox/source" \
-		B_AGENTIC_PROMPT_API_KEYS=N bash "$ROOT_DIR/install.sh" --dry-run >"$install_log" 2>&1
+	(
+		cd "$project_dir"
+		HOME="$sandbox/home" PATH="$smoke_path" \
+			B_AGENTIC_REPO="$snapshot_repo" B_AGENTIC_DIR="$sandbox/source" \
+			B_AGENTIC_PROMPT_API_KEYS=N bash "$ROOT_DIR/install.sh" --dry-run >"$install_log" 2>&1
+	)
 	rc=$?
 	set -e
 	[ "$rc" -eq 0 ] || fail "expected optional Pi package dry-run exit 0, got $rc"
 	assert_contains "$install_log" '[dry-run] pi install npm:@juicesharp/rpiv-ask-user-question'
-	assert_contains "$install_log" '[dry-run] pi install npm:@narumitw/pi-lsp'
 	assert_contains "$install_log" '[dry-run] pi install npm:@juicesharp/rpiv-todo'
+	assert_not_contains "$install_log" 'npm:@narumitw/pi-lsp'
 	assert_not_contains "$install_log" 'npm:@juicesharp/rpiv-ask-user-question@'
-	assert_not_contains "$install_log" 'npm:@narumitw/pi-lsp@'
 	assert_not_contains "$install_log" 'npm:@juicesharp/rpiv-todo@'
 	assert_no_path "$sandbox/smoke-bin/pi-ask-user-question-installed"
-	assert_no_path "$sandbox/smoke-bin/pi-lsp-installed"
 	assert_no_path "$sandbox/smoke-bin/pi-todo-installed"
 	assert_file "$sandbox/smoke-bin/pi-ask-user-question-versioned-installed"
 	assert_file "$sandbox/smoke-bin/pi-lsp-ranged-installed"
 	assert_file "$sandbox/smoke-bin/pi-todo-versioned-installed"
+	assert_equal_files "$global_lsp_config" "$global_lsp_snapshot"
+	assert_equal_files "$project_lsp_config" "$project_lsp_snapshot"
 
-	expect_install_status 0 "$sandbox" "$snapshot_repo"
+	expect_install_status_in_cwd 0 "$project_dir" "$sandbox" "$snapshot_repo"
 	assert_contains "$package_log" 'npm:@juicesharp/rpiv-ask-user-question'
-	assert_contains "$package_log" 'npm:@narumitw/pi-lsp'
 	assert_contains "$package_log" 'npm:@juicesharp/rpiv-todo'
+	assert_not_contains "$package_log" 'npm:@narumitw/pi-lsp'
 	assert_not_contains "$package_log" 'npm:@juicesharp/rpiv-ask-user-question@'
-	assert_not_contains "$package_log" 'npm:@narumitw/pi-lsp@'
 	assert_not_contains "$package_log" 'npm:@juicesharp/rpiv-todo@'
-	assert_no_path "$sandbox/smoke-bin/pi-ask-user-question-versioned-installed"
-	assert_no_path "$sandbox/smoke-bin/pi-lsp-ranged-installed"
-	assert_no_path "$sandbox/smoke-bin/pi-todo-versioned-installed"
 	assert_file "$sandbox/smoke-bin/pi-ask-user-question-installed"
-	assert_file "$sandbox/smoke-bin/pi-lsp-installed"
+	assert_file "$sandbox/smoke-bin/pi-lsp-ranged-installed"
 	assert_file "$sandbox/smoke-bin/pi-todo-installed"
+	assert_no_path "$sandbox/smoke-bin/pi-ask-user-question-versioned-installed"
+	assert_no_path "$sandbox/smoke-bin/pi-todo-versioned-installed"
+	assert_equal_files "$global_lsp_config" "$global_lsp_snapshot"
+	assert_equal_files "$project_lsp_config" "$project_lsp_snapshot"
 	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piAskUserQuestionAction": "install"'
 	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piAskUserQuestionState": "ready"'
-	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piLspAction": "install"'
-	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piLspState": "ready"'
 	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piTodoAction": "install"'
 	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piTodoState": "ready"'
+	assert_not_contains "$sandbox/home/.pi/agent/b-agentic/install.json" 'piLsp'
+	assert_not_contains "$sandbox/home/.pi/agent/b-agentic/install.json" 'package.pi-lsp'
 	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilities']['states']['package.pi-todo']['action'] == 'install'"
 	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilities']['states']['package.pi-todo']['state'] == 'ready'"
-	package_count="$(grep -Fc 'npm:@narumitw/pi-lsp' "$package_log")"
 	ask_package_count="$(grep -Fc 'npm:@juicesharp/rpiv-ask-user-question' "$package_log")"
 	todo_package_count="$(grep -Fc 'npm:@juicesharp/rpiv-todo' "$package_log")"
-	[ "$package_count" -eq 1 ] || fail "expected initial pi-lsp install exactly once"
 	[ "$ask_package_count" -eq 1 ] || fail "expected initial ask-user-question install exactly once"
 	[ "$todo_package_count" -eq 1 ] || fail "expected initial pi-todo install exactly once"
 	assert_contains "$install_log" 'update --extensions'
 
-	expect_install_status 0 "$sandbox" "$snapshot_repo"
-	expect_install_status 0 "$sandbox" "$snapshot_repo" --update
-	[ "$(grep -Fc 'npm:@narumitw/pi-lsp' "$package_log")" -eq "$package_count" ] || fail "pi-lsp was reinstalled after package detection"
+	expect_install_status_in_cwd 0 "$project_dir" "$sandbox" "$snapshot_repo"
+	assert_equal_files "$global_lsp_config" "$global_lsp_snapshot"
+	assert_equal_files "$project_lsp_config" "$project_lsp_snapshot"
+	expect_install_status_in_cwd 0 "$project_dir" "$sandbox" "$snapshot_repo" --update
+	assert_equal_files "$global_lsp_config" "$global_lsp_snapshot"
+	assert_equal_files "$project_lsp_config" "$project_lsp_snapshot"
+	assert_file "$sandbox/smoke-bin/pi-lsp-ranged-installed"
+	assert_not_contains "$package_log" 'npm:@narumitw/pi-lsp'
 	[ "$(grep -Fc 'npm:@juicesharp/rpiv-ask-user-question' "$package_log")" -eq "$ask_package_count" ] || fail "ask-user-question was reinstalled after package detection"
 	[ "$(grep -Fc 'npm:@juicesharp/rpiv-todo' "$package_log")" -eq "$todo_package_count" ] || fail "pi-todo was reinstalled after package detection"
-	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piLspState": "ready"'
+	assert_not_contains "$sandbox/home/.pi/agent/b-agentic/install.json" 'piLsp'
+	assert_not_contains "$sandbox/home/.pi/agent/b-agentic/install.json" 'package.pi-lsp'
 	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piTodoAction": "present"'
 	assert_contains "$sandbox/home/.pi/agent/b-agentic/install.json" '"piTodoState": "ready"'
 	assert_contains "$sandbox/smoke-bin/pi-install.log" 'update --extensions'
 
-	expect_install_status 0 "$sandbox" "$snapshot_repo" --uninstall
-	assert_file "$sandbox/smoke-bin/pi-lsp-installed"
+	expect_install_status_in_cwd 0 "$project_dir" "$sandbox" "$snapshot_repo" --uninstall
+	assert_equal_files "$global_lsp_config" "$global_lsp_snapshot"
+	assert_equal_files "$project_lsp_config" "$project_lsp_snapshot"
+	assert_file "$sandbox/smoke-bin/pi-lsp-ranged-installed"
 	assert_file "$sandbox/smoke-bin/pi-todo-installed"
 	assert_no_path "$sandbox/home/.pi/agent/b-agentic/install.json"
+}
+
+run_rule_guard_lifecycle_case() {
+	local snapshot_repo="$1"
+	local sandbox="$WORK_DIR/rule-guard-lifecycle"
+	local extensions_dir="$sandbox/home/.pi/agent/extensions"
+	local snapshots_dir="$sandbox/home/.pi/agent/b-agentic/extensions"
+	local rule_guard_path="$extensions_dir/b-agentic-rule-guard.ts"
+	local rule_guard_snapshot="$snapshots_dir/b-agentic-rule-guard.ts"
+	local permissions_path="$extensions_dir/b-agentic-permissions.ts"
+	local user_extension="$extensions_dir/user-owned-extension.ts"
+	local user_extension_snapshot="$sandbox/user-owned-extension.snapshot"
+	local mcp_path="$sandbox/home/.pi/agent/mcp.json"
+	local manifest_path="$sandbox/home/.pi/agent/b-agentic/install.json"
+
+	mkdir -p "$extensions_dir" "$snapshots_dir" "$(dirname "$mcp_path")"
+	printf 'user-owned extension\n' >"$user_extension"
+	cp "$user_extension" "$user_extension_snapshot"
+	cat >"$mcp_path" <<'EOF'
+{"mcpServers":{"user-server":{"command":"user-server-cmd"}}}
+EOF
+
+	expect_install_status 0 "$sandbox" "$snapshot_repo"
+	assert_no_path "$rule_guard_path"
+	assert_no_path "$rule_guard_snapshot"
+	assert_file "$permissions_path"
+	assert_contains "$permissions_path" 'pi.on("tool_call"'
+	assert_equal_files "$user_extension" "$user_extension_snapshot"
+	assert_contains "$mcp_path" '"user-server"'
+	assert_not_contains "$manifest_path" 'b-agentic-rule-guard.ts'
+	assert_not_contains "$sandbox/home/.pi/agent/b-agentic/references/capabilities.yaml" 'b-agentic-rule-guard'
+
+	printf 'legacy managed rule guard\n' >"$rule_guard_path"
+	cp "$rule_guard_path" "$rule_guard_snapshot"
+	expect_install_status 0 "$sandbox" "$snapshot_repo" --update
+	assert_no_path "$rule_guard_path"
+	assert_no_path "$rule_guard_snapshot"
+	assert_equal_files "$user_extension" "$user_extension_snapshot"
+	assert_contains "$mcp_path" '"user-server"'
+
+	printf 'legacy managed rule guard\n' >"$rule_guard_path"
+	cp "$rule_guard_path" "$rule_guard_snapshot"
+	printf 'user-modified rule guard\n' >"$rule_guard_path"
+	expect_install_status 0 "$sandbox" "$snapshot_repo" --update
+	assert_file "$rule_guard_path"
+	assert_file "$rule_guard_snapshot"
+	assert_contains "$rule_guard_path" 'user-modified rule guard'
+	assert_equal_files "$user_extension" "$user_extension_snapshot"
+	assert_contains "$mcp_path" '"user-server"'
+	assert_not_contains "$manifest_path" 'b-agentic-rule-guard.ts'
+
+	expect_install_status 0 "$sandbox" "$snapshot_repo" --uninstall
+	assert_file "$rule_guard_path"
+	assert_contains "$rule_guard_path" 'user-modified rule guard'
+	assert_no_path "$rule_guard_snapshot"
+	assert_equal_files "$user_extension" "$user_extension_snapshot"
+	assert_contains "$mcp_path" '"user-server"'
+	assert_no_path "$manifest_path"
+}
+
+run_rule_guard_orphan_snapshot_case() {
+	local snapshot_repo="$1"
+	local sandbox="$WORK_DIR/rule-guard-orphan-snapshot"
+	local extensions_dir="$sandbox/home/.pi/agent/extensions"
+	local snapshots_dir="$sandbox/home/.pi/agent/b-agentic/extensions"
+	local rule_guard_path="$extensions_dir/b-agentic-rule-guard.ts"
+	local rule_guard_snapshot="$snapshots_dir/b-agentic-rule-guard.ts"
+
+	mkdir -p "$extensions_dir" "$snapshots_dir"
+	expect_install_status 0 "$sandbox" "$snapshot_repo"
+	printf 'orphaned managed rule guard snapshot\n' >"$rule_guard_snapshot"
+	expect_install_status 0 "$sandbox" "$snapshot_repo" --update
+	assert_no_path "$rule_guard_path"
+	assert_no_path "$rule_guard_snapshot"
+}
+
+run_rule_guard_manifest_backup_case() {
+	local snapshot_repo="$1"
+	local sandbox="$WORK_DIR/rule-guard-manifest-backup"
+	local extensions_dir="$sandbox/home/.pi/agent/extensions"
+	local snapshots_dir="$sandbox/home/.pi/agent/b-agentic/extensions"
+	local backups_dir="$sandbox/home/.pi/agent/b-agentic/backups"
+	local rule_guard_path="$extensions_dir/b-agentic-rule-guard.ts"
+	local rule_guard_snapshot="$snapshots_dir/b-agentic-rule-guard.ts"
+	local original_backup="$backups_dir/b-agentic-rule-guard.ts.bak"
+	local original_snapshot="$sandbox/original-rule-guard.snapshot"
+	local manifest_path="$sandbox/home/.pi/agent/b-agentic/install.json"
+
+	mkdir -p "$extensions_dir" "$snapshots_dir" "$backups_dir"
+	expect_install_status 0 "$sandbox" "$snapshot_repo"
+	printf 'legacy managed rule guard\n' >"$rule_guard_path"
+	cp "$rule_guard_path" "$rule_guard_snapshot"
+	printf 'user-original rule guard\n' >"$original_backup"
+	cp "$original_backup" "$original_snapshot"
+	python3 - "$manifest_path" "$rule_guard_path" "$original_backup" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+manifest_path, rule_guard_path, original_backup = map(Path, sys.argv[1:])
+data = json.loads(manifest_path.read_text())
+data.setdefault('paths', {}).setdefault('extensions', {})['b-agentic-rule-guard.ts'] = str(rule_guard_path)
+data.setdefault('backups', {}).setdefault('extensions', {})['b-agentic-rule-guard.ts'] = str(original_backup)
+manifest_path.write_text(json.dumps(data, indent=2, sort_keys=True) + '\n')
+PY
+
+	rm -rf "$sandbox/source"
+	HOME="$sandbox/home" \
+		B_AGENTIC_REPO="$sandbox/missing-source" \
+		B_AGENTIC_DIR="$sandbox/source" \
+		B_AGENTIC_PROMPT_API_KEYS=N \
+		bash "$ROOT_DIR/install.sh" --uninstall >"$sandbox/uninstall.log" 2>&1
+	assert_equal_files "$rule_guard_path" "$original_snapshot"
+	assert_no_path "$rule_guard_snapshot"
+	assert_no_path "$original_backup"
+	assert_no_path "$manifest_path"
 }
 
 run_pi_anthropic_auth_package_lifecycle_case() {
@@ -1891,7 +2067,10 @@ run_base_smoke_cases() {
 		run_existing_tool_default_skip_case
 		run_fresh_dependency_install_case
 		run_bun_mcp_package_lifecycle_case
-		run_pi_lsp_package_lifecycle_case
+		run_pi_package_lifecycle_preservation_case
+		run_rule_guard_lifecycle_case
+		run_rule_guard_orphan_snapshot_case
+		run_rule_guard_manifest_backup_case
 		run_pi_anthropic_auth_package_lifecycle_case
 		run_parallel_chain_output_case
 		run_uninstall_skips_dependency_reconciliation_case

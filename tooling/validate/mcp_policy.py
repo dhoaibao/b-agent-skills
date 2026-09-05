@@ -21,6 +21,14 @@ GATED_CLASSES = {"local-upload", "external-mutation", "monitor-lifecycle", "loca
 READ_ONLY = "read-only"
 CONDITIONAL_CLASSES = {"conditional-read", "conditional-local"}
 MANAGED_SERVERS = {"codegraph", "context7", "brave-search", "firecrawl", "playwright"}
+MCP_SCRIPT_NUMERIC_FIELDS = {
+    "max_total_operations",
+    "max_tool_calls",
+    "max_sources_or_routes",
+    "max_results_per_source",
+    "max_normalized_records",
+    "max_primary_scrapes",
+}
 
 
 def load_policy() -> dict:
@@ -77,9 +85,66 @@ def validate_policy_shape(policy: dict, errors: list[str]) -> None:
         )
 
     runtime_policy = policy.get("runtime_enforcement", {}).get("pi", "")
-    for marker in ("tools.search", "tools.describe", "nested tools.call"):
+    for marker in (
+        "tools.search",
+        "tools.describe",
+        "nested tools.call",
+        "normal approval/auth/output-guard policy",
+        "bounded multi-call",
+        "browser mutations",
+    ):
         if marker not in runtime_policy:
             errors.append(f"references/mcp_operations.yaml: mcpScript runtime policy missing {marker!r}")
+
+
+def validate_mcp_script_contract(policy: dict, errors: list[str]) -> None:
+    contract = policy.get("mcpScript")
+    if not isinstance(contract, dict):
+        errors.append("references/mcp_operations.yaml: missing mcpScript contract")
+        return
+
+    for field in MCP_SCRIPT_NUMERIC_FIELDS:
+        value = contract.get(field)
+        if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
+            errors.append(f"references/mcp_operations.yaml: mcpScript {field} must be a positive integer")
+    if all(
+        isinstance(contract.get(field), int) and not isinstance(contract.get(field), bool)
+        for field in MCP_SCRIPT_NUMERIC_FIELDS
+    ):
+        if contract["max_tool_calls"] > contract["max_total_operations"]:
+            errors.append("references/mcp_operations.yaml: mcpScript max_tool_calls cannot exceed max_total_operations")
+        if contract["max_primary_scrapes"] > contract["max_sources_or_routes"]:
+            errors.append(
+                "references/mcp_operations.yaml: mcpScript max_primary_scrapes cannot exceed max_sources_or_routes"
+            )
+
+    if contract.get("allowed_operations") != ["tools.search", "tools.describe", "tools.call"]:
+        errors.append(
+            "references/mcp_operations.yaml: mcpScript allowed_operations must be search/describe/call in order"
+        )
+
+    envelope = contract.get("result_envelope")
+    if not isinstance(envelope, dict):
+        errors.append("references/mcp_operations.yaml: mcpScript result_envelope is required")
+        return
+    if envelope.get("success") != ["ok", "data"]:
+        errors.append("references/mcp_operations.yaml: mcpScript success envelope must be {ok, data}")
+    if envelope.get("failure") != ["ok", "error"]:
+        errors.append("references/mcp_operations.yaml: mcpScript failure envelope must be {ok, error}")
+    if envelope.get("content_block_types") != ["text", "image", "audio", "resource", "resource_link"]:
+        errors.append("references/mcp_operations.yaml: mcpScript content block types are incomplete or reordered")
+    if envelope.get("normalized_fields") != ["title", "url", "claim", "error"]:
+        errors.append("references/mcp_operations.yaml: mcpScript normalized fields must be title/url/claim/error")
+    if envelope.get("deduplicate_by") != ["url", "title+claim"]:
+        errors.append("references/mcp_operations.yaml: mcpScript deduplication keys must be URL then title+claim")
+    if (
+        not isinstance(envelope.get("partial_failure"), str)
+        or "partial" not in envelope["partial_failure"].lower()
+        or "error" not in envelope["partial_failure"].lower()
+    ):
+        errors.append("references/mcp_operations.yaml: mcpScript must define bounded partial-failure reporting")
+    if not isinstance(contract.get("fallback"), str) or "direct top-level mcp" not in contract["fallback"]:
+        errors.append("references/mcp_operations.yaml: mcpScript must define direct-mcp fallback guidance")
 
 
 def main() -> int:
@@ -93,6 +158,7 @@ def main() -> int:
         print(exc, file=sys.stderr)
         return 1
     validate_policy_shape(policy, errors)
+    validate_mcp_script_contract(policy, errors)
 
     if not PI_VALIDATOR.is_file():
         errors.append("pi/scripts/validate_mcp_policy.py: missing Pi MCP policy validator")

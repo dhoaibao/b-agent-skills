@@ -18,14 +18,14 @@ Own code-level and simulated-DOM tests: add coverage, fix test-only failures, an
 ## Tool guidance
 
 - `bash` - run tests via `rtk` when supported (`rtk pytest`, `rtk vitest`, `rtk jest`, …) and inspect failure output.
-- `lsp_diagnostics` / `lsp_fix` - use diagnostics on changed source when the relevant server is ready; use source actions only with explicit authorization, and fall back to the selected repository checks when unsupported or unavailable.
+
 - `read`/`edit` - use Pi native tools for routine and unsupported file work.
 - `codegraph` - select when a concrete repository-wide source-to-test impact or affected-test question is central to the task and likely valuable; use an available index for that question and initialize an absent index only for that qualifying question. Spanning files alone never justifies it.
 - `context7` - versioned test-framework/API semantics only when local tests and contracts do not settle them.
 
 ## Capability activation
 
-Use LSP only when it has a ready route for the changed file; it does not replace the affected test run. Select CodeGraph for a concrete repository-wide affected-test question that is central to the task, and use `recall` only when a supplied memory ID is relevant. Do not invoke usage, authentication, Intercom, or browser capabilities for test mechanics unless their task trigger is explicit.
+Use repository checks when useful for the changed source; they do not replace the affected test run. Select CodeGraph for a concrete repository-wide affected-test question that is central to the task, and use `recall` only when a supplied memory ID is relevant. Do not invoke usage, authentication, Intercom, or browser capabilities for test mechanics unless their task trigger is explicit.
 
 ## Steps
 

@@ -43,15 +43,12 @@ EXTENSION_NAMES=(
 	b-agentic-planner.ts
 	b-agentic-planner-notify.ts
 	b-agentic-worker.ts
-	b-agentic-consult.ts
 	b-agentic-sync.ts
-	b-agentic-rule-guard.ts
 	b-agentic-status.ts
 	b-agentic-support/shell.ts
 	b-agentic-support/mcp.ts
 	b-agentic-support/role.ts
 	b-agentic-support/role-models.ts
-	b-agentic-support/consult.ts
 	b-agentic-support/worker.ts
 	b-agentic-support/state.ts
 	b-agentic-support/auto.ts
@@ -59,7 +56,10 @@ EXTENSION_NAMES=(
 	b-agentic-support/status.ts
 )
 LEGACY_EXTENSION_NAMES=(
+	b-agentic-consult.ts
 	b-agentic-consultant.ts
+	b-agentic-rule-guard.ts
+	b-agentic-support/consult.ts
 )
 EXTENSION_DST="$EXTENSIONS_DST/b-agentic-permissions.ts"
 EXTENSION_SNAPSHOT_DST="$METADATA_DIR/extensions/b-agentic-permissions.ts"
@@ -76,8 +76,6 @@ PI_INTERCOM_SPEC="npm:pi-intercom"
 PI_INTERCOM_PACKAGE="pi-intercom"
 PI_ASK_USER_QUESTION_SPEC="npm:@juicesharp/rpiv-ask-user-question"
 PI_ASK_USER_QUESTION_PACKAGE="@juicesharp/rpiv-ask-user-question"
-PI_LSP_SPEC="npm:@narumitw/pi-lsp"
-PI_LSP_PACKAGE="@narumitw/pi-lsp"
 PI_TODO_SPEC="npm:@juicesharp/rpiv-todo"
 PI_TODO_PACKAGE="@juicesharp/rpiv-todo"
 MCP_ROOT_KEY="mcpServers"
@@ -96,7 +94,7 @@ set_pi_readonly \
 	PI_MCP_ADAPTER_SPEC PI_MCP_ADAPTER_PACKAGE PI_OBSERVATIONAL_MEMORY_SPEC \
 	PI_OBSERVATIONAL_MEMORY_PACKAGE PI_USAGE_SPEC PI_USAGE_PACKAGE \
 	PI_ANTHROPIC_AUTH_SPEC PI_ANTHROPIC_AUTH_PACKAGE PI_INTERCOM_SPEC PI_INTERCOM_PACKAGE \
-	PI_ASK_USER_QUESTION_SPEC PI_ASK_USER_QUESTION_PACKAGE PI_LSP_SPEC PI_LSP_PACKAGE \
+	PI_ASK_USER_QUESTION_SPEC PI_ASK_USER_QUESTION_PACKAGE \
 	PI_TODO_SPEC PI_TODO_PACKAGE MCP_ROOT_KEY MCP_PLACEHOLDER_STYLE \
 	MCP_CONTEXT7_SECTION MCP_BRAVE_SECTION MCP_FIRECRAWL_SECTION MCP_BACKUP_KEY \
 	EXTENSION_BACKUP_KEY THEMES_DST THEME_DST THEMES_SNAPSHOT_DST THEME_CACHED_DST \
@@ -121,8 +119,6 @@ INSTALL_PI_INTERCOM_ACTION="skip"
 INSTALL_PI_INTERCOM_STATE="missing"
 INSTALL_PI_ASK_USER_QUESTION_ACTION="skip"
 INSTALL_PI_ASK_USER_QUESTION_STATE="missing"
-INSTALL_PI_LSP_ACTION="skip"
-INSTALL_PI_LSP_STATE="missing"
 INSTALL_PI_TODO_ACTION="skip"
 INSTALL_PI_TODO_STATE="missing"
 INSTALL_THEME_ACTION="skip"
@@ -146,9 +142,6 @@ runtime_warn_missing_cli() {
 	fi
 	if command -v pi >/dev/null 2>&1 && ! pi_ask_user_question_installed; then
 		warn "@juicesharp/rpiv-ask-user-question not installed; interactive user questions are unavailable."
-	fi
-	if command -v pi >/dev/null 2>&1 && ! pi_lsp_installed; then
-		warn "@narumitw/pi-lsp not installed; optional LSP diagnostics and code actions are unavailable."
 	fi
 	if command -v pi >/dev/null 2>&1 && ! pi_todo_installed; then
 		warn "@juicesharp/rpiv-todo not installed; the Pi todo tool, /todos command, and persistent overlay are unavailable."
@@ -256,10 +249,6 @@ pi_intercom_installed() {
 
 pi_ask_user_question_installed() {
 	pi_package_installed "$PI_ASK_USER_QUESTION_PACKAGE"
-}
-
-pi_lsp_installed() {
-	pi_package_installed "$PI_LSP_PACKAGE"
 }
 
 pi_todo_installed() {
@@ -418,45 +407,6 @@ maybe_install_pi_ask_user_question() {
 		INSTALL_PI_ASK_USER_QUESTION_ACTION="failed"
 		INSTALL_PI_ASK_USER_QUESTION_STATE="missing"
 		warn "Failed to install $PI_ASK_USER_QUESTION_PACKAGE"
-		return 1
-	fi
-}
-
-maybe_install_pi_lsp() {
-	local package_state
-	package_state="$(pi_package_state "$PI_LSP_PACKAGE")"
-	if [ "$package_state" = "present" ]; then
-		INSTALL_PI_LSP_ACTION="present"
-		INSTALL_PI_LSP_STATE="ready"
-		log "Pi LSP $PI_LSP_PACKAGE already installed"
-		return 0
-	fi
-
-	if ! command -v pi >/dev/null 2>&1 && ! dry_run_enabled; then
-		warn "Pi CLI missing; cannot install $PI_LSP_PACKAGE"
-		return 1
-	fi
-
-	if dry_run_enabled; then
-		printf '[dry-run] pi install %s\n' "$PI_LSP_SPEC" >&2
-		INSTALL_PI_LSP_ACTION="install"
-		INSTALL_PI_LSP_STATE="dry-run"
-		return 0
-	fi
-
-	if [ "$package_state" = "versioned" ]; then
-		log "Migrating $PI_LSP_PACKAGE to its latest unpinned release"
-	else
-		log "Installing $PI_LSP_PACKAGE"
-	fi
-	if pi install "$PI_LSP_SPEC"; then
-		INSTALL_PI_LSP_ACTION="install"
-		INSTALL_PI_LSP_STATE="ready"
-		log "Installed $PI_LSP_PACKAGE"
-	else
-		INSTALL_PI_LSP_ACTION="failed"
-		INSTALL_PI_LSP_STATE="missing"
-		warn "Failed to install $PI_LSP_PACKAGE"
 		return 1
 	fi
 }
@@ -661,6 +611,8 @@ remove_legacy_extensions() {
 		fi
 		if [ -f "$dst" ] && [ -f "$snapshot" ] && cmp -s "$dst" "$snapshot"; then
 			run_cmd rm -f "$dst" "$snapshot"
+		elif [ ! -e "$dst" ] && [ ! -L "$dst" ] && [ -f "$snapshot" ] && [ ! -L "$snapshot" ]; then
+			run_cmd rm -f "$snapshot"
 		elif [ -e "$dst" ]; then
 			warn "preserving user-modified legacy extension: $dst"
 		fi
@@ -750,7 +702,6 @@ runtime_install_configs() {
 	maybe_install_pi_anthropic_auth || return $?
 	maybe_install_pi_intercom || return $?
 	maybe_install_pi_ask_user_question || return $?
-	maybe_install_pi_lsp || return $?
 	maybe_install_pi_todo || return $?
 	run_stage "Updating Pi extensions" update_pi_extensions || return $?
 	run_install_triplet_stage "Installing Pi permission extension" install_permissions_extension "skip" "none" "none" \
@@ -795,8 +746,6 @@ runtime_write_manifest() {
 		PI_INTERCOM_STATE="$INSTALL_PI_INTERCOM_STATE" \
 		PI_ASK_USER_QUESTION_ACTION="$INSTALL_PI_ASK_USER_QUESTION_ACTION" \
 		PI_ASK_USER_QUESTION_STATE="$INSTALL_PI_ASK_USER_QUESTION_STATE" \
-		PI_LSP_ACTION="$INSTALL_PI_LSP_ACTION" \
-		PI_LSP_STATE="$INSTALL_PI_LSP_STATE" \
 		PI_TODO_ACTION="$INSTALL_PI_TODO_ACTION" \
 		PI_TODO_STATE="$INSTALL_PI_TODO_STATE" \
 		THEME_ACTION="$INSTALL_THEME_ACTION" \
@@ -860,17 +809,12 @@ legacy_states = {
     'piIntercomState': os.environ['PI_INTERCOM_STATE'],
     'piAskUserQuestionAction': os.environ['PI_ASK_USER_QUESTION_ACTION'],
     'piAskUserQuestionState': os.environ['PI_ASK_USER_QUESTION_STATE'],
-    'piLspAction': os.environ['PI_LSP_ACTION'],
-    'piLspState': os.environ['PI_LSP_STATE'],
     'piTodoAction': os.environ['PI_TODO_ACTION'],
     'piTodoState': os.environ['PI_TODO_STATE'],
     'themeAction': os.environ['THEME_ACTION'],
     'themeState': os.environ['THEME_STATE'],
 }
 def capability_state(capability, value):
-    # LSP package installation does not prove a usable language-server route.
-    if capability.get('id') == 'package.pi-lsp' and value in ('active', 'ready', 'dry-run'):
-        return 'unknown'
     # The legacy installer calls an active managed asset ready in the capability view.
     return 'ready' if value == 'active' else value
 
@@ -913,8 +857,6 @@ manifest = {
     'piIntercomState': os.environ['PI_INTERCOM_STATE'],
     'piAskUserQuestionAction': os.environ['PI_ASK_USER_QUESTION_ACTION'],
     'piAskUserQuestionState': os.environ['PI_ASK_USER_QUESTION_STATE'],
-    'piLspAction': os.environ['PI_LSP_ACTION'],
-    'piLspState': os.environ['PI_LSP_STATE'],
     'piTodoAction': os.environ['PI_TODO_ACTION'],
     'piTodoState': os.environ['PI_TODO_STATE'],
     'themeAction': os.environ['THEME_ACTION'],
@@ -985,11 +927,6 @@ runtime_print_install_report() {
 	[ "$INSTALL_PI_ANTHROPIC_AUTH_STATE" = "ready" ] || attention+=("anthropic-auth: install $PI_ANTHROPIC_AUTH_PACKAGE with 'pi install $PI_ANTHROPIC_AUTH_SPEC'")
 	[ "$INSTALL_PI_INTERCOM_STATE" = "ready" ] || attention+=("pi-intercom: install $PI_INTERCOM_PACKAGE with 'pi install $PI_INTERCOM_SPEC'")
 	[ "$INSTALL_PI_ASK_USER_QUESTION_STATE" = "ready" ] || attention+=("ask-user-question: install $PI_ASK_USER_QUESTION_PACKAGE with 'pi install $PI_ASK_USER_QUESTION_SPEC'")
-	if [ "$INSTALL_PI_LSP_STATE" = "ready" ]; then
-		attention+=("pi-lsp: package installed; relevant language-server executable/configuration remains unverified (see /b-status)")
-	else
-		attention+=("pi-lsp: install $PI_LSP_PACKAGE with 'pi install $PI_LSP_SPEC'")
-	fi
 	[ "$INSTALL_PI_TODO_STATE" = "ready" ] || attention+=("pi-todo: install $PI_TODO_PACKAGE with 'pi install $PI_TODO_SPEC'")
 
 	shell_status="$(shell_tool_readiness_status)"
@@ -1073,7 +1010,7 @@ PY
 	elif [ -e "$theme_path" ]; then
 		warn "preserving modified Pi theme: $theme_path"
 	fi
-	# Intentionally leave Pi packages installed, including pi-lsp, pi-anthropic-auth, the ask-user-question extension, and pi-todo.
+	# Intentionally leave all Pi packages installed.
 }
 
 
@@ -1086,7 +1023,7 @@ pi_sync() {
 }
 
 pi_update() {
-	set_install_stage_total 12
+	set_install_stage_total 11
 	run_stage "Updating Pi CLI" runtime_upgrade_cli || return $?
 	run_stage "Installing Pi MCP adapter" maybe_install_pi_mcp_adapter || return $?
 	run_stage "Installing observational memory" maybe_install_pi_observational_memory || return $?
@@ -1094,7 +1031,6 @@ pi_update() {
 	run_stage "Installing Anthropic auth" maybe_install_pi_anthropic_auth || return $?
 	run_stage "Installing Pi intercom" maybe_install_pi_intercom || return $?
 	run_stage "Installing ask-user-question extension" maybe_install_pi_ask_user_question || return $?
-	run_stage "Installing Pi LSP" maybe_install_pi_lsp || return $?
 	run_stage "Installing Pi todo" maybe_install_pi_todo || return $?
 	run_stage "Syncing first-party extensions" install_permissions_extension >/dev/null || return $?
 	run_stage "Updating Pi extensions" update_pi_extensions || return $?
