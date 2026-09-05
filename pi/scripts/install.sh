@@ -53,6 +53,7 @@ EXTENSION_NAMES=(
 	b-agentic-support/state.ts
 	b-agentic-support/auto.ts
 	b-agentic-support/capabilities.ts
+	b-agentic-support/candidate.ts
 	b-agentic-support/status.ts
 )
 LEGACY_EXTENSION_NAMES=(

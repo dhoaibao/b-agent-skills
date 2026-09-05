@@ -1,21 +1,22 @@
-/** Role selection, persistence, coordination, and role model preferences. */
+/** Explicit role selection, compatible peer discovery, and role model preferences. */
 import type {
   ExtensionAPI,
   ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 import {
   ROLE_ENTRY_TYPE,
-  parseRole,
+  ROLE_PROTOCOL_VERSION,
+  isCompatibleRolePayload,
   latestRoleState,
+  parseRole,
+  type BAgenticRole,
 } from "./b-agentic-support/role.ts";
 import {
   loadRoleModelPreferences,
   saveRoleModelPreference,
-  type RoleModelPreference,
 } from "./b-agentic-support/role-models.ts";
 import { getRole, setRole } from "./b-agentic-support/state.ts";
 
-type CoordinatedRole = "off" | "planner" | "worker";
 type RoleSession = {
   id: string;
   cwd: string;
@@ -30,100 +31,123 @@ type RoleChannel = {
   ): void;
   listSessions(): Promise<RoleSession[]>;
 };
-
-function hasKnownSameCwdPeerRoles(
-  sessions: RoleSession[],
-  cwd: string,
-  pid: number,
-  peerRoles: ReadonlyMap<string, CoordinatedRole>,
-): boolean {
-  return sessions
-    .filter((session) => session.cwd === cwd && session.pid !== pid)
-    .every((session) => peerRoles.has(session.id));
-}
-
-function hasActiveSameCwdPeerWorker(
-  sessions: RoleSession[],
-  cwd: string,
-  pid: number,
-  peerRoles: ReadonlyMap<string, CoordinatedRole>,
-): boolean {
-  return sessions.some(
-    (session) =>
-      session.cwd === cwd &&
-      session.pid !== pid &&
-      peerRoles.get(session.id) === "worker",
-  );
-}
-
-function canClaimWorker(sessions: RoleSession[], cwd: string): boolean {
-  return sessions.filter((session) => session.cwd === cwd).length <= 2;
-}
 type RoleChannelEvent =
   | { type: "connection"; connected: boolean; supported: boolean }
   | { type: "session_joined" }
   | { type: "session_left"; sessionId: string }
   | { type: "message"; fromSessionId: string; payload: unknown };
 
-function isRole(value: unknown): value is CoordinatedRole {
-  return value === "off" || value === "planner" || value === "worker";
+function sameCwdPeers(
+  sessions: RoleSession[],
+  cwd: string,
+  pid: number,
+): RoleSession[] {
+  return sessions.filter(
+    (session) => session.cwd === cwd && session.pid !== pid,
+  );
+}
+function hasCompatibleSameCwdPeerRoles(
+  sessions: RoleSession[],
+  cwd: string,
+  pid: number,
+  peerRoles: ReadonlyMap<string, BAgenticRole>,
+): boolean {
+  return sameCwdPeers(sessions, cwd, pid).every((peer) =>
+    peerRoles.has(peer.id),
+  );
+}
+function hasActiveSameCwdPeerImplementer(
+  sessions: RoleSession[],
+  cwd: string,
+  pid: number,
+  peerRoles: ReadonlyMap<string, BAgenticRole>,
+): boolean {
+  return sameCwdPeers(sessions, cwd, pid).some(
+    (peer) => peerRoles.get(peer.id) === "implementer",
+  );
+}
+function canClaimImplementer(
+  sessions: RoleSession[],
+  cwd: string,
+  pid: number,
+): boolean {
+  return sameCwdPeers(sessions, cwd, pid).length <= 1;
+}
+function preferredImplementerId(
+  sessions: RoleSession[],
+  cwd: string,
+  pid: number,
+  peerRoles: ReadonlyMap<string, BAgenticRole>,
+): string | undefined {
+  return sessions
+    .filter(
+      (session) =>
+        session.cwd === cwd &&
+        (session.pid === pid || peerRoles.get(session.id) === "implementer"),
+    )
+    .map((session) => session.id)
+    .sort((left, right) => left.localeCompare(right))[0];
 }
 
 export default function bAgenticRole(pi: ExtensionAPI): void {
-  let applyingSavedModel = false;
   let channel: RoleChannel | undefined;
-  let pendingWorkerClaim = false;
-  let pendingWorkerModel = false;
-  const peerRoles = new Map<string, CoordinatedRole>();
+  let applyingSavedModel = false;
+  let pendingImplementerClaim = false;
+  let pendingImplementerModel = false;
+  const peerRoles = new Map<string, BAgenticRole>();
 
   const updateStatus = (ctx: ExtensionContext): void => {
     const role = getRole();
     const status =
-      role === "planner"
-        ? ctx.ui.theme.fg("success", "b-agentic: planner")
-        : role === "worker"
-          ? ctx.ui.theme.getColorMode() === "truecolor"
-            ? "\x1b[38;2;0;215;255mb-agentic: worker\x1b[39m"
-            : "\x1b[38;5;45mb-agentic: worker\x1b[39m"
+      role === "implementer"
+        ? ctx.ui.theme.getColorMode() === "truecolor"
+          ? "\x1b[38;2;0;215;255mb-agentic: implementer\x1b[39m"
+          : "\x1b[38;5;45mb-agentic: implementer\x1b[39m"
+        : role === "reviewer"
+          ? ctx.ui.theme.fg("success", "b-agentic: reviewer")
           : undefined;
     ctx.ui.setStatus("b-agentic-role", status);
   };
   const publishRole = (): void => {
     try {
       channel?.publish(
-        { type: "b-agentic-role", role: getRole() },
+        {
+          type: "b-agentic-role",
+          version: ROLE_PROTOCOL_VERSION,
+          role: getRole(),
+        },
         { audience: "capable" },
       );
     } catch {
-      /* Connection events retry publication. */
+      /* Retry on a connection event. */
     }
   };
   const requestPeerRoles = (): void => {
     try {
       channel?.publish(
-        { type: "b-agentic-role-request" },
+        { type: "b-agentic-role-request", version: ROLE_PROTOCOL_VERSION },
         { audience: "capable" },
       );
     } catch {
-      /* Connection events retry discovery. */
+      /* Retry on a connection event. */
     }
   };
-  const persist = (): void => {
-    pi.appendEntry(ROLE_ENTRY_TYPE, { role: getRole(), automatic: false });
-  };
+  const persist = (): void =>
+    pi.appendEntry(ROLE_ENTRY_TYPE, {
+      role: getRole(),
+      version: ROLE_PROTOCOL_VERSION,
+    });
   const saveModel = (
-    role: "planner" | "worker",
+    role: Exclude<BAgenticRole, "off">,
     model: { provider: string; id: string },
-  ): void => {
-    const preference: RoleModelPreference = {
+  ): void =>
+    saveRoleModelPreference(role, {
       provider: model.provider,
       model: model.id,
       thinkingLevel: pi.getThinkingLevel(),
-    };
-    saveRoleModelPreference(role, preference);
-  };
+    });
   const applySavedModel = async (
-    role: "planner" | "worker",
+    role: Exclude<BAgenticRole, "off">,
     ctx: ExtensionContext,
   ): Promise<boolean> => {
     const preference = loadRoleModelPreferences()[role];
@@ -153,41 +177,80 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
     }
   };
   const applyRole = (
-    next: "off" | "planner" | "worker",
+    role: BAgenticRole,
     ctx: ExtensionContext,
     shouldPersist = true,
   ): void => {
-    // Roles guide skill execution through their prompts; they never filter active tools.
-    setRole(next);
+    setRole(role);
     publishRole();
     updateStatus(ctx);
     if (shouldPersist) persist();
   };
-  const resolvePendingWorkerClaim = async (
+  const resolvePendingImplementerClaim = async (
     ctx: ExtensionContext,
   ): Promise<void> => {
-    if (!pendingWorkerClaim || !channel) return;
+    if (!pendingImplementerClaim || !channel) return;
     try {
       const sessions = await channel.listSessions();
-      if (!hasKnownSameCwdPeerRoles(sessions, ctx.cwd, process.pid, peerRoles))
-        return;
-      if (!canClaimWorker(sessions, ctx.cwd)) return;
-      pendingWorkerClaim = false;
-      const shouldApplySavedModel = pendingWorkerModel;
-      pendingWorkerModel = false;
       if (
-        hasActiveSameCwdPeerWorker(sessions, ctx.cwd, process.pid, peerRoles)
+        !hasCompatibleSameCwdPeerRoles(
+          sessions,
+          ctx.cwd,
+          process.pid,
+          peerRoles,
+        ) ||
+        !canClaimImplementer(sessions, ctx.cwd, process.pid)
+      )
+        return;
+      pendingImplementerClaim = false;
+      const shouldApplySavedModel = pendingImplementerModel;
+      pendingImplementerModel = false;
+      if (
+        hasActiveSameCwdPeerImplementer(
+          sessions,
+          ctx.cwd,
+          process.pid,
+          peerRoles,
+        )
       ) {
         ctx.ui.notify(
-          "A same-CWD b-agentic worker is already active",
+          "A same-CWD b-agentic implementer is already active",
           "warning",
         );
         return;
       }
-      applyRole("worker", ctx);
-      if (shouldApplySavedModel) await applySavedModel("worker", ctx);
+      applyRole("implementer", ctx);
+      if (shouldApplySavedModel) await applySavedModel("implementer", ctx);
     } catch {
-      // Stay planner-safe until a connection or peer-role event retries the claim.
+      /* Remain Off until compatible discovery completes. */
+    }
+  };
+  const resolveImplementerCollision = async (
+    ctx: ExtensionContext,
+  ): Promise<void> => {
+    if (getRole() !== "implementer" || !channel) return;
+    try {
+      const sessions = await channel.listSessions();
+      const self = sessions.find(
+        (session) => session.cwd === ctx.cwd && session.pid === process.pid,
+      );
+      if (
+        !self ||
+        preferredImplementerId(sessions, ctx.cwd, process.pid, peerRoles) !==
+          self.id
+      ) {
+        applyRole("off", ctx);
+        ctx.ui.notify(
+          "A same-CWD implementer claim won; remaining Off",
+          "warning",
+        );
+      }
+    } catch {
+      applyRole("off", ctx);
+      ctx.ui.notify(
+        "Could not resolve a same-CWD implementer claim; remaining Off",
+        "warning",
+      );
     }
   };
   const handleChannelEvent = async (
@@ -196,13 +259,13 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
   ): Promise<void> => {
     if (event.type === "session_left") {
       peerRoles.delete(event.sessionId);
-      await resolvePendingWorkerClaim(ctx);
+      await resolvePendingImplementerClaim(ctx);
       return;
     }
     if (event.type === "connection" && event.connected && event.supported) {
       publishRole();
       requestPeerRoles();
-      await resolvePendingWorkerClaim(ctx);
+      await resolvePendingImplementerClaim(ctx);
       return;
     }
     if (event.type === "session_joined") {
@@ -216,92 +279,74 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
     )
       return;
     const payload = event.payload as Record<string, unknown>;
-    if (payload.type === "b-agentic-role-request") {
+    if (
+      payload.type === "b-agentic-role-request" &&
+      payload.version === ROLE_PROTOCOL_VERSION
+    ) {
       publishRole();
       return;
     }
-    if (payload.type === "b-agentic-role" && isRole(payload.role)) {
+    if (isCompatibleRolePayload(payload)) {
       peerRoles.set(event.fromSessionId, payload.role);
-      await resolvePendingWorkerClaim(ctx);
-      return;
+      await resolvePendingImplementerClaim(ctx);
+      if (payload.role === "implementer")
+        await resolveImplementerCollision(ctx);
     }
   };
 
   pi.registerFlag("b-role", {
-    description: "Set b-agentic role: off, planner, or worker",
+    description: "Set b-agentic role: off, implementer, or reviewer",
     type: "string",
   });
   pi.registerCommand("b-role", {
-    description: "Set b-agentic role: planner, worker, or off",
+    description: "Set b-agentic role: implementer, reviewer, or off",
     getArgumentCompletions: (prefix) =>
-      ["planner", "worker", "off"]
+      ["implementer", "reviewer", "off"]
         .filter((role) => role.startsWith(prefix.trim().toLowerCase()))
         .map((role) => ({ value: role, label: role })),
     handler: async (args, ctx) => {
-      const explicitRole = parseRole(args);
-      let next = explicitRole;
+      let next = parseRole(args);
       if (!next && !args.trim() && ctx.hasUI)
         next = parseRole(
           await ctx.ui.select("Select b-agentic role", [
-            "planner",
-            "worker",
+            "implementer",
+            "reviewer",
             "off",
           ]),
         );
       if (!next) {
         ctx.ui.notify(
           args.trim()
-            ? "Usage: /b-role planner|worker|off"
+            ? "Usage: /b-role implementer|reviewer|off"
             : `b-agentic role: ${getRole()}`,
           args.trim() ? "error" : "info",
         );
         return;
       }
-      pendingWorkerClaim = next === "worker";
-      pendingWorkerModel = next === "worker";
-      applyRole(next === "worker" ? "planner" : next, ctx);
-      if (next === "planner") await applySavedModel(next, ctx);
-      if (pendingWorkerClaim) {
+      pendingImplementerClaim = next === "implementer";
+      pendingImplementerModel = next === "implementer";
+      applyRole(next === "implementer" ? "off" : next, ctx);
+      if (next === "reviewer") await applySavedModel("reviewer", ctx);
+      if (pendingImplementerClaim) {
         requestPeerRoles();
-        await resolvePendingWorkerClaim(ctx);
+        await resolvePendingImplementerClaim(ctx);
       }
       ctx.ui.notify(
-        pendingWorkerClaim
-          ? "b-agentic worker request is waiting for peer role discovery"
+        pendingImplementerClaim
+          ? "b-agentic implementer request is waiting for compatible peer discovery"
           : `b-agentic role set to ${getRole()}`,
-        pendingWorkerClaim ? "warning" : "info",
+        pendingImplementerClaim ? "warning" : "info",
       );
     },
   });
-  pi.on("before_agent_start", async (event, ctx) => {
-    if (getRole() !== "planner" || !channel) return undefined;
-    let sessions: RoleSession[];
-    try {
-      sessions = await channel.listSessions();
-    } catch {
-      sessions = [];
-    }
-    const workers = sessions.filter(
-      (session) =>
-        session.cwd === ctx.cwd && peerRoles.get(session.id) === "worker",
-    );
-    const roster = workers.length
-      ? workers
-          .map((worker) => `${worker.name ?? worker.id} (${worker.id})`)
-          .join(", ")
-      : "none";
-    return {
-      systemPrompt: `${event.systemPrompt}\n\n## b-agentic worker roster\nReady same-CWD workers: ${roster}. Do not implement when this is none; provision or wait for a worker.`,
-    };
-  });
-
   pi.on("model_select", (event) => {
     const role = getRole();
-    if (applyingSavedModel || role === "off") return;
-    try {
-      saveModel(role, event.model);
-    } catch {
-      /* Preference persistence must not block model selection. */
+    if (!applyingSavedModel && role !== "off") {
+      try {
+        saveModel(role, event.model);
+      } catch {
+        /* Preference persistence cannot block selection. */
+      }
     }
   });
   pi.on("thinking_level_select", (event) => {
@@ -309,39 +354,41 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
     if (applyingSavedModel || role === "off") return;
     try {
       const preference = loadRoleModelPreferences()[role];
-      if (!preference) return;
-      saveRoleModelPreference(role, {
-        ...preference,
-        thinkingLevel: event.level,
-      });
+      if (preference)
+        saveRoleModelPreference(role, {
+          ...preference,
+          thinkingLevel: event.level,
+        });
     } catch {
-      /* Preference persistence must not block thinking-level selection. */
+      /* Preference persistence cannot block selection. */
     }
   });
   pi.on("session_start", async (_event, ctx) => {
-    const persisted = latestRoleState(ctx.sessionManager.getBranch());
+    const persistedRole = latestRoleState(ctx.sessionManager.getBranch())?.role;
     const flagRole = parseRole(pi.getFlag("b-role"));
-    const legacyAutomatic = persisted?.automatic === true;
-    const persistedRole = legacyAutomatic ? undefined : persisted?.role;
-    pendingWorkerClaim = flagRole === "worker";
-    pendingWorkerModel = false;
-    const selectedRole = pendingWorkerClaim
-      ? "planner"
-      : (flagRole ?? persistedRole ?? "off");
+    const requestedRole = flagRole ?? persistedRole;
+    pendingImplementerClaim = requestedRole === "implementer";
+    pendingImplementerModel = pendingImplementerClaim;
+    const selectedRole = pendingImplementerClaim
+      ? "off"
+      : (requestedRole ?? "off");
     applyRole(selectedRole, ctx, false);
     const startupModelRole =
       flagRole && flagRole !== "off"
         ? flagRole
-        : !pendingWorkerClaim && selectedRole !== "off"
+        : !pendingImplementerClaim && selectedRole !== "off"
           ? selectedRole
           : undefined;
     if (startupModelRole) await applySavedModel(startupModelRole, ctx);
-    if (flagRole && !pendingWorkerClaim) persist();
+    if (flagRole && !pendingImplementerClaim) persist();
     pi.events.emit("intercom:extension-register", {
-      namespace: "b-agentic/roles/v1",
+      namespace: "b-agentic/roles/v2",
       ownerEligible: false,
       onReady: (nextChannel: RoleChannel) => {
         channel = nextChannel;
+        publishRole();
+        requestPeerRoles();
+        void resolvePendingImplementerClaim(ctx);
       },
       onEvent: (event: RoleChannelEvent) => handleChannelEvent(event, ctx),
     });
@@ -350,12 +397,14 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
 
 export const __test__ = {
   ROLE_ENTRY_TYPE,
+  ROLE_PROTOCOL_VERSION,
   parseRole,
   latestRoleState,
-  isRole,
+  isCompatibleRolePayload,
   loadRoleModelPreferences,
   saveRoleModelPreference,
-  hasKnownSameCwdPeerRoles,
-  hasActiveSameCwdPeerWorker,
-  canClaimWorker,
+  hasCompatibleSameCwdPeerRoles,
+  hasActiveSameCwdPeerImplementer,
+  canClaimImplementer,
+  preferredImplementerId,
 };

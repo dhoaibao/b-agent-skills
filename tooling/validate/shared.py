@@ -126,9 +126,9 @@ prompt_regression_contracts = {
         "report observations and gaps",
         "generic page load or screenshot alone is not aesthetic proof",
     ],
-    "b-plan": ["For plans spanning more than 3 files", "In planner mode, instead keep the approved plan"],
+    "b-plan": ["candidate-review gate", "tracked plus relevant untracked/derived snapshot"],
     "b-research": ["resolved lockfiles", "go.mod"],
-    "b-review": ["review of changed code"],
+    "b-review": ["frozen changed-code candidate"],
     "b-agentic-audit": [
         "Existing source/design conformance",
         "Whole-project and first-party-extension health",
@@ -393,79 +393,20 @@ for relative_path, markers in B_INIT_GUIDANCE_REGRESSION["anchors"].items():
 # decisions still prescribed plain chat and b-commit lacked a structured approval
 # path. Check canonical and generated guidance, not only package installation.
 INTERACTIVE_DECISION_REGRESSION = {
-    "observed_failure": (
-        "Worker-facing material decisions still prescribed plain chat despite the "
-        "questionnaire extension being installed."
-    ),
-    "intended_behavior": (
-        "Planner and solo/Off worker material user-facing decisions and blockers use "
-        "the questionnaire with its grouped-option contract, while planner tool calls "
-        "produce fixed privacy-safe notifications, worker-to-planner questions remain "
-        "Intercom, and b-commit exposes structured approval with fallback."
-    ),
+    "observed_failure": "Material questions or notifications could bypass the explicit role contract.",
     "anchors": {
-        "references/kernel.template.md": [
-            "Interactive, user-facing material decisions or blockers in planner or solo/Off work",
-            "Worker→planner material blockers remain Intercom",
-            "native tool-permission prompts for browser, external, or privileged actions are not replaced",
-        ],
-        "pi/extensions/b-agentic-support/role.ts": [
-            "any interactive, user-facing material decision or blocker",
-            "actual tool call in planner mode triggers the fixed",
-            "notification contains no question or session data",
-            "Solo/Off workers do not emit planner notifications",
-            "If the package reports that it is unavailable or the UI is noninteractive",
-            "B_AGENTIC_TASK_COMPLETE",
-        ],
-        "pi/extensions/b-agentic-planner-notify.ts": [
-            "tool_call",
-            "ask_user_question",
-            "User input needed",
-            "getRole() !== \"planner\"",
-            "notifyUserInputNeeded",
-        ],
-        "skills/b-commit/prompt.md": [
-            "Approve (Recommended)",
-            "Decline",
-            "focused plain-text confirmation in chat",
-            "read-only proposal phase",
-            "exact ordered commit groups",
-            "exactly one user approval question",
-            "original explicit user request plus the planner-relayed exact approval",
-            "without re-proposing or re-asking",
-            "snapshot or proposal differs",
-            "stop and report—not regroup or reuse approval",
-            "complete, unchanged planner handoff",
-            "resumes at step 9",
-            "does not repeat steps 3–8",
-            "targeted pre-commit diff checks",
-        ],
-        "skills/b-commit/SKILL.md": [
-            "Approve (Recommended)",
-            "Decline",
-            "focused plain-text confirmation in chat",
-            "read-only proposal phase",
-            "exact ordered commit groups",
-            "exactly one user approval question",
-            "original explicit user request plus the planner-relayed exact approval",
-            "without re-proposing or re-asking",
-            "snapshot or proposal differs",
-            "stop and report—not regroup or reuse approval",
-            "complete, unchanged planner handoff",
-            "resumes at step 9",
-            "does not repeat steps 3–8",
-            "targeted pre-commit diff checks",
-        ],
+        "references/kernel.template.md": ["Interactive, user-facing material decisions or blockers use installed `ask_user_question`", "Implementer calls surface a fixed privacy-safe"],
+        "pi/extensions/b-agentic-support/role.ts": ["Work directly with the user", "ask_user_question", "No automatic commit or push"],
+        "pi/extensions/b-agentic-planner-notify.ts": ["tool_call", "ask_user_question", "User input needed", "getRole() !== \"implementer\""],
+        "skills/b-commit/prompt.md": ["Approve (Recommended)", "Decline", "focused plain-text confirmation in chat", "exact candidate snapshot", "reopen **b-review**"],
+        "skills/b-commit/SKILL.md": ["Approve (Recommended)", "Decline", "focused plain-text confirmation in chat", "exact candidate snapshot", "reopen **b-review**"],
     },
 }
 for relative_path, markers in INTERACTIVE_DECISION_REGRESSION["anchors"].items():
     text = read_text(ROOT / relative_path)
     for marker in markers:
         if marker not in text:
-            errors.append(
-                f"{relative_path}: missing interactive-decision regression anchor {marker!r}; "
-                f"observed failure: {INTERACTIVE_DECISION_REGRESSION['observed_failure']}"
-            )
+            errors.append(f"{relative_path}: missing interactive-decision regression anchor {marker!r}; observed failure: {INTERACTIVE_DECISION_REGRESSION['observed_failure']}")
 
 # Regression: MCPs were named but agents had no durable selection, sequencing, or
 # first-use bootstrap workflow, and broad cross-file tasks could trigger needless
@@ -483,19 +424,12 @@ MCP_WORKFLOW_REGRESSION = {
         "planner role never initializes an absent index."
     ),
     "anchors": {
-        "b-plan": [
-            "Do not initialize an absent index in planner mode",
-            "Spanning files alone never justifies selection or initialization",
-            "In planner mode, do not initialize an absent index; fall back to native inspection and state the resulting gap. Outside planner mode, initialize one only for that qualifying question.",
-        ],
+        "b-plan": ["Spanning files alone never justifies selection or initialization"],
         "b-debug": ["versioned dependency suspects"],
         "b-test": ["versioned framework semantics"],
         "b-browser": ["existing CI/script evidence; approved navigation", "mcpScript", "browser mutations"],
         "b-research": ["independent corroboration", "research_*", "mcpScript", "direct top-level `mcp` calls"],
-        "b-review": [
-            "specialized Brave tools",
-            "Do not initialize an absent index in planner mode;",
-        ],
+        "b-review": ["specialized Brave tools"],
     },
 }
 for skill_name, markers in MCP_WORKFLOW_REGRESSION["anchors"].items():
@@ -607,9 +541,9 @@ PROMPT_TOOL_LEVERAGE_REGRESSION = {
     ),
     "anchors": {
         "b-implement": [
-            "use Pi native file tools by default",
+            "Use Pi native file tools by default",
             "Select CodeGraph",
-            "Use native tools or local search",
+            "native tools or local search",
             "repository-wide architecture, impact, or affected-test question",
             "compacted observational-memory ids",
         ],
@@ -743,7 +677,7 @@ else:
         else:
             role_ids.append(scenario_id)
         role = scenario.get("role")
-        if role not in {"planner", "worker"}:
+        if role not in {"implementer", "reviewer"}:
             errors.append(f"{label} has unknown role {role!r}")
         else:
             covered_roles.add(role)
@@ -758,8 +692,8 @@ else:
                 errors.append(f"{label} {field} must be a non-empty string array")
     if len(role_ids) != len(set(role_ids)):
         errors.append(f"{rel(roles_path)}: scenario ids must be unique")
-    if covered_roles != {"planner", "worker"}:
-        errors.append(f"{rel(roles_path)}: scenarios must cover planner and worker")
+    if covered_roles != {"implementer", "reviewer"}:
+        errors.append(f"{rel(roles_path)}: scenarios must cover implementer and reviewer")
 
 init_guidance_path = ROOT / "tests" / "behavior" / "init-guidance.json"
 init_guidance_fixture = load_json(init_guidance_path)
@@ -1264,7 +1198,7 @@ if _forbidden_codegraph_gates(
     errors.append("CodeGraph gate regression self-test rejected corrected guidance")
 
 for intercom_marker in [
-    "b-agentic defaults to Off", "external `b-research`", "sole worktree writer", "same-CWD roster",
+    "b-agentic defaults to Off", "implementer is the sole user-facing worktree writer", "independent prompt-governed read-only gate", "compatible same-CWD peers",
 ]:
     if intercom_marker not in kernel_template:
         errors.append(
@@ -1274,36 +1208,15 @@ for intercom_marker in [
 role_prompt = read_text(ROOT / "pi/extensions/b-agentic-support/role.ts")
 for intercom_marker in [
     # generated:role-prompt-markers:shared:start
-    "Finish discovery before one bounded handoff",
-    "expected paths/symbols",
-    "independent read-only work outside",
-    "do not mutate, revise in-flight scope, issue another implementation task, or review the in-flight diff",
-    "re-read the actual changed paths before review",
-    "Use send for task delegation, terminal results, review requests/findings, and any question/request needing material work",
-    "one focused question whose answer needs no substantial investigation, implementation, or waiting",
-    "never use ask to wait",
-    "Roster/status only selects or handles",
-    "Before every outbound Intercom send or ask",
-    "If it reports an inbound ask, reply to that ask immediately—do not call send, ask, list-cwd, or another pending first",
-    "If none exists, immediately call list-cwd",
-    "identifier token verbatim",
-    "authoritative short ID is valid",
-    "never guess, reconstruct, extend, further abbreviate, or reuse stale output",
-    "Delivery makes a handoff, result, finding, or approval real",
-    "one retry only",
-    "applicable observable behavior, scope/non-goals, constraints/invariants",
-    "latest approved plan, handoff, and clarifications",
-    "Only delegated worktree-changing tasks require actual b-review",
-    "location, evidence, impact, violated baseline, smallest correction, and regression check",
-    "For audit/review verification you cannot run, request bounded worker evidence",
-    "same worker may b-commit only on explicit user request",
-    "b-commit remains worker-owned",
-    "read-only proposal analysis",
-    "exactly one user approval",
-    "captured snapshot",
-    "without re-proposing or re-asking",
-    "snapshot or proposal differs",
-    "stop and report—not regroup or reuse approval",
+    "sole user-facing writer",
+    "independent read-only gate",
+    "roles never filter tools",
+    "freeze the candidate",
+    "tracked and relevant untracked/derived files",
+    "required checks",
+    "exact unchanged snapshot",
+    "READY WITH FOLLOW-UPS",
+    "No automatic commit or push",
 # generated:role-prompt-markers:shared:end
 ]:
     if intercom_marker not in role_prompt:

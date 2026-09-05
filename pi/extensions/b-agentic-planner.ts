@@ -1,23 +1,21 @@
-/** Planner collaboration prompt. */
+/** Legacy filename retained; injects the reviewer profile. */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import {
-  PLANNER_PROMPT,
+  REVIEWER_PROMPT,
   SKILL_OWNERS,
   SKILL_OWNERSHIP_CRITERION,
   skillOwner,
 } from "./b-agentic-support/role.ts";
 import { getRole } from "./b-agentic-support/state.ts";
 
-export default function bAgenticPlanner(pi: ExtensionAPI): void {
-  // Planner task delegation remains prompt-governed; shared policies apply to all roles.
+export default function bAgenticReviewer(pi: ExtensionAPI): void {
   pi.on("before_agent_start", (event) => {
-    if (getRole() !== "planner") return undefined;
-    return { systemPrompt: `${event.systemPrompt}\n\n${PLANNER_PROMPT}` };
+    if (getRole() !== "reviewer") return undefined;
+    return { systemPrompt: `${event.systemPrompt}\n\n${REVIEWER_PROMPT}` };
   });
 }
-
 export const __test__ = {
-  PLANNER_PROMPT,
+  REVIEWER_PROMPT,
   SKILL_OWNERS,
   SKILL_OWNERSHIP_CRITERION,
   skillOwner,

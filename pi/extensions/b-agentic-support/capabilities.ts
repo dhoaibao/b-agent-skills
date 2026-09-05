@@ -192,9 +192,9 @@ export const CAPABILITIES: readonly CapabilityDefinition[] = [
   {
     "id": "package.pi-intercom",
     "kind": "package",
-    "purpose": "Connect same-CWD Pi sessions for explicit planner and worker coordination.",
+    "purpose": "Connect compatible same-CWD Pi sessions for explicit implementer and reviewer coordination.",
     "owner": "Pi Intercom",
-    "trigger": "Use when the user explicitly selects planner/worker roles or a worker-to-planner handoff is required.",
+    "trigger": "Use when the user explicitly selects implementer/reviewer roles or an independent review gate is required.",
     "prerequisites": [
       "Pi CLI",
       "Same-CWD session coordination"
@@ -646,7 +646,7 @@ export const CAPABILITIES: readonly CapabilityDefinition[] = [
   {
     "id": "extension.b-agentic-role",
     "kind": "extension",
-    "purpose": "Select and persist explicit Off, planner, or worker role preferences.",
+    "purpose": "Select and persist explicit Off, implementer, or reviewer role preferences.",
     "owner": "b-agentic role extension",
     "trigger": "Use only when the user selects /b-role or a startup role flag; default behavior is Off.",
     "prerequisites": [
@@ -654,7 +654,7 @@ export const CAPABILITIES: readonly CapabilityDefinition[] = [
       "Explicit role selection"
     ],
     "readiness": "The managed entrypoint exists; the current role is reported separately by Pi.",
-    "fallback": "Remain in Off/solo mode and do not infer planner or worker ownership.",
+    "fallback": "Remain in Off/solo mode and do not infer legacy planner/worker activation.",
     "status_signal": {
       "source": "local-extension-file",
       "states": [
@@ -683,15 +683,15 @@ export const CAPABILITIES: readonly CapabilityDefinition[] = [
   {
     "id": "extension.b-agentic-planner",
     "kind": "extension",
-    "purpose": "Inject the planner-only coordination profile while retaining normal shared tools and policy.",
-    "owner": "b-agentic planner extension",
-    "trigger": "Use when the explicit active role is planner; it does not implement or mutate the worktree.",
+    "purpose": "Inject the independent reviewer profile from a legacy-compatible extension filename.",
+    "owner": "b-agentic reviewer profile extension",
+    "trigger": "Use when the explicit active role is reviewer; it is prompt-governed read-only.",
     "prerequisites": [
       "Installed Pi extension entrypoint",
-      "Planner role selected"
+      "Reviewer role selected"
     ],
     "readiness": "The managed entrypoint exists in the local Pi extensions directory.",
-    "fallback": "Use the active role's normal prompt and do not claim planner coordination behavior.",
+    "fallback": "Use the active role normal prompt and do not claim reviewer behavior.",
     "status_signal": {
       "source": "local-extension-file",
       "states": [
@@ -720,12 +720,12 @@ export const CAPABILITIES: readonly CapabilityDefinition[] = [
   {
     "id": "extension.b-agentic-planner-notify",
     "kind": "extension",
-    "purpose": "Emit privacy-safe desktop attention signals for planner task completion and user input.",
-    "owner": "b-agentic planner notification extension",
-    "trigger": "Use only for explicit planner task-complete or user-input attention events.",
+    "purpose": "Emit privacy-safe implementer user-input and reviewer completion attention signals.",
+    "owner": "b-agentic role notification extension",
+    "trigger": "Use only for an implementer user-input call with UI or an explicit reviewer completion signal.",
     "prerequisites": [
       "Installed Pi extension entrypoint",
-      "Planner role and supported desktop notifier"
+      "Supported desktop notifier"
     ],
     "readiness": "The managed entrypoint exists; notification delivery is not probed.",
     "fallback": "Keep the event in the active session flow and report that desktop notification delivery is unavailable.",
@@ -757,15 +757,15 @@ export const CAPABILITIES: readonly CapabilityDefinition[] = [
   {
     "id": "extension.b-agentic-worker",
     "kind": "extension",
-    "purpose": "Inject the worker implementation profile and sole-writer coordination guidance.",
-    "owner": "b-agentic worker extension",
-    "trigger": "Use when the explicit active role is worker and a planner handoff assigns work.",
+    "purpose": "Inject the sole user-facing implementer profile from a legacy-compatible extension filename.",
+    "owner": "b-agentic implementer profile extension",
+    "trigger": "Use when the explicit active role is implementer.",
     "prerequisites": [
       "Installed Pi extension entrypoint",
-      "Worker role selected"
+      "Implementer role selected"
     ],
     "readiness": "The managed entrypoint exists in the local Pi extensions directory.",
-    "fallback": "Remain in the normal solo workflow and do not claim a worker handoff.",
+    "fallback": "Remain in the normal Off workflow and do not claim an implementer role.",
     "status_signal": {
       "source": "local-extension-file",
       "states": [

@@ -38,10 +38,6 @@ Use repository checks when useful for the changed source; they do not replace th
 7. Report the selected tests, whether CodeGraph or fallback discovery supplied them, and any remaining coverage gap. A partial or affected-only run must never be described as full-suite coverage.
 8. Run diagnostics when useful, then the narrowest relevant test, and verify the test proves the intended behavior.
 
-## Planner/worker sequencing
-
-Delegated results must report under five fixed headings: "Changed" (paths + brief what), "Verification" (exact commands + outcomes), "Coverage" (acceptance criteria met), "Deviations" (scope changes, assumptions, or "none"), and "Gaps" (unverified/remaining or "none"). Prose may accompany the headings, but every heading must be present.
-
 ## Output format
 
 Test scope, changes, verification, and remaining gaps.
@@ -51,7 +47,7 @@ Test scope, changes, verification, and remaining gaps.
 - Never change production code only because a test is red.
 - When an edit anchor (oldText) fails to match, re-read the target region and re-anchor the edit from current content; never blind-retry the same anchor or widen context speculatively.
 - Keep production-code changes in **b-implement** unless they are frontend/UI changes, which belong to **b-frontend**, or the user explicitly requested a tightly scoped TDD red-green loop.
-- Never update assertions, snapshots, or goldens without confirming intended behavior. If the intended contract is materially unresolved, in planner or solo/Off work use `ask_user_question` with 2–4 concrete intent options (for example, keep the current expectation (`Keep current contract (Recommended)`), adopt the changed behavior, or defer the test change), using the automatic custom-answer row; if unavailable or noninteractive, ask one focused plain-text question. In a two-role worker, ask the assigning planner through Intercom. In planner mode, an actual `ask_user_question` tool call triggers a fixed privacy-safe desktop notification; solo/Off workers emit no planner notifications. Do not use the questionnaire for routine test-result updates or no-choice confirmations.
+- Never update assertions, snapshots, or goldens without confirming intended behavior. If the intended contract is materially unresolved, use `ask_user_question` with 2–4 concrete intent options (for example, keep the current expectation (`Keep current contract (Recommended)`), adopt the changed behavior, or defer the test change), using the automatic custom-answer row; if unavailable or noninteractive, ask one focused plain-text question. Do not use the questionnaire for routine test-result updates or no-choice confirmations.
 - Avoid implementation-coupled tests and mocks derived from buggy implementation instead of the real interface.
 - Do not introduce frameworks without approval.
 - Keep fixture and mock changes local when practical.

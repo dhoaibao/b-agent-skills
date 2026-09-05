@@ -58,6 +58,7 @@ extension_files = [
     root / 'pi/extensions/b-agentic-support/auto.ts',
     status_extension,
     root / 'pi/extensions/b-agentic-support/capabilities.ts',
+    root / 'pi/extensions/b-agentic-support/candidate.ts',
     root / 'pi/extensions/b-agentic-support/status.ts',
 ]
 config_readme = root / 'pi/configs/README.md'
@@ -70,13 +71,10 @@ for path in [kernel, mcp, capabilities, capabilities_module, *extension_files, c
 if kernel.exists():
     text = kernel.read_text()
     for marker in [
-        'Pi Workflow Kernel', 'b-agentic defaults to Off', 'Planner-owned skills: `b-plan`, external `b-research`',
-        'Worker-owned skills: `b-design`, `b-frontend`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, `b-commit`',
-        'Ownership governs execution, not inspection', 'Planner-owned only when execution is read-only decision/planning',
-        'Mixed or uncertain skills are worker-owned', 'Unknown or ambiguous skill ownership is worker-owned',
-        'Worker is the sole worktree writer', 'same-CWD roster',
-        'ask_user_question', '2–4 concrete options', ' (Recommended)', 'automatic custom-answer row',
-        'focused plain-text question',
+        'Pi Workflow Kernel', 'b-agentic defaults to Off', 'Implementer-owned skills:',
+        'Reviewer-owned skills:', 'implementer is the sole user-facing worktree writer',
+        'ask_user_question', '2–4 concrete options', 'automatic custom-answer row',
+        'legacy planner/worker state stays inactive', 'Candidate review freezes implementer edits',
         '~/.pi/agent/b-agentic/references/capabilities.yaml',
         'never parse MCP configuration or inspect credential/API-key values',
     ]:
@@ -86,36 +84,15 @@ if kernel.exists():
 role_prompt = (root / 'pi/extensions/b-agentic-support/role.ts').read_text()
 for marker in [
     # generated:role-prompt-markers:validate:start
-    "Finish discovery before one bounded handoff",
-    "expected paths/symbols",
-    "independent read-only work outside",
-    "do not mutate, revise in-flight scope, issue another implementation task, or review the in-flight diff",
-    "re-read the actual changed paths before review",
-    "Use send for task delegation, terminal results, review requests/findings, and any question/request needing material work",
-    "one focused question whose answer needs no substantial investigation, implementation, or waiting",
-    "never use ask to wait",
-    "Roster/status only selects or handles",
-    "Before every outbound Intercom send or ask",
-    "If it reports an inbound ask, reply to that ask immediately—do not call send, ask, list-cwd, or another pending first",
-    "If none exists, immediately call list-cwd",
-    "identifier token verbatim",
-    "authoritative short ID is valid",
-    "never guess, reconstruct, extend, further abbreviate, or reuse stale output",
-    "Delivery makes a handoff, result, finding, or approval real",
-    "one retry only",
-    "applicable observable behavior, scope/non-goals, constraints/invariants",
-    "latest approved plan, handoff, and clarifications",
-    "Only delegated worktree-changing tasks require actual b-review",
-    "location, evidence, impact, violated baseline, smallest correction, and regression check",
-    "For audit/review verification you cannot run, request bounded worker evidence",
-    "same worker may b-commit only on explicit user request",
-    "b-commit remains worker-owned",
-    "read-only proposal analysis",
-    "exactly one user approval",
-    "captured snapshot",
-    "without re-proposing or re-asking",
-    "snapshot or proposal differs",
-    "stop and report—not regroup or reuse approval",
+    "sole user-facing writer",
+    "independent read-only gate",
+    "roles never filter tools",
+    "freeze the candidate",
+    "tracked and relevant untracked/derived files",
+    "required checks",
+    "exact unchanged snapshot",
+    "READY WITH FOLLOW-UPS",
+    "No automatic commit or push",
 # generated:role-prompt-markers:validate:end
 ]:
     if marker not in role_prompt:
@@ -207,22 +184,14 @@ if extension.exists():
             if marker not in preview_text:
                 errors.append(f'{preview_extension}: missing preview marker {marker!r}')
     for marker in [
-        'tool_call', 'ask_user_question', 'User input needed', 'notifyUserInputNeeded', 'isAutoApprovedIntercomCall', 'PLANNER_PROMPT', 'workerPrompt',
-        'planner profile (read-only coordinator)', 'worker profile (implementation)',
-        'SKILL_OWNERS', 'skillOwner', 'SKILL_OWNERSHIP_CRITERION', 'sole worktree writer', 'external b-research',
-        'Planner-owned only when execution is read-only decision/planning', 'Mixed or uncertain skills are worker-owned',
-        'Ownership governs execution, not inspection', 'bounded worker evidence',
-        'applicable observable behavior', 'identifier token verbatim',
-        'For a quick two-role blocker or scope question', 'ask the assigning planner one focused question using its returned identifier token verbatim',
-        'execute the assigned worker-owned work yourself', 'never delegate or hand off any part of it to another worker',
-        'use send for task delegation (when applicable), terminal results, review requests/findings, and any question/request needing material work',
-        'At every terminal outcome for any assigned task', 'completed, no-change, blocked, or reported gap',
-        'same assigning planner before pausing',
-        'authoritative short ID is valid', 'never guess, reconstruct, extend, further abbreviate',
-        'actual b-review', 'latest approved plan, handoff, and clarifications',
-        'unchanged reviewed snapshot', 'isDirectClassifiedManagedTool',
-        'CODEGRAPH_TRUSTED_TOOLS', 'mcpScript', 'codegraph_codegraph_explore',
-        'Planner task delegation remains prompt-governed', 'Roles guide skill execution through their prompts'
+        'tool_call', 'ask_user_question', 'User input needed', 'isAutoApprovedIntercomCall',
+        'REVIEWER_PROMPT', 'implementerPrompt', 'reviewer profile', 'implementer profile',
+        'SKILL_OWNERS', 'skillOwner', 'SKILL_OWNERSHIP_CRITERION',
+        'sole user-facing writer', 'independent read-only gate', 'freeze the candidate',
+        'tracked and relevant untracked/derived files', 'exact unchanged snapshot',
+        'ROLE_PROTOCOL_VERSION', 'isCompatibleRolePayload', 'createCandidateSnapshot',
+        'isDirectClassifiedManagedTool', 'CODEGRAPH_TRUSTED_TOOLS', 'mcpScript',
+        'roles never filter tools'
     ]:
         if marker not in text:
             errors.append(f'{extension}: missing policy marker {marker!r}')
@@ -234,8 +203,8 @@ if extension.exists():
     if 'plannerCommandDecision(' in planner_body or 'isPlannerReadOnlyMcpCall(' in planner_body:
         errors.append(f'{planner_extension}: planner commands and MCP calls must use shared policy, not role-specific blocks')
     mcp_permissions = root / 'pi/extensions/b-agentic-mcp-permissions.ts'
-    if 'getRole() === "planner"' in mcp_permissions.read_text():
-        errors.append(f'{mcp_permissions}: planner MCP broker restrictions must not override shared policy')
+    if 'getRole() === "implementer"' in mcp_permissions.read_text() or 'getRole() === "reviewer"' in mcp_permissions.read_text():
+        errors.append(f'{mcp_permissions}: role MCP restrictions must not override shared policy')
     if 'return { block: true' not in text and 'block: true' not in text:
         errors.append(f'{extension}: must be able to block tool calls')
     if 'custom/MCP tool' not in text and 'MCP' not in text:
@@ -352,7 +321,7 @@ if config_readme.exists():
         '`~/.pi/agent/b-agentic/`',
         'ownership boundary',
         '[operational reference](../../REFERENCE.md)',
-        'Role selection and planner-worker coordination',
+        'Implementer/reviewer role selection and coordination',
         'normal Pi tools',
         'shared approval policy',
     ]:

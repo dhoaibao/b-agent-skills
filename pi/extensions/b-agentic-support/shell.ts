@@ -392,7 +392,7 @@ export function hasUnsafeShellSyntax(command: string): boolean {
 
 export function hasAmbiguousShellSyntax(command: string): boolean {
   // Unquoted globs are ambiguous for general shell policy because expansion
-  // changes the paths being inspected. Planner policy may permit them only
+  // changes the paths being inspected. Read-only policy may permit them only
   // after proving the whole command is a direct read-only allowlisted command.
   return hasUnsafeShellSyntax(command) || hasUnquotedGlob(command);
 }

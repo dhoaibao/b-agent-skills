@@ -36,10 +36,6 @@ Use only the semantic capability required by the named transform: CodeGraph is f
 
 When the refactor target is architectural, use concise design vocabulary: interface, seam, adapter, locality, leverage, shallow abstraction, and deletion test. Stop if the work becomes redesign.
 
-## Planner/worker sequencing
-
-Delegated results must report under five fixed headings: "Changed" (paths + brief what), "Verification" (exact commands + outcomes), "Coverage" (acceptance criteria met), "Deviations" (scope changes, assumptions, or "none"), and "Gaps" (unverified/remaining or "none"). Prose may accompany the headings, but every heading must be present.
-
 ## Output format
 
 Target, impact, changes, verification, and follow-up risk.
@@ -49,5 +45,5 @@ Target, impact, changes, verification, and follow-up risk.
 - Preserve behavior.
 - When an edit anchor (oldText) fails to match, re-read the target region and re-anchor the edit from current content; never blind-retry the same anchor or widen context speculatively.
 - Use symbol-aware tools when they provide a concrete precision or safety benefit; keep native inspection as the default for routine discovery.
-- Ask before broad moves or cascading ecosystem changes when they are an unresolved material user-facing choice. In planner or solo/Off work, use `ask_user_question` with 2–4 concrete options, the recommended option first, and the automatic custom-answer row; if unavailable or noninteractive, ask one focused plain-text question. In a two-role worker, ask the assigning planner through Intercom. In planner mode, an actual `ask_user_question` tool call triggers a fixed privacy-safe desktop notification; solo/Off workers emit no planner notifications. Do not use the questionnaire for routine updates or no-choice confirmations.
+- Ask before broad moves or cascading ecosystem changes when they are an unresolved material user-facing choice. Use `ask_user_question` with 2–4 concrete options, the recommended option first, and the automatic custom-answer row; if unavailable or noninteractive, ask one focused plain-text question. Do not use the questionnaire for routine updates or no-choice confirmations.
 - Stop if redesign or behavior change appears.

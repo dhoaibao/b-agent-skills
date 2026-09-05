@@ -26,7 +26,8 @@ directory while preserving unrelated files, configuration, and symlinks. User
 `~/.pi/agent/AGENTS.md`, `~/.pi/agent/mcp.json`, and Pi settings remain
 owner-controlled; MCP configuration is merged rather than replaced.
 
-Role selection and planner-worker coordination are prompt-governed; the role
-extensions preserve normal Pi tools and shared approval policy. See
-[REFERENCE.md](../../REFERENCE.md) for the operational contract and
-coordination behavior.
+Implementer/reviewer role selection and coordination are prompt-governed; the
+role extensions preserve normal Pi tools and shared approval policy. Legacy
+planner/worker session state remains Off until a user explicitly reselects a
+role. See [REFERENCE.md](../../REFERENCE.md) for the operational contract and
+candidate-review behavior.

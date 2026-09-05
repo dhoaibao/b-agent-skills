@@ -63,26 +63,25 @@ external or versioned facts; `b-frontend` owns UI implementation;
 diagnosis, test mechanics, browser evidence, changed-code review, repository
 audit, commits, and PR summaries stay with their respective skills.
 
-Sessions default to `off`; `/b-role` or `pi --b-role` selects explicit planner or
-worker roles. The planner owns read-only planning, external research, audit,
-review, and release-summary coordination. It delegates worker-owned mutation,
-diagnosis, builds, tests, browser or operational verification, and commits. The
-worker is the sole worktree writer and does not re-delegate. Handoffs name
-expected paths or symbols, scope, invariants, acceptance criteria, and checks;
-delegated worktree changes require actual `b-review` before approval.
+Sessions default to `off`; `/b-role` or `pi --b-role` selects explicit
+implementer or reviewer roles. The implementer owns planning through commit and
+PR summary as the sole user-facing worktree writer. The reviewer owns independent
+read-only `b-review` and `b-agentic-audit`. Legacy planner/worker session state
+stays inactive until explicitly reselected; old preferences map by role only.
 
 ### Coordination
 
-- Material handoffs use Intercom `send`; focused blockers use `ask`. Roles check
-  `pending` before outbound coordination; an inbound ask is answered immediately,
-  otherwise `list-cwd` supplies the current target. The planner waits for a
-  delivered worker result, including no-change, blocked, and gap outcomes.
-- User-facing material decisions use `ask_user_question` with grouped questions,
-  concrete options, a recommended first option, and the automatic custom-answer
-  row. A focused plain-text question is the fallback when unavailable. Native
-  permission prompts remain for browser, external, and privileged actions.
-- Provider, model, and thinking preferences are user-local state; role selection
-  does not open a model picker.
+- Compatible same-CWD peer payloads are versioned; unknown or mixed payloads
+  fail closed and never grant an implementer writer claim. Roles preserve normal
+  Pi tools and shared approval policy.
+- The implementer asks material user questions directly. Before independent
+  review it freezes a compact candidate snapshot covering tracked and relevant
+  untracked/derived content, acceptance, required checks, gaps, and risk.
+- Shipping requires the exact unchanged snapshot, acceptance, fresh passing
+  required checks, no blockers/material gaps, and a valid review disposition.
+  Follow-ups need explicit disposition and never waive safety evidence. Review
+  does not commit or push; changelog changes for an authorized commit are part
+  of the reviewed candidate.
 
 Evidence: `references/kernel.template.md`, `skills/registry.yaml`,
 `skills/b-plan/prompt.md`, `skills/b-review/prompt.md`,
@@ -254,9 +253,9 @@ Evidence: `tooling/generate/registry_sync.py`,
 - No automatic external/shared mutation, MCP authentication bootstrap, broad
   crawling, unsafe Firecrawl actions, Playwright navigation, screenshot
   persistence, or public research using private local material.
-- No mandatory planner/worker state machine, protocol-field parser, delegation
-  chain, repeated roster polling, planner-side implementation, or completion
-  claim before delegated `b-review`.
+- No workflow database, automatic reviewer provisioning/reset, repeated roster
+  polling, reviewer-side implementation, or shipping claim before a valid
+  frozen-candidate `b-review` disposition.
 - No automatic prompt-effectiveness model calls, live MCP checks, screenshot
   claims from simulated or unit tests, broad cleanup, or speculative
   compatibility work when a smaller evidence-backed change is sufficient.

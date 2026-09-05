@@ -66,56 +66,23 @@ SHELL_POLICY_REGRESSION = {
     # modern fallback availability, and scoped Git content reads.
 }
 
-# Regression: prompt-only planner roles retained mutation tools, so a planner
-# implemented directly even while a worker session was active.
+# Regression: a mixed or stale peer could silently gain writer status, or a
+# reviewer verdict could be reused after candidate content changed.
 INTERCOM_DELEGATION_REGRESSION = {
-    "observed_failure": (
-        "Planner mode only described delegation and did not prevent direct implementation "
-        "or fixes when a worker session was available."
-    ),
-    "intended_behavior": (
-        "Make natural-language planner-to-worker handoffs the default while enforcing planner "
-        "read-only ownership and retaining worker-local repository automation."
-    ),
+    "observed_failure": "Role migration accepted legacy state or stale review evidence.",
+    "intended_behavior": "Off remains default; compatible peers and unchanged candidates are required.",
     "required_clauses": (
-        "b-agentic defaults to Off", "external `b-research`", "sole worktree writer",
+        "b-agentic defaults to Off", "implementer is the sole user-facing worktree writer",
+        "legacy planner/worker state stays inactive", "Candidate review freezes implementer edits",
     ),
     "role_required_clauses": (
         # generated:role-prompt-markers:behavior:start
-        "Before every outbound Intercom send or ask",
-        "If it reports an inbound ask, reply to that ask immediately—do not call send, ask, list-cwd, or another pending first",
-        "If none exists, immediately call list-cwd",
-        "identifier token verbatim",
-        "authoritative short ID is valid",
-        "never guess, reconstruct, extend, further abbreviate, or reuse stale output",
-        "Delivery makes a handoff, result, finding, or approval real",
-        "one retry only",
-        "expected paths/symbols",
-        "independent read-only work outside",
-        "one focused question whose answer needs no substantial investigation, implementation, or waiting",
-        "Use send for task delegation, terminal results, review requests/findings, and any question/request needing material work",
-        "never use ask to wait",
-        "execute the assigned worker-owned work yourself",
-        "never delegate or hand off any part of it to another worker",
-        "Planner-owned b-review is never a worker action",
-        "never invoke, load, or execute b-review yourself",
-        "terminal report/review request to the assigning planner is coordination only",
-        "At every terminal outcome for any assigned task",
-        "completed, no-change, blocked, or reported gap",
-        "successfully send a terminal completion/result",
-        "same assigning planner before pausing",
-        "five fixed headings in order: Changed, Verification, Coverage, Deviations, and Gaps",
-        "Only delegated worktree-changing tasks require actual b-review",
-        "location, evidence, impact, violated baseline, smallest correction, and regression check",
-        "For audit/review verification you cannot run, request bounded worker evidence",
-        "same worker may b-commit only on explicit user request",
-        "b-commit remains worker-owned",
-        "read-only proposal analysis",
-        "exactly one user approval",
-        "captured snapshot",
-        "without re-proposing or re-asking",
-        "snapshot or proposal differs",
-        "stop and report—not regroup or reuse approval",
+        "sole user-facing writer",
+        "independent read-only gate",
+        "freeze the candidate",
+        "wrong reviewer",
+        "skipped/failed checks",
+        "Corrections require re-verification and re-review",
 # generated:role-prompt-markers:behavior:end
     ),
 }

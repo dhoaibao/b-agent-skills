@@ -19,14 +19,14 @@ Use these rules before any skill-specific instruction.
 
 ## Intercom roles
 
-- b-agentic defaults to Off; select `planner`/`worker` with `/b-role` or `pi --b-role`. The Worker is the sole worktree writer; use same-CWD roster.
+- b-agentic defaults to Off; select `implementer` or `reviewer` with `/b-role` or `pi --b-role`. The implementer is the sole user-facing worktree writer; the reviewer is an independent prompt-governed read-only gate. Use only compatible same-CWD peers; legacy planner/worker state stays inactive until explicitly reselected.
 
 <!-- generated:skill-ownership:start -->
-- Planner-owned skills: `b-plan`, external `b-research`, `b-agentic-audit`, `b-review`, `b-pr-summary`. The planner may execute these only inside its read-only coordinator boundary.
-- Worker-owned skills: `b-design`, `b-frontend`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, `b-commit`. The planner delegates their execution to a ready same-CWD worker.
-- Ownership governs execution, not inspection: the planner may read any skill for planning, delegation, audit, or review. Planner-owned only when execution is read-only decision/planning, external research, audit/review, or release-summary coordination inside the planner boundary. Worker-owned when execution implements or mutates, diagnoses runtime behavior, builds/tests, performs browser/operational verification, commits, or otherwise requires worker capabilities. Mixed or uncertain skills are worker-owned. Direct wording or no ready worker forbids implementation. Unknown or ambiguous skill ownership is worker-owned; registry rejects missing or invalid ownership.
+- Implementer-owned skills: `b-plan`, `b-research`, `b-design`, `b-frontend`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, `b-commit`, `b-pr-summary`. The implementer is the sole user-facing worktree writer.
+- Reviewer-owned skills: `b-agentic-audit`, `b-review`. The reviewer executes only the independent read-only gate.
+- Ownership governs execution, not inspection. Implementer-owned skills perform planning, research, design, implementation, validation, commit, or PR-summary work. Reviewer-owned skills perform independent read-only audit or changed-code review. Mixed or uncertain skills are implementer-owned. Unknown or ambiguous skill ownership is implementer-owned; registry rejects missing or invalid ownership.
 <!-- generated:skill-ownership:end -->
-- Interactive, user-facing material decisions or blockers in planner or solo/Off work use installed `ask_user_question`: group 1–4 questions, offer 2–4 concrete options/trade-offs, mark first ` (Recommended)`, and use its automatic custom-answer row. Never author `Other`, `Type something.`, or `Next`. If unavailable/noninteractive, ask one focused plain-text question. Planner calls surface a fixed privacy-safe desktop `User input needed` notification; solo/Off workers do not. Worker→planner material blockers remain Intercom; native tool-permission prompts for browser, external, or privileged actions are not replaced. Omit this for routine activity, review fixes, and no-choice confirmations; completed delegated-review tasks emit `B_AGENTIC_TASK_COMPLETE`.
+- Interactive, user-facing material decisions or blockers use installed `ask_user_question`: group 1–4 questions, offer 2–4 concrete options/trade-offs, mark first ` (Recommended)`, and use its automatic custom-answer row. Never author `Other`, `Type something.`, or `Next`. If unavailable/noninteractive, ask one focused plain-text question. Implementer calls surface a fixed privacy-safe `User input needed` notification only with UI. Omit this for routine activity, review fixes, and no-choice confirmations.
 
 ## Routing
 
@@ -88,7 +88,7 @@ else {
 
 For changed source, run behavior/quality checks; report gaps instead of guessing.
 
-Use Context7: versioned official facts; Firecrawl: bounded primary research; Brave: corroboration; Playwright: requested browser/e2e/visual evidence. Intercom: same-CWD coordination only; `ask_user_question`: material choices only; `recall`: supplied memory ID only; usage only on request; auth only when needed.
+Use Context7: versioned official facts; Firecrawl: bounded primary research; Brave: corroboration; Playwright: requested browser/e2e/visual evidence. Intercom: compatible same-CWD coordination only; `ask_user_question`: material choices only; `recall`: supplied memory ID only; usage only on request; auth only when needed. Candidate review freezes implementer edits and requires an unchanged snapshot covering tracked and relevant untracked/derived content, fresh passing required checks, acceptance, no blockers/material gaps, and a valid reviewer disposition; it never auto-commits or pushes.
 
 A status snapshot must never start live MCP/auth/browser probes, never parse MCP configuration or inspect credential/API-key values, or persist prompts, code, URLs, secrets, or usage telemetry.
 

@@ -228,9 +228,9 @@ b-agentic installs `@gotgenes/pi-anthropic-auth` automatically for Anthropic aut
 
 b-agentic installs `@juicesharp/rpiv-todo` automatically at the latest release. This Pi package provides the todo tool, `/todos` command, and persistent overlay; the kernel guides lightweight task tracking for non-trivial multi-step work when available, without requiring it for small or routine tasks or imposing workflow orchestration, persistence, or telemetry.
 
-b-agentic installs `pi-intercom` automatically for its planner/worker workflow and installs
-`@juicesharp/rpiv-ask-user-question` at the latest release for structured planner decisions and blockers.
-Planner questions group 1–4 related questions, offer 2–4 concrete options with
+b-agentic installs `pi-intercom` automatically for compatible implementer/reviewer coordination and installs
+`@juicesharp/rpiv-ask-user-question` at the latest release for structured implementer decisions and blockers.
+Implementer questions group 1–4 related questions, offer 2–4 concrete options with
 concise trade-offs, suffix the first recommended option with ` (Recommended)`,
 and rely on the extension's automatic custom-answer row. Do not author `Other`,
 `Type something.`, or `Next`. If the package or interactive UI is unavailable,
@@ -246,15 +246,14 @@ purpose-specific `tool_call` extensions under `~/.pi/agent/extensions/`:
 - `b-agentic-mcp-permissions.ts` for managed MCP and custom-tool approval.
 - `b-agentic-auto-mode.ts` for confirmed automatic approval with explicit-deny protection.
 - `b-agentic-role.ts` for role selection and persistence.
-- `b-agentic-planner.ts` and `b-agentic-worker.ts` for planner-worker collaboration.
-- `b-agentic-planner-notify.ts` for privacy-safe desktop notifications from explicit planner task-complete and user-input attention signals.
+- Legacy-compatible `b-agentic-planner.ts` and `b-agentic-worker.ts` inject reviewer and implementer profiles without duplicate profile entrypoints.
+- `b-agentic-planner-notify.ts` emits privacy-safe implementer user-input and reviewer completion notifications.
 - `b-agentic-sync.ts` for in-session refresh commands.
 
-Planner desktop notifications remain fixed and privacy-safe by default. To opt in to
+Role desktop notifications remain fixed and privacy-safe by default. To opt in to
 repository context, set `B_AGENTIC_NOTIFICATION_CONTEXT=1`. On Linux and macOS,
-this adds only a sanitized basename of the current working directory to planner
-notifications; in interactive Pi sessions it also sets the terminal title to
-`pi — <repo>`. Absolute paths, session details, task text, and unusable basenames
+this adds only a sanitized basename of the current working directory to role
+notifications. Absolute paths, session details, task text, and unusable basenames
 are never included.
 
 Helpers under `pi/extensions/b-agentic-support/` are not discovered as
@@ -282,75 +281,37 @@ symlinked files, and never removes installed packages, including `@gotgenes/pi-a
 
 ## Roles and coordination
 
-b-agentic defaults to Off for a single-session workflow; the first same-CWD
-session is not automatically promoted to planner. Explicitly start a planner or worker session with `/b-role planner|worker`,
-or `pi --b-role planner|worker`. Use `/b-role off` to return to solo work. Role
-selection does not open a model picker; explicit startup selections and `/model`
-changes update planner/worker preferences under
-`~/.pi/agent/b-agentic/role-models.json` without credentials.
+b-agentic defaults to Off. Explicitly select `/b-role implementer`, `/b-role reviewer`,
+or `/b-role off` (and matching `pi --b-role` flags). The implementer is the sole
+user-facing writer and owns planning, research, design, build, validation, commit,
+and PR summary. The reviewer owns independent read-only `b-review` and
+`b-agentic-audit`. Roles govern prompts rather than filtering tools; shared shell,
+filesystem, MCP, and approval policy remains authoritative.
 
-`/b-auto-mode` is an explicit opt-in that warns and requires an interactive Y/N
-confirmation before enabling. While enabled it auto-allows every `ask` decision,
-while retaining every explicit `deny`; the user choice persists across Pi restarts
-and `/new` sessions under `~/.pi/agent/b-agentic/auto-mode.json`, while legacy
-session entries remain compatible. It displays red `b-auto-mode` in Pi's footer.
-`pi --b-auto-mode` requests one-session startup enablement, but enabling still
-fails closed without an interactive UI.
+Legacy planner/worker session entries remain inactive until the user explicitly
+reselects a new role. Model/thinking preferences map by role only (worker to
+implementer, planner to reviewer); that compatibility never activates a role.
+Peer role payloads use a versioned compatible protocol. Unknown, legacy, or mixed
+same-CWD peers fail closed: an implementer does not claim writer status. The runtime
+does not provision, reset, or promise fresh reviewer sessions.
 
-Planner mode is prompt-governed: it preserves the normal active tools and shared
-shell, filesystem, MCP, and approval policies. Its injected profile assigns only
-planning, research, audit/review, and release-summary skills to the planner and
-directs implementation or operational work to the worker. The normal permission
-extensions still protect sensitive paths, dangerous commands, unclassified MCP
-calls, and local or external mutations regardless of role. Worker mode retains
-normal repository-local automation and is the sole worktree writer.
+An implementer directly asks material questions with `ask_user_question`. Before a
+changed-code gate it stops editing and supplies a compact candidate handoff: goal,
+acceptance, constraints, changed paths, exact snapshot identity covering tracked and
+relevant untracked/derived content, checks and outcomes, gaps, and risk. The reviewer
+independently reads that handoff and the diff. It may use bounded read-only research
+only to substantiate a finding; it cannot delegate, change scope, or become a research
+relay. No edits occur while a candidate is under review.
 
-The planner finishes discovery and settles one bounded handoff that identifies
-expected paths/symbols, scope/non-goals, invariants, and checks. If agreement is
-needed, roles resolve it before edits. Once the worker starts, planner work is limited to independent read-only work
-outside that expected set, such as independent research, acceptance drafting,
-or a hard unrelated decision: it must not mutate, revise in-flight scope, issue
-another implementation task, or review the in-flight diff before the worker's
-terminal result. After that result, the planner re-reads the actual changed paths before
-review. Its generated ownership mapping permits read-only execution only of
-`b-plan`, external `b-research`, `b-agentic-audit`, `b-review`, and
-`b-pr-summary`; it delegates `b-design`, `b-frontend`, `b-implement`, `b-init`,
-`b-refactor`, `b-debug`, `b-test`, `b-browser`, and `b-commit` to the explicitly selected
-same-directory worker. Ownership governs execution, not inspection, so the
-planner may read any skill for planning, delegation, audit, or review. Planner
-ownership is limited to read-only decision/planning, external research,
-audit/review, or release-summary coordination; implementation or mutation,
-runtime diagnosis, builds/tests, browser/operational verification, commits,
-mixed, and uncertain work belong to the worker. Direct user wording and an
-unavailable worker do not permit planner implementation; unknown ownership
-fails closed to worker ownership, while registry validation rejects missing or
-invalid owners. The assigned worker executes its worker-owned task itself and
-never re-delegates or hands it off to another worker.
-
-Before every outbound Intercom `send` or `ask`, call `pending` first. If it
-reports an inbound ask, reply to that ask immediately—do not call `send`, `ask`,
-`list-cwd`, or another `pending` first. Otherwise immediately call `list-cwd`;
-use only the identifier token returned verbatim by that authoritative output for
-the intended `send` or `ask`. An authoritative short ID is valid; never guess,
-reconstruct, extend, further abbreviate, or use a stale token, display name, or
-alias. Treat a handoff, terminal result, finding, or approval as sent only after
-Intercom reports successful delivery. If delivery fails, do not retry the stale
-target or continue, commit, or close: call `pending`; if it reports an inbound
-ask, reply immediately under the same rule; otherwise fresh `list-cwd`; retry
-exactly once only if the intended peer remains live, otherwise pause and surface
-the unavailable peer as the blocker. After assigning a task, the planner waits
-for the worker's `send` result rather than polling.
-The worker sends every terminal outcome for any assigned task—completed,
-no-change, blocked, or reported gap—to the same assigning planner before
-pausing, with changed paths, verification outcomes, acceptance coverage, and
-gaps. Use `send` for task delegation, terminal results, review requests/findings,
-and any question/request needing material work. Use `ask` only for one focused
-question whose answer needs no substantial investigation, implementation, or
-waiting; never use it to wait for a delegated result. A quick worker scope or
-blocker question follows the pending-first target sequence; a material request
-uses `send` instead. Every delegated worktree-changing task must pass the actual
-`b-review` skill against the actual diff and verification before it is complete.
-Findings return to the same worker for a verified fix and another review.
+A candidate is eligible only when its exact snapshot remains unchanged, acceptance is
+met, required checks are fresh and passed, no blocker/material gap remains, and a
+compatible reviewer gives a valid disposition. `READY WITH FOLLOW-UPS` requires an
+explicit accepted disposition and cannot waive safety evidence; `NEEDS FIXES`, a stale
+verdict, missing baseline, wrong reviewer/snapshot, untracked change, or skipped or
+failed check blocks shipping. Corrections require re-verification and re-review.
+Review completion, task acceptance, and commit creation are distinct. No automatic
+commit or push occurs. Prepare the same-day changelog only when preparing a
+user-authorized commit; include it in the reviewed snapshot or reopen review.
 
 ## In-session refresh
 

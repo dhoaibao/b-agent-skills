@@ -29,9 +29,9 @@ Markdown preview install, and the preview package route, see
 ## How b-agentic works
 
 Each request routes to one active phase rather than mixing planning, building,
-validation, and shipping. The normal solo workflow is **Off**; an optional
-planner/worker setup uses explicit roles and keeps the worker as the sole
-worktree writer. See [REFERENCE.md](REFERENCE.md) for operational role,
+validation, and shipping. The normal solo workflow is **Off**; optional explicit
+roles are an **implementer** (the sole user-facing writer) and a read-only
+**reviewer** gate. See [REFERENCE.md](REFERENCE.md) for operational role,
 safety, MCP, and coordination behavior.
 
 | Phase | Skills | Purpose |

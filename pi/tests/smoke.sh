@@ -178,7 +178,7 @@ const extensionModules = await Promise.all([
   'b-agentic-planner.ts', 'b-agentic-worker.ts', 'b-agentic-sync.ts', 'b-agentic-planner-notify.ts',
   'b-agentic-preview-markdown.ts', 'b-agentic-status.ts',
 ].map((name) => import(pathToFileURL(path.join(installedRoot, name)).href)));
-for (const name of ['shell.ts', 'mcp.ts', 'role.ts', 'role-models.ts', 'worker.ts', 'state.ts', 'auto.ts', 'capabilities.ts', 'status.ts']) {
+for (const name of ['shell.ts', 'mcp.ts', 'role.ts', 'role-models.ts', 'worker.ts', 'state.ts', 'auto.ts', 'capabilities.ts', 'candidate.ts', 'status.ts']) {
   await import(pathToFileURL(path.join(installedRoot, 'b-agentic-support', name)).href);
 }
 const autoStateTest = await import(pathToFileURL(path.join(installedRoot, 'b-agentic-support', 'state.ts')).href);
@@ -654,492 +654,127 @@ expect(t.isTrustedPreviewMarkdownCall({ markdown: '# Preview', extra: true }) ==
 expect(t.isTrustedPreviewMarkdownCall({ markdown: 42 }) === false, 'preview_markdown policy must reject non-string Markdown');
 const noUiContext = { hasUI: false, ui: { select: async () => 'Approve' } };
 let rolePickerCalls = 0;
-let modelPickerCalls = 0;
-const terminalTitles = [];
 let roleColorMode = 'truecolor';
 const roleContext = {
-  get model() { return activeModel; },
-  cwd: root,
-  mode: 'rpc',
-  hasUI: true,
+  get model() { return activeModel; }, cwd: root, mode: 'rpc', hasUI: true,
   ui: {
     confirm: async () => true,
-    select: async (title) => {
-      if (title === 'Select b-agentic role') {
-        rolePickerCalls += 1;
-        return 'planner';
-      }
-      if (title.startsWith('Select model for b-agentic ')) {
-        modelPickerCalls += 1;
-        return 'anthropic/claude-sonnet-4-5';
-      }
-      return 'Allow once';
-    },
+    select: async (title) => { if (title === 'Select b-agentic role') { rolePickerCalls += 1; return 'implementer'; } return 'Allow once'; },
     notify(message, level) { roleNotifications.push({ message, level }); },
-    setTitle(title) { terminalTitles.push(title); },
-    theme: {
-      fg(color, text) { return `<${color}>${text}</${color}>`; },
-      getColorMode() { return roleColorMode; },
-    },
+    theme: { fg(color, text) { return `<${color}>${text}</${color}>`; }, getColorMode() { return roleColorMode; } },
     setStatus(key, value) { roleStatuses.push({ key, value }); },
   },
-  modelRegistry: {
-    find: (provider, id) => provider === 'anthropic' && id === 'claude-sonnet-4-5' ? { provider, id } : undefined,
-  },
-  sessionManager: {
-    getBranch: () => [...branchEntries],
-  },
+  modelRegistry: { find: (provider, id) => provider === 'anthropic' && id === 'claude-sonnet-4-5' ? { provider, id } : undefined },
+  sessionManager: { getBranch: () => [...branchEntries] },
 };
 expect(typeof roleSessionStartHandler === 'function', 'role extension must register session startup handling');
+branchEntries.push({ type: 'custom', customType: 'b-agentic-role', data: { role: 'planner' } });
 await roleSessionStartHandler({}, roleContext);
-expect(activeTools.length === 8 && activeTools.includes('edit') && activeTools.includes('write'), 'Off role application must preserve normal active tools');
-const notifierCalls = [];
-const taskCompleteSignal = plannerNotifyTest.PLANNER_ATTENTION_SIGNALS.TASK_COMPLETE;
-const previousNotificationContext = process.env[plannerNotifyTest.NOTIFICATION_CONTEXT_ENV];
-delete process.env[plannerNotifyTest.NOTIFICATION_CONTEXT_ENV];
-await plannerNotifyTest.notifyDesktop(async (command, args, options) => { notifierCalls.push({ command, args, options }); }, taskCompleteSignal, 'linux');
-await plannerNotifyTest.notifyUserInputNeeded(async (command, args, options) => { notifierCalls.push({ command, args, options }); }, 'darwin');
-await plannerNotifyTest.notifyDesktop(async (command, args, options) => { notifierCalls.push({ command, args, options }); }, taskCompleteSignal, 'freebsd');
-await plannerNotifyTest.notifyDesktop(async () => { throw new Error('notifier unavailable'); }, taskCompleteSignal, 'linux');
-expect(notifierCalls.length === 2 && notifierCalls[0].command === 'notify-send' && JSON.stringify(notifierCalls[0].args) === JSON.stringify(['Task complete']) && notifierCalls[0].options?.timeout === plannerNotifyTest.NOTIFICATION_TIMEOUT_MS, 'Linux planner notifications must use fixed task-complete text with a bounded timeout');
-expect(notifierCalls[1].command === 'osascript' && notifierCalls[1].args[0] === '-e' && notifierCalls[1].args[1] === 'display notification "User input needed" with title "b-agentic"' && notifierCalls[1].options?.timeout === plannerNotifyTest.NOTIFICATION_TIMEOUT_MS, 'macOS planner notifications must use fixed user-input text with a bounded timeout');
-const notificationCwd = '/private/workspace/notification-repo';
-process.env[plannerNotifyTest.NOTIFICATION_CONTEXT_ENV] = '1';
-expect(plannerNotifyTest.notificationRepositoryLabel(notificationCwd) === 'notification-repo', 'opt-in notification context must derive only the cwd basename');
-await plannerNotifyTest.notifyDesktop(async (command, args, options) => { notifierCalls.push({ command, args, options }); }, taskCompleteSignal, 'linux', notificationCwd);
-await plannerNotifyTest.notifyUserInputNeeded(async (command, args, options) => { notifierCalls.push({ command, args, options }); }, 'darwin', notificationCwd);
-expect(notifierCalls[2].command === 'notify-send' && JSON.stringify(notifierCalls[2].args) === JSON.stringify(['--app-name=b-agentic', 'Task complete — notification-repo']) && notifierCalls[2].options?.timeout === plannerNotifyTest.NOTIFICATION_TIMEOUT_MS && !JSON.stringify(notifierCalls[2]).includes(notificationCwd), 'opt-in Linux notifications must identify b-agentic and expose only the repository basename');
-expect(notifierCalls[3].command === 'osascript' && notifierCalls[3].args[0] === '-e' && notifierCalls[3].args[1] === plannerNotifyTest.MACOS_CONTEXT_SCRIPT && notifierCalls[3].args[2] === 'User input needed — notification-repo' && !notifierCalls[3].args[1].includes('notification-repo') && notifierCalls[3].options?.timeout === plannerNotifyTest.NOTIFICATION_TIMEOUT_MS, 'opt-in macOS notifications must pass the repository label as an argv value, not AppleScript source');
-const unsafeNotificationCwd = '/private/workspace/repo"; do shell script "touch tmp-pwned"\u0000\u001f\u007f\u0080\u009f\u001b\nname';
-const sanitizedUnsafeRepository = 'repo"; do shell script "touch tmp-pwned"name';
-expect(plannerNotifyTest.notificationRepositoryLabel(unsafeNotificationCwd) === sanitizedUnsafeRepository && !sanitizedUnsafeRepository.includes('\u001b'), 'notification context must remove control characters from repository labels');
-await plannerNotifyTest.notifyUserInputNeeded(async (command, args, options) => { notifierCalls.push({ command, args, options }); }, 'darwin', unsafeNotificationCwd);
-expect(notifierCalls[4].args[1] === plannerNotifyTest.MACOS_CONTEXT_SCRIPT && !notifierCalls[4].args[1].includes(sanitizedUnsafeRepository) && notifierCalls[4].args[2] === `User input needed — ${sanitizedUnsafeRepository}`, 'macOS repository labels must remain outside AppleScript source even when they contain quoting syntax');
-const titleContext = { ...roleContext, mode: 'tui', cwd: notificationCwd };
-const titleCountBeforeDefault = terminalTitles.length;
-if (previousNotificationContext === undefined) delete process.env[plannerNotifyTest.NOTIFICATION_CONTEXT_ENV];
-else process.env[plannerNotifyTest.NOTIFICATION_CONTEXT_ENV] = previousNotificationContext;
-expect(typeof plannerNotifySessionStartHandler === 'function', 'planner notification extension must register session startup handling');
-await plannerNotifySessionStartHandler({}, titleContext);
-expect(terminalTitles.length === titleCountBeforeDefault, 'notification context must not set a terminal title without opt-in');
-process.env[plannerNotifyTest.NOTIFICATION_CONTEXT_ENV] = '1';
-await plannerNotifySessionStartHandler({}, titleContext);
-expect(terminalTitles.at(-1) === 'pi — notification-repo' && !terminalTitles.at(-1).includes(notificationCwd), 'opt-in interactive sessions must set a title containing only the repository basename');
-const titleCountBeforeUnusable = terminalTitles.length;
-await plannerNotifySessionStartHandler({}, { ...titleContext, cwd: '/' });
-expect(terminalTitles.length === titleCountBeforeUnusable, 'unusable repository basenames must omit the terminal title');
-if (previousNotificationContext === undefined) delete process.env[plannerNotifyTest.NOTIFICATION_CONTEXT_ENV];
-else process.env[plannerNotifyTest.NOTIFICATION_CONTEXT_ENV] = previousNotificationContext;
-expect(typeof handlers.agent_start === 'function' && typeof handlers.agent_end === 'function' && typeof handlers.agent_settled === 'function' && typeof handlers.tool_call === 'function', 'planner notification extension must register agent lifecycle and tool-call handlers');
-branchEntries.push({
-  type: 'custom', customType: 'b-agentic-role',
-  data: { role: 'planner', toolsBeforePlanner: ['read', 'bash', 'edit', 'write'] },
-});
-activeTools = ['read', 'bash'];
-await handlers.session_start({}, roleContext);
-expect(roleStatuses.at(-1)?.value === '<success>b-agentic: planner</success>', 'planner status must use the success color');
-expect(roleChannelRegistration?.namespace === 'b-agentic/roles/v1', 'roles must register an Intercom coordination channel');
+expect(roleStatuses.at(-1)?.value === undefined && roleTest.parseRole('planner') === undefined, 'legacy planner state must remain inactive until explicit reselection');
+expect(roleTest.isCompatibleRolePayload({ type: 'b-agentic-role', version: 1, role: 'worker' }) === false, 'legacy peer payloads must fail closed');
+expect(roleTest.isCompatibleRolePayload({ type: 'b-agentic-role', version: 2, role: 'reviewer' }) === true, 'versioned reviewer payloads must be compatible');
+const peers = [{ id: 'self', cwd: root, pid: process.pid, startedAt: 1 }, { id: 'mixed', cwd: root, pid: 202, startedAt: 2 }];
+expect(roleTest.hasCompatibleSameCwdPeerRoles(peers, root, process.pid, new Map()) === false, 'unknown or mixed peers must block an implementer claim');
+expect(roleTest.canClaimImplementer(peers, root, process.pid) === true && roleTest.canClaimImplementer([...peers, { id: 'third', cwd: root, pid: 303, startedAt: 3 }], root, process.pid) === false, 'only one peer can coexist with the sole writer');
 const publishedRoles = [];
-roleChannelRegistration.onReady({
-  publish(payload) { publishedRoles.push(payload); },
-  listSessions: async () => [{ id: 'planner', cwd: root, pid: process.pid, startedAt: 1 }],
-});
-expect(publishedRoles.length === 0, 'role channel must not publish before Intercom connects');
+roleChannelRegistration.onReady({ publish(payload) { publishedRoles.push(payload); }, listSessions: async () => [{ id: 'self', cwd: root, pid: process.pid, startedAt: 1 }] });
 await roleChannelRegistration.onEvent({ type: 'connection', connected: true, supported: true });
-expect(publishedRoles.some((payload) => payload.role === 'planner'), 'role channel must publish its role after Intercom connects');
-expect(publishedRoles.some((payload) => payload.type === 'b-agentic-role-request'), 'role channel must request existing peer roles after Intercom connects');
-const roster = await registrations.before_agent_start[0]({ systemPrompt: 'base' }, roleContext);
-expect(roster.systemPrompt.includes('Ready same-CWD workers: none') && !roster.systemPrompt.includes('Consultants:'), 'planner roster must list only workers');
-expect(roleTest.parseRole(' consultant ') === undefined && roleTest.isRole('consultant') === false && roleTest.parseRole('unknown') === undefined, 'consultant must no longer be a selectable role');
-await commands['b-role'].handler('planner', roleContext);
-const plannerAndWorker = [
-  { id: 'planner', cwd: root, pid: 101, startedAt: 1 },
-  { id: 'worker', cwd: root, pid: 202, startedAt: 2 },
-];
-expect(roleTest.hasKnownSameCwdPeerRoles(plannerAndWorker, root, 202, new Map()) === false, 'an explicit worker must wait for existing peer roles');
-expect(roleTest.hasKnownSameCwdPeerRoles(plannerAndWorker, root, 202, new Map([['planner', 'planner']])) === true, 'an explicit worker can claim after peer role discovery');
-expect(roleTest.hasKnownSameCwdPeerRoles(plannerAndWorker, root, 202, new Map([['planner', 'off']])) === true, 'an off peer must not block role discovery');
-expect(roleTest.hasActiveSameCwdPeerWorker(plannerAndWorker, root, 202, new Map([['worker', 'worker']])) === false, 'a session must not treat its own worker role announcement as an active peer');
-expect(roleTest.hasActiveSameCwdPeerWorker(plannerAndWorker, root, 202, new Map([['planner', 'worker']])) === true, 'a same-CWD peer worker must remain active');
-const plannerAndWorkerClaim = [
-  { id: 'planner', cwd: root, pid: 101, startedAt: 1 },
-  { id: 'worker', cwd: root, pid: 202, startedAt: 2 },
-];
-expect(roleTest.canClaimWorker(plannerAndWorkerClaim, root) === true, 'a two-role session may claim its explicit worker');
-expect(roleTest.canClaimWorker([...plannerAndWorkerClaim, { id: 'other', cwd: root, pid: 303, startedAt: 3 }], root) === false, 'a third same-CWD session must not claim another worker');
-expect(activeTools.length === 2 && activeTools.includes('read') && activeTools.includes('bash'), 'persisted planner role must preserve the current active tools');
-activeTools = ['read', 'bash'];
-await handlers.session_start({}, roleContext);
-expect(activeTools.length === 2 && activeTools.includes('read') && activeTools.includes('bash'), 'planner role must preserve active tools on later resumes');
+expect(publishedRoles.some((payload) => payload.type === 'b-agentic-role' && payload.version === 2 && payload.role === 'off'), 'role channel must publish versioned Off state');
+await commands['b-role'].handler('reviewer', roleContext);
+expect(roleStatuses.at(-1)?.value === '<success>b-agentic: reviewer</success>' && activeTools.includes('edit') && activeTools.includes('write'), 'reviewer selection preserves tools and applies only prompt guidance');
+const reviewerStart = await handlers.before_agent_start({ systemPrompt: 'base', systemPromptOptions: { skills: [] } }, roleContext);
+expect(reviewerStart.systemPrompt.includes('independent read-only gate') && reviewerStart.systemPrompt.includes('Bounded read-only research'), 'reviewer profile must own the read-only gate');
+for (const marker of [
+  // generated:role-prompt-markers:planner:start
+  "independent read-only gate",
+  "do not edit",
+  "Bounded read-only research",
+// generated:role-prompt-markers:planner:end
+]) expect(reviewerStart.systemPrompt.includes(marker), `reviewer prompt must retain ${marker}`);
 await commands['b-role'].handler('off', roleContext);
-expect(activeTools.length === 2 && activeTools.includes('read') && activeTools.includes('bash'), 'leaving planner mode must retain the normal active tools');
-branchEntries.length = 0;
-activeTools = ['read', 'bash', 'edit', 'write', 'recall', 'intercom', 'mcp', 'mcpScript'];
+await commands['b-role'].handler('implementer', roleContext);
+expect(roleStatuses.at(-1)?.value.includes('implementer') && activeTools.includes('edit') && activeTools.includes('write'), 'a compatible solo implementer request may claim the sole writer role without filtering tools');
+const implementerStart = await handlers.before_agent_start({ systemPrompt: 'base', systemPromptOptions: { skills: [] } }, roleContext);
+expect(implementerStart.systemPrompt.includes('sole user-facing writer') && implementerStart.systemPrompt.includes('freeze the candidate') && implementerStart.systemPrompt.includes('Do not edit while review is pending'), 'implementer profile must require the candidate gate');
+for (const marker of [
+  // generated:role-prompt-markers:worker:start
+  "sole user-facing writer",
+  "Work directly with the user",
+  "freeze the candidate",
+  "Do not edit while review is pending",
+// generated:role-prompt-markers:worker:end
+]) expect(implementerStart.systemPrompt.includes(marker), `implementer prompt must retain ${marker}`);
+await handlers.model_select({ model: { provider: 'anthropic', id: 'claude-sonnet-4-5' } }, roleContext);
+const roleModelPreferences = JSON.parse(readFileSync(path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic', 'role-models.json'), 'utf8'));
+expect(roleModelPreferences.implementer.model === 'claude-sonnet-4-5' && !('planner' in roleModelPreferences), 'new model preferences persist by selected role only');
+const legacyRoleModels = path.join(process.env.PI_CODING_AGENT_DIR, 'legacy-role-models.json');
+writeFileSync(legacyRoleModels, JSON.stringify({ worker: { provider: 'anthropic', model: 'implementer-model' }, planner: { provider: 'anthropic', model: 'reviewer-model' } }));
+const migratedPreferences = roleTest.loadRoleModelPreferences(legacyRoleModels);
+expect(migratedPreferences.implementer?.model === 'implementer-model' && migratedPreferences.reviewer?.model === 'reviewer-model' && roleTest.parseRole('worker') === undefined, 'legacy preferences map by role without activating a legacy role');
+const candidateTest = await import(pathToFileURL(path.join(installedRoot, 'b-agentic-support', 'candidate.ts')).href);
+const passed = candidateTest.createCandidateSnapshot([{ path: 'src/a.ts', status: 'tracked', digest: 'one' }, { path: 'new.ts', status: 'untracked', digest: 'two' }], [{ name: 'test', required: true, outcome: 'passed' }]);
+const changed = candidateTest.createCandidateSnapshot([{ path: 'src/a.ts', status: 'tracked', digest: 'one' }, { path: 'new.ts', status: 'untracked', digest: 'changed' }], [{ name: 'test', required: true, outcome: 'passed' }]);
+expect(candidateTest.evaluateCandidateGate(undefined, passed, 'reviewer-1', 'reviewer-1', 'READY FOR PR').reason === 'missing-baseline', 'an absent baseline cannot ship');
+expect(candidateTest.evaluateCandidateGate(passed, changed, 'reviewer-1', 'reviewer-1', 'READY FOR PR').reason === 'snapshot-changed', 'untracked content changes stale a verdict');
+const trackedChanged = candidateTest.createCandidateSnapshot([{ path: 'src/a.ts', status: 'tracked', digest: 'changed' }, { path: 'new.ts', status: 'untracked', digest: 'two' }], [{ name: 'test', required: true, outcome: 'passed' }]);
+expect(candidateTest.evaluateCandidateGate(passed, trackedChanged, 'reviewer-1', 'reviewer-1', 'READY FOR PR').reason === 'snapshot-changed', 'tracked content changes stale a verdict');
+expect(candidateTest.evaluateCandidateGate(passed, passed, 'wrong', 'reviewer-1', 'READY FOR PR').reason === 'wrong-reviewer', 'wrong reviewer identity cannot ship');
+expect(candidateTest.evaluateCandidateGate(passed, passed, 'reviewer-1', 'reviewer-1', 'READY WITH FOLLOW-UPS').reason === 'follow-ups-unaccepted', 'follow-ups require explicit disposition');
+expect(candidateTest.evaluateCandidateGate(passed, passed, 'reviewer-1', 'reviewer-1', 'READY WITH FOLLOW-UPS', true).eligible === true, 'accepted follow-ups retain the exact-check gate');
+const currentSkipped = candidateTest.createCandidateSnapshot(passed.files, [{ name: 'test', required: true, outcome: 'skipped' }]);
+const currentFailed = candidateTest.createCandidateSnapshot(passed.files, [{ name: 'test', required: true, outcome: 'failed' }]);
+const currentMissing = candidateTest.createCandidateSnapshot(passed.files, []);
+expect(candidateTest.evaluateCandidateGate(passed, currentSkipped, 'reviewer-1', 'reviewer-1', 'READY FOR PR').reason === 'required-check-missing', 'a skipped current check cannot reuse a matching-content verdict');
+expect(candidateTest.evaluateCandidateGate(passed, currentFailed, 'reviewer-1', 'reviewer-1', 'READY FOR PR').reason === 'required-check-failed', 'a failed current check cannot reuse a matching-content verdict');
+expect(candidateTest.evaluateCandidateGate(passed, currentMissing, 'reviewer-1', 'reviewer-1', 'READY FOR PR').reason === 'required-check-missing', 'a missing current check cannot reuse a matching-content verdict');
+const skipped = candidateTest.createCandidateSnapshot([{ path: 'src/a.ts', status: 'tracked', digest: 'one' }], [{ name: 'test', required: true, outcome: 'skipped' }]);
+expect(candidateTest.evaluateCandidateGate(skipped, skipped, 'reviewer-1', 'reviewer-1', 'READY FOR PR').reason === 'required-check-missing', 'skipped required checks cannot ship');
+const failed = candidateTest.createCandidateSnapshot([{ path: 'src/a.ts', status: 'tracked', digest: 'one' }], [{ name: 'test', required: true, outcome: 'failed' }]);
+expect(candidateTest.evaluateCandidateGate(failed, failed, 'reviewer-1', 'reviewer-1', 'READY FOR PR').reason === 'required-check-failed', 'failed required checks cannot ship');
+flags['b-role'] = 'implementer';
 await roleSessionStartHandler({}, roleContext);
-expect(activeTools.includes('edit') && activeTools.includes('write'), 'a session without an explicit role must remain Off with normal tools');
-branchEntries.length = 0;
-branchEntries.push({
-  type: 'custom', customType: 'b-agentic-role',
-  data: { role: 'planner', toolsBeforePlanner: ['read', 'bash', 'edit', 'write'] },
+const startupFlagRoles = [];
+roleChannelRegistration.onReady({
+  publish(payload) { startupFlagRoles.push(payload); },
+  listSessions: async () => [{ id: 'self', cwd: root, pid: process.pid, startedAt: 1 }],
 });
-activeTools = ['read', 'bash', 'edit', 'write'];
-await roleSessionStartHandler({}, roleContext);
-branchEntries.length = 0;
-branchEntries.push({ type: 'custom', customType: 'b-agentic-role', data: { role: 'worker' } });
-activeTools = ['read', 'bash', 'edit', 'write'];
-await roleSessionStartHandler({}, roleContext);
-expect(roleStatuses.at(-1)?.value === '\u001b[38;2;0;215;255mb-agentic: worker\u001b[39m' && !roleStatuses.at(-1)?.value.includes('<borderAccent>') && activeTools.includes('edit') && activeTools.includes('write'), 'persisted worker restoration must use the literal truecolor cyan status without a theme token');
-activeTools = ['read', 'bash', 'edit', 'write', 'recall', 'intercom', 'mcp', 'mcpScript'];
-expect(commands['b-role'], 'permission extension must register /b-role');
+await new Promise((resolve) => setImmediate(resolve));
+delete flags['b-role'];
+expect(roleStatuses.at(-1)?.value.includes('implementer') && startupFlagRoles.some((payload) => payload.type === 'b-agentic-role-request'), 'a sole startup implementer flag claims after channel readiness without a later connection event');
+const notificationCommandStart = executedCommands.length;
+await handlers.tool_call({ toolName: 'ask_user_question', toolCallId: 'implementer-input', input: {} }, roleContext);
+expect(executedCommands.length === notificationCommandStart + 1, 'implementer user input must notify once with UI');
+await handlers.tool_call({ toolName: 'ask_user_question', toolCallId: 'headless-input', input: {} }, { ...roleContext, hasUI: false });
+expect(executedCommands.length === notificationCommandStart + 1, 'headless user input must not open a notification UI');
+await commands['b-role'].handler('reviewer', roleContext);
+await handlers.agent_start({});
+await handlers.agent_end({ messages: [{ role: 'assistant', content: [{ type: 'text', text: 'B_AGENTIC_REVIEW_COMPLETE\nVerdict: READY FOR PR' }], timestamp: 1 }] });
+await handlers.agent_settled({}, roleContext);
+await handlers.agent_settled({}, roleContext);
+expect(executedCommands.length === notificationCommandStart + 2, 'review completion notifications must dedupe settled events');
+expect(plannerNotifyTest.hasReviewCompleteSignal([{ role: 'assistant', content: [{ type: 'text', text: 'B_AGENTIC_REVIEW_COMPLETE in prose' }], timestamp: 1 }]) === false, 'only standalone review signals may notify');
+await commands['b-role'].handler('implementer', roleContext);
+roleChannelRegistration.onReady({
+  publish() {},
+  listSessions: async () => [
+    { id: 'z-self', cwd: root, pid: process.pid, startedAt: 1 },
+    { id: 'a-peer', cwd: root, pid: 202, startedAt: 2 },
+  ],
+});
+await roleChannelRegistration.onEvent({
+  type: 'message',
+  fromSessionId: 'a-peer',
+  payload: { type: 'b-agentic-role', version: 2, role: 'implementer' },
+});
+expect(roleStatuses.at(-1)?.value === undefined && roleNotifications.at(-1)?.message.includes('claim won'), 'simultaneous compatible implementer claims deterministically leave the losing session Off');
+await commands['b-role'].handler('off', roleContext);
 expect(commands['b-sync'] && commands['b-update'], 'refresh extension must register /b-sync and /b-update');
 let refreshConfirmations = 0;
 let reloads = 0;
-const refreshContext = {
-  hasUI: true,
-  ui: {
-    confirm: async () => { refreshConfirmations += 1; return true; },
-    notify() {},
-  },
-  async reload() { reloads += 1; },
-};
+const refreshContext = { hasUI: true, ui: { confirm: async () => { refreshConfirmations += 1; return true; }, notify() {} }, async reload() { reloads += 1; } };
 await commands['b-sync'].handler('', refreshContext);
 await commands['b-update'].handler('', refreshContext);
-expect(refreshConfirmations === 1, 'only /b-sync must confirm external updates');
-expect(executedCommands.at(-2)?.command === 'bash' && executedCommands.at(-2)?.args.at(-1) === '--sync', '/b-sync must run the sync-only installer mode');
-expect(executedCommands.at(-1)?.command === 'bash' && executedCommands.at(-1)?.args.at(-1) === '--update', '/b-update must run the update-only installer mode');
-expect(reloads === 2, 'successful refresh commands must reload Pi');
-await commands['b-sync'].handler('unexpected', refreshContext);
-expect(executedCommands.length === 2 && reloads === 2, '/b-sync arguments must be rejected without a refresh');
-await commands['b-role'].handler('off', roleContext);
-const notificationCommandStart = executedCommands.length;
-await handlers.agent_start({});
-await handlers.agent_end({ messages: [
-  { role: 'user', content: 'sensitive task/session content mentioning B_AGENTIC_TASK_COMPLETE', timestamp: 1 },
-  { role: 'assistant', content: [{ type: 'text', text: 'Planning handoff to worker.' }], timestamp: 2 },
-] });
-await handlers.agent_settled({ messages: [{ content: 'sensitive task/session content' }] });
-await handlers.tool_call({ toolName: 'ask_user_question', toolCallId: 'off-input', input: { questions: [{ question: 'sensitive question' }] } }, roleContext);
-expect(executedCommands.length === notificationCommandStart, 'off role must remain silent for planning and ask_user_question tool calls');
-await commands['b-role'].handler('planner', roleContext);
-const expectedInputNotification = process.platform === 'darwin'
-  ? { command: 'osascript', args: ['-e', 'display notification "User input needed" with title "b-agentic"'] }
-  : { command: 'notify-send', args: ['User input needed'] };
-await handlers.tool_call({ toolName: 'ask_user_question', toolCallId: 'planner-input', input: { questions: [{ question: 'sensitive question/session content' }] } }, roleContext);
-expect(executedCommands.length === notificationCommandStart + 1 && executedCommands.at(-1)?.command === expectedInputNotification.command && JSON.stringify(executedCommands.at(-1)?.args) === JSON.stringify(expectedInputNotification.args) && executedCommands.at(-1)?.options?.timeout === plannerNotifyTest.NOTIFICATION_TIMEOUT_MS, 'planner must notify on an ask_user_question tool call with fixed text and bounded timeout');
-await handlers.agent_start({});
-await handlers.agent_end({ messages: [
-  { role: 'user', content: 'sensitive task/session content mentioning B_AGENTIC_TASK_COMPLETE', timestamp: 1 },
-  { role: 'assistant', content: [{ type: 'text', text: 'Planning handoff to worker.' }], timestamp: 2 },
-] });
-await handlers.agent_settled({});
-expect(executedCommands.length === notificationCommandStart + 1, 'planner handoffs and normal planning must remain silent');
-await handlers.agent_start({});
-await handlers.agent_end({ messages: [
-  { role: 'assistant', content: [{ type: 'text', text: 'Verdict: READY FOR PR' }], timestamp: 3 },
-] });
-await handlers.agent_settled({});
-expect(executedCommands.length === notificationCommandStart + 1, 'verdict-only b-review content must remain silent');
-await handlers.agent_start({});
-await handlers.agent_end({ messages: [
-  { role: 'user', content: 'sensitive task/session content', timestamp: 4 },
-  { role: 'assistant', content: [{ type: 'text', text: `${taskCompleteSignal}\nVerdict: READY FOR PR` }], timestamp: 5 },
-] });
-await handlers.agent_settled({});
-expect(executedCommands.length === notificationCommandStart + 2, 'planner must notify after an explicit passing-completion signal');
-const expectedTaskNotification = process.platform === 'darwin'
-  ? { command: 'osascript', args: ['-e', 'display notification "Task complete" with title "b-agentic"'] }
-  : { command: 'notify-send', args: ['Task complete'] };
-expect(executedCommands.at(-1)?.command === expectedTaskNotification.command && JSON.stringify(executedCommands.at(-1)?.args) === JSON.stringify(expectedTaskNotification.args) && executedCommands.at(-1)?.options?.timeout === plannerNotifyTest.NOTIFICATION_TIMEOUT_MS, 'task-complete notification must be fixed, bounded, and exclude settled task/session content');
-await handlers.agent_start({});
-await handlers.agent_end({ messages: [
-  { role: 'assistant', content: [{ type: 'text', text: 'Verdict: READY WITH FOLLOW-UPS' }], timestamp: 6 },
-] });
-await handlers.agent_settled({});
-expect(executedCommands.length === notificationCommandStart + 2, 'verdict-only follow-ups must remain silent');
-await handlers.agent_start({});
-await handlers.agent_end({ messages: [
-  { role: 'assistant', content: [{ type: 'text', text: 'I need one focused decision.\nUser input needed' }], timestamp: 7 },
-] });
-await handlers.agent_settled({});
-expect(executedCommands.length === notificationCommandStart + 2, 'assistant text alone must not trigger a user-input notification');
-await handlers.agent_start({});
-await handlers.agent_end({ messages: [
-  { role: 'assistant', content: [{ type: 'text', text: 'User input needed in arbitrary prose' }], timestamp: 8 },
-] });
-await handlers.agent_settled({});
-expect(executedCommands.length === notificationCommandStart + 2, 'assistant prose must not trigger a user-input notification');
-await handlers.agent_start({});
-await handlers.agent_end({ messages: [
-  { role: 'assistant', content: [{ type: 'text', text: `${taskCompleteSignal} in arbitrary prose` }], timestamp: 9 },
-  { role: 'assistant', content: [{ type: 'text', text: 'Intermediate update with sensitive task/session content.' }], timestamp: 10 },
-] });
-await handlers.agent_settled({});
-expect(executedCommands.length === notificationCommandStart + 2, 'only exact task-complete signals in the final assistant response may notify');
-await handlers.agent_start({});
-await handlers.agent_end({ messages: [
-  { role: 'assistant', content: [{ type: 'text', text: 'Verdict: NEEDS FIXES' }], timestamp: 11 },
-] });
-await handlers.agent_settled({});
-expect(executedCommands.length === notificationCommandStart + 2, 'b-review fixes-needed outcomes must remain silent');
-await handlers.agent_settled({ messages: [{ content: 'sensitive task/session content with B_AGENTIC_TASK_COMPLETE' }] });
-expect(executedCommands.length === notificationCommandStart + 2, 'generic settled events must remain silent without a final agent_end signal');
-roleChannelRegistration.onReady({ publish() {}, listSessions: async () => [{ id: 'self', cwd: root, pid: process.pid, startedAt: 1 }] });
-await commands['b-role'].handler('worker', roleContext);
-await handlers.tool_call({ toolName: 'ask_user_question', toolCallId: 'worker-input', input: { questions: [{ question: 'sensitive question/session content' }] } }, roleContext);
-expect(executedCommands.length === notificationCommandStart + 2, 'worker must remain silent after an ask_user_question tool call');
-await handlers.agent_start({});
-await handlers.agent_end({ messages: [{ role: 'assistant', content: [{ type: 'text', text: taskCompleteSignal }], timestamp: 12 }] });
-await handlers.agent_settled({});
-expect(executedCommands.length === notificationCommandStart + 2, 'worker must remain silent after an explicit signal');
-await commands['b-role'].handler('off', roleContext);
-await handlers.tool_call({ toolName: 'ask_user_question', toolCallId: 'off-input-after-worker', input: { questions: [{ question: 'sensitive question/session content' }] } }, roleContext);
-await handlers.agent_start({});
-await handlers.agent_end({ messages: [{ role: 'assistant', content: [{ type: 'text', text: 'User input needed' }], timestamp: 13 }] });
-await handlers.agent_settled({});
-expect(executedCommands.length === notificationCommandStart + 2, 'off role must remain silent after ask_user_question tool calls and assistant text');
-activeThinkingLevel = 'high';
-await commands['b-role'].handler('', roleContext);
-expect(rolePickerCalls === 1, '/b-role without an argument must open a role picker');
-expect(modelPickerCalls === 0, '/b-role must not open a model picker');
-expect(activeModel.provider === 'anthropic' && activeModel.id === 'claude-sonnet-4-5', '/b-role must leave the active model unchanged');
-await handlers.model_select({ model: { provider: 'anthropic', id: 'claude-sonnet-4-5' } }, roleContext);
-const roleModelPreferences = JSON.parse(readFileSync(path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic', 'role-models.json'), 'utf8'));
-expect(roleModelPreferences.planner.model === 'claude-sonnet-4-5' && roleModelPreferences.planner.thinkingLevel === 'high', '/model changes must persist the active role preference');
-expect(!('consultant' in roleModelPreferences), 'retired consultant model preference must not persist');
-activeThinkingLevel = 'low';
-await handlers.thinking_level_select({ level: 'low', previousLevel: 'high' }, { ...roleContext, model: undefined });
-const updatedPlannerPreferences = JSON.parse(readFileSync(path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic', 'role-models.json'), 'utf8'));
-expect(updatedPlannerPreferences.planner.provider === 'anthropic' && updatedPlannerPreferences.planner.model === 'claude-sonnet-4-5' && updatedPlannerPreferences.planner.thinkingLevel === 'low', 'thinking-level changes must update the planner preference without changing its saved model when the current model is unavailable');
-await commands['b-role'].handler('off', roleContext);
-activeTools = ['read', 'bash', 'edit', 'write', 'recall', 'intercom', 'mcp', 'mcpScript', 'mcp__firecrawl_firecrawl_search', 'mcp__playwright_browser_snapshot', 'mcp__linear_get_issue', 'codegraph_codegraph_explore'];
-const normalPlannerActiveTools = [...activeTools];
-activeModel = { provider: 'other', id: 'other-model' };
-activeThinkingLevel = 'off';
-await commands['b-role'].handler('planner', roleContext);
-expect(JSON.stringify(activeTools) === JSON.stringify(normalPlannerActiveTools), 'planner role must preserve the normal active-tool set');
-expect(activeModel.provider === 'anthropic' && activeModel.id === 'claude-sonnet-4-5' && activeThinkingLevel === 'low', '/b-role planner must apply its saved model and thinking preference');
-for (const toolName of ['read', 'recall', 'intercom', 'bash', 'edit', 'write', 'mcp', 'mcpScript', 'mcp__firecrawl_firecrawl_search', 'mcp__playwright_browser_snapshot', 'mcp__linear_get_issue', 'codegraph_codegraph_explore']) {
-  expect(activeTools.includes(toolName), `planner role must preserve normal active tool ${toolName}`);
-}
-expect(activeTools.includes('edit') && activeTools.includes('write') && activeTools.includes('mcpScript') && activeTools.includes('mcp__playwright_browser_snapshot'), 'planner roles must not filter normal active tools; prompt ownership preserves the writer boundary');
-const expectedSkillOwners = {
-  'b-plan': 'planner', 'b-research': 'planner', 'b-design': 'worker', 'b-frontend': 'worker', 'b-implement': 'worker',
-  'b-init': 'worker', 'b-refactor': 'worker', 'b-debug': 'worker', 'b-test': 'worker',
-  'b-browser': 'worker', 'b-agentic-audit': 'planner', 'b-review': 'planner',
-  'b-commit': 'worker', 'b-pr-summary': 'planner',
-};
-expect(JSON.stringify(plannerTest.SKILL_OWNERS) === JSON.stringify(expectedSkillOwners), 'generated runtime ownership must account for every registered skill');
-expect(plannerTest.skillOwner('future-or-ambiguous-skill') === 'worker', 'unknown runtime skill ownership must fail closed to worker');
-expect(plannerTest.SKILL_OWNERSHIP_CRITERION.includes('browser/operational verification') && plannerTest.SKILL_OWNERSHIP_CRITERION.includes('Mixed or uncertain skills are worker-owned'), 'generated runtime ownership criterion must classify future operational and uncertain skills as worker-owned');
-for (const skill of Object.keys(expectedSkillOwners)) {
-  expect(await toolCallHandler({ toolName: 'read', input: { path: path.join(root, `skills/${skill}/SKILL.md`) } }, roleContext) === undefined, `planner must permit inspection of ${skill} regardless of execution owner`);
-}
-for (const toolName of ['edit', 'write']) {
-  expect(await toolCallHandler({ toolName, input: toolName === 'edit' ? { path: 'pi/extensions/b-agentic-support/role.ts', edits: [] } : {} }, roleContext) === undefined, `planner role must not add a role-specific block for ${toolName}`);
-}
-expect(await toolCallHandler({ toolName: 'mcpScript', input: { code: "emit('metadata only')" } }, roleContext) === undefined, 'planner must use the shared approval policy for mcpScript rather than a role-specific block');
-branchEntries.length = 0;
-branchEntries.push({
-  type: 'custom', customType: 'b-agentic-role',
-  data: { role: 'planner', automatic: true, toolsBeforePlanner: ['read', 'bash', 'edit', 'write'] },
-});
-activeTools = ['read', 'bash', 'edit', 'write', 'recall', 'intercom', 'mcp', 'mcpScript'];
-await roleSessionStartHandler({}, roleContext);
-expect(activeTools.includes('edit') && activeTools.includes('write'), 'legacy automatic planner state must migrate to Off');
-const migratedLegacyStart = await handlers.before_agent_start({ systemPrompt: 'base' }, roleContext);
-expect(!migratedLegacyStart?.systemPrompt?.includes('planner profile (read-only coordinator)'), 'legacy automatic planner state must not activate planner prompt');
-branchEntries.length = 0;
-branchEntries.push({
-  type: 'custom', customType: 'b-agentic-role',
-  data: { role: 'planner' },
-});
-activeTools = ['read', 'bash', 'edit', 'write', 'recall', 'intercom', 'mcp', 'mcpScript'];
-activeModel = { provider: 'other', id: 'other-model' };
-activeThinkingLevel = 'off';
-await roleSessionStartHandler({}, roleContext);
-expect(activeTools.includes('write') && activeTools.includes('edit'), 'an explicitly persisted planner must preserve normal active tools');
-expect(activeModel.provider === 'anthropic' && activeModel.id === 'claude-sonnet-4-5' && activeThinkingLevel === 'low', 'a persisted planner role must restore its saved model and thinking preference');
-const noUiPlannerContext = { ...roleContext, hasUI: false };
-expect(await toolCallHandler({ toolName: 'bash', input: { command: 'rtk pytest -q' } }, noUiPlannerContext) === undefined, 'planner must permit repository tests through the shared command policy');
-expect(await toolCallHandler({ toolName: 'bash', input: { command: 'node script.js' } }, roleContext) === undefined, 'planner must permit repository command execution through the shared command policy');
-expect((await toolCallHandler({ toolName: 'bash', input: { command: 'rtk git reset --hard' } }, noUiPlannerContext))?.block === true, 'shared explicit command denies must remain enforced');
-expect(await toolCallHandler({ toolName: 'mcp', input: { server: 'linear', tool: 'list_issues', args: {} } }, roleContext) === undefined, 'retired MCP names must use shared generic policy');
-const kernelPrompt = readFileSync(path.join(root, 'references/kernel.template.md'), 'utf8');
-const plannerStart = await handlers.before_agent_start({ systemPrompt: `${kernelPrompt}\n\nbase`, systemPromptOptions: { skills: [] } }, roleContext);
-expect(plannerStart.systemPrompt.includes('planner profile (read-only coordinator)') && plannerStart.systemPrompt.includes('Planner-owned skills: `b-plan`, external `b-research`, `b-agentic-audit`, `b-review`, `b-pr-summary`') && plannerStart.systemPrompt.includes('Worker-owned skills: `b-design`, `b-frontend`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, `b-commit`'), 'planner system prompt must retain the composed kernel ownership mapping');
-for (const marker of [
-  'Use top-level `mcp` for exactly one',
-  'Use `mcpScript` only for two or more',
-  'at most 12 total nested operations',
-  'at most 8 `tools.call` operations',
-  'at most 3 source/server branches or browser routes',
-  'at most 5 candidate results per source',
-  'at most 12 normalized output records',
-  'normal approval, authentication, and output-guard policy',
-  'Content-block envelopes',
-  'deduplicate by URL then `title+claim`',
-  'bounded partial results with explicit errors',
-  'direct top-level `mcp` calls and state that fallback',
-  'must not batch navigation, clicks, typing, evaluation, uploads, or other mutations',
-]) {
-  expect(kernelPrompt.includes(marker), `kernel must retain bounded mcpScript guidance marker ${marker}`);
-}
-const chainedMcpScriptExample = kernelPrompt.match(/Use this direct adapter API for a chained operation:\n\n```js\n([\s\S]*?)\n```/)?.[1] || '';
-expect(chainedMcpScriptExample.includes('emit(') && !/\breturn\b/.test(chainedMcpScriptExample), 'canonical mcpScript chained example must emit terminal outcomes rather than return undocumented values');
-for (const marker of ['emit({ error: "No matching tool" })', 'emit(details)', 'emit({ error: result.error })', 'emit(result.data)']) {
-  expect(chainedMcpScriptExample.includes(marker), `canonical mcpScript chained example must include ${marker}`);
-}
-const plannerPromptBytes = Buffer.byteLength(plannerTest.PLANNER_PROMPT, 'utf8');
-const measuredPreDedupPlannerPromptBytes = 6711;
-expect(plannerPromptBytes < measuredPreDedupPlannerPromptBytes, `planner prompt addendum must be smaller than the measured pre-dedup baseline (got ${plannerPromptBytes} bytes)`);
-expect(!plannerTest.PLANNER_PROMPT.includes('Your in-scope planner skills are:') && !plannerTest.PLANNER_PROMPT.includes('Group 1–4 related questions per call'), 'planner prompt must defer shared ownership and questionnaire guidance to the kernel');
-expect(plannerStart.systemPrompt.includes('The planner keeps external b-research planner-owned and never delegates it.') && plannerStart.systemPrompt.includes('Use send for task delegation, terminal results, review requests/findings, and any question/request needing material work.') && plannerStart.systemPrompt.includes('Use ask only for one focused question whose answer needs no substantial investigation, implementation, or waiting; never use ask to wait.') && plannerStart.systemPrompt.includes('ask_user_question') && plannerStart.systemPrompt.includes('B_AGENTIC_TASK_COMPLETE') && plannerStart.systemPrompt.includes('2–4 concrete options') && plannerStart.systemPrompt.includes(' (Recommended)') && plannerStart.systemPrompt.includes('automatic custom-answer row') && plannerStart.systemPrompt.includes('fixed "User input needed" desktop notification'), 'planner system prompt must combine composed kernel questionnaire guidance with task-complete signal and tool-call notification guidance');
-expect(!plannerStart.systemPrompt.includes('b_consult') && !plannerStart.systemPrompt.includes('b-consult-model') && !plannerStart.systemPrompt.includes('Consultation'), 'planner prompt must not advertise retired consult guidance');
-for (const marker of [
-  // generated:role-prompt-markers:planner:start
-  "Finish discovery before one bounded handoff",
-  "expected paths/symbols",
-  "Do not cause worktree mutation",
-  "building or initializing local indexes/caches such as CodeGraph",
-  "non-mutating validation/audit scripts",
-  "independent read-only work outside that expected set",
-  "do not mutate, revise in-flight scope, issue another implementation task, or review the in-flight diff",
-  "re-read the actual changed paths before review",
-  "read `b-review`'s `SKILL.md` at its listed location (installed: `~/.pi/agent/skills/b-review/SKILL.md`)",
-  "standalone `Verdict:` line",
-  "Reviewer prose without that artifact is not a passed gate",
-  "Use send for task delegation, terminal results, review requests/findings, and any question/request needing material work",
-  "one focused question whose answer needs no substantial investigation, implementation, or waiting",
-  "never use ask to wait",
-  "Before every outbound Intercom send or ask",
-  "If it reports an inbound ask, reply to that ask immediately—do not call send, ask, list-cwd, or another pending first",
-  "If none exists, immediately call list-cwd",
-  "Delivery makes a handoff, result, finding, or approval real",
-  "The refresh is not polling; after handoff end the turn and wait for the worker send, with no sleep, timeout, status polling, or ask to wait",
-  "latest approved plan, handoff, and clarifications",
-  "Only delegated worktree-changing tasks require actual b-review",
-  "location, evidence, impact, violated baseline, smallest correction, and regression check",
-  "For audit/review verification you cannot run, request bounded worker evidence",
-  "For an explicit user b-commit request",
-  "b-commit remains worker-owned",
-  "read-only proposal analysis",
-  "capture the snapshot",
-  "exactly one user approval",
-  "exact ordered paths/messages",
-  "unchanged proposal",
-  "same worker",
-  "never stage, commit, regroup, or re-ask",
-// generated:role-prompt-markers:planner:end
-]) {
-  expect(plannerStart.systemPrompt.includes(marker), `planner prompt must retain ${marker}`);
-}
-
-let activePeerWorker = true;
-roleChannelRegistration.onReady({
-  publish(payload) { publishedRoles.push(payload); },
-  listSessions: async () => [
-    { id: 'self', cwd: root, pid: process.pid, startedAt: 1 },
-    ...(activePeerWorker ? [{ id: 'active-worker', cwd: root, pid: 202, startedAt: 2 }] : []),
-  ],
-});
-await roleChannelRegistration.onEvent({ type: 'connection', connected: true, supported: true });
-await roleChannelRegistration.onEvent({ type: 'message', fromSessionId: 'active-worker', payload: { type: 'b-agentic-role', role: 'worker' } });
-await roleChannelRegistration.onEvent({ type: 'message', fromSessionId: 'self', payload: { type: 'b-agentic-role', role: 'worker' } });
-const rosterWithWorker = await registrations.before_agent_start[0]({ systemPrompt: 'base' }, roleContext);
-expect(rosterWithWorker.systemPrompt.includes('active-worker (active-worker)') && !rosterWithWorker.systemPrompt.includes('consultant'), 'planner roster must list only a ready same-CWD worker');
-roleNotifications.length = 0;
-await commands['b-role'].handler('worker', roleContext);
-expect(roleStatuses.at(-1)?.value === '<success>b-agentic: planner</success>', 'an explicit worker request must remain planner when a second writer is active without filtering tools');
-expect(roleNotifications.some(({ level }) => level === 'warning'), 'a real same-CWD peer worker must still block the worker claim');
-activePeerWorker = false;
-await roleChannelRegistration.onEvent({ type: 'session_left', sessionId: 'active-worker' });
-roleNotifications.length = 0;
-roleColorMode = '256color';
-await commands['b-role'].handler('worker', roleContext);
-expect(roleStatuses.at(-1)?.value === '\u001b[38;5;45mb-agentic: worker\u001b[39m' && !roleStatuses.at(-1)?.value.includes('<borderAccent>'), 'worker status must use the literal 256-color cyan fallback without a theme token');
-expect(roleNotifications.at(-1)?.level === 'info', 'a self worker announcement must not trigger a duplicate-worker warning');
-expect(activeTools.includes('edit') && activeTools.includes('write') && activeTools.includes('bash'), 'worker role must restore normal tools');
-await handlers.model_select({ model: { provider: 'anthropic', id: 'claude-sonnet-4-5' } }, roleContext);
-activeThinkingLevel = 'minimal';
-await handlers.thinking_level_select({ level: 'minimal', previousLevel: 'high' }, roleContext);
-const updatedWorkerPreferences = JSON.parse(readFileSync(path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic', 'role-models.json'), 'utf8'));
-expect(updatedWorkerPreferences.worker.model === 'claude-sonnet-4-5' && updatedWorkerPreferences.worker.thinkingLevel === 'minimal', 'thinking-level changes must update the worker preference without changing its model');
-await commands['b-role'].handler('off', roleContext);
-activeModel = { provider: 'other', id: 'other-model' };
-activeThinkingLevel = 'off';
-await commands['b-role'].handler('worker', roleContext);
-expect(activeModel.provider === 'anthropic' && activeModel.id === 'claude-sonnet-4-5' && activeThinkingLevel === 'minimal', '/b-role worker must apply its saved model and thinking preference');
-expect(await toolCallHandler({ toolName: 'edit', input: { path: 'README.md', edits: [] } }, roleContext) === undefined, 'worker role must not wait for a structured assignment');
-for (const skill of ['b-frontend', 'b-implement', 'b-debug', 'b-refactor', 'b-test', 'b-browser', 'b-research', 'b-design', 'b-init']) {
-  expect(await toolCallHandler({ toolName: 'read', input: { path: path.join(root, `skills/${skill}/SKILL.md`) } }, roleContext) === undefined, `worker role must allow task-appropriate skill ${skill}`);
-}
-for (const command of ['rtk git status --short', 'fdfind -t f SKILL.md skills', 'eza -la']) {
-  expect(await toolCallHandler({ toolName: 'bash', input: { command } }, roleContext) === undefined, `worker role must preserve local discovery: ${command}`);
-}
-const workerStart = await handlers.before_agent_start({ systemPrompt: 'base', systemPromptOptions: { skills: [] } }, roleContext);
-for (const marker of [
-  // generated:role-prompt-markers:worker:start
-  "worker profile (implementation)",
-  "Executing a skill requires first reading its `SKILL.md` at its listed location (installed: `~/.pi/agent/skills/<name>/SKILL.md`)",
-  "sole worktree writer",
-  "Your in-scope worker skills are: `b-design`, `b-frontend`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, `b-commit`",
-  "Delegate these planner-owned skills to the planner: `b-plan`, `b-research`, `b-agentic-audit`, `b-review`, `b-pr-summary`",
-  "planner owns external research",
-  "Planner-owned only when execution is read-only decision/planning",
-  "Mixed or uncertain skills are worker-owned",
-  "Ownership governs execution, not inspection",
-  "Unknown or ambiguous skills fail closed to worker ownership",
-  "expected paths/symbols",
-  "independent read-only work outside those expected paths/symbols",
-  "it must not mutate, revise in-flight scope, issue another implementation task, or review the in-flight diff",
-  "the planner re-reads the actual changed paths before review",
-  "For a quick two-role blocker or scope question",
-  "if it reports an inbound ask, reply immediately without send, ask, list-cwd, or another pending",
-  "ask the assigning planner one focused question using its returned identifier token verbatim",
-  "execute the assigned worker-owned work yourself",
-  "never delegate or hand off any part of it to another worker",
-  "Planner-owned b-review is never a worker action",
-  "never invoke, load, or execute b-review yourself",
-  "terminal report/review request to the assigning planner is coordination only",
-  "use send for task delegation (when applicable), terminal results, review requests/findings, and any question/request needing material work",
-  "one focused question whose answer needs no substantial investigation, implementation, or waiting",
-  "never use ask to wait",
-  "Before every outbound Intercom send or ask",
-  "If it reports an inbound ask, reply to that ask immediately—do not call send, ask, list-cwd, or another pending first",
-  "If none exists, immediately call list-cwd",
-  "Delivery makes a handoff, result, finding, or approval real",
-  "one retry only",
-  "The refresh is not polling; do not sleep, timeout, or status-poll",
-  "At every terminal outcome for any assigned task",
-  "completed, no-change, blocked, or reported gap",
-  "successfully send a terminal completion/result",
-  "same assigning planner before pausing",
-  "five fixed headings in order: Changed, Verification, Coverage, Deviations, and Gaps",
-  "authoritative short ID is valid",
-  "never guess, reconstruct, extend, further abbreviate",
-  "Include implemented behavior (or the no-change or blocked outcome), changed paths, acceptance coverage, exact checks/outcomes",
-  "deviations, assumptions, or gaps",
-  "actual b-review against that baseline",
-  "pause all edits",
-  "explicitly requests b-commit",
-  "unchanged reviewed snapshot; any content change reopens review",
-  "When resuming an explicit b-commit request",
-  "original explicit user request plus the planner-relayed exact approval",
-  "b-commit request/approval gate",
-  "verify the captured snapshot and proposal are unchanged",
-  "exactly the approved paths/messages",
-  "without re-proposing or re-asking",
-  "If the snapshot or proposal differs, stop and report—not regroup or reuse approval",
-  "do not stage or commit",
-// generated:role-prompt-markers:worker:end
-]) {
-  expect(workerStart.systemPrompt.includes(marker), `worker role must include ${marker}`);
-}
-expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'send', to: 'planner', message: 'Changed README.md; smoke passed; no known gaps.' } }, roleContext) === undefined, 'worker role must allow plain-language results');
-expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'ask', to: 'planner', message: 'Should I include the compatibility cleanup?' } }, roleContext) === undefined, 'worker role must allow clarification asks');
-expect(await toolCallHandler({ toolName: 'intercom', input: { action: 'reply', message: 'Acknowledged', replyTo: 'message-2' } }, roleContext) === undefined, 'worker role must allow replies');
-expect(persistedEntries.some((entry) => entry.data.role === 'planner') && persistedEntries.some((entry) => entry.data.role === 'worker'), 'role changes must persist');
-await commands['b-role'].handler('off', roleContext);
+expect(refreshConfirmations === 1 && reloads === 2, 'refresh lifecycle remains available after role migration');
 expect(commands['b-auto-mode'], 'auto-mode extension must register /b-auto-mode');
 expect(flagDefinitions['b-auto-mode']?.type === 'boolean', 'auto-mode must register a boolean startup flag');
 const autoTest = extensionModules[2].__test__;
@@ -2161,7 +1796,7 @@ run_pi_smoke_cases() {
 		assert_file "$sandbox/home/.pi/agent/extensions/$extension"
 		assert_file "$sandbox/home/.pi/agent/b-agentic/extensions/$extension"
 	done
-	for support in shell.ts mcp.ts role.ts role-models.ts worker.ts state.ts auto.ts capabilities.ts status.ts; do
+	for support in shell.ts mcp.ts role.ts role-models.ts worker.ts state.ts auto.ts capabilities.ts candidate.ts status.ts; do
 		assert_file "$sandbox/home/.pi/agent/extensions/b-agentic-support/$support"
 		assert_file "$sandbox/home/.pi/agent/b-agentic/extensions/b-agentic-support/$support"
 	done

@@ -1,6 +1,6 @@
 # b-implement
 
-Make the scoped non-UI change in the smallest coherent step, and hand back to planning or research instead of guessing when new ambiguity appears.
+Make the scoped non-UI change in the smallest coherent step after an approved plan or clear direct request.
 
 ## When to use
 
@@ -10,55 +10,32 @@ Make the scoped non-UI change in the smallest coherent step, and hand back to pl
 ## When NOT to use
 
 - Scope or behavior is unclear -> use **b-plan**.
-- The primary requested change is frontend/UI code—pages, layouts, components, styling, responsive behavior, interactions, or a visual refresh -> use **b-frontend**, the sole implementation skill for that UI slice.
-- The primary task is a named refactor -> use **b-refactor**.
-- The task is only tests -> use **b-test**.
-- Root cause is unknown -> use **b-debug**.
-- External lookup blocks the edit -> use **b-research**.
+- Frontend/UI code -> use **b-frontend**.
+- A named behavior-preserving transform -> use **b-refactor**.
+- Test-only work -> use **b-test**.
+- An unknown runtime failure -> use **b-debug**.
 
 ## Tool guidance
 
-- `read`/`edit`/`write` - use Pi native file tools by default for routine inspection and changes.
-- `bash` - `rtk git status --short`, verification commands, and modern discovery routed through `rtk` whenever that command family is supported.
-- `codegraph` - select when a concrete repository-wide architecture, dependency/call-flow, impact, or affected-test question is central to the task and likely valuable; use an available index for that question and initialize an absent index only for that qualifying question. Spanning files alone never justifies it.
-
-- `context7` - narrow versioned third-party API checks when needed.
-- `recall` - recover compacted observational-memory ids when present instead of guessing prior context.
-
-## Capability activation
-
-Use the capability contract by trigger rather than by availability: use repository checks on changed source, then report any evidence gap; select CodeGraph for the qualifying repository-wide questions above, and use `recall` only when a supplied compacted-memory ID materially helps. In a two-role workflow use Intercom only for the explicit worker/planner handoff; use `ask_user_question` only for a material user-facing choice. Do not invoke usage reporting or authentication for unrelated implementation, and do not persist telemetry or session content.
+- Use Pi native file tools by default and native tools or local search for routine discovery. Select CodeGraph only when a repository-wide architecture, impact, or affected-test question is central. Use supplied compacted observational-memory ids rather than guessing.
 
 ## Steps
 
-1. Resolve the source of truth: approved plan, approved chat instruction, or small direct request.
-2. Run `rtk git status --short` via Bash and preserve unrelated changes.
-3. Use read for relevant repo context only when it materially affects the scoped change; use recall when compacted prior plan context is available. Before edits, consult applicable project standards, architecture boundaries, and relevant failure modes. For small obvious work, consult only the evidence needed and do not create ceremony.
-4. After relevant discovery, choose the smallest evidence-backed fit in this order: reuse an existing repository capability; use the standard library or native platform; use an already-installed dependency; then write direct new code. Descend to a later option only when the earlier one cannot satisfy the requested behavior or constraints, and record the material rationale. This preference does not relax requested behavior, compatibility, security, trust-boundary validation, error/data-loss handling, accessibility where relevant, or needed verification.
-5. State expected files/symbols, invariant behavior, and success criteria. Success criteria and verification must establish intended behavior plus relevant quality constraints, not merely command success. If material framework/API best-practice uncertainty remains after repository evidence, stop and route that specific question to targeted **b-research** rather than guessing.
-6. Select CodeGraph when a concrete repository-wide architecture, impact, or affected-test question is central to the task and likely valuable; use an available index for that question and initialize an absent index only for that qualifying question. Spanning files alone never justifies initialization. Use native tools or local search for routine work.
-7. If a material blocker, new uncertainty, missing external fact, or scope drift cannot be resolved from the approved plan, direct request, and repository evidence, stop before the next edit. In delegated worker work, ask the assigning planner one focused question through Intercom and wait; keep worker→planner questions as Intercom coordination. In planner or solo/Off work, use the installed `ask_user_question` tool for the interactive, user-facing material decision or blocker: group 1–4 related questions, provide 2–4 concrete options with concise trade-offs, put the recommended option first with ` (Recommended)`, and rely on the automatic custom-answer row. If unavailable or noninteractive, ask one focused plain-text question; in planner mode, an actual `ask_user_question` tool call triggers a fixed privacy-safe desktop notification, while solo/Off workers emit no planner notifications. Do not use the questionnaire for normal updates or no-choice confirmations. Native tool-permission prompts remain for browser, external, or privileged actions. The planner owns external research and scope decisions. Re-evaluate each answer; hand back to **b-plan** or **b-research** only when it identifies that handoff.
-8. Edit the smallest coherent slice and match the existing local style. Use Pi native `edit`/`write` for routine changes.
-9. Run the narrowest useful verification (using Context7 for versioned third-party API checks if the implementation relies on them) that establishes the intended behavior and relevant quality constraints, not only command success.
-10. If verification exposes an in-scope defect without a material blocker, correct it and rerun the required check. Otherwise stop under step 7.
-11. Inspect changed paths with metadata-only Git output, then inspect diffs only for explicit non-protected paths and report changes, verification, and remaining gaps.
-
-## Planner/worker sequencing
-
-For planner-assigned work, treat the handoff as bounded. Resolve ambiguity and agree on the final approach with the planner before editing; once editing starts, do not expand scope from exploratory requests. Delegated results must report under five fixed headings: "Changed" (paths + brief what), "Verification" (exact commands + outcomes), "Coverage" (acceptance criteria met), "Deviations" (scope changes, assumptions, or "none"), and "Gaps" (unverified/remaining or "none"). Every outcome—completed, no-change, blocked, or reported gap—must be successfully sent to the same assigning planner under those headings before pausing; no outcome is a silent exception. Workers must never invoke, load, or execute planner-owned **b-review** themselves; a terminal report/review request is coordination only, and a worktree-changing result must ask the assigning planner to run actual **b-review** against the approved baseline. Prose may accompany the headings, but every heading must be present. Ask the planner to invoke actual **b-review** and pause all edits. Only delegated worktree-changing tasks require this review gate; its baseline is the latest approved plan, handoff, and clarifications.
+1. Resolve the approved plan or direct request, run `rtk git status --short`, and preserve unrelated changes.
+2. Before edits, consult applicable project standards, architecture boundaries, and relevant failure modes. State affected paths, invariants, observable success criteria, and relevant quality constraints. Use repository evidence; select CodeGraph only for a concrete central repository-wide question. Route material framework/API best-practice uncertainty to targeted **b-research**.
+3. Ask the user directly with `ask_user_question` only for a material unresolved choice. Do not relay normal clarification through a reviewer.
+4. Make the smallest coherent edit with native tools and remove imports/helpers made unused by it.
+5. Run the narrowest useful verification, correct in-scope defects, and inspect explicit non-protected changed paths.
+6. Before review, freeze the candidate: stop edits and provide the reviewer a compact snapshot covering tracked and relevant untracked/derived content, required checks and outcomes, acceptance, constraints, gaps, and risk. Do not claim a reviewer is fresh, provision one, or reset a session.
+7. Do not edit while review is pending. A changed snapshot, skipped/failed required check, missing baseline, wrong reviewer, `NEEDS FIXES`, or unaccepted follow-up blocks shipping. Reverify and request another review after corrections. No review automatically commits or pushes.
 
 ## Output format
 
-Changes, verification, acceptance coverage, and deviations, assumptions, or gaps. For delegated worktree-changing changes, explicitly ask the planner to invoke actual **b-review** and pause.
+Changes, verification, acceptance coverage, and deviations or gaps. For a changed candidate, request actual **b-review** from an explicitly selected compatible reviewer and pause edits.
 
 ## Rules
 
-- Stay within approved scope.
-- When an edit anchor (oldText) fails to match, re-read the target region and re-anchor the edit from current content; never blind-retry the same anchor or widen context speculatively.
-- Every changed line should trace to the approved scope or cleanup made necessary by this change.
-- Remove imports or helpers made unused by the change; leave pre-existing dead code and adjacent comments or formatting untouched.
-- Auto-run regular repository-local commands, including routine build, test, package, dependency, and script automation; ask before explicit destructive or privileged commands, ambiguous shell syntax, protected or outside-project paths, external/shared mutations, PRs, or broad refactors.
-- Do not add opportunistic cleanup, speculative compatibility, single-use abstractions, or handling for impossible scenarios without repo evidence.
-- Do not push through newly discovered ambiguity; route it explicitly.
-- Do not ask about details that the approved scope or repository evidence resolves; for each remaining material blocker, ask exactly one focused question and wait for its answer before asking the next.
-- Do not claim done when required verification is missing or failed.
+- Stay within approved scope and use the smallest evidence-backed fit.
+- Roles govern prompts, not tools; shared approval policy remains authoritative.
+- Same-day changelog maintenance is required only when preparing a user-authorized commit. Include it in the reviewed candidate or reopen review.
+- Never claim completion when required verification or the independent review gate is absent.

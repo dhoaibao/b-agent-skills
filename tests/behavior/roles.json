@@ -1,603 +1,149 @@
 {
   "version": 1,
-  "source": "b-agentic planner/worker collaboration regressions",
-  "description": "Human-scored scenarios for adaptive planner/worker coordination, single-writer delegation, targeted review requests, findings iterations, and approval pauses.",
+  "source": "b-agentic implementer/reviewer migration regressions",
+  "description": "Human-scored scenarios for explicit roles, candidate review, and guarded compatibility.",
   "scenarios": [
     {
-      "id": "intercom-pending-selects-reply-or-send",
-      "role": "planner",
-      "skill": "b-plan",
-      "observed_failure": "Planner and worker coordination sent messages without checking pending asks first and used ambiguous session-ID prefixes instead of retrieving exact IDs.",
-      "intended_behavior": "All roles call pending first before every outbound send or ask. If it reports an inbound ask, reply to that ask immediately without calling send, ask, list-cwd, or another pending first; only when it reports no inbound ask may the role immediately call list-cwd, then send or ask using the identifier token returned verbatim by that immediately preceding authoritative list-cwd result (including an authoritative short ID); guessed, reconstructed, extended, further-abbreviated, stale, display-name, alias, and otherwise altered targets are forbidden.",
-      "prompt": "You are the planner or worker coordinating with a peer. Describe the Intercom check before a send or ask, and the immediate action when pending reports an inbound ask versus when it reports none, including how you retrieve the exact target.",
-      "must": [
-        "Call Intercom pending first before every outbound send or ask",
-        "Reply immediately when pending reports an inbound ask",
-        "Do not call send, ask, list-cwd, or another pending before that reply",
-        "Immediately call list-cwd when pending reports no inbound ask",
-        "Use the identifier token returned verbatim by that immediately preceding authoritative list-cwd result, including an authoritative short ID"
-      ],
-      "avoid": [
-        "Use reply without checking pending",
-        "Call pending again before replying to the inbound ask",
-        "Send without calling list-cwd again after no pending ask",
-        "Use a guessed, reconstructed, extended, further-abbreviated, stale, display-name, alias, or otherwise altered target"
-      ]
-    },
-    {
-      "id": "intercom-delivery-failure-revalidates-peer",
-      "role": "worker",
+      "id": "off-default-and-legacy-state",
+      "role": "implementer",
       "skill": "b-implement",
-      "observed_failure": "A worker used a stale or altered session target, treated an undelivered Intercom message as sent, or continued after delivery failed.",
-      "intended_behavior": "Use the identifier token returned verbatim by the immediately preceding authoritative list-cwd result (including its short ID), require successful delivery before treating a result or review request as sent, and recover one send failure by checking pending first; if it reports an inbound ask, reply immediately without calling send, ask, list-cwd, or another pending first; otherwise use a fresh list-cwd before retrying once or surfacing the unavailable planner as a blocker.",
-      "prompt": "Your Intercom send to the assigning planner reports delivery failure. Describe the target you may use, what you do when pending reports an inbound ask versus none, the checks and exactly one retry you perform, and whether you continue, commit, or close if the planner is no longer live.",
+      "observed_failure": "Legacy planner or worker session state silently activated a new role.",
+      "intended_behavior": "Off remains default and legacy state remains inactive until the user explicitly selects implementer or reviewer.",
+      "prompt": "A resumed session contains a legacy planner role entry. Explain the active role before the user explicitly selects a new role.",
       "must": [
-        "Use only the identifier token returned verbatim by the immediately preceding authoritative list-cwd result, including an authoritative short ID",
-        "Treat the result or review request as sent only after successful delivery",
-        "Do not call send or list-cwd when pending reports an inbound ask",
-        "Do not retry the stale target or continue, commit, or close after delivery failure",
-        "Call pending first after the failed send",
-        "Use reply immediately and do not call send, ask, list-cwd, or another pending before replying when pending reports an inbound ask",
-        "Otherwise call a fresh list-cwd before retrying",
-        "Retry exactly once only if the intended planner remains live; otherwise pause and surface the unavailable planner as a blocker"
+        "Remain Off",
+        "Do not silently activate implementer or reviewer"
       ],
-      "avoid": [
-        "Use a display name, alias, or an altered session-ID token",
-        "Treat a failed send as delivered",
-        "Retry the stale target more than once",
-        "Continue implementation or mark the task complete while the planner is unavailable"
-      ]
+      "avoid": ["Treat planner as reviewer", "Treat worker as implementer"]
     },
     {
-      "id": "planner-delegates-without-editing",
-      "role": "planner",
-      "skill": "b-plan",
-      "observed_failure": "Planner sessions performed delegated implementation work or required rigid protocol fields instead of coordinating one writer.",
-      "intended_behavior": "The planner sends a bounded natural-language task to one same-directory worker and retains review ownership without editing.",
-      "prompt": "A same-directory worker is available. The requested feature requires repository edits and tests. Describe your next coordination steps, including whether you edit files yourself and what you send to the worker.",
-      "must": [
-        "Use Intercom send for a concise natural-language task with goal, scope or invariants, and checks",
-        "Leave implementation edits and tests to the sole-writer worker",
-        "Plan to review the actual diff and verification"
-      ],
-      "avoid": [
-        "Perform the delegated implementation",
-        "Require B_AGENTIC_TASK fields",
-        "Ask the user to relay the task"
-      ]
-    },
-    {
-      "id": "planner-finishes-discovery-before-handoff",
-      "role": "planner",
-      "skill": "b-plan",
-      "observed_failure": "Planner handed off before finishing discovery, then continued exploring and issued new implementation requests while the worker edited, causing scope drift.",
-      "intended_behavior": "The planner finishes discovery and settles one bounded approach before handoff; the handoff names expected paths/symbols, scope/non-goals, invariants, and checks. While the worker edits, planner work is limited to independent read-only work outside that set; it does not mutate, revise in-flight scope, issue another implementation request, or review the in-flight diff before the worker's terminal result. After the result, the planner re-reads actual changed paths before review.",
-      "prompt": "A same-directory worker is available for a feature that needs repository exploration before implementation. Describe how you sequence discovery, the expected paths/symbols in the handoff, any approach agreement, independent work while editing, and review after the worker's terminal result.",
-      "must": [
-        "Finish the necessary discovery and settle the approach before one bounded handoff",
-        "Name expected paths/symbols, scope/non-goals, invariants, and checks in the handoff",
-        "If needed, agree with the worker on the final approach before edits begin",
-        "While the worker edits, do only independent read-only work outside the expected set",
-        "Do not mutate, revise in-flight scope, issue another implementation request, or review the in-flight diff before the terminal result",
-        "Re-read actual changed paths before review after the terminal result"
-      ],
-      "avoid": [
-        "Send speculative follow-up implementation requests",
-        "Continue researching while the worker edits",
-        "Perform the implementation in the planner session"
-      ]
-    },
-    {
-      "id": "planner-ownership-and-message-allocation",
-      "role": "planner",
-      "skill": "b-plan",
-      "observed_failure": "The planner profile said external b-research was delegated with worker-owned skills and left pre-edit approach agreement and send-versus-ask responsibilities implicit, allowing research delegation or ask-based waiting.",
-      "intended_behavior": "External b-research remains planner-owned. When needed, the planner agrees with the worker on the approach before edits begin; send is for task delegation, terminal results, review requests/findings, and any question/request needing material work, while ask is only for one focused question whose answer needs no substantial investigation, implementation, or waiting—not for waiting on a delegated result.",
-      "prompt": "You are coordinating a task that needs external research and then worker edits. Explain who performs the research, when you agree on the approach, and whether you use send or ask for delegation, terminal results, review requests/findings, quick answers, material requests, and waiting.",
-      "must": [
-        "Keep external b-research planner-owned rather than delegating it",
-        "Agree with the worker on the approach before edits begin when needed",
-        "Use send for task delegation, terminal results, review requests/findings, and any question/request needing material work",
-        "Use ask only for one focused question whose answer needs no substantial investigation, implementation, or waiting",
-        "Do not use ask to wait for a delegated result"
-      ],
-      "avoid": [
-        "Delegate external b-research as worker-owned",
-        "Start worker edits before needed approach agreement",
-        "Use ask for task delegation or result/review reporting",
-        "Use ask to wait for the delegated result"
-      ]
-    },
-    {
-      "id": "worker-targets-planner-and-pauses",
-      "role": "worker",
+      "id": "implementer-direct-question-and-writing",
+      "role": "implementer",
       "skill": "b-implement",
-      "observed_failure": "Workers completed implementation but did not retain the assigning planner target or pause while review was pending.",
-      "intended_behavior": "The worker uses send for the result and review request to the assigning planner with evidence, then stops editing until findings or new work arrive.",
-      "prompt": "Planner session planner-7 assigned a clear implementation task. The implementation and useful verification are now complete. Describe the exact coordination action you take next and whether you continue editing afterward.",
+      "observed_failure": "A writer relayed material questions or implementation through a coordinator.",
+      "intended_behavior": "The implementer is the sole user-facing writer and asks material questions directly.",
+      "prompt": "A scoped implementation has one material product decision. State who asks the user, who edits, and whether a reviewer implements it.",
       "must": [
-        "Send planner-7 the changed paths, verification outcomes, and remaining gaps",
-        "Pause all edits after the review request",
-        "Resume only for actionable findings or a new task"
+        "Implementer asks the user directly",
+        "Implementer is the sole writer",
+        "Reviewer does not implement"
       ],
-      "avoid": [
-        "Send the result to an unspecified session",
-        "Continue editing while review is pending",
-        "Use ask for a non-blocking review request",
-        "Use ask to make the planner wait for the worker's delegated result"
-      ]
+      "avoid": ["Relay the question", "Ask reviewer to edit"]
     },
     {
-      "id": "worker-executes-assigned-work",
-      "role": "worker",
+      "id": "compatible-peer-writer-claim",
+      "role": "implementer",
       "skill": "b-implement",
-      "observed_failure": "A worker re-delegated assigned worker-owned implementation to another worker, creating a delegation loop instead of executing the bounded task.",
-      "intended_behavior": "The assigned worker executes worker-owned work itself and never hands it to another worker; it may ask the assigning planner only for blocker, scope, or external-research decisions.",
-      "prompt": "You are assigned a bounded worker-owned implementation task in a two-role session, and another worker is available. Describe who executes the task, whether you may hand it off, and which decisions you may ask the assigning planner to resolve.",
+      "observed_failure": "An unknown, mixed-version, or duplicate same-CWD peer allowed a writer claim.",
+      "intended_behavior": "Only compatible versioned peer payloads permit the single implementer claim; mixed peers fail closed.",
+      "prompt": "A same-CWD peer announces an old planner/worker payload while you selected implementer. Explain whether you claim writer status.",
       "must": [
-        "Execute the assigned worker-owned work yourself as the sole worktree writer",
-        "Never delegate or hand off the assigned task to another worker",
-        "Ask the assigning planner only for a material blocker, scope decision, or external-research decision"
+        "Fail closed",
+        "Do not claim writer status",
+        "Require compatible versioned peer payloads"
       ],
       "avoid": [
-        "Delegate the assigned task or any part of it to another worker",
-        "Use another worker to avoid executing the assigned work",
-        "Ask the user directly for a two-role blocker or scope decision"
+        "Assume legacy payload compatibility",
+        "Activate a second writer"
       ]
     },
     {
-      "id": "worker-reports-every-terminal-outcome",
-      "role": "worker",
+      "id": "preference-mapping-without-activation",
+      "role": "implementer",
       "skill": "b-implement",
-      "observed_failure": "A worker paused without reporting when no edits were needed or when the task ended with a gap, leaving the assigning planner without a terminal result.",
-      "intended_behavior": "Every terminal outcome for any assigned worker task—completed, no-change, blocked, or reported gap—is successfully sent to the same assigning planner before pausing, with evidence and remaining gaps under the five fixed headings Changed, Verification, Coverage, Deviations, and Gaps; worktree-changing results also ask the assigning planner to run actual b-review.",
-      "prompt": "Your assigned task completes, needs no edits, becomes blocked, or ends with a reported gap. Describe the terminal message you send, its target and contents, and whether you pause afterward.",
+      "observed_failure": "Migrating old model preferences activated legacy session state.",
+      "intended_behavior": "Worker preferences map to implementer and planner preferences map to reviewer by role only, without role activation.",
+      "prompt": "Describe how a legacy worker model preference is handled before and after the user explicitly selects implementer.",
       "must": [
-        "For every assigned task, send a terminal completion/result to the same assigning planner before pausing",
-        "Use the five fixed headings Changed, Verification, Coverage, Deviations, and Gaps in every terminal report",
-        "Report the completed, no-change, blocked, or reported-gap outcome along with changed paths, acceptance coverage, exact checks, deviations, and gaps",
-        "Pause only after successful delivery rather than stopping silently",
-        "For a worktree-changing result, ask the assigning planner to run actual b-review and do not self-review"
+        "Map preference by role only",
+        "Keep role inactive before explicit selection"
       ],
-      "avoid": [
-        "Stop without sending because no edits were needed",
-        "Omit the terminal result because a gap remains",
-        "Send the result to another worker or an unspecified session",
-        "Pause before successful delivery or treat an attempted send as delivered",
-        "Invoke, load, or execute b-review yourself"
-      ]
+      "avoid": ["Auto-select implementer"]
     },
     {
-      "id": "worker-delegates-b-review-to-planner",
-      "role": "worker",
-      "skill": "b-implement",
-      "observed_failure": "Workers loaded or ran planner-owned b-review on their own worktree diff, mistaking a terminal review request for performing the review.",
-      "intended_behavior": "Worker mode never invokes, loads, or executes planner-owned b-review. For a worktree-changing result it successfully sends a terminal report/review request to the same assigning planner, asking that planner to run actual b-review, then pauses.",
-      "prompt": "You completed a worktree-changing task assigned by planner-7. Describe whether you load or run b-review yourself, the terminal report you send to planner-7, how you request actual review, and when you pause.",
-      "must": [
-        "Never invoke, load, or execute planner-owned b-review yourself",
-        "Distinguish the terminal report/review request to the assigning planner from executing b-review",
-        "Successfully send planner-7 the terminal report under Changed, Verification, Coverage, Deviations, and Gaps",
-        "Ask planner-7 to run actual b-review against the approved baseline for the worktree-changing result",
-        "Pause after successful delivery and wait for findings or new work"
-      ],
-      "avoid": [
-        "Load or invoke b-review to inspect or approve your own diff",
-        "Treat a terminal report or review request as the b-review result",
-        "Pause before the terminal send is successfully delivered",
-        "Send the worktree result to another worker or an unspecified session"
-      ]
-    },
-    {
-      "id": "worker-asks-planner-on-unresolved-blocker",
-      "role": "worker",
-      "skill": "b-implement",
-      "observed_failure": "A worker asked the user directly, stopped midway, or sent a premature completion/review message while the planner waited after encountering an unresolved issue or blocker.",
-      "intended_behavior": "For a quick two-role blocker or scope question, the worker calls pending first; it replies without list-cwd, send, or ask if an inbound ask exists, otherwise immediately refreshes list-cwd and uses ask to the assigning planner with one focused question targeted by that returned identifier token verbatim (including an authoritative short ID). A material blocker or request needing investigation uses send instead; neither action transfers the assigned task, and the worker keeps the task open while waiting.",
-      "prompt": "During a bounded implementation task, repository evidence leaves either a quick scope question or a material blocker. Describe which Intercom action you use for each, the pending-first target sequence, and whether you close, complete, or review the task while waiting.",
-      "must": [
-        "Use ask only for a single focused question whose answer needs no substantial investigation, implementation, or waiting",
-        "After pending reports no inbound ask, immediately refresh list-cwd then use ask for the assigning planner with its returned identifier token verbatim, including an authoritative short ID",
-        "When pending reports an inbound ask, use reply and do not call list-cwd, send, or ask",
-        "Use send for a material blocker or request needing investigation, implementation, or waiting",
-        "Wait for the planner's response and keep the task open without sending a premature completion/review message"
-      ],
-      "avoid": [
-        "Ask the user directly",
-        "Send a completion or review request before the blocker is resolved",
-        "Stop midway without asking the planner"
-      ]
-    },
-    {
-      "id": "planner-sends-findings-instead-of-fixing",
-      "role": "planner",
+      "id": "freeze-candidate-before-review",
+      "role": "implementer",
       "skill": "b-review",
-      "observed_failure": "Planner reviews identified defects but fixed them directly, creating concurrent writers.",
-      "intended_behavior": "The planner sends actionable findings to the worker and waits for a revised verified result.",
-      "prompt": "The worker requests review with changed paths and passing checks, but your diff review finds a concrete correctness bug. Describe what you do next and who edits the fix.",
+      "observed_failure": "A review verdict covered a moving or incomplete candidate.",
+      "intended_behavior": "The implementer freezes edits and sends a compact snapshot covering tracked and relevant untracked/derived content, checks, gaps, and risk.",
+      "prompt": "You finished a risky change and want review. Describe the candidate handoff and what you do while review is pending.",
       "must": [
-        "Send the actionable finding to the worker",
-        "Keep the worker as the sole worktree writer",
-        "Wait for a revised result and review again"
+        "Stop edits",
+        "Include tracked and relevant untracked/derived content",
+        "Include required checks and outcomes",
+        "Pause while review is pending"
       ],
-      "avoid": [
-        "Fix the bug in the planner session",
-        "Approve despite the correctness finding",
-        "Require a structured review schema"
-      ]
+      "avoid": ["Continue editing", "Hand off a full transcript"]
     },
     {
-      "id": "worker-applies-findings-and-re-requests-review",
-      "role": "worker",
-      "skill": "b-debug",
-      "observed_failure": "Workers treated review findings as final approval or continued without re-verification and a new review request.",
-      "intended_behavior": "The worker applies findings, verifies, sends a revised result to the same planner, and pauses again until approval.",
-      "prompt": "The assigning planner returns one actionable correctness finding on your completed implementation. Describe the iteration through approval, including verification, messaging target, and editing pauses.",
-      "must": [
-        "Apply the finding as the sole writer and verify the fix",
-        "Send the revised result to the assigning planner",
-        "Pause again and remain idle after approval"
-      ],
-      "avoid": [
-        "Treat findings as approval",
-        "Delegate the fix to another worker",
-        "Continue editing after requesting re-review"
-      ]
-    },
-    {
-      "id": "planner-completion-gate-and-user-blocker",
-      "role": "planner",
+      "id": "stale-content-and-checks-block-shipping",
+      "role": "implementer",
       "skill": "b-review",
-      "observed_failure": "Planners marked delegated tasks done, complete, approved, or closed before the actual b-review skill passed, or substituted a regular/generic review or bypassed the gate while inventing a decision from incomplete evidence.",
-      "intended_behavior": "Every delegated worktree-changing task stays open until the actual b-review skill passes against the actual diff and verification; a regular/generic review cannot substitute for it, and the planner resolves a worker's blocker via reply when possible or asks the user when scope and repository evidence cannot resolve it.",
-      "prompt": "The worker has sent an implementation with verification, but the actual b-review skill has not passed and a material decision cannot be resolved from the scope or repository evidence. Describe whether you mark the task done, complete, approved, or closed and what you send next.",
+      "observed_failure": "A stale verdict, untracked addition, skipped check, or failed check was treated as ready.",
+      "intended_behavior": "Any changed candidate or missing, skipped, or failed required check blocks shipping and requires re-verification/re-review.",
+      "prompt": "A reviewer returned READY FOR PR, then an untracked file changes and a required test is skipped. Explain the shipping outcome.",
       "must": [
-        "Keep every delegated worktree-changing task open until the actual b-review skill has passed against the actual diff and verification",
-        "Treat a regular or generic review as insufficient",
-        "Never bypass the actual b-review gate",
-        "Escalate to the user rather than resolving by reply, because scope and repository evidence cannot resolve the decision",
-        "Ask the user one focused question when the blocker or decision cannot be resolved from scope or repository evidence",
-        "Keep the task open while waiting for the user's answer",
-        "Keep the worker as the sole worktree writer and use natural-language Intercom coordination"
+        "Block shipping",
+        "Treat verdict as stale",
+        "Reverify and rereview"
       ],
-      "avoid": [
-        "Mark the task done, complete, approved, or closed before actual b-review passes",
-        "Substitute a regular or generic review for b-review",
-        "Bypass the mandatory b-review gate",
-        "Invent a decision or close the task on unresolved ambiguity",
-        "Introduce a rigid protocol or state machine"
-      ]
+      "avoid": ["Reuse the verdict", "Commit automatically"]
     },
     {
-      "id": "planner-waits-after-worker-handoff",
-      "role": "planner",
-      "skill": "b-plan",
-      "observed_failure": "Planners repeatedly polled list-cwd or status after assigning work instead of waiting for the worker's result, adding coordination noise without improving readiness.",
-      "intended_behavior": "The planner checks pending first before every outbound send or ask; if it reports an inbound ask, the planner replies immediately without calling send, ask, list-cwd, or another pending first; otherwise it immediately calls list-cwd and sends or asks to the identifier token returned verbatim by that immediately preceding authoritative list-cwd result (including an authoritative short ID), then waits for the worker's send result without further polling. Send is used for delegation, terminal results, review requests/findings, and material requests; ask is reserved for one focused quick-answer question.",
-      "prompt": "You are about to assign a bounded task to a ready same-directory worker. Describe the pending check, how you retrieve the exact target before sending, and what you do after the handoff while the worker edits, including whether you repeatedly call list-cwd or status and when ask is appropriate.",
-      "must": [
-        "Reply immediately for an inbound ask without calling send, ask, list-cwd, or another pending",
-        "Immediately call list-cwd to retrieve the identifier token before a send or ask when no inbound ask is pending",
-        "Send or ask only to the identifier token returned verbatim by the immediately preceding authoritative list-cwd result, including an authoritative short ID",
-        "Wait for the worker's send result after the natural-language send handoff",
-        "Reserve ask for one focused quick-answer question whose answer needs no substantial investigation, implementation, or waiting",
-        "Use send for delegation, terminal results, review requests/findings, and any material request; do not poll while the worker edits"
-      ],
-      "avoid": [
-        "Repeatedly poll list-cwd or status after the exact-ID handoff",
-        "Invent a structured coordination state machine",
-        "Continue issuing implementation requests while the worker edits"
-      ]
-    },
-    {
-      "id": "planner-direct-user-request-remains-delegated",
-      "role": "planner",
-      "skill": "b-implement",
-      "observed_failure": "Planner sessions treated an implementation or fix request from the user as permission to edit, emit patches, or run modifying commands themselves.",
-      "intended_behavior": "The planner treats every implementation or fix request, including a direct user request, as work for the sole worker writer and delegates it or waits/provisions when no worker is ready.",
-      "prompt": "The user directly asks you to implement a fix. Describe whether that request authorizes you to edit, emit a patch, or run modifying commands, and what you do when a ready worker is unavailable.",
-      "must": [
-        "State that a direct user implementation or fix request is not authorization for planner edits",
-        "Delegate to a ready worker or provision/wait when none is ready",
-        "Do not emit patches or modifying commands"
-      ],
-      "avoid": [
-        "Edit files in the planner session",
-        "Treat user wording as an exception to sole-worker ownership",
-        "Fall back to implementation when no worker is ready"
-      ]
-    },
-    {
-      "id": "planner-inspects-worker-skill-but-delegates-execution",
-      "role": "planner",
-      "skill": "b-implement",
-      "observed_failure": "Ownership guidance could be misread as blocking planner access to worker skill text, or as allowing planner execution after inspecting it.",
-      "intended_behavior": "The planner may read any worker-owned SKILL.md for planning, delegation, audit, or review, but delegates its execution to a ready same-CWD worker. A new skill that performs browser verification is worker-owned under the classification criterion; unknown ownership also defaults to worker ownership.",
-      "prompt": "You need context from b-implement before preparing a handoff for a ready worker. Explain whether you may read that skill, who executes the requested implementation, and whether a new b-accessibility-browser-check skill belongs to planner or worker.",
-      "must": [
-        "May read b-implement for planning or delegation context",
-        "Delegate b-implement execution to the ready same-CWD worker",
-        "Classify the new browser-verification skill as worker-owned because it requires worker capabilities",
-        "Treat an unrecognized or ambiguous skill as worker-owned",
-        "Do not implement when the worker is unavailable"
-      ],
-      "avoid": [
-        "Block reading b-implement solely because it is worker-owned",
-        "Execute b-implement in the planner session",
-        "Treat direct user wording as permission to implement"
-      ]
-    },
-    {
-      "id": "authoritative-short-id-is-valid",
-      "role": "worker",
-      "skill": "b-implement",
-      "observed_failure": "Workers rejected the short ID shown by list-cwd or reconstructed it into a longer target.",
-      "intended_behavior": "The exact short identifier token shown by the immediately preceding authoritative list-cwd output is a valid target; only altered or stale targets are forbidden.",
-      "prompt": "list-cwd just returned worker target 8ee3650d. Describe exactly what target you use and which variations you reject.",
-      "must": [
-        "Use 8ee3650d verbatim as the authoritative short ID",
-        "Reject a guessed, reconstructed, extended, further-abbreviated, or stale target",
-        "Reject a display name or alias"
-      ],
-      "avoid": [
-        "Require a longer ID when list-cwd returned the short ID",
-        "Invent or normalize a target"
-      ]
-    },
-    {
-      "id": "non-trivial-handoff-result-review-lifecycle",
-      "role": "planner",
+      "id": "reviewer-independent-disposition",
+      "role": "reviewer",
       "skill": "b-review",
-      "observed_failure": "Delegated work lacked execution context and reviews could not connect findings to the approved work.",
-      "intended_behavior": "A non-trivial handoff, worker result, and actual review carry enough natural-language evidence to execute, review, and correct without a rigid schema.",
-      "prompt": "Delegate a non-trivial behavior change, receive a completed worker result, then review it. Describe the handoff, result, review baseline, and one blocking finding.",
+      "observed_failure": "A reviewer accepted a missing baseline, wrong snapshot, or another reviewer's verdict.",
+      "intended_behavior": "The reviewer independently assesses the exact candidate and fails closed on a missing baseline, wrong reviewer/snapshot, or material gap.",
+      "prompt": "You receive a candidate with no baseline and a verdict from another reviewer. Explain your disposition.",
       "must": [
-        "Handoff includes applicable behavior, scope/non-goals, invariants, evidence paths, acceptance, validation, and gaps or assumptions",
-        "Worker result includes implemented behavior, changed paths, acceptance coverage, exact checks and outcomes, and deviations or gaps",
-        "Use the latest approved plan, handoff, and clarifications as the review baseline",
-        "Make the finding actionable with location, evidence, impact, violated baseline, smallest correction, and regression check",
-        "Require actual b-review only because the delegated task changes the worktree"
+        "Independently inspect",
+        "Do not mark ready",
+        "Require baseline and exact candidate"
       ],
-      "avoid": [
-        "Require parsed protocol fields",
-        "Approve a generic review",
-        "Run planner-side tests instead of requesting bounded worker evidence"
-      ]
+      "avoid": ["Adopt the other verdict", "Approve shipping"]
     },
     {
-      "id": "b-review-ends-with-standalone-verdict",
-      "role": "planner",
+      "id": "follow-ups-need-explicit-disposition",
+      "role": "reviewer",
       "skill": "b-review",
-      "observed_failure": "A passing b-review ended with reviewer prose (Review: no findings. Ready for PR.), so the planner notifier's standalone-verdict matcher did not recognize the result.",
-      "intended_behavior": "Every b-review response ends with exactly one standalone final line in one exact form: Verdict: READY FOR PR, Verdict: READY WITH FOLLOW-UPS, or Verdict: NEEDS FIXES; the final line has no Markdown decoration and no additional text follows it.",
-      "prompt": "You completed a b-review with no findings. State exactly how the response must end so downstream lifecycle consumers can recognize the result.",
+      "observed_failure": "READY WITH FOLLOW-UPS silently waived safety evidence.",
+      "intended_behavior": "Follow-ups require explicit accepted disposition and never waive fresh required checks or blockers.",
+      "prompt": "A candidate has a nonblocking follow-up but a required check is unavailable. Can you issue READY WITH FOLLOW-UPS?",
       "must": [
-        "End with exactly one standalone final line",
-        "Emit exactly Verdict: READY FOR PR, Verdict: READY WITH FOLLOW-UPS, or Verdict: NEEDS FIXES as that final line",
-        "Use no Markdown decoration on the final verdict line",
-        "Add no text after the final verdict line"
+        "Do not waive required evidence",
+        "Require explicit disposition",
+        "Block when required check is unavailable"
       ],
-      "avoid": [
-        "End with reviewer prose such as Review: no findings. Ready for PR.",
-        "Use a bare verdict without the Verdict: prefix",
-        "Add bullets, bold, headings, backticks, or trailing explanation after the verdict"
-      ]
+      "avoid": ["Use follow-ups to bypass checks"]
     },
     {
-      "id": "planner-review-requires-loaded-skill-output",
-      "role": "planner",
+      "id": "reviewer-read-only-research",
+      "role": "reviewer",
       "skill": "b-review",
-      "observed_failure": "A planner approved delegated work after writing reviewer prose from memory without loading b-review, so the mandatory review gate appeared to pass without the skill's observable output.",
-      "intended_behavior": "Before approving a delegated worktree-changing task or emitting B_AGENTIC_TASK_COMPLETE, the planner loads b-review's SKILL.md from its listed/installed location, follows its review steps and output contract, and ends the response with the required standalone Verdict: line; reviewer prose alone is not a passed gate.",
-      "prompt": "A worker returns a worktree-changing result with passing checks. You inspect the diff and write reviewer prose from memory, but have not read b-review's SKILL.md at its listed/installed location. Describe whether you can approve the task or emit B_AGENTIC_TASK_COMPLETE and what you must do first.",
+      "observed_failure": "Reviewer research expanded scope, delegated work, or mutated source.",
+      "intended_behavior": "A reviewer may perform bounded read-only research only to substantiate a concrete finding.",
+      "prompt": "A review finding needs an API fact. Explain the permitted research and prohibited actions.",
       "must": [
-        "Resolve and read b-review's SKILL.md from its listed/installed location before executing the review gate",
-        "Follow b-review's steps and output contract for the actual diff and verification",
-        "State that the b-review response must end with its required standalone Verdict: line",
-        "Keep the task open and do not approve or emit B_AGENTIC_TASK_COMPLETE until that artifact exists"
+        "Use bounded read-only research",
+        "Substantiate a concrete finding",
+        "Do not edit or delegate"
       ],
-      "avoid": [
-        "Treat reviewer prose written from memory as actual b-review",
-        "Approve or emit B_AGENTIC_TASK_COMPLETE before loading b-review and producing its verdict",
-        "Substitute a generic review for the mandatory gate"
-      ]
+      "avoid": ["Implement the fix", "Expand scope"]
     },
     {
-      "id": "planner-absent-codegraph-index-fallback",
-      "role": "planner",
-      "skill": "b-plan",
-      "observed_failure": "A planner initialized an absent CodeGraph index for a repository-wide question, writing local state despite the planner read-only boundary instead of using native inspection and disclosing the gap.",
-      "intended_behavior": "For a concrete repository-wide question, a planner may use an available CodeGraph index but must not initialize an absent one; it falls back to native inspection and states the resulting gap. Outside planner mode, initialization remains available only for that concrete question, never merely because work spans files.",
-      "prompt": "In planner mode, native inspection leaves a concrete repository-wide impact question and the CodeGraph index is absent. Describe whether you may run codegraph init and how you proceed while preserving the behavior available outside planner mode.",
+      "id": "review-is-not-shipping",
+      "role": "reviewer",
+      "skill": "b-review",
+      "observed_failure": "A review completion notification was treated as task acceptance or an automatic commit.",
+      "intended_behavior": "Review completion, acceptance, commit creation, and push are distinct; a user must explicitly authorize a commit.",
+      "prompt": "After a valid READY FOR PR review, explain whether a commit or push happens automatically.",
       "must": [
-        "Use an available CodeGraph index only for the concrete repository-wide question",
-        "Do not initialize an absent CodeGraph index in planner mode",
-        "Fall back to native inspection and state the resulting gap",
-        "Preserve outside-planner initialization only for that concrete question"
+        "No automatic commit",
+        "No automatic push",
+        "Require explicit user authorization"
       ],
-      "avoid": [
-        "Run codegraph init in planner mode",
-        "Treat the planner read-only boundary as permitting local index or cache writes",
-        "Silently omit the gap created by the absent index",
-        "Ban CodeGraph initialization in solo or Off work"
-      ]
-    },
-    {
-      "id": "worker-execution-requires-loaded-skill",
-      "role": "worker",
-      "skill": "b-implement",
-      "observed_failure": "A worker acted on a worker-owned task after naming or paraphrasing its skill without loading the SKILL.md, making the skill contract unenforceable.",
-      "intended_behavior": "Executing a worker-owned skill requires first reading its SKILL.md at its listed/installed location and following its steps and output contract; naming or paraphrasing an unloaded skill is not execution.",
-      "prompt": "You receive a bounded implementation handoff and know how b-implement usually works, but have not read its SKILL.md at its listed/installed location in this task. Describe whether you may start editing and what makes the skill execution valid.",
-      "must": [
-        "Read b-implement's SKILL.md at its listed/installed location before acting on the implementation task",
-        "Follow the loaded skill's steps and output contract",
-        "Keep the worker as the sole worktree writer after loading the skill"
-      ],
-      "avoid": [
-        "Start editing after only naming or paraphrasing b-implement",
-        "Treat memory of a skill as loading its SKILL.md",
-        "Delegate the assigned worker-owned task to another worker"
-      ]
-    },
-    {
-      "id": "worker-result-contract",
-      "role": "worker",
-      "skill": "b-implement",
-      "observed_failure": "freeform delegated worker reports made planner review-gating parse prose to reconstruct what changed and what was verified.",
-      "intended_behavior": "worker reports under the five fixed headings so the planner can verify diff and evidence without re-deriving structure.",
-      "prompt": "You completed a delegated implementation task. Describe the result report you send to the planner, including the required fixed headings and what each contains.",
-      "must": [
-        "Report under the five fixed headings Changed, Verification, Coverage, Deviations, and Gaps",
-        "Include changed paths and brief descriptions under Changed",
-        "Include exact commands and outcomes under Verification",
-        "Include acceptance criteria, scope changes or assumptions, and remaining gaps under the corresponding headings"
-      ],
-      "avoid": ["Freeform report without headings"]
-    },
-    {
-      "id": "worker-intercom-pending-first-for-ask-and-send",
-      "role": "worker",
-      "skill": "b-implement",
-      "observed_failure": "The worker's pending-first rule covered result sends but not quick asks or replies, allowing ambiguous targets and wrong message actions.",
-      "intended_behavior": "The worker calls pending before every outbound send or ask; if it reports an inbound ask, reply immediately without send, ask, list-cwd, or another pending first, otherwise immediate list-cwd supplies the verbatim assigning-planner target.",
-      "prompt": "During a two-role task, you may send a terminal result, ask one focused quick scope question, or reply to the planner. Describe the pending-first sequence before send or ask and the exact immediate action for each case.",
-      "must": [
-        "Call pending before every outbound send or ask",
-        "Reply immediately to an inbound ask without calling send, ask, list-cwd, or another pending",
-        "When no inbound ask exists, immediately call list-cwd",
-        "Use only the identifier token returned verbatim by that authoritative list-cwd result",
-        "Treat delivery as real only after successful delivery"
-      ],
-      "avoid": [
-        "Use ask for a terminal result or review request",
-        "Call pending again before replying to an inbound ask",
-        "Reuse a stale or altered target after delivery failure",
-        "Continue or close after an undelivered terminal report"
-      ]
-    },
-    {
-      "id": "quick-vs-material-intercom-action",
-      "role": "planner",
-      "skill": "b-plan",
-      "observed_failure": "Coordination prompts did not distinguish a quick answer from a material request, so ask was used for delegated work, review findings, or questions that required investigation and waiting.",
-      "intended_behavior": "Ask is limited to one focused question whose answer needs no substantial investigation, implementation, or waiting. Send handles delegation, terminal results, review requests/findings, and any question or request needing material work; ask is never a wait mechanism.",
-      "prompt": "You are coordinating a worker. Compare the Intercom action for a single focused quick-answer question, a material scope decision needing investigation, a task delegation, a terminal result, and a review finding.",
-      "must": [
-        "Use ask only for one focused question whose answer needs no substantial investigation, implementation, or waiting",
-        "Use send for task delegation, terminal results, review requests/findings, and any question or request needing material work",
-        "Never use ask to wait for delegated work or a review result",
-        "Use the pending-first target sequence for both send and ask"
-      ],
-      "avoid": [
-        "Use ask for delegation, terminal reporting, review findings, or material investigation",
-        "Use ask as a task wait or progress poll",
-        "Treat a quick question as permission to transfer work to the worker"
-      ]
-    },
-    {
-      "id": "planner-material-decision-uses-questionnaire",
-      "role": "planner",
-      "skill": "b-plan",
-      "observed_failure": "The planner used vague or unbounded coordination for a hard user-facing decision instead of grounding the choice in evidence and presenting concrete options.",
-      "intended_behavior": "For a material user-facing decision involving competing options, consequential trade-offs, or unresolved evidence, the planner first uses local evidence and normal research as appropriate, then asks for a decision with grouped concrete options; worker delegation and terminal coordination still use Intercom send.",
-      "prompt": "You face a hard user-facing decision with competing viable options, consequential risk, or unresolved evidence. Explain how you gather evidence, present the choices, ask the user, and keep worker coordination separate.",
-      "must": [
-        "Use bounded local evidence and normal research when needed before asking",
-        "Use ask_user_question for the material user-facing decision with 2–4 concrete options and a recommended first option",
-        "Use send for task delegation, terminal results, review requests/findings, and material coordination",
-        "Keep the user decision separate from implementation transfer"
-      ],
-      "avoid": [
-        "Use an unbounded prose question for a material user-facing decision",
-        "Use ask_user_question as a delegation or task-wait mechanism",
-        "Transfer implementation work through the user decision"
-      ]
-    },
-    {
-      "id": "worker-reports-no-change-and-blocked-terminal-outcomes",
-      "role": "worker",
-      "skill": "b-implement",
-      "observed_failure": "Workers sometimes paused silently after no-change or blocked outcomes because only successful implementation reports were treated as terminal.",
-      "intended_behavior": "Every assigned task outcome—completed, no-change, blocked, or reported gap—is successfully sent to the same assigning planner before pausing, with the outcome, changed paths, checks, acceptance coverage, deviations, and gaps.",
-      "prompt": "Your assigned task either needs no edits or cannot proceed because of a reported gap. Describe the terminal report, its target and evidence, the delivery requirement, and what you do after sending it.",
-      "must": [
-        "Send a terminal completion/result to the same assigning planner for both no-change and blocked outcomes",
-        "Report the outcome, changed paths, exact checks, acceptance coverage, deviations, and gaps",
-        "Require successful delivery before pausing",
-        "Do not stop silently or send the terminal report to another worker",
-        "Request actual b-review and pause edits when the terminal outcome changes the worktree"
-      ],
-      "avoid": [
-        "Treat no-change or blocked work as an exception to terminal reporting",
-        "Pause before successful delivery",
-        "Claim completion without reporting the gap or checks"
-      ]
-    },
-    {
-      "id": "planner-b-commit-one-approval-handoff",
-      "role": "planner",
-      "skill": "b-commit",
-      "observed_failure": "Planner mode staged or committed an explicit commit request, asked for approval per group, or sent an altered proposal to a worker.",
-      "intended_behavior": "For an explicit user commit request, the planner performs only read-only b-commit proposal analysis, captures the index/worktree snapshot, presents exact ordered groups with paths and messages for one approval, then delegates the unchanged approved proposal with the original request, snapshot, and approval to the same worker.",
-      "prompt": "In planner mode, the user explicitly asks you to split and commit the current working-tree changes, and a same-CWD worker is ready. Describe the b-commit proposal and approval handoff, including what you inspect and capture, what exact proposal you present, how many approval questions you ask, what you send after approval, and what you must not do.",
-      "must": [
-        "Keep b-commit worker-owned and perform only read-only proposal analysis; never stage or commit in planner mode",
-        "Capture the initial index/worktree snapshot and preserve protected-path and pre-existing staged-index rules",
-        "Present exact ordered commit groups with exact paths and proposed messages in exactly one user approval",
-        "Use the normal Approve (Recommended)/Decline approval path or its focused plain-text fallback",
-        "After approval, delegate the unchanged proposal to the same worker with the original explicit request, captured snapshot, exact groups/paths/messages, and approval",
-        "Do not ask once per group, regroup, alter the proposal, or commit"
-      ],
-      "avoid": [
-        "Stage or commit from planner mode",
-        "Ask the user to approve each group separately",
-        "Delegate before approval or send a rewritten proposal",
-        "Treat the handoff as permission for the planner to write"
-      ]
-    },
-    {
-      "id": "worker-b-commit-resumes-without-repeat",
-      "role": "worker",
-      "skill": "b-commit",
-      "observed_failure": "The worker re-proposed approved groups or asked the user for a second approval instead of resuming the exact planner handoff.",
-      "intended_behavior": "The worker treats the original explicit request plus the planner-relayed exact approval as sufficient authorization, resumes at step 9 from a complete unchanged planner handoff without repeating steps 3–8, verifies the snapshot and proposal, and stages and commits exactly that proposal without a duplicate approval or regrouping.",
-      "prompt": "The planner relays the original explicit user request, a captured index/worktree snapshot, exact ordered approved groups with paths and messages, and the user's one approval. Describe what you verify and execute, state which numbered step you resume at, and identify which proposal or approval steps you do not repeat.",
-      "must": [
-        "Treat the original explicit user request plus the planner-relayed exact approval as satisfying the b-commit request/approval gate",
-        "Resume at step 9 from a complete, unchanged planner handoff and do not repeat steps 3–8",
-        "Verify the captured snapshot and exact proposal are unchanged before staging",
-        "Stage only exact approved paths and commit exact approved messages as the sole writer",
-        "Preserve the pre-existing staged set as one user-curated group and use targeted staged diffs",
-        "Do not re-propose, re-ask, regroup, or use broad staging",
-        "Preserve no-history-rewrite/push, protected-path, and reviewed-snapshot rules"
-      ],
-      "avoid": [
-        "Ask the user for approval again",
-        "Invent a new grouping or message or commit a changed snapshot",
-        "Use git add -A or git add .",
-        "Commit before snapshot verification or push, amend, or reset"
-      ]
-    },
-    {
-      "id": "worker-b-commit-stops-on-mismatch",
-      "role": "worker",
-      "skill": "b-commit",
-      "observed_failure": "The worker reused a valid approval after the working-tree snapshot or approved proposal changed, regrouping or committing a partial match.",
-      "intended_behavior": "The worker compares the captured snapshot and exact proposal before staging; on any mismatch it stops and reports to the assigning planner instead of regrouping or reusing the approval.",
-      "prompt": "The planner's approved handoff names exact ordered groups, but before you resume one file changes and the current snapshot no longer matches, or an approved path, order, or message differs. Describe your response and whether you stage, commit, regroup, or ask for approval yourself.",
-      "must": [
-        "Compare the current snapshot and exact proposal with the captured handoff before staging",
-        "Stop and report the snapshot or proposal mismatch to the assigning planner",
-        "Do not regroup, reuse the approval, re-propose, re-ask, stage, or commit",
-        "Preserve the worker sole-writer boundary and protected-path, pre-existing-index, review, no-push, and no-history-rewrite rules"
-      ],
-      "avoid": [
-        "Commit a subset that still appears to match",
-        "Regroup the changed files and reuse the old approval",
-        "Ask the user directly or silently continue after the mismatch",
-        "Use broad staging, amend, reset, or push to recover"
-      ]
+      "avoid": ["Ship automatically"]
     }
   ]
 }

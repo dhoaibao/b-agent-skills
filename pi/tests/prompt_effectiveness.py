@@ -76,13 +76,13 @@ def scenario_role_prompt(scenario: dict) -> str | None:
     role = scenario.get("role")
     if role is None:
         return None
-    if role not in {"planner", "worker"}:
+    if role not in {"implementer", "reviewer"}:
         raise ValueError(f"invalid scenario role: {role!r}")
     source = ROLE_SOURCE.read_text()
     pattern = (
-        r"export const PLANNER_PROMPT = `(.*?)`;"
-        if role == "planner"
-        else r"export function workerPrompt\(\): string \{\s+return `(.*?)`;"
+        r"export const REVIEWER_PROMPT = `(.*?)`;"
+        if role == "reviewer"
+        else r"export function implementerPrompt\(\): string \{\s+return `(.*?)`;"
     )
     match = re.search(pattern, source, flags=re.DOTALL)
     if not match:

@@ -4,7 +4,7 @@
   "skills": [
     {
       "name": "b-plan",
-      "owner": "planner",
+      "owner": "implementer",
       "phase": "Decide",
       "use": "Figure out what to do when scope or approach is fuzzy, then produce an execution-ready plan",
       "routing": {
@@ -29,7 +29,7 @@
     },
     {
       "name": "b-research",
-      "owner": "planner",
+      "owner": "implementer",
       "phase": "Decide",
       "use": "Fetch outside truth: docs, API facts, comparisons, or recent evidence",
       "routing": {
@@ -49,7 +49,7 @@
     },
     {
       "name": "b-design",
-      "owner": "worker",
+      "owner": "implementer",
       "phase": "Decide",
       "use": "Create or refresh docs/DESIGN.md as a frontend design standard",
       "routing": {
@@ -75,7 +75,7 @@
     },
     {
       "name": "b-frontend",
-      "owner": "worker",
+      "owner": "implementer",
       "phase": "Build",
       "use": "Implement contextual frontend/UI code, styling, responsive behavior, interactions, visual refreshes, and landing pages",
       "routing": {
@@ -102,7 +102,7 @@
     },
     {
       "name": "b-implement",
-      "owner": "worker",
+      "owner": "implementer",
       "phase": "Build",
       "use": "Make the scoped non-UI change from an approved plan or a small direct request",
       "routing": {
@@ -117,12 +117,12 @@
         ]
       },
       "prompt": {
-        "description": "Execute approved or scoped non-UI work safely after b-plan approval, when a user gives a small direct request or an approved plan. Applies the next small step, verifies it, and hands back to planning or research instead of guessing when new ambiguity appears. Frontend/UI code—pages, layouts, components, styling, responsive behavior, interactions, or visual refreshes—belongs to b-frontend instead. Unlike b-plan, b-implement changes code."
+        "description": "Execute approved or scoped non-UI work safely after b-plan approval, when a user gives a small direct request or an approved plan. Applies the next small step, verifies it, and hands back to planning or research instead of guessing when new ambiguity appears. Frontend/UI code\u2014pages, layouts, components, styling, responsive behavior, interactions, or visual refreshes\u2014belongs to b-frontend instead. Unlike b-plan, b-implement changes code."
       }
     },
     {
       "name": "b-init",
-      "owner": "worker",
+      "owner": "implementer",
       "phase": "Build",
       "use": "Initialize or refresh repo-local agent instruction docs",
       "routing": {
@@ -143,7 +143,7 @@
     },
     {
       "name": "b-refactor",
-      "owner": "worker",
+      "owner": "implementer",
       "phase": "Build",
       "use": "Rename, extract, move, inline, simplify, or delete behavior-preserving code",
       "routing": {
@@ -166,7 +166,7 @@
     },
     {
       "name": "b-debug",
-      "owner": "worker",
+      "owner": "implementer",
       "phase": "Validate",
       "use": "Find the real runtime root cause and fix it only when authorized",
       "routing": {
@@ -189,7 +189,7 @@
     },
     {
       "name": "b-test",
-      "owner": "worker",
+      "owner": "implementer",
       "phase": "Validate",
       "use": "Write or fix unit, integration, contract, and simulated-DOM tests",
       "routing": {
@@ -212,7 +212,7 @@
     },
     {
       "name": "b-browser",
-      "owner": "worker",
+      "owner": "implementer",
       "phase": "Validate",
       "use": "Collect real-browser, visual, screenshot, live UI, or e2e evidence",
       "routing": {
@@ -236,7 +236,7 @@
     },
     {
       "name": "b-agentic-audit",
-      "owner": "planner",
+      "owner": "reviewer",
       "phase": "Validate",
       "use": "Audit b-agentic repository conformance, health, skill/kernel quality, and currentness",
       "routing": {
@@ -255,7 +255,7 @@
     },
     {
       "name": "b-review",
-      "owner": "planner",
+      "owner": "reviewer",
       "phase": "Validate",
       "use": "Review changed code",
       "routing": {
@@ -277,7 +277,7 @@
     },
     {
       "name": "b-commit",
-      "owner": "worker",
+      "owner": "implementer",
       "phase": "Ship",
       "use": "Split working-tree changes into approved cohesive commits",
       "routing": null,
@@ -287,7 +287,7 @@
     },
     {
       "name": "b-pr-summary",
-      "owner": "planner",
+      "owner": "implementer",
       "phase": "Ship",
       "use": "Write general PR copy for recent commits or commits ahead of cached origin",
       "routing": null,

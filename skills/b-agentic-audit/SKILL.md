@@ -133,4 +133,4 @@ residual limitations, and follow-up. Verdict:
   unavailable. Do not expose credentials, token values, private URLs, or raw
   operational errors.
 - Do not use this skill as a generic code-diff review; changed diffs belong to
-  **b-review**, including the mandatory delegated-task review gate.
+  **b-review**, including the mandatory frozen-candidate review gate.
