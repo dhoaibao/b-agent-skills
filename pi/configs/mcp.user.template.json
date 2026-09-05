@@ -6,19 +6,6 @@
     "directTools": false
   },
   "mcpServers": {
-    "serena": {
-      "command": "serena",
-      "args": [
-        "start-mcp-server",
-        "--context",
-        "ide",
-        "--project-from-cwd",
-        "--open-web-dashboard",
-        "false"
-      ],
-      "env": {},
-      "lifecycle": "lazy"
-    },
     "context7": {
       "url": "https://mcp.context7.com/mcp",
       "headers": {
@@ -32,25 +19,6 @@
       "env": {
         "CODEGRAPH_TELEMETRY": "0"
       },
-      "lifecycle": "lazy"
-    },
-    "linear": {
-      "url": "https://mcp.linear.app/mcp/readonly",
-      "auth": "oauth",
-      "oauth": {
-        "scope": "read"
-      },
-      "includeTools": ["get_issue"],
-      "lifecycle": "lazy"
-    },
-    "mobbin": {
-      "url": "https://api.mobbin.com/mcp",
-      "auth": "oauth",
-      "includeTools": [
-        "mobbin_search_screens",
-        "mobbin_search_flows",
-        "mobbin_search_sections"
-      ],
       "lifecycle": "lazy"
     },
     "brave-search": {

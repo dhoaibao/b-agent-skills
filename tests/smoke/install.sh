@@ -98,14 +98,14 @@ EOF
 
 	assert_contains "$mcp_path" '"user-server"'
 	assert_contains "$mcp_path" '"codegraph"'
-	assert_json_value "$mcp_path" "data['mcpServers']['linear'] == {'url': 'https://mcp.linear.app/mcp/readonly', 'auth': 'oauth', 'oauth': {'scope': 'read'}, 'includeTools': ['get_issue'], 'lifecycle': 'lazy'}"
-	assert_json_value "$mcp_path" "data['mcpServers']['mobbin'] == {'url': 'https://api.mobbin.com/mcp', 'auth': 'oauth', 'includeTools': ['mobbin_search_screens', 'mobbin_search_flows', 'mobbin_search_sections'], 'lifecycle': 'lazy'}"
+	assert_not_contains "$mcp_path" '"serena"'
+	assert_not_contains "$mcp_path" '"linear"'
+	assert_not_contains "$mcp_path" '"mobbin"'
 	assert_json_value "$mcp_path" "data['settings']['requestTimeoutMs'] == 30000"
 	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilityContractVersion'] == 1"
 	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilities']['contractVersion'] == 1"
 	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilities']['states']['package.pi-mcp-adapter']['state'] == 'ready'"
 	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilities']['states']['package.pi-lsp']['state'] == 'unknown'"
-	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilities']['states']['mcp.linear']['state'] == 'ready'"
 	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilities']['states']['extension.b-agentic-status']['state'] == 'ready'"
 	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['paths']['capabilityContract'].endswith('/references/capabilities.yaml')"
 
@@ -136,32 +136,134 @@ assert_json_value "$mcp_path" "data['settings']['requestTimeoutMs'] == 12345"
 	assert_contains "$mcp_path" '"user-server"'
 	assert_not_contains "$mcp_path" '"codegraph"'
 	assert_not_contains "$mcp_path" '"linear"'
-	assert_not_contains "$mcp_path" '"serena"'
 }
 
-run_user_owned_linear_readiness_case() {
+run_user_owned_serena_preservation_case() {
 	local snapshot_repo="$1"
-	local sandbox="$WORK_DIR/user-owned-linear-readiness"
+	local sandbox="$WORK_DIR/user-owned-serena-preservation"
+	local mcp_path="$sandbox/home/.pi/agent/mcp.json"
+	local serena_path="$sandbox/home/.local/bin/serena"
+	local serena_log="$sandbox/serena-invocations.log"
+	local project_dir="$sandbox/project"
+	local serena_state="$project_dir/.serena/user-state.txt"
+	local serena_state_snapshot="$sandbox/serena-state.snapshot"
+	local smoke_path
+
+	mkdir -p "$(dirname "$mcp_path")" "$(dirname "$serena_path")" "$(dirname "$serena_state")"
+	cat >"$mcp_path" <<'EOF'
+{
+  "mcpServers": {
+    "serena": {
+      "command": "user-owned-serena",
+      "args": ["--custom"],
+      "env": {"USER_SETTING": "keep-me"},
+      "lifecycle": "eager"
+    }
+  },
+  "settings": {"serenaPreference": "keep-me"}
+}
+EOF
+	cat >"$serena_path" <<'EOF'
+#!/usr/bin/env bash
+printf 'serena invoked\n' >>"${SERENA_INVOCATION_LOG:?}"
+EOF
+	chmod +x "$serena_path"
+	printf 'user-owned Serena project state\n' >"$serena_state"
+	cp "$serena_state" "$serena_state_snapshot"
+	smoke_path="$(smoke_runtime_cli_path "$sandbox")"
+
+	(
+		cd "$project_dir"
+		HOME="$sandbox/home" \
+		PATH="$sandbox/home/.local/bin:$smoke_path" \
+		SERENA_INVOCATION_LOG="$serena_log" \
+		B_AGENTIC_REPO="$snapshot_repo" B_AGENTIC_DIR="$sandbox/source" \
+		B_AGENTIC_PROMPT_API_KEYS=N bash "$ROOT_DIR/install.sh" >"$sandbox/install.log" 2>&1
+	)
+	assert_json_value "$mcp_path" "data['mcpServers']['serena'] == {'command': 'user-owned-serena', 'args': ['--custom'], 'env': {'USER_SETTING': 'keep-me'}, 'lifecycle': 'eager'}"
+	assert_json_value "$mcp_path" "data['settings']['serenaPreference'] == 'keep-me'"
+	assert_equal_files "$serena_state" "$serena_state_snapshot"
+	[ -x "$serena_path" ] || fail "existing Serena executable was removed during install"
+	assert_no_path "$serena_log"
+
+	(
+		cd "$project_dir"
+		HOME="$sandbox/home" \
+		PATH="$sandbox/home/.local/bin:$smoke_path" \
+		SERENA_INVOCATION_LOG="$serena_log" \
+		B_AGENTIC_REPO="$snapshot_repo" B_AGENTIC_DIR="$sandbox/source" \
+		B_AGENTIC_PROMPT_API_KEYS=N bash "$ROOT_DIR/install.sh" --update >"$sandbox/update.log" 2>&1
+	)
+	assert_json_value "$mcp_path" "data['mcpServers']['serena'] == {'command': 'user-owned-serena', 'args': ['--custom'], 'env': {'USER_SETTING': 'keep-me'}, 'lifecycle': 'eager'}"
+	assert_json_value "$mcp_path" "data['settings']['serenaPreference'] == 'keep-me'"
+	assert_equal_files "$serena_state" "$serena_state_snapshot"
+	[ -x "$serena_path" ] || fail "existing Serena executable was removed during update"
+	assert_no_path "$serena_log"
+}
+
+run_user_owned_retired_mcp_preservation_case() {
+	local snapshot_repo="$1"
+	local sandbox="$WORK_DIR/user-owned-retired-mcp-preservation"
 	local mcp_path="$sandbox/home/.pi/agent/mcp.json"
 	local install_log="$sandbox/install.log"
+	local before_path="$sandbox/before.json"
 
 	mkdir -p "$(dirname "$mcp_path")"
 	cat >"$mcp_path" <<'EOF'
-{"mcpServers":{"linear":{"url":"https://example.invalid/mcp","auth":"oauth","oauth":{"scope":"write"},"includeTools":["list_issues"],"lifecycle":"eager"}}}
+{
+  "settings": {
+    "directTools": true,
+    "linearPreference": "keep-linear",
+    "mobbinPreference": {"enabled": false, "region": "keep-mobbin"}
+  },
+  "mcpServers": {
+    "linear": {
+      "url": "https://example.invalid/custom-linear",
+      "auth": "oauth",
+      "oauth": {"scope": "write", "team": "keep-team"},
+      "includeTools": ["list_issues"],
+      "lifecycle": "eager",
+      "custom": {"nested": ["keep", 42]}
+    },
+    "mobbin": {
+      "command": "custom-mobbin",
+      "args": ["--keep"],
+      "env": {"MOBBIN_USER_SETTING": "keep-me"},
+      "lifecycle": "eager",
+      "custom": {"nested": {"keep": true}}
+    }
+  }
+}
 EOF
+	cp "$mcp_path" "$before_path"
 
-	HOME="$sandbox/home" \
+	for mode in install update; do
+		local -a mode_args=()
+		[ "$mode" = update ] && mode_args=(--update)
+		HOME="$sandbox/home" \
 		PATH="$(smoke_runtime_cli_path "$sandbox")" \
 		B_AGENTIC_REPO="$snapshot_repo" \
 		B_AGENTIC_DIR="$sandbox/source" \
 		B_AGENTIC_PROMPT_API_KEYS=N \
-		bash "$ROOT_DIR/install.sh" >"$install_log" 2>&1
+		bash "$ROOT_DIR/install.sh" "${mode_args[@]}" >"$install_log" 2>&1
 
-	assert_json_value "$mcp_path" "data['mcpServers']['linear']['url'] == 'https://example.invalid/mcp'"
-	assert_json_value "$mcp_path" "data['mcpServers']['linear']['oauth']['scope'] == 'write'"
-	assert_json_value "$mcp_path" "data['mcpServers']['linear']['includeTools'] == ['list_issues', 'get_issue']"
-	assert_json_value "$mcp_path" "data['mcpServers']['linear']['lifecycle'] == 'eager'"
-	assert_contains "$install_log" 'linear: blocked: invalid Linear OAuth read-only config'
+		python3 - "$mcp_path" "$before_path" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+actual = json.loads(Path(sys.argv[1]).read_text())
+before = json.loads(Path(sys.argv[2]).read_text())
+assert actual['mcpServers']['linear'] == before['mcpServers']['linear']
+assert actual['mcpServers']['mobbin'] == before['mcpServers']['mobbin']
+for key, value in before['settings'].items():
+    assert actual['settings'][key] == value
+assert actual['settings']['directTools'] is True
+PY
+	done
+
+	assert_not_contains "$install_log" 'linear:'
+	assert_not_contains "$install_log" 'mobbin:'
 }
 
 run_manifest_only_extension_restore_case() {
@@ -289,7 +391,6 @@ PY
 	assert_contains "$sandbox/uninstall.log" 'Manifest-only uninstall complete for pi'
 	assert_contains "$mcp_path" '"user-server"'
 	assert_contains "$mcp_path" '"codegraph"'
-	assert_not_contains "$mcp_path" '"serena"'
 	assert_contains "$mcp_path" '"USER_SETTING"'
 	assert_contains "$mcp_path" 'keep-me'
 	assert_json_value "$mcp_path" "data['mcpServers']['codegraph'] == {'USER_SETTING': 'keep-me'}"
@@ -357,7 +458,8 @@ run_readiness_report_case() {
 	assert_contains "$sandbox/install.log" 'b-agentic install complete for Pi'
 	assert_contains "$sandbox/install.log" 'Readiness:'
 	assert_contains "$sandbox/install.log" 'Attention:'
-	assert_contains "$sandbox/install.log" 'linear:'
+	assert_not_contains "$sandbox/install.log" 'linear:'
+	assert_not_contains "$sandbox/install.log" 'mobbin:'
 	assert_contains "$sandbox/install.log" 'Next:'
 	assert_not_contains "$sandbox/install.log" 'Backups:'
 	assert_not_contains "$sandbox/install.log" 'mcp-startup:'
@@ -556,7 +658,6 @@ run_mcp_doctor_case() {
 	assert_contains "$blocked_suggestions_json" '"status": "blocked"'
 	assert_contains "$blocked_suggestions_json" '"policy_change_applied": false'
 
-	printf '#!/usr/bin/env bash\nexit 0\n' >"$bin_dir/serena"
 	printf '#!/usr/bin/env bash\nexit 0\n' >"$bin_dir/codegraph"
 	printf '#!/usr/bin/env bash\nexit 0\n' >"$bin_dir/bunx"
 	cat >"$bin_dir/pi" <<'EOF'
@@ -575,7 +676,7 @@ if [ "${1:-}" = "install" ]; then
 fi
 exit 0
 EOF
-	chmod +x "$bin_dir/serena" "$bin_dir/codegraph" "$bin_dir/bunx" "$bin_dir/pi"
+	chmod +x "$bin_dir/codegraph" "$bin_dir/bunx" "$bin_dir/pi"
 
 	set +e
 	HOME="$sandbox/home" \
@@ -596,11 +697,10 @@ EOF
 		python3 "$ROOT_DIR/tooling/validate/mcp_doctor.py" --home "$sandbox/home" >"$doctor_log"
 	rc=$?
 	set -e
-	[ "$rc" -eq 0 ] || fail "expected a valid Linear configuration to pass without an OAuth-state claim, got $rc"
-	assert_contains "$doctor_log" 'linear: configured: authentication unverified'
-	assert_contains "$doctor_log" 'mobbin: configured: authentication unverified'
+	[ "$rc" -eq 0 ] || fail "expected the fresh managed configuration to pass doctor checks, got $rc"
+	assert_not_contains "$doctor_log" 'linear:'
+	assert_not_contains "$doctor_log" 'mobbin:'
 	assert_contains "$doctor_log" 'mcp-adapter: ready:'
-	assert_contains "$doctor_log" 'serena: ready:'
 	assert_contains "$doctor_log" 'codegraph: ready:'
 	assert_contains "$doctor_log" 'context7: ready:'
 	assert_contains "$doctor_log" 'brave-search: ready:'
@@ -627,28 +727,8 @@ PY
 	assert_contains "$config_doctor_log" 'context7: ready:'
 	assert_contains "$config_doctor_log" 'brave-search: ready:'
 	assert_contains "$config_doctor_log" 'firecrawl: ready:'
-	assert_contains "$config_doctor_log" 'linear: configured: authentication unverified'
-	assert_contains "$config_doctor_log" 'mobbin: configured: authentication unverified'
-
-	python3 - "$sandbox/home/.pi/agent/mcp.json" <<'PY'
-import json
-import sys
-from pathlib import Path
-
-path = Path(sys.argv[1])
-data = json.loads(path.read_text())
-data['mcpServers']['linear']['includeTools'] = ['list_issues']
-path.write_text(json.dumps(data, indent=2) + '\n')
-PY
-	set +e
-	python3 "$ROOT_DIR/tooling/validate/mcp_doctor.py" --home "$sandbox/home" >"$config_doctor_log"
-	rc=$?
-	set -e
-	[ "$rc" -eq 1 ] || fail "expected invalid Linear config to block doctor, got $rc"
-	assert_contains "$config_doctor_log" 'linear: blocked: invalid Linear OAuth read-only config'
-
-	python3 "$ROOT_DIR/tooling/validate/mcp_doctor.py" --home "$sandbox/home" --allow-degraded >"$config_doctor_log"
-	assert_contains "$config_doctor_log" 'linear: blocked: invalid Linear OAuth read-only config'
+	assert_not_contains "$config_doctor_log" 'linear:'
+	assert_not_contains "$config_doctor_log" 'mobbin:'
 
 	printf '[]\n' >"$sandbox/home/.pi/agent/mcp.json"
 	set +e
@@ -692,14 +772,14 @@ run_fresh_dependency_install_case() {
 			[ -x "$command_path" ] || continue
 			name="${command_path##*/}"
 			case "$name" in
-				rg | fd | fdfind | bat | batcat | eza | exa | sd | jq | rtk | uv | serena | codegraph) continue ;;
+				rg | fd | fdfind | bat | batcat | eza | exa | sd | jq | rtk | codegraph) continue ;;
 			esac
 			[ -e "$minimal_bin/$name" ] && continue
 			ln -s "$command_path" "$minimal_bin/$name" 2>/dev/null || true
 		done
 	done
 	smoke_path="$bin_dir:$minimal_bin"
-	for name in rtk uv serena codegraph rg fd bat eza sd jq; do
+	for name in rtk codegraph rg fd bat eza sd jq; do
 		rm -f "$bin_dir/$name"
 	done
 	cat >"$bin_dir/curl" <<'EOF'
@@ -711,20 +791,6 @@ case "$*" in
 mkdir -p "$HOME/.local/bin"
 printf '#!/usr/bin/env bash\nexit 0\n' >"$HOME/.local/bin/rtk"
 chmod +x "$HOME/.local/bin/rtk"
-SH
-    ;;
-  *astral.sh/uv/install.sh*)
-    cat <<'SH'
-mkdir -p "$HOME/.local/bin"
-cat >"$HOME/.local/bin/uv" <<'UV'
-#!/usr/bin/env bash
-set -euo pipefail
-if [ "${1:-}" = "tool" ] && [ "${2:-}" = "install" ]; then
-  printf '#!/usr/bin/env bash\nexit 0\n' >"$HOME/.local/bin/serena"
-  chmod +x "$HOME/.local/bin/serena"
-fi
-UV
-chmod +x "$HOME/.local/bin/uv"
 SH
     ;;
   *colbymchenry/codegraph*)
@@ -789,12 +855,11 @@ PY
 	rc=$?
 	set -e
 	[ "$rc" -eq 0 ] || fail "expected fresh dependency install exit 0, got $rc"
-	for name in rtk uv serena codegraph; do
+	for name in rtk codegraph; do
 		assert_file "$sandbox/home/.local/bin/$name"
 	done
 	assert_contains "$install_log" 'Shell tooling hint: sudo apt-get install -y ripgrep fd-find bat eza sd jq'
 	assert_contains "$install_log" 'Readiness:'
-	assert_not_contains "$install_log" '  serena:'
 	assert_not_contains "$install_log" '  codegraph:'
 	assert_not_contains "$install_log" '  rtk:'
 }
@@ -814,24 +879,16 @@ run_existing_tool_upgrade_case() {
 #!/usr/bin/env bash
 exit 0
 EOF
-	cat >"$bin_dir/serena" <<'EOF'
-#!/usr/bin/env bash
-exit 0
-EOF
 	cat >"$bin_dir/codegraph" <<EOF
 #!/usr/bin/env bash
 printf 'codegraph:%s:refresh=%s\n' "\$*" "\${CODEGRAPH_NO_INSTALL_REFRESH:-unset}" >> "$upgrade_log"
 exit 0
 EOF
-	cat >"$bin_dir/uv" <<EOF
-#!/usr/bin/env bash
-printf 'uv:%s\n' "\$*" >> "$upgrade_log"
-EOF
 	cat >"$bin_dir/curl" <<EOF
 #!/usr/bin/env bash
 printf '%s\n' 'printf "rtk-upgrade\n" >> "$upgrade_log"'
 EOF
-	chmod +x "$bin_dir/rtk" "$bin_dir/serena" "$bin_dir/codegraph" "$bin_dir/uv" "$bin_dir/curl"
+	chmod +x "$bin_dir/rtk" "$bin_dir/codegraph" "$bin_dir/curl"
 	smoke_path="$(smoke_path_with_runtime_clis "$sandbox" "$bin_dir")"
 
 	set +e
@@ -884,8 +941,6 @@ PY
 
 	[ "$rc" -eq 0 ] || fail "expected existing tool upgrade install exit 0, got $rc"
 	assert_contains "$upgrade_log" 'rtk-upgrade'
-	assert_contains "$upgrade_log" 'uv:self update'
-	assert_contains "$upgrade_log" 'uv:tool upgrade serena-agent'
 	assert_contains "$upgrade_log" 'codegraph:upgrade:refresh=1'
 
 	: >"$upgrade_log"
@@ -901,10 +956,8 @@ PY
 	assert_contains "$install_log" '[5/5]'
 	assert_contains "$install_log" 'b-agentic install complete for Pi'
 	assert_not_contains "$install_log" 'RTK already installed; upgrading'
-	assert_not_contains "$install_log" 'Serena already installed; upgrading'
 	assert_not_contains "$install_log" 'CodeGraph already installed; upgrading'
 	assert_not_contains "$install_log" 'Install RTK (Rust Token Killer)'
-	assert_not_contains "$install_log" 'Install Serena MCP agent'
 	assert_not_contains "$install_log" 'Install CodeGraph MCP agent'
 }
 
@@ -918,7 +971,7 @@ run_existing_tool_default_skip_case() {
 
 	mkdir -p "$sandbox/home" "$bin_dir"
 
-	for tool in rtk serena codegraph uv; do
+	for tool in rtk codegraph; do
 		cat >"$bin_dir/$tool" <<EOF
 #!/usr/bin/env bash
 printf '%s:%s\n' '$tool' "\$*" >> "$upgrade_log"
@@ -1238,7 +1291,7 @@ run_uninstall_skips_dependency_reconciliation_case() {
 	expect_install_status 0 "$sandbox" "$snapshot_repo"
 	smoke_path="$(smoke_runtime_cli_path "$sandbox")"
 	: >"$dependency_log"
-	for tool in rtk serena uv codegraph bun curl; do
+	for tool in rtk codegraph bun curl; do
 		cat >"$bin_dir/$tool" <<EOF
 #!/usr/bin/env bash
 printf '%s\\n' '$tool' >> "$dependency_log"
@@ -1815,7 +1868,8 @@ run_base_smoke_cases() {
 		run_manifest_only_custom_paths_case
 		run_manifest_only_modified_skill_case
 		run_manifest_only_merged_config_case
-		run_user_owned_linear_readiness_case
+		run_user_owned_serena_preservation_case
+		run_user_owned_retired_mcp_preservation_case
 		run_manifest_only_extension_restore_case
 		run_legacy_consult_extension_removal_case
 		run_manifest_only_extension_symlink_case

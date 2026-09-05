@@ -34,7 +34,101 @@ while (true) {
 }
 ' "$pi_path" 2>/dev/null || true)"
 	fi
-	ROOT_DIR="$ROOT_DIR" PI_TEST_HOME="$sandbox/home" PI_CODING_AGENT_DIR="$sandbox/home/.pi/agent" PI_PACKAGE_ROOT="$pi_package_root" node --experimental-strip-types --input-type=module - <<'NODE'
+
+	local pi_server_loader="$sandbox/pi-server-loader.mjs"
+	local pi_server_marker="$sandbox/pi-server-shim.marker"
+	local pi_server_probe="$sandbox/pi-server-shim-probe.log"
+	local pi_server_resolver="$sandbox/pi-server-resolver.mjs"
+	local pi_server_fixture="$sandbox/pi-server-resolver-fixture"
+	local pi_server_fixture_log="$sandbox/pi-server-resolver-fixture.log"
+	local -a node_loader_args=()
+	cat >"$pi_server_resolver" <<'RESOLVER'
+import { createRequire } from "node:module";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
+
+const packageRoot = process.argv[2];
+const requireFromPackage = createRequire(pathToFileURL(join(packageRoot, "package.json")));
+try {
+  requireFromPackage.resolve("@earendil-works/pi-tui");
+} catch {
+  process.exit(2);
+}
+for (const specifier of ["@earendil-works/pi-server", "@earendil-works/pi-server/unix"]) {
+  try {
+    requireFromPackage.resolve(specifier);
+  } catch {
+    process.exit(1);
+  }
+}
+console.log("pi-server dependencies resolvable");
+RESOLVER
+	mkdir -p "$pi_server_fixture/node_modules/@earendil-works/pi-server" "$pi_server_fixture/node_modules/@earendil-works/pi-tui"
+	printf '{"name":"smoke-pi-anchor"}\n' >"$pi_server_fixture/package.json"
+	printf '{"name":"@earendil-works/pi-tui","exports":"./index.js"}\n' >"$pi_server_fixture/node_modules/@earendil-works/pi-tui/package.json"
+	printf '{"name":"@earendil-works/pi-server","exports":{".":"./index.js","./unix":"./unix.js"}}\n' >"$pi_server_fixture/node_modules/@earendil-works/pi-server/package.json"
+	: >"$pi_server_fixture/node_modules/@earendil-works/pi-tui/index.js"
+	: >"$pi_server_fixture/node_modules/@earendil-works/pi-server/index.js"
+	: >"$pi_server_fixture/node_modules/@earendil-works/pi-server/unix.js"
+	if ! node "$pi_server_resolver" "$pi_server_fixture" >"$pi_server_fixture_log"; then
+		fail "pi-server resolver fixture did not recognize valid root and /unix exports"
+	fi
+	assert_contains "$pi_server_fixture_log" 'pi-server dependencies resolvable'
+	assert_no_path "$pi_server_loader"
+	assert_no_path "$pi_server_marker"
+	assert_no_path "$pi_server_probe"
+
+	local pi_server_resolution_status=0
+	if [ -n "$pi_package_root" ]; then
+		if node "$pi_server_resolver" "$pi_package_root" >/dev/null; then
+			:
+		else
+			pi_server_resolution_status=$?
+		fi
+	fi
+	if [ "$pi_server_resolution_status" -eq 1 ]; then
+		cat >"$pi_server_loader" <<'LOADER'
+const shim = `
+export class ServerError extends Error {}
+export class SessionAmbiguousError extends Error {}
+export class SessionNotFoundError extends Error {}
+const unavailable = () => { throw new Error("pi-server smoke shim invoked"); };
+export const createUnixServer = unavailable;
+export const getUnixSocketPath = unavailable;
+`;
+const shimUrl = `data:text/javascript,${encodeURIComponent(shim)}`;
+
+export async function resolve(specifier, context, defaultResolve) {
+  if (specifier === "@earendil-works/pi-server" || specifier === "@earendil-works/pi-server/unix") {
+    return { format: "module", shortCircuit: true, url: shimUrl };
+  }
+  return defaultResolve(specifier, context, defaultResolve);
+}
+LOADER
+		printf 'fallback activated because pi-server resolution failed\n' >"$pi_server_marker"
+		node_loader_args=(--experimental-loader="$pi_server_loader")
+		if ! node "${node_loader_args[@]}" --input-type=module -e '
+const shim = await import("@earendil-works/pi-server");
+const unixShim = await import("@earendil-works/pi-server/unix");
+for (const [name, module] of [["createUnixServer", shim], ["getUnixSocketPath", unixShim]]) {
+  try {
+    module[name]();
+  } catch (error) {
+    if (error instanceof Error && error.message === "pi-server smoke shim invoked") {
+      console.error(error.message);
+      continue;
+    }
+    throw error;
+  }
+  throw new Error(name + " did not throw");
+}
+' >"$pi_server_probe" 2>&1; then
+			fail "pi-server shim exports did not fail closed when invoked"
+		fi
+	elif [ "$pi_server_resolution_status" -ne 0 ]; then
+		fail "unable to resolve Pi package dependency anchor"
+	fi
+	ROOT_DIR="$ROOT_DIR" PI_TEST_HOME="$sandbox/home" PI_CODING_AGENT_DIR="$sandbox/home/.pi/agent" PI_PACKAGE_ROOT="$pi_package_root" node "${node_loader_args[@]}" --experimental-strip-types --input-type=module - <<'NODE'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -503,7 +597,7 @@ expect(statusSnapshot.includes('Capability contract v1'), 'b-status snapshot mus
 expect(statusSnapshot.includes('Overall: degraded'), 'b-status must remain degraded when MCP contents and LSP routes are unverified');
 expect(statusSnapshot.includes('local, read-only; no MCP/auth/browser probes'), 'b-status snapshot must disclaim live probes');
 expect(statusSnapshot.includes('pi-mcp-adapter: installed'), 'b-status must report installed package presence');
-expect(statusSnapshot.includes('linear: unknown'), 'b-status must not claim OAuth configuration from parsed MCP content');
+expect(!statusSnapshot.includes('linear') && !statusSnapshot.includes('mobbin'), 'b-status must not advertise retired MCP integrations');
 expect(statusSnapshot.includes('pi-lsp: unknown'), 'b-status must not claim operational LSP readiness from package presence');
 expect(statusSnapshot.includes('b-agentic-status: installed'), 'b-status must report its managed extension presence');
 expect(!statusSnapshot.includes('Bearer configured') && !statusSnapshot.includes('BRAVE_API_KEY'), 'status fixture should not expose configured secret values');
@@ -1001,14 +1095,14 @@ await handlers.thinking_level_select({ level: 'low', previousLevel: 'high' }, { 
 const updatedPlannerPreferences = JSON.parse(readFileSync(path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic', 'role-models.json'), 'utf8'));
 expect(updatedPlannerPreferences.planner.provider === 'anthropic' && updatedPlannerPreferences.planner.model === 'claude-sonnet-4-5' && updatedPlannerPreferences.planner.thinkingLevel === 'low', 'thinking-level changes must update the planner preference without changing its saved model when the current model is unavailable');
 await commands['b-role'].handler('off', roleContext);
-activeTools = ['read', 'bash', 'edit', 'write', 'recall', 'intercom', 'mcp', 'mcpScript', 'mcp__firecrawl_firecrawl_search', 'mcp__playwright_browser_snapshot', 'mcp__linear_get_issue', 'codegraph_codegraph_explore', 'serena_find_symbol'];
+activeTools = ['read', 'bash', 'edit', 'write', 'recall', 'intercom', 'mcp', 'mcpScript', 'mcp__firecrawl_firecrawl_search', 'mcp__playwright_browser_snapshot', 'mcp__linear_get_issue', 'codegraph_codegraph_explore'];
 const normalPlannerActiveTools = [...activeTools];
 activeModel = { provider: 'other', id: 'other-model' };
 activeThinkingLevel = 'off';
 await commands['b-role'].handler('planner', roleContext);
 expect(JSON.stringify(activeTools) === JSON.stringify(normalPlannerActiveTools), 'planner role must preserve the normal active-tool set');
 expect(activeModel.provider === 'anthropic' && activeModel.id === 'claude-sonnet-4-5' && activeThinkingLevel === 'low', '/b-role planner must apply its saved model and thinking preference');
-for (const toolName of ['read', 'recall', 'intercom', 'bash', 'edit', 'write', 'mcp', 'mcpScript', 'mcp__firecrawl_firecrawl_search', 'mcp__playwright_browser_snapshot', 'mcp__linear_get_issue', 'codegraph_codegraph_explore', 'serena_find_symbol']) {
+for (const toolName of ['read', 'recall', 'intercom', 'bash', 'edit', 'write', 'mcp', 'mcpScript', 'mcp__firecrawl_firecrawl_search', 'mcp__playwright_browser_snapshot', 'mcp__linear_get_issue', 'codegraph_codegraph_explore']) {
   expect(activeTools.includes(toolName), `planner role must preserve normal active tool ${toolName}`);
 }
 expect(activeTools.includes('edit') && activeTools.includes('write') && activeTools.includes('mcpScript') && activeTools.includes('mcp__playwright_browser_snapshot'), 'planner roles must not filter normal active tools; prompt ownership preserves the writer boundary');
@@ -1053,11 +1147,7 @@ const noUiPlannerContext = { ...roleContext, hasUI: false };
 expect(await toolCallHandler({ toolName: 'bash', input: { command: 'rtk pytest -q' } }, noUiPlannerContext) === undefined, 'planner must permit repository tests through the shared command policy');
 expect(await toolCallHandler({ toolName: 'bash', input: { command: 'node script.js' } }, roleContext) === undefined, 'planner must permit repository command execution through the shared command policy');
 expect((await toolCallHandler({ toolName: 'bash', input: { command: 'rtk git reset --hard' } }, noUiPlannerContext))?.block === true, 'shared explicit command denies must remain enforced');
-const plannerSerenaEditArgs = { relative_path: 'README.md', needle: 'old', repl: 'new', mode: 'literal' };
-for (const toolName of ['serena_replace_content', 'serena_serena_replace_content', 'mcp__serena_serena_replace_content']) {
-  expect(await toolCallHandler({ toolName, input: plannerSerenaEditArgs }, roleContext) === undefined, `planner must use the shared MCP policy for ${toolName}`);
-}
-expect(await toolCallHandler({ toolName: 'mcp', input: { server: 'linear', tool: 'list_issues', args: {} } }, roleContext) === undefined, 'planner must not have a role-specific MCP execution block');
+expect(await toolCallHandler({ toolName: 'mcp', input: { server: 'linear', tool: 'list_issues', args: {} } }, roleContext) === undefined, 'retired MCP names must use shared generic policy');
 const kernelPrompt = readFileSync(path.join(root, 'references/kernel.template.md'), 'utf8');
 const plannerStart = await handlers.before_agent_start({ systemPrompt: `${kernelPrompt}\n\nbase`, systemPromptOptions: { skills: [] } }, roleContext);
 expect(plannerStart.systemPrompt.includes('planner profile (read-only coordinator)') && plannerStart.systemPrompt.includes('Planner-owned skills: `b-plan`, external `b-research`, `b-agentic-audit`, `b-review`, `b-pr-summary`') && plannerStart.systemPrompt.includes('Worker-owned skills: `b-design`, `b-frontend`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, `b-commit`'), 'planner system prompt must retain the composed kernel ownership mapping');
@@ -1370,25 +1460,15 @@ for (const input of [
   { search: 'symbol' },
   { describe: 'tool' },
   { action: 'ui-messages' },
-  { connect: 'serena' },
   { tool: 'firecrawl_developer_search', args: { query: 'collision check' } },
   { server: 'firecrawl', tool: 'firecrawl_search', extra: true },
-  { connect: 'serena', tool: 'serena_read_memory' },
 ]) {
   expect((await toolCallHandler({ toolName: 'mcp', input }, noUiContext))?.block === true, 'non-execution MCP selectors must retain the generic approval gate');
 }
 expect((await toolCallHandler({ toolName: 'firecrawl_firecrawl_agent', input: {} }, noUiContext))?.block === true, 'direct managed-looking tools must retain the top-level approval gate');
-expect(await toolCallHandler({ toolName: 'serena_onboarding', input: {} }, noUiContext) === undefined, 'direct Serena tools must auto-allow without UI');
-let directSerenaClaim;
-mcpApprovalHandler({
-  serverName: 'serena',
-  originalToolName: 'serena_onboarding',
-  prefixedToolName: 'serena_serena_onboarding',
-  args: {},
-  origin: 'direct',
-  claim(handler) { directSerenaClaim = handler; return true; },
-});
-expect(await directSerenaClaim() === 'allow_once', 'direct Serena broker requests must auto-allow');
+for (const toolName of ['mcp__linear_get_issue', 'mcp__mobbin_mobbin_search_screens']) {
+  expect((await toolCallHandler({ toolName, input: {} }, noUiContext))?.block === true, `${toolName} must fail closed through generic no-UI gating`);
+}
 let directClaim;
 mcpApprovalHandler({
   serverName: 'firecrawl',
@@ -1484,9 +1564,25 @@ mcpApprovalHandler({
   claim(handler) { userGatewayClaim = handler; return true; },
 });
 expect(await userGatewayClaim() === 'deny', 'unmanaged MCP proxy calls must use the broker without UI');
+for (const retired of [
+  { serverName: 'linear', originalToolName: 'linear_get_issue' },
+  { serverName: 'mobbin', originalToolName: 'mobbin_search_screens' },
+]) {
+  let retiredClaim;
+  expect(await toolCallHandler({ toolName: 'mcp', input: { server: retired.serverName, tool: retired.originalToolName, args: {} } }, noUiContext) === undefined, 'retired MCP proxy calls must reach generic gating');
+  mcpApprovalHandler({
+    serverName: retired.serverName,
+    originalToolName: retired.originalToolName,
+    prefixedToolName: `${retired.serverName}_${retired.originalToolName}`,
+    args: {},
+    origin: 'proxy',
+    claim(handler) { retiredClaim = handler; return true; },
+  });
+  expect(await retiredClaim() === 'deny', `${retired.serverName} must fail closed without UI`);
+}
 expect(await toolCallHandler({ toolName: 'bash', input: { command: 'rtk git status --short' } }, noUiContext) === undefined, 'registered handler must allow safe RTK command');
 expect(await toolCallHandler({ toolName: 'bash', input: { command: 'git commit -m x' } }, noUiContext) === undefined, 'registered handler must allow regular project-local Git commands');
-expect((await toolCallHandler({ toolName: 'mcp', input: { connect: 'serena' } }, noUiContext))?.block === true, 'managed MCP connect calls must retain the generic approval gate');
+expect((await toolCallHandler({ toolName: 'mcp', input: { connect: 'codegraph' } }, noUiContext))?.block === true, 'managed MCP connect calls must retain the generic approval gate');
 expect((await toolCallHandler({ toolName: 'read', input: { path: '.env' } }, noUiContext))?.block === true, 'registered handler must fail closed for protected read');
 
 // Compound commands and wrappers
@@ -2005,188 +2101,23 @@ try {
   rmSync(installedSkillFixture, { recursive: true, force: true });
   rmSync(externalSkillFixture, { recursive: true, force: true });
 }
-const trustedSerenaTools = [
-  'serena_search_for_pattern', 'serena_get_symbols_overview', 'serena_find_symbol',
-  'serena_find_referencing_symbols', 'serena_find_implementations', 'serena_find_declaration',
-  'serena_get_diagnostics_for_file', 'serena_read_memory', 'serena_list_memories',
-  'serena_initial_instructions', 'serena_replace_content', 'serena_replace_in_files',
-  'serena_replace_symbol_body', 'serena_insert_after_symbol', 'serena_insert_before_symbol',
-  'serena_rename_symbol', 'serena_safe_delete_symbol', 'serena_write_memory',
-  'serena_delete_memory', 'serena_rename_memory', 'serena_edit_memory',
-  'serena_open_dashboard', 'serena_onboarding',
-];
-const serenaSourcePath = path.join(root, 'pi/extensions/b-agentic-support/mcp.ts');
-const serenaConditionalArgs = {
-  serena_search_for_pattern: { substring_pattern: 'isSafeSerena', relative_path: serenaSourcePath, restrict_search_to_code_files: true, skip_ignored_files: true },
-  serena_get_symbols_overview: { relative_path: serenaSourcePath },
-  serena_find_symbol: { name_path_pattern: 'isTrustedManagedTool', relative_path: serenaSourcePath },
-  serena_find_referencing_symbols: { name_path: 'isTrustedManagedTool', relative_path: serenaSourcePath },
-  serena_find_implementations: { name_path: 'isTrustedManagedTool', relative_path: serenaSourcePath },
-  serena_find_declaration: { relative_path: serenaSourcePath, regex: 'isTrustedManagedTool' },
-  serena_get_diagnostics_for_file: { relative_path: serenaSourcePath },
-  serena_replace_content: { relative_path: serenaSourcePath, needle: 'old', repl: 'new', mode: 'literal' },
-  serena_replace_in_files: { relative_path: serenaSourcePath, needle: 'old', repl: 'new', mode: 'literal', dry_run: true },
-  serena_replace_symbol_body: { name_path: 'isTrustedManagedTool', relative_path: serenaSourcePath, body: 'body' },
-  serena_insert_after_symbol: { name_path: 'isTrustedManagedTool', relative_path: serenaSourcePath, body: 'body' },
-  serena_insert_before_symbol: { name_path: 'isTrustedManagedTool', relative_path: serenaSourcePath, body: 'body' },
-  serena_rename_symbol: { name_path: 'isTrustedManagedTool', relative_path: serenaSourcePath, new_name: 'isTrustedManagedOperation' },
-  serena_safe_delete_symbol: { name_path_pattern: 'isTrustedManagedTool', relative_path: serenaSourcePath },
-  serena_read_memory: { memory_name: 'review-notes' },
-  serena_list_memories: { topic: 'review' },
-  serena_write_memory: { memory_name: 'review-notes', content: 'durable project fact' },
-  serena_delete_memory: { memory_name: 'obsolete-review-notes' },
-  serena_rename_memory: { old_name: 'review-notes', new_name: 'archive/review-notes' },
-  serena_edit_memory: { memory_name: 'review-notes', needle: 'old', repl: 'new', mode: 'literal' },
-};
-const conditionalSerenaTools = new Set(Object.keys(serenaConditionalArgs));
-const serenaArgsFor = (tool) => serenaConditionalArgs[tool] || {};
-for (const tool of trustedSerenaTools) {
-  expect(t.isTrustedManagedTool('serena', tool, serenaArgsFor(tool)) === true, `${tool} must auto-allow for its safe intended input`);
-}
 const codegraphTool = 'codegraph_codegraph_explore';
 const codegraphArgs = { query: 'approval policy' };
 expect(t.isTrustedManagedTool('codegraph', codegraphTool, codegraphArgs) === true, 'classified CodeGraph exploration must be trusted');
-for (const tool of [codegraphTool]) {
-  expect(t.isMcpOrCustomTool(tool, codegraphArgs) === false, `${tool} direct execution must auto-allow`);
-  expect(t.isMcpOrCustomTool(`mcp__codegraph__${tool}`, codegraphArgs) === false, `${tool} prefixed execution must auto-allow`);
-}
-expect(t.isMcpOrCustomTool('mcp__serena_serena_replace_content', { relative_path: '/etc/hosts' }) === true, 'unsafe prefixed Serena edits retain the path gate');
-expect(t.isMcpOrCustomTool('mcp__codegraph__serena_find_symbol', codegraphArgs) === true, 'mismatched CodeGraph namespace must remain gated');
-expect(t.isMcpOrCustomTool('mcp__serena__codegraph_codegraph_explore', codegraphArgs) === true, 'mismatched Serena namespace must remain gated');
+expect(t.isMcpOrCustomTool(codegraphTool, codegraphArgs) === false, 'CodeGraph direct execution must auto-allow');
+expect(t.isMcpOrCustomTool(`mcp__codegraph__${codegraphTool}`, codegraphArgs) === false, 'CodeGraph prefixed execution must auto-allow');
+expect(t.isMcpOrCustomTool('mcp__firecrawl__codegraph_codegraph_explore', codegraphArgs) === true, 'mismatched managed namespace must remain gated');
 expect(t.isMcpOrCustomTool('mcp__user_server__codegraph_codegraph_explore', codegraphArgs) === true, 'unmanaged prefixed namespaces must remain gated');
-const globalMemoryArgs = {
-  serena_read_memory: { memory_name: 'global/review-notes' },
-  serena_list_memories: { topic: 'global' },
-  serena_write_memory: { memory_name: 'global/review-notes', content: 'shared fact' },
-  serena_delete_memory: { memory_name: 'global/review-notes' },
-  serena_rename_memory: { old_name: 'review-notes', new_name: 'global/review-notes' },
-  serena_edit_memory: { memory_name: 'global/review-notes', needle: 'old', repl: 'new', mode: 'literal' },
-};
-for (const [tool, args] of Object.entries(globalMemoryArgs)) {
-  expect(t.isTrustedManagedTool('serena', tool, args) === false, `${tool} must gate shared global memory access`);
-  expect(t.isMcpOrCustomTool(tool, args) === true, `${tool} direct calls must retain the shared-memory gate`);
-}
-expect(t.isTrustedManagedTool('serena', 'serena_list_memories', {}) === false, 'unfiltered Serena memory listing must gate possible shared global memories');
-expect(t.isTrustedManagedTool('serena', 'serena_write_memory', { memory_name: '../outside', content: 'x' }) === false, 'Serena memory traversal must remain gated');
-const serenaRootSearch = {
-  substring_pattern: 'isSafeSerena',
-  relative_path: root,
-  restrict_search_to_code_files: true,
-};
-expect(t.isTrustedManagedTool('serena', 'serena_search_for_pattern', serenaRootSearch) === true, 'repository-wide Serena code search must auto-allow');
-expect(t.isTrustedManagedTool('serena', 'serena_search_for_pattern', {
-  ...serenaRootSearch,
-  paths_include_glob: '**/*.ts',
-  paths_exclude_glob: '**/*.test.ts',
-  skip_ignored_files: true,
-}) === true, 'repository-wide Serena code search must allow safe project globs with ignored files skipped');
-expect(t.isTrustedManagedTool('serena', 'serena_search_for_pattern', {
-  ...serenaRootSearch,
-  skip_ignored_files: false,
-}) === false, 'Serena code search with ignored files included must require approval');
-expect(t.isTrustedManagedTool('serena', 'serena_search_for_pattern', {
-  ...serenaRootSearch,
-  skip_ignored_files: 'true',
-}) === false, 'Serena code search with a non-boolean skip_ignored_files must require approval');
-expect(t.isTrustedManagedTool('serena', 'serena_search_for_pattern', {
-  ...serenaRootSearch,
-  restrict_search_to_code_files: false,
-  skip_ignored_files: true,
-}) === false, 'Serena code search must retain the code-file restriction with ignored files skipped');
-expect(t.isTrustedManagedTool('serena', 'serena_search_for_pattern', {
-  ...serenaRootSearch,
-  paths_include_glob: '../**/*.ts',
-  skip_ignored_files: true,
-}) === false, 'Serena code search must retain the safe project-glob gate with ignored files skipped');
-expect(t.isTrustedManagedTool('serena', 'serena_search_for_pattern', {
-  substring_pattern: 'isSafeSerena',
-  restrict_search_to_code_files: true,
-}) === true, 'project-root Serena code search without a relative path must auto-allow');
-expect(t.isTrustedManagedTool('serena', 'serena_find_symbol', {
-  name_path_pattern: 'isTrustedManagedTool', include_body: true,
-}) === true, 'project-root Serena symbol reads must auto-allow when code descendants are safe');
-expect(t.isTrustedManagedTool('serena', 'serena_search_for_pattern', {
-  ...serenaRootSearch,
-  relative_path: os.tmpdir(),
-  skip_ignored_files: true,
-}) === false, 'outside-project Serena code search remains gated with ignored files skipped');
-expect(t.isTrustedManagedTool('serena', 'serena_replace_content', { relative_path: '/etc/hosts' }) === false, 'outside-project Serena edits remain gated');
-const serenaProtectedFixture = mkdtempSync(path.join(root, 'pi/tests/', '.b-agentic-serena-'));
-try {
-  const protectedSerenaPath = path.join(serenaProtectedFixture, '.env');
-  const protectedSerenaLink = path.join(serenaProtectedFixture, 'safe-link');
-  writeFileSync(path.join(serenaProtectedFixture, 'safe.ts'), 'export const safe = true;');
-  const safeDirectoryReplace = {
-    relative_path: serenaProtectedFixture,
-    needle: 'safe',
-    repl: 'safer',
-    mode: 'literal',
-    dry_run: true,
-  };
-  expect(t.isTrustedManagedTool('serena', 'serena_replace_in_files', safeDirectoryReplace) === true, 'safe directory-wide Serena replacements must auto-allow');
-  expect(t.isMcpOrCustomTool('serena_replace_in_files', safeDirectoryReplace) === false, 'safe direct directory-wide Serena replacements must auto-allow');
-  const protectedGitDirectory = path.join(serenaProtectedFixture, '.git');
-  mkdirSync(protectedGitDirectory);
-  writeFileSync(path.join(protectedGitDirectory, 'config'), 'old');
-  expect(t.isTrustedManagedTool('serena', 'serena_replace_in_files', safeDirectoryReplace) === false, 'directory-wide Serena replacements must gate protected .git descendants');
-  rmSync(protectedGitDirectory, { recursive: true, force: true });
-  writeFileSync(protectedSerenaPath, 'secret');
-  symlinkSync(protectedSerenaPath, protectedSerenaLink);
-  const fixturePlannerPatternSearch = {
-    ...serenaRootSearch,
-    relative_path: serenaProtectedFixture,
-    skip_ignored_files: true,
-  };
-  expect(t.isTrustedManagedTool('serena', 'serena_search_for_pattern', fixturePlannerPatternSearch) === true, 'directory Serena code search must ignore non-code protected files');
-  let changedDescendantBrokerClaim;
-  mcpApprovalHandler({
-    serverName: 'serena', originalToolName: 'serena_search_for_pattern', prefixedToolName: 'serena_serena_search_for_pattern',
-    args: fixturePlannerPatternSearch, origin: 'direct',
-    claim(handler) { changedDescendantBrokerClaim = handler; return true; },
-  });
-  writeFileSync(path.join(serenaProtectedFixture, 'credentials.ts'), 'export const token = true;');
-  expect(t.isTrustedManagedTool('serena', 'serena_search_for_pattern', fixturePlannerPatternSearch) === false, 'directory Serena code search must gate protected code descendants');
-  await toolCallHandler({ toolName: 'intercom', input: { action: 'send', to: 'worker', message: 'Preserve broker safety.' } }, noUiContext);
-  expect(await changedDescendantBrokerClaim() === 'deny', 'broker claims must recheck changed Serena descendants before allowing');
-  expect(t.isTrustedManagedTool('serena', 'serena_find_symbol', {
-    name_path_pattern: 'token', include_body: true,
-  }) === false, 'unscoped Serena symbol reads must gate protected code descendants');
-  expect(t.isTrustedManagedTool('serena', 'serena_find_symbol', {
-    name_path_pattern: 'token', relative_path: serenaProtectedFixture, include_body: true,
-  }) === false, 'directory Serena symbol reads must gate protected code descendants');
-  expect(t.isTrustedManagedTool('serena', 'serena_find_referencing_symbols', {
-    name_path: 'isTrustedManagedTool', relative_path: serenaSourcePath,
-  }) === false, 'project-wide Serena reference reads must gate protected code descendants');
-  expect(t.isTrustedManagedTool('serena', 'serena_find_implementations', {
-    name_path: 'isTrustedManagedTool', relative_path: serenaSourcePath,
-  }) === false, 'project-wide Serena implementation reads must gate protected code descendants');
-  expect(t.isTrustedManagedTool('serena', 'serena_rename_symbol', {
-    name_path: 'isTrustedManagedTool', relative_path: serenaSourcePath, new_name: 'isTrustedManagedOperation',
-  }) === false, 'project-wide Serena renames must gate protected code descendants');
-  expect(t.isMcpOrCustomTool('serena_rename_symbol', {
-    name_path: 'isTrustedManagedTool', relative_path: serenaSourcePath, new_name: 'isTrustedManagedOperation',
-  }) === true, 'unsafe direct Serena renames retain the protected-descendant gate');
-  expect(t.isTrustedManagedTool('serena', 'serena_replace_in_files', safeDirectoryReplace) === false, 'directory-wide Serena replacements must gate protected descendants');
-  expect(t.isMcpOrCustomTool('serena_replace_in_files', safeDirectoryReplace) === true, 'unsafe direct directory-wide Serena replacements retain the protected-descendant gate');
-  expect(t.isTrustedManagedTool('serena', 'serena_replace_content', { relative_path: protectedSerenaPath }) === false, 'Serena edits of protected files remain gated');
-  expect(t.isTrustedManagedTool('serena', 'serena_replace_content', { relative_path: protectedSerenaLink }) === false, 'Serena edits through protected symlinks remain gated');
-} finally {
-  rmSync(serenaProtectedFixture, { recursive: true, force: true });
-}
-const serenaBoundFixture = mkdtempSync(path.join(root, 'pi/tests/', '.b-agentic-serena-bound-'));
+const lspBoundFixture = mkdtempSync(path.join(root, 'pi/tests/', '.b-agentic-lsp-bound-'));
 try {
   for (let index = 0; index <= 20_000; index += 1) {
-    writeFileSync(path.join(serenaBoundFixture, `entry-${index}.txt`), '');
+    writeFileSync(path.join(lspBoundFixture, `entry-${index}.txt`), '');
   }
-  expect(t.isTrustedManagedTool('serena', 'serena_replace_in_files', {
-    relative_path: serenaBoundFixture,
-    needle: 'old',
-    repl: 'new',
-    mode: 'literal',
-    dry_run: true,
-  }) === false, 'Serena directory traversal must fail closed beyond 20,000 entries');
+  const lspBoundInput = { paths: [lspBoundFixture] };
+  expect(t.isMcpOrCustomTool('lsp_diagnostics', lspBoundInput) === true, 'LSP directory traversal must fail closed beyond 20,000 entries');
+  expect((await toolCallHandler({ toolName: 'lsp_diagnostics', input: lspBoundInput }, noUiContext))?.block === true, 'LSP directory traversal must remain blocked without UI');
 } finally {
-  rmSync(serenaBoundFixture, { recursive: true, force: true });
+  rmSync(lspBoundFixture, { recursive: true, force: true });
 }
 const protectedPathFixture = mkdtempSync(path.join(os.tmpdir(), 'b-agentic-protected-path-'));
 try {
@@ -2225,7 +2156,6 @@ for (const input of [
   { search: 'symbol' },
   { describe: 'tool' },
   { action: 'ui-messages' },
-  { connect: 'serena' },
   { server: 'firecrawl' },
   { tool: 'user_tool' },
   { tool: 'firecrawl_parse' },
@@ -2233,33 +2163,20 @@ for (const input of [
   { server: '', tool: 'firecrawl_search' },
   { server: 'firecrawl', tool: '' },
   { server: 'firecrawl', tool: 'firecrawl_search', args: 'not-json' },
-  { connect: 'serena', tool: 'serena_read_memory' },
 ]) {
   expect(t.isMcpOrCustomTool('mcp', input) === true, 'non-execution mcp selectors must retain generic approval');
 }
 for (const input of [
-  { server: 'serena', tool: 'new_serena_tool' },
   { server: 'user-server', tool: 'user_tool' },
   { server: 'firecrawl', tool: 'firecrawl_search', args: '{}' },
 ]) {
   expect(t.isMcpProxyToolExecution(input) === true, 'valid server/tool proxy executions must be recognized');
   expect(t.isMcpOrCustomTool('mcp', input) === false, 'valid proxy executions must bypass generic approval');
 }
-for (const tool of trustedSerenaTools) {
-  const args = serenaArgsFor(tool);
-  expect(t.isTrustedManagedGatewayCall({ server: 'serena', tool, args }) === true, `${tool} gateway execution must be classified safe`);
-  expect(t.isMcpOrCustomTool(tool, args) === false, `${tool} direct execution must auto-allow`);
-  expect(t.isMcpOrCustomTool(`mcp__serena__${tool}`, args) === false, `${tool} prefixed direct execution must auto-allow`);
-}
-expect(t.isMcpOrCustomTool('serena_search_for_pattern', serenaRootSearch) === false, 'repository-wide direct Serena code search must auto-allow');
-expect(t.isMcpOrCustomTool('serena_replace_content', { relative_path: '/etc/hosts' }) === true, 'unsafe direct Serena edits retain the path gate');
-expect(t.isTrustedManagedGatewayCall({ tool: 'serena_read_memory' }) === false, 'gateway execution without explicit server ownership must remain untrusted');
 expect(t.isTrustedManagedGatewayCall({ server: 'firecrawl', tool: 'firecrawl_search', args: '{"query":"Pi","limit":1}' }) === true, 'validated conditional gateway execution must be classified safe');
-expect(t.isTrustedManagedGatewayCall({ server: 'linear', tool: 'linear_get_issue', args: '{"issueId":"BAO-7"}' }) === true, 'exact Linear issue gateway execution must be classified safe');
-expect(t.isTrustedManagedGatewayCall({ server: 'linear', tool: 'list_issues', args: '{}' }) === false, 'unclassified Linear workspace queries must remain untrusted');
+expect(t.isTrustedManagedGatewayCall({ server: 'linear', tool: 'linear_get_issue', args: '{"issueId":"BAO-7"}' }) === false, 'retired Linear operations must not be trusted');
+expect(t.isTrustedManagedGatewayCall({ server: 'mobbin', tool: 'mobbin_search_screens', args: '{}' }) === false, 'retired Mobbin operations must not be trusted');
 for (const input of [
-  { server: 'serena', tool: 'firecrawl_agent' },
-  { server: 'serena', tool: 'mcp__firecrawl__serena_read_memory' },
   { connect: 'firecrawl', tool: 'firecrawl_agent' },
   { action: 'auth-start', server: 'linear' },
   { server: 'linear', tool: 'get_issue_context', args: '{}' },
@@ -2307,33 +2224,28 @@ for (const [tool, input, expected, description] of [
 ]) {
   expect(t.isTrustedManagedTool('firecrawl', tool, input) === expected, description);
 }
-for (const [input, expected, description] of [
-  [{ memory_name: 'phase2b', content: 'fixture', max_chars: 1 }, true, 'positive Serena memory bounds are trusted'],
-  [{ memory_name: 'phase2b', content: 'fixture' }, true, 'omitted Serena memory bounds remain trusted'],
-  [{ memory_name: 'phase2b', content: 'fixture', max_chars: 0 }, false, 'zero Serena memory bounds require approval'],
-  [{ memory_name: 'phase2b', content: 'fixture', max_chars: -1 }, false, 'negative Serena memory bounds require approval'],
-  [{ memory_name: 'phase2b', content: 'fixture', max_chars: '1' }, false, 'string Serena memory bounds require approval'],
-]) {
-  expect(t.isTrustedManagedTool('serena', 'serena_write_memory', input) === expected, description);
-}
 expect(t.isTrustedManagedTool('firecrawl', 'firecrawl_extract', { urls: ['https://example.org'], enableWebSearch: false }) === true, 'bounded public Firecrawl extract is trusted');
 expect(t.isTrustedManagedTool('firecrawl', 'firecrawl_extract', { urls: ['https://example.org'], allowExternalLinks: true }) === false, 'unbounded Firecrawl extract must require approval');
-expect(t.isTrustedManagedTool('linear', 'linear_get_issue') === true, 'exact Linear issue tool is trusted');
-expect(t.isTrustedManagedTool('linear', 'get_issue') === false, 'legacy Linear tool alias is not trusted');
-expect(t.isTrustedManagedTool('mobbin', 'mobbin_search_screens') === true, 'exact Mobbin screen-search tool is trusted');
-expect(t.isTrustedManagedTool('mobbin', 'mobbin_search_flows') === true, 'exact Mobbin flow-search tool is trusted');
-expect(t.isTrustedManagedTool('mobbin', 'mobbin_search_sections') === true, 'exact Mobbin section-search tool is trusted');
-expect(t.isTrustedManagedTool('mobbin', 'mobbin_search_projects') === false, 'unlisted Mobbin tools require approval');
-expect(t.isTrustedManagedTool('mobbin', 'mobbin_update_screen') === false, 'Mobbin mutation tools require approval');
-expect(t.isTrustedManagedTool('linear', 'list_issues') === false, 'unlisted Linear tools require approval');
+expect(t.isTrustedManagedTool('linear', 'linear_get_issue') === false, 'retired Linear tools are not trusted');
+expect(t.isTrustedManagedTool('mobbin', 'mobbin_search_screens') === false, 'retired Mobbin tools are not trusted');
+expect(t.isTrustedManagedTool('mobbin', 'mobbin_update_screen') === false, 'retired Mobbin mutation tools are not trusted');
+expect(t.isTrustedManagedTool('linear', 'list_issues') === false, 'retired Linear tools are not trusted');
 expect(t.isTrustedManagedTool('user-server', 'user_tool') === false, 'unmanaged server is not trusted');
 expect(t.approvalLabel('\u001b[31mtool\u0007\u009b') === ' [31mtool  ', 'broker approval labels must strip terminal control characters');
-expect(t.MANAGED_MCP_SERVERS.has('linear'), 'Linear is a managed MCP server');
-expect(t.MANAGED_MCP_SERVERS.has('mobbin'), 'Mobbin is a managed MCP server');
+expect(!t.MANAGED_MCP_SERVERS.has('linear'), 'Linear is not a managed MCP server');
+expect(!t.MANAGED_MCP_SERVERS.has('mobbin'), 'Mobbin is not a managed MCP server');
 expect(t.MANAGED_MCP_SERVERS.has('playwright'), 'managed MCP servers present');
 
 console.log('pi permission behavioral fixtures ok');
 NODE
+	if [ -f "$pi_server_marker" ]; then
+		assert_contains "$pi_server_marker" 'fallback activated because pi-server resolution failed'
+		assert_contains "$pi_server_probe" 'pi-server smoke shim invoked'
+	else
+		assert_no_path "$pi_server_loader"
+		assert_no_path "$pi_server_marker"
+		assert_no_path "$pi_server_probe"
+	fi
 }
 
 run_pi_smoke_cases() {
@@ -2389,17 +2301,13 @@ run_pi_smoke_cases() {
 	assert_file "$sandbox/home/.pi/agent/b-agentic/install.json"
 	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilityContractVersion'] == 1"
 	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilities']['contractVersion'] == 1"
-	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "len(data['capabilities']['states']) == 28"
+	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "len(data['capabilities']['states']) == 25"
 	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilities']['states']['package.pi-mcp-adapter']['state'] == 'ready'"
 	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilities']['states']['package.pi-todo']['state'] == 'ready'"
 	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilities']['states']['package.pi-lsp']['state'] == 'unknown'"
-	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilities']['states']['mcp.linear']['state'] == 'ready'"
 	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['capabilities']['states']['extension.b-agentic-status']['state'] == 'ready'"
 	assert_json_value "$sandbox/home/.pi/agent/b-agentic/install.json" "data['paths']['capabilityContract'].endswith('/references/capabilities.yaml')"
 	assert_contains "$sandbox/home/.pi/agent/mcp.json" '"codegraph"'
-	assert_contains "$sandbox/home/.pi/agent/mcp.json" '"linear"'
-	assert_contains "$sandbox/home/.pi/agent/mcp.json" '"url": "https://mcp.linear.app/mcp/readonly"'
-	assert_contains "$sandbox/home/.pi/agent/mcp.json" '"get_issue"'
 	assert_contains "$sandbox/home/.pi/agent/mcp.json" '"lifecycle": "lazy"'
 	assert_contains "$sandbox/home/.pi/agent/extensions/b-agentic-permissions.ts" 'tool_call'
 	assert_equal_files "$sandbox/home/.pi/agent/extensions/b-agentic-preview-markdown.ts" "$sandbox/source/pi/packages/preview-markdown/extensions/b-agentic-preview-markdown.ts"
@@ -2541,13 +2449,21 @@ EOF
     "user-server": {
       "command": "echo",
       "args": ["user"]
+    },
+    "serena": {
+      "command": "user-owned-serena",
+      "args": ["--custom"],
+      "env": {"USER_SETTING": "keep-me"},
+      "lifecycle": "eager"
     }
-  }
+  },
+  "settings": {"serenaPreference": "keep-me"}
 }
 EOF
 	expect_install_status 0 "$sandbox_mcp_merge" "$snapshot_repo"
 	assert_contains "$sandbox_mcp_merge/home/.pi/agent/mcp.json" '"user-server"'
-	assert_contains "$sandbox_mcp_merge/home/.pi/agent/mcp.json" '"serena"'
+	assert_json_value "$sandbox_mcp_merge/home/.pi/agent/mcp.json" "data['mcpServers']['serena'] == {'command': 'user-owned-serena', 'args': ['--custom'], 'env': {'USER_SETTING': 'keep-me'}, 'lifecycle': 'eager'}"
+	assert_json_value "$sandbox_mcp_merge/home/.pi/agent/mcp.json" "data['settings']['serenaPreference'] == 'keep-me'"
 
 	# Uninstall restores pre-existing entrypoint and support files after reinstall and managed-file deletion.
 	mkdir -p "$sandbox_extension_restore/home/.pi/agent/extensions/b-agentic-support"

@@ -47,10 +47,7 @@ export const MANAGED_MCP_SERVERS = new Set([
   "codegraph",
   "context7",
   "firecrawl",
-  "linear",
-  "mobbin",
-  "playwright",
-  "serena"
+  "playwright"
 ]);
 
 /** Operations autonomous only for a validated safe argument shape. */
@@ -63,27 +60,7 @@ export const MCP_CONDITIONAL_TOOLS = new Set([
   "playwright:browser_network_request",
   "playwright:browser_network_requests",
   "playwright:browser_snapshot",
-  "playwright:browser_tabs",
-  "serena:serena_delete_memory",
-  "serena:serena_edit_memory",
-  "serena:serena_find_declaration",
-  "serena:serena_find_implementations",
-  "serena:serena_find_referencing_symbols",
-  "serena:serena_find_symbol",
-  "serena:serena_get_diagnostics_for_file",
-  "serena:serena_get_symbols_overview",
-  "serena:serena_insert_after_symbol",
-  "serena:serena_insert_before_symbol",
-  "serena:serena_list_memories",
-  "serena:serena_read_memory",
-  "serena:serena_rename_memory",
-  "serena:serena_rename_symbol",
-  "serena:serena_replace_content",
-  "serena:serena_replace_in_files",
-  "serena:serena_replace_symbol_body",
-  "serena:serena_safe_delete_symbol",
-  "serena:serena_search_for_pattern",
-  "serena:serena_write_memory"
+  "playwright:browser_tabs"
 ]);
 
 /** Known arguments for conditional operations, generated from the canonical policy. */
@@ -168,160 +145,8 @@ export const MCP_CONDITIONAL_ARGUMENTS: Record<string, readonly string[]> = {
     "action",
     "index",
     "url"
-  ],
-  "serena:serena_delete_memory": [
-    "memory_name"
-  ],
-  "serena:serena_edit_memory": [
-    "memory_name",
-    "needle",
-    "repl",
-    "mode",
-    "allow_multiple_occurrences"
-  ],
-  "serena:serena_find_declaration": [
-    "relative_path",
-    "regex",
-    "containing_symbol_name_path",
-    "include_body",
-    "include_info"
-  ],
-  "serena:serena_find_implementations": [
-    "name_path",
-    "relative_path",
-    "include_info",
-    "include_kinds",
-    "exclude_kinds",
-    "max_answer_chars"
-  ],
-  "serena:serena_find_referencing_symbols": [
-    "name_path",
-    "relative_path",
-    "include_kinds",
-    "exclude_kinds",
-    "max_answer_chars"
-  ],
-  "serena:serena_find_symbol": [
-    "name_path_pattern",
-    "depth",
-    "relative_path",
-    "include_body",
-    "include_info",
-    "include_kinds",
-    "exclude_kinds",
-    "substring_matching",
-    "max_matches",
-    "max_answer_chars"
-  ],
-  "serena:serena_get_diagnostics_for_file": [
-    "relative_path",
-    "start_line",
-    "end_line",
-    "min_severity",
-    "max_answer_chars"
-  ],
-  "serena:serena_get_symbols_overview": [
-    "relative_path",
-    "depth",
-    "max_answer_chars"
-  ],
-  "serena:serena_insert_after_symbol": [
-    "name_path",
-    "relative_path",
-    "body"
-  ],
-  "serena:serena_insert_before_symbol": [
-    "name_path",
-    "relative_path",
-    "body"
-  ],
-  "serena:serena_list_memories": [
-    "topic"
-  ],
-  "serena:serena_read_memory": [
-    "memory_name"
-  ],
-  "serena:serena_rename_memory": [
-    "old_name",
-    "new_name"
-  ],
-  "serena:serena_rename_symbol": [
-    "name_path",
-    "relative_path",
-    "new_name"
-  ],
-  "serena:serena_replace_content": [
-    "relative_path",
-    "needle",
-    "repl",
-    "mode",
-    "allow_multiple_occurrences"
-  ],
-  "serena:serena_replace_in_files": [
-    "needle",
-    "repl",
-    "mode",
-    "relative_path",
-    "paths_include_glob",
-    "paths_exclude_glob",
-    "dry_run",
-    "occurrence_ids",
-    "expected_count",
-    "max_answer_chars"
-  ],
-  "serena:serena_replace_symbol_body": [
-    "name_path",
-    "relative_path",
-    "body"
-  ],
-  "serena:serena_safe_delete_symbol": [
-    "name_path_pattern",
-    "relative_path"
-  ],
-  "serena:serena_search_for_pattern": [
-    "substring_pattern",
-    "context_lines_before",
-    "context_lines_after",
-    "paths_include_glob",
-    "paths_exclude_glob",
-    "relative_path",
-    "restrict_search_to_code_files",
-    "skip_ignored_files",
-    "multiline",
-    "max_answer_chars"
-  ],
-  "serena:serena_write_memory": [
-    "memory_name",
-    "content",
-    "max_chars"
   ]
 };
-
-export const SERENA_TRUSTED_TOOLS = new Set([
-  "serena_delete_memory",
-  "serena_edit_memory",
-  "serena_find_declaration",
-  "serena_find_implementations",
-  "serena_find_referencing_symbols",
-  "serena_find_symbol",
-  "serena_get_diagnostics_for_file",
-  "serena_get_symbols_overview",
-  "serena_initial_instructions",
-  "serena_insert_after_symbol",
-  "serena_insert_before_symbol",
-  "serena_list_memories",
-  "serena_onboarding",
-  "serena_open_dashboard",
-  "serena_read_memory",
-  "serena_rename_memory",
-  "serena_rename_symbol",
-  "serena_replace_content",
-  "serena_replace_in_files",
-  "serena_replace_symbol_body",
-  "serena_safe_delete_symbol",
-  "serena_search_for_pattern",
-  "serena_write_memory"
-]);
 
 export const CODEGRAPH_TRUSTED_TOOLS = new Set([
   "codegraph_codegraph_explore"
@@ -330,16 +155,6 @@ export const CODEGRAPH_TRUSTED_TOOLS = new Set([
 export const CONTEXT7_TRUSTED_TOOLS = new Set([
   "context7_query-docs",
   "context7_resolve-library-id"
-]);
-
-export const LINEAR_TRUSTED_TOOLS = new Set([
-  "linear_get_issue"
-]);
-
-export const MOBBIN_TRUSTED_TOOLS = new Set([
-  "mobbin_search_flows",
-  "mobbin_search_screens",
-  "mobbin_search_sections"
 ]);
 
 export const BRAVE_SEARCH_TRUSTED_TOOLS = new Set([
@@ -413,8 +228,7 @@ function managedDirectMcpTool(toolName: string): ManagedDirectMcpTool | undefine
       const prefix = `mcp__${normalized}${separator}`;
       if (toolName.startsWith(prefix) && toolName.slice(prefix.length)) {
         const tool = toolName.slice(prefix.length);
-        // Linear's adapter alias omits the server prefix from the public tool id.
-        return { server, tool: server === "linear" && !tool.startsWith(`${normalized}_`) ? `${normalized}_${tool}` : tool };
+        return { server, tool };
       }
     }
   }
@@ -541,15 +355,6 @@ export function isSafeWebUrl(value: unknown): boolean {
   }
 }
 
-export function hasProtectedPathArgument(input: Record<string, unknown>, keys: string[]): boolean {
-  return keys.some((key) => {
-    const value = input[key];
-    if (typeof value !== "string" || !value) return false;
-    const literalized = value.replace(/[!*?{}\[\]]/g, "");
-    return isProtectedLocalPath(value) || isProtectedPath(literalized);
-  });
-}
-
 export function isProjectConfinedPath(pathValue: unknown, requireFile = false): boolean {
   if (typeof pathValue !== "string" || !pathValue || isProtectedLocalPath(pathValue)) return false;
   try {
@@ -588,80 +393,15 @@ export function isProjectConfinedOutputPath(pathValue: unknown): boolean {
   }
 }
 
-export const SERENA_REPO_EDIT_TOOLS = new Set([
-  "serena_insert_after_symbol",
-  "serena_insert_before_symbol",
-  "serena_rename_symbol",
-  "serena_replace_content",
-  "serena_replace_in_files",
-  "serena_replace_symbol_body",
-  "serena_safe_delete_symbol",
-]);
-
-export const SERENA_MEMORY_TOOLS = new Set([
-  "serena_delete_memory",
-  "serena_edit_memory",
-  "serena_list_memories",
-  "serena_read_memory",
-  "serena_rename_memory",
-  "serena_write_memory",
-]);
-
-const SERENA_FILE_READ_TOOLS = new Set([
-  "serena_find_declaration",
-  "serena_get_diagnostics_for_file",
-  "serena_get_symbols_overview",
-]);
-const SERENA_PROJECT_WIDE_READ_TOOLS = new Set([
-  "serena_find_implementations",
-  "serena_find_referencing_symbols",
-]);
-
-function isSafeSerenaMemoryName(value: unknown): boolean {
-  if (typeof value !== "string" || !value.trim() || isAbsolute(value)) return false;
-  const parts = value.split(/[\\/]/);
-  return parts.every((part) => part && part !== "." && part !== "..") &&
-    parts[0].toLowerCase() !== "global";
-}
-
-export function isSafeSerenaMemoryOperation(base: string, input: Record<string, unknown>): boolean {
-  if (!SERENA_MEMORY_TOOLS.has(base)) return false;
-  if (base === "serena_list_memories") {
-    // An unfiltered listing can include shared global memories.
-    return isSafeSerenaMemoryName(input.topic);
-  }
-  if (base === "serena_rename_memory") {
-    return isSafeSerenaMemoryName(input.old_name) && isSafeSerenaMemoryName(input.new_name);
-  }
-  if (!isSafeSerenaMemoryName(input.memory_name)) return false;
-  if (base === "serena_write_memory") {
-    return typeof input.content === "string" &&
-      (input.max_chars === undefined || (isInteger(input.max_chars) && input.max_chars > 0));
-  }
-  if (base === "serena_edit_memory") {
-    return typeof input.needle === "string" && typeof input.repl === "string" &&
-      (input.mode === "literal" || input.mode === "regex") &&
-      (input.allow_multiple_occurrences === undefined || typeof input.allow_multiple_occurrences === "boolean");
-  }
-  return base === "serena_read_memory" || base === "serena_delete_memory";
-}
-
-function isSafeSerenaGlob(value: unknown): boolean {
-  return value === undefined || (
-    typeof value === "string" && value.length > 0 &&
-    !isAbsolute(value) && !value.split(/[\\/]/).includes("..")
-  );
-}
-
-const SERENA_CODE_FILE = /\.(?:[cm]?[jt]sx?|py|rb|go|rs|java|kt|kts|c|cc|cpp|cxx|h|hpp|cs|php|swift|scala|vue|svelte|astro|sh|bash|zsh|fish|ps1|sql|graphql|gql|proto|toml|ya?ml|json|xml|mdx?|s?css|sass|less|html?)$/i;
-const SERENA_SEARCH_SKIP_DIRS = new Set([".git", "node_modules", ".venv"]);
+const CODE_FILE_PATTERN = /\.(?:[cm]?[jt]sx?|py|rb|go|rs|java|kt|kts|c|cc|cpp|cxx|h|hpp|cs|php|swift|scala|vue|svelte|astro|sh|bash|zsh|fish|ps1|sql|graphql|gql|proto|toml|ya?ml|json|xml|mdx?|s?css|sass|less|html?)$/i;
+const DEPENDENCY_SKIP_DIRS = new Set([".git", "node_modules", ".venv"]);
 
 /** Fail closed when a directory operation could reach protected or external descendants. */
-function hasUnsafeSerenaDescendant(pathValue: string, codeOnly: boolean, skipDependencyDirs = false): boolean {
+function hasUnsafeDescendant(pathValue: string, codeOnly: boolean, skipDependencyDirs = false): boolean {
   const visited = new Set<string>();
-  const skippedDirectories = codeOnly || skipDependencyDirs ? SERENA_SEARCH_SKIP_DIRS : undefined;
+  const skippedDirectories = codeOnly || skipDependencyDirs ? DEPENDENCY_SKIP_DIRS : undefined;
   let remainingEntries = 20_000;
-  const relevantFile = (value: string): boolean => !codeOnly || SERENA_CODE_FILE.test(value);
+  const relevantFile = (value: string): boolean => !codeOnly || CODE_FILE_PATTERN.test(value);
   const walk = (directory: string): boolean => {
     try {
       const resolvedDirectory = realpathSync(directory);
@@ -697,60 +437,6 @@ function hasUnsafeSerenaDescendant(pathValue: string, codeOnly: boolean, skipDep
   return walk(pathValue);
 }
 
-export function isSafeSerenaSymbolRead(base: string, input: Record<string, unknown>): boolean {
-  if (base === "serena_find_symbol") {
-    const searchRoot = input.relative_path ?? process.cwd();
-    if (!isProjectConfinedPath(searchRoot)) return false;
-    try {
-      return statSync(realpathSync(searchRoot as string)).isFile() ||
-        !hasUnsafeSerenaDescendant(searchRoot as string, true);
-    } catch {
-      return false;
-    }
-  }
-  if (SERENA_PROJECT_WIDE_READ_TOOLS.has(base)) {
-    return isProjectConfinedPath(input.relative_path, true) &&
-      !hasUnsafeSerenaDescendant(process.cwd(), true);
-  }
-  return SERENA_FILE_READ_TOOLS.has(base) && isProjectConfinedPath(input.relative_path, true);
-}
-
-export function isSafeSerenaPatternSearch(input: Record<string, unknown>): boolean {
-  if (input.restrict_search_to_code_files !== true ||
-    (input.skip_ignored_files !== undefined && input.skip_ignored_files !== true) ||
-    !isSafeSerenaGlob(input.paths_include_glob) ||
-    !isSafeSerenaGlob(input.paths_exclude_glob)) return false;
-  const searchRoot = input.relative_path ?? process.cwd();
-  if (!isProjectConfinedPath(searchRoot)) return false;
-  try {
-    return statSync(realpathSync(searchRoot as string)).isFile() ||
-      !hasUnsafeSerenaDescendant(searchRoot as string, true);
-  } catch {
-    return false;
-  }
-}
-
-export function isSafeSerenaRepoEdit(base: string, input: Record<string, unknown>): boolean {
-  if (!SERENA_REPO_EDIT_TOOLS.has(base)) return false;
-  const editRoot = base === "serena_replace_in_files"
-    ? input.relative_path ?? process.cwd()
-    : input.relative_path;
-  if (!isProjectConfinedPath(editRoot)) return false;
-  if (input.mode !== undefined && input.mode !== "literal" && input.mode !== "regex") return false;
-  if (!isSafeSerenaGlob(input.paths_include_glob) || !isSafeSerenaGlob(input.paths_exclude_glob)) return false;
-  if (base === "serena_rename_symbol") {
-    return isProjectConfinedPath(editRoot, true) &&
-      !hasUnsafeSerenaDescendant(process.cwd(), true);
-  }
-  if (base !== "serena_replace_in_files") return isProjectConfinedPath(editRoot, true);
-  try {
-    return statSync(realpathSync(editRoot as string)).isFile() ||
-      !hasUnsafeSerenaDescendant(editRoot as string, false);
-  } catch {
-    return false;
-  }
-}
-
 export function isSafeFirecrawlScrapeOptions(input: Record<string, unknown>): boolean {
   return hasOnlyKeys(input, FIRECRAWL_SCRAPE_OPTION_KEYS) &&
     input.storeInCache !== true &&
@@ -781,17 +467,6 @@ export function isSafeFirecrawlExtract(input: Record<string, unknown>): boolean 
 
 export function isConditionallyTrustedTool(server: string, base: string, input: unknown): boolean {
   if (!isPlainObject(input)) return false;
-
-  if (server === "serena") {
-    const known = MCP_CONDITIONAL_ARGUMENT_KEY_SETS[`${server}:${base}`];
-    if (!known || !hasOnlyKeys(input, known) ||
-      hasProtectedPathArgument(input, ["relative_path", "paths_include_glob", "paths_exclude_glob"])) return false;
-    if (input.relative_path !== undefined && !isProjectConfinedPath(input.relative_path)) return false;
-    if (SERENA_REPO_EDIT_TOOLS.has(base)) return isSafeSerenaRepoEdit(base, input);
-    if (SERENA_MEMORY_TOOLS.has(base)) return isSafeSerenaMemoryOperation(base, input);
-    if (base === "serena_search_for_pattern") return isSafeSerenaPatternSearch(input);
-    return isSafeSerenaSymbolRead(base, input);
-  }
 
   if (server === "firecrawl" && base === "firecrawl_search") {
     return isSafeFirecrawlSearch(input);
@@ -834,18 +509,15 @@ export function isConditionallyTrustedTool(server: string, base: string, input: 
   return false;
 }
 
-/** Trust every classified Serena operation and other policy-approved operations. */
+/** Trust every classified policy-approved managed operation. */
 export function isTrustedManagedTool(server: string, toolName: string, input?: unknown): boolean {
   if (!isManagedServer(server)) return false;
   const base = managedToolBaseName(toolName, server);
   if (MCP_CONDITIONAL_TOOLS.has(`${server}:${base}`)) {
     return isConditionallyTrustedTool(server, base, input);
   }
-  if (server === "serena") return SERENA_TRUSTED_TOOLS.has(base);
   if (server === "codegraph") return CODEGRAPH_TRUSTED_TOOLS.has(base);
   if (server === "context7") return CONTEXT7_TRUSTED_TOOLS.has(base);
-  if (server === "linear") return LINEAR_TRUSTED_TOOLS.has(base);
-  if (server === "mobbin") return MOBBIN_TRUSTED_TOOLS.has(base);
   if (server === "brave-search") return BRAVE_SEARCH_TRUSTED_TOOLS.has(base);
   if (server === "firecrawl") return FIRECRAWL_TRUSTED_TOOLS.has(base);
   if (server === "playwright") return PLAYWRIGHT_TRUSTED_TOOLS.has(base);
@@ -894,8 +566,8 @@ export function isTrustedManagedGatewayCall(input: unknown): boolean {
     isTrustedManagedTool(server, input.tool, args);
 }
 
-/** Return true only for a classified direct Serena/CodeGraph tool in its own namespace. */
-function isDirectClassifiedManagedTool(toolName: string, input: unknown, server: "serena" | "codegraph"): boolean {
+/** Return true only for a classified direct CodeGraph tool in its own namespace. */
+function isDirectClassifiedManagedTool(toolName: string, input: unknown, server: "codegraph"): boolean {
   if (toolName.startsWith("mcp__")) {
     if (managedDirectMcpTool(toolName)?.server !== server) return false;
   } else {
@@ -923,7 +595,7 @@ function isTrustedLspPath(pathValue: unknown, inspectDirectory = false): boolean
   if (!inspectDirectory) return true;
   try {
     const resolvedPath = realpathSync(pathValue);
-    return !statSync(resolvedPath).isDirectory() || !hasUnsafeSerenaDescendant(resolvedPath, false, true);
+    return !statSync(resolvedPath).isDirectory() || !hasUnsafeDescendant(resolvedPath, false, true);
   } catch {
     return false;
   }
@@ -953,8 +625,7 @@ export function isMcpOrCustomTool(toolName: string, input?: unknown): boolean {
   // Only explicit adapter proxy executions reach the broker; metadata and
   // lifecycle selectors remain behind the generic custom-tool approval gate.
   if (toolName === "mcp") return !isMcpProxyToolExecution(input);
-  if (isDirectClassifiedManagedTool(toolName, input, "serena") ||
-    isDirectClassifiedManagedTool(toolName, input, "codegraph")) return false;
+  if (isDirectClassifiedManagedTool(toolName, input, "codegraph")) return false;
   // Other direct tool names remain ambiguous with custom extensions.
   return true;
 }

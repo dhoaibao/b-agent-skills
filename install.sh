@@ -585,82 +585,6 @@ install_rtk() {
 	fi
 }
 
-install_uv() {
-	if command -v uv >/dev/null 2>&1; then
-		if dry_run_enabled; then printf '[dry-run] uv self update\n' >&2; return 0; fi
-		log "uv already installed; upgrading"
-		uv self update || return 1
-		return 0
-	fi
-
-	if dry_run_enabled; then
-		printf '[dry-run] curl -LsSf https://astral.sh/uv/install.sh | sh\n' >&2
-		return 0
-	fi
-
-	log "Installing uv"
-	if ! curl -LsSf https://astral.sh/uv/install.sh | sh; then
-		warn "uv installation failed; skipping Serena installation"
-		return 1
-	fi
-
-	if command -v uv >/dev/null 2>&1; then
-		log "uv installed"
-		return 0
-	fi
-
-	if [ -x "$HOME/.cargo/bin/uv" ]; then
-		export PATH="$HOME/.cargo/bin:$PATH"
-		log "uv installed"
-		return 0
-	fi
-
-	if [ -x "$HOME/.local/bin/uv" ]; then
-		export PATH="$HOME/.local/bin:$PATH"
-		log "uv installed"
-		return 0
-	fi
-
-	warn "uv installed but not found on PATH; skipping Serena installation"
-	return 1
-}
-
-install_serena() {
-	install_uv || return 1
-	if command -v serena >/dev/null 2>&1; then
-		if dry_run_enabled; then
-			printf '[dry-run] uv tool upgrade serena-agent\n' >&2
-			return 0
-		fi
-		log "Serena already installed; upgrading"
-		if uv tool upgrade serena-agent; then
-			log "Serena upgraded"
-		else
-			warn "Serena upgrade failed"
-			return 1
-		fi
-		return 0
-	fi
-
-	if dry_run_enabled; then
-		printf '[dry-run] uv tool install -p 3.13 serena-agent\n' >&2
-		return 0
-	fi
-
-	log "Installing Serena"
-	if uv tool install -p 3.13 serena-agent; then
-		if command -v serena >/dev/null 2>&1; then
-			log "Serena installed"
-		else
-			warn "Serena installed but not found on PATH"
-			return 1
-		fi
-	else
-		warn "Serena installation failed"
-		return 1
-	fi
-}
-
 update_rtk() {
 	log "Updating RTK"
 	if ! command -v rtk >/dev/null 2>&1; then
@@ -673,23 +597,6 @@ update_rtk() {
 		log "RTK updated"
 	else
 		warn "RTK update failed"
-		return 1
-	fi
-}
-
-update_serena() {
-	log "Updating Serena"
-	install_uv || return 1
-	if ! command -v serena >/dev/null 2>&1; then
-		install_serena
-		return $?
-	fi
-	if dry_run_enabled; then
-		printf '[dry-run] uv tool upgrade serena-agent\n' >&2
-	elif uv tool upgrade serena-agent; then
-		log "Serena updated"
-	else
-		warn "Serena update failed"
 		return 1
 	fi
 }
@@ -795,7 +702,6 @@ run_parallel_chains() {
 
 dependency_install_chain() {
 	install_rtk
-	install_serena
 }
 
 bun_install_chain() {
@@ -803,8 +709,8 @@ bun_install_chain() {
 }
 
 update_tooling() {
-	set_install_stage_total 6
-	run_parallel_chains update_rtk update_serena update_codegraph bun_install_chain
+	set_install_stage_total 3
+	run_parallel_chains update_rtk update_codegraph bun_install_chain
 }
 
 install_codegraph() {

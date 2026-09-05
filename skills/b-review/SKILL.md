@@ -34,21 +34,18 @@ Flags: `--skip-tests`, `--baseline=<path|url>`, `--range=<ref>..<ref>`.
 - `bash` - `rtk git status`, metadata-only Git path lists, targeted safe-path diffs, logs, and narrow verification; modern discovery routed through `rtk` whenever supported.
 - `read` - open changed files directly.
 - `lsp_diagnostics` - use only for changed supported source when the relevant language server is ready; it is read-only evidence and does not replace targeted diff review or repository checks.
-- `codegraph` - only for a concrete repository-wide changed-flow, impact, or
-  affected-test question that native inspection cannot settle; use an available
-  index for that question. In planner mode, do not initialize an absent index;
-  fall back to native inspection and state the resulting gap. Outside planner
-  mode, initialize one only for that question.
-- `serena` - after native search/read, inspect a specific changed symbol,
-  reference, or diagnostic only when it materially improves review precision;
-  use native `read`/`edit`/`write` for routine file work and serialize requests
-  rather than parallelizing or batching them.
+- `codegraph` - select when a concrete repository-wide changed-flow, impact, or
+  affected-test question is central to the review and likely valuable; use an
+  available index for that question. In planner mode, do not initialize an
+  absent index; fall back to native inspection and state the resulting gap.
+  Outside planner mode, initialize one only for that qualifying question.
+  Spanning files alone never justifies selection or initialization.
 - `brave-search` - one narrow independent public lookup; use specialized Brave tools only when news/local/image/video/place evidence matters.
 - `recall` - recover compacted audit or prior-review memory ids when present.
 
 ## Capability activation
 
-Use LSP diagnostics only as bounded read-only evidence for supported changed source with a ready server; do not use source actions during review. Use Serena only for a concrete exact changed-symbol/reference question after native inspection, CodeGraph only for a concrete repository-wide impact question, and `recall` only with a supplied prior-review ID. Research, authentication, usage reporting, Intercom, and browser operations are not implicit review steps.
+Use LSP diagnostics only as bounded read-only evidence for supported changed source with a ready server; do not use source actions during review. Select CodeGraph for a concrete repository-wide impact question that is central to the review, and use `recall` only with a supplied prior-review ID. Research, authentication, usage reporting, Intercom, and browser operations are not implicit review steps.
 
 ## Steps
 
@@ -56,7 +53,7 @@ Use LSP diagnostics only as bounded read-only evidence for supported changed sou
 2. Classify protected paths before reading content, then inspect only explicitly named non-protected paths with targeted diffs. Use inspection tools only. If the user wants findings fixed, report them and hand off frontend/UI fixes to **b-frontend** or non-UI fixes to **b-implement** after the review.
 3. Choose baseline. For delegated work, the latest approved plan, handoff, and clarifications are the baseline; otherwise, without a baseline, do a risk review and do not claim requirements coverage.
 4. Read repo context only when it materially affects the changed-code review; use recall for compacted prior review ids when present.
-5. When native inspection leaves a concrete repository-wide flow, impact, or affected-test question, use an available CodeGraph index for that question. Do not initialize an absent index in planner mode; fall back to native inspection and state the resulting gap. Outside planner mode, initialize an absent index only for that question; do not initialize one merely because the diff spans files. Use native inspection first and Serena separately only for a specific exact reference or diagnostic when it materially improves precision. Use Brave only when public semantics materially affect a finding, and do not parallelize or batch Serena calls.
+5. Select CodeGraph when a concrete repository-wide flow, impact, or affected-test question is central to the review and likely valuable; use an available index for that question. Do not initialize an absent index in planner mode; fall back to native inspection and state the resulting gap. Outside planner mode, initialize an absent index only for that qualifying question. Spanning files alone never justifies selection or initialization. Use Brave only when public semantics materially affect a finding.
 6. Inspect highest-risk changed symbols and boundaries first.
 7. Check tests, edge cases, security, operability, evidence quality, hidden assumptions, unnecessary diff, and over-abstraction. Assess whether the solution choice is proportionate to the request, the plan's quality criteria, and project conventions; do not turn every review into an architecture report.
 8. Verify evidence proves the intended observable outcome, not only command success (using Brave to look up API semantics if needed).

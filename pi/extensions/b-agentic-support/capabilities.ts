@@ -342,54 +342,11 @@ export const CAPABILITIES: readonly CapabilityDefinition[] = [
     }
   },
   {
-    "id": "mcp.serena",
-    "kind": "mcp",
-    "purpose": "Answer exact symbol, reference, implementation, diagnostic, and semantic-edit questions.",
-    "owner": "Serena MCP",
-    "trigger": "After native search/read, use for a concrete exact-symbol, reference, implementation, diagnostic, or semantic-edit need; call initial instructions before first use.",
-    "prerequisites": [
-      "Serena CLI",
-      "Lazy MCP entry configured"
-    ],
-    "readiness": "The local configuration contains a Serena entry and the Serena launcher is available; onboarding and live server health are not probed.",
-    "fallback": "Use native Pi read/search/edit tools and state the precision gap; do not initialize or call Serena for routine file work.",
-    "status_signal": {
-      "source": "local-config-file-presence-and-launcher",
-      "states": [
-        "unknown",
-        "blocked"
-      ],
-      "description": "Reports only MCP configuration-file presence and launcher metadata; it never reads entry content or claims onboarding, authentication, server health, or session usage.",
-      "sensitive": false
-    },
-    "probe": {
-      "type": "mcp",
-      "server": "serena",
-      "launcher": "serena",
-      "required_env": [],
-      "auth": "none"
-    },
-    "mcp": {
-      "server": "serena",
-      "launcher": "serena",
-      "required_env": [],
-      "auth": "none"
-    },
-    "install_state": {
-      "action": "mcpAction",
-      "state": "mcpState"
-    },
-    "source": {
-      "template": "pi/configs/mcp.user.template.json",
-      "policy": "references/mcp_operations.yaml"
-    }
-  },
-  {
     "id": "mcp.codegraph",
     "kind": "mcp",
     "purpose": "Answer repository-wide architecture, dependency/call-flow, impact, route, and affected-test questions.",
     "owner": "CodeGraph MCP",
-    "trigger": "Use only when native inspection leaves a concrete repository-wide architecture, dependency/call-flow, impact, route, or affected-test question; initialize an absent index only for that question.",
+    "trigger": "Select when repository-wide architecture, dependency/call-flow, route, impact, or affected-test analysis is central to the task and likely valuable; use an available index for that question and initialize an absent index only for that concrete qualifying question. Spanning files alone never justifies selection or initialization.",
     "prerequisites": [
       "CodeGraph CLI",
       "Lazy MCP entry configured",
@@ -465,92 +422,6 @@ export const CAPABILITIES: readonly CapabilityDefinition[] = [
         "CONTEXT7_API_KEY"
       ],
       "auth": "api-key"
-    },
-    "install_state": {
-      "action": "mcpAction",
-      "state": "mcpState"
-    },
-    "source": {
-      "template": "pi/configs/mcp.user.template.json",
-      "policy": "references/mcp_operations.yaml"
-    }
-  },
-  {
-    "id": "mcp.linear",
-    "kind": "mcp",
-    "purpose": "Retrieve one exact Linear issue and directly linked planning context through a read-only surface.",
-    "owner": "Linear MCP",
-    "trigger": "Use only when the user supplies an exact Linear issue ID or directly requests linked issue context during planning.",
-    "prerequisites": [
-      "Read-only lazy MCP entry configured",
-      "User-approved Linear OAuth session when required"
-    ],
-    "readiness": "The local configuration contains the read-only Linear entry; OAuth authentication and the external service are not verified.",
-    "fallback": "Plan from repository evidence and user-provided issue text, stating that Linear context is unavailable or unverified.",
-    "status_signal": {
-      "source": "local-config-file-presence",
-      "states": [
-        "unknown",
-        "blocked"
-      ],
-      "description": "Reports only MCP configuration-file presence; it never reads entry content or OAuth state and never claims external service health or session usage.",
-      "sensitive": false
-    },
-    "probe": {
-      "type": "mcp",
-      "server": "linear",
-      "launcher": null,
-      "required_env": [],
-      "auth": "oauth"
-    },
-    "mcp": {
-      "server": "linear",
-      "launcher": null,
-      "required_env": [],
-      "auth": "oauth"
-    },
-    "install_state": {
-      "action": "mcpAction",
-      "state": "mcpState"
-    },
-    "source": {
-      "template": "pi/configs/mcp.user.template.json",
-      "policy": "references/mcp_operations.yaml"
-    }
-  },
-  {
-    "id": "mcp.mobbin",
-    "kind": "mcp",
-    "purpose": "Provide bounded shipped UI precedent for explicit design-reference or competitive UI comparison work.",
-    "owner": "Mobbin MCP",
-    "trigger": "Use only for an explicit standalone UI/UX precedent study or competitive comparison; do not use for ordinary factual research, implementation, or visual QA.",
-    "prerequisites": [
-      "Read-only lazy MCP entry configured",
-      "User-approved Mobbin OAuth session when required"
-    ],
-    "readiness": "The local configuration contains the read-only Mobbin entry; OAuth authentication and the external service are not verified.",
-    "fallback": "Use local product evidence or supplied references and label any missing precedent evidence.",
-    "status_signal": {
-      "source": "local-config-file-presence",
-      "states": [
-        "unknown",
-        "blocked"
-      ],
-      "description": "Reports only MCP configuration-file presence; it never reads entry content or OAuth state and never claims external service health or session usage.",
-      "sensitive": false
-    },
-    "probe": {
-      "type": "mcp",
-      "server": "mobbin",
-      "launcher": null,
-      "required_env": [],
-      "auth": "oauth"
-    },
-    "mcp": {
-      "server": "mobbin",
-      "launcher": null,
-      "required_env": [],
-      "auth": "oauth"
     },
     "install_state": {
       "action": "mcpAction",

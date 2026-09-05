@@ -111,8 +111,8 @@ Evidence: `references/kernel.template.md`, `skills/registry.yaml`,
 - Protect dotenv, credential, key, certificate, SSH/cloud configuration, Git
   internals, and other secret-like paths. Protected native reads ask; native
   writes and edits are denied. Symlink-resolved paths, directory-wide
-  operations, outside-project paths, and Serena writes retain the same
-  project-confined, fail-closed boundary.
+  operations, and outside-project paths retain the same project-confined,
+  fail-closed boundary.
 
 Approval is a policy guard, not a process sandbox: repository-controlled build
 and test tools can execute code. Use Pi sandboxing or an isolated environment for
@@ -131,26 +131,25 @@ Evidence: `references/kernel.template.md`,
 
 `references/mcp_operations.yaml` is the canonical classification for managed
 servers, operation classes, conditional arguments, and runtime enforcement.
-Generated runtime sets are checked against it. The managed servers are Serena,
-CodeGraph, Context7, Linear, Mobbin, Brave Search, Firecrawl, and Playwright;
+Generated runtime sets are checked against it. The managed servers are
+CodeGraph, Context7, Brave Search, Firecrawl, and Playwright;
 roles do not change active tools or MCP approval policy. Gateway calls require an
 explicit managed server and matching tool, and nested `mcpScript` calls retain
 the same policy. Read-only/trusted lifecycle operations may be automatic; safe
 conditional reads and project-local conditional operations require validated
 arguments. Unsafe or unclassified operations, uploads, auth, and external
-mutations require approval or remain blocked. Linear is read-scoped with an
-exact `get_issue` allowlist, and Mobbin has an exact read-only search allowlist.
+mutations require approval or remain blocked.
 Persisted `b-auto-mode` may auto-allow approval requests, but explicit denies
 remain effective.
 
-Native `read`/`edit`/`write` is preferred for routine work. Serena is reserved
-for concrete exact-symbol, reference, implementation, diagnostic, or
-reference-aware refactor questions where it materially improves precision, and
-requests are serialized. CodeGraph is for concrete repository-wide architecture,
-dependency, impact, route, or affected-test questions native inspection cannot
-settle. Context7 is first for versioned API facts; Firecrawl provides bounded
-primary public research and Brave provides corroboration. Private repository
-material is never sent to public search.
+Native `read`/`edit`/`write` is preferred for routine work. Select CodeGraph when
+repository-wide architecture, dependency/call-flow, route-to-handler, impact,
+or affected-test analysis is central to the task and likely valuable; use an
+available index for that question and initialize an absent index only for that
+concrete qualifying question. Spanning files alone never justifies selection
+or initialization. Context7 is first for versioned API facts; Firecrawl provides
+bounded primary public research and Brave provides corroboration. Private
+repository material is never sent to public search.
 
 ### Browser and UI evidence
 
@@ -189,8 +188,8 @@ Evidence: `references/mcp_operations.yaml`,
 
 MCP configuration is merged rather than replaced: unrelated user servers
 survive, prompted secrets use the installer's private input path, and managed
-entries use lazy launchers, placeholders, or deferred OAuth. Linear and Mobbin
-readiness does not claim OAuth authentication the adapter cannot observe.
+entries use lazy launchers or placeholders. Readiness does not claim external
+authentication the adapter cannot observe.
 
 Manifest-only uninstall is constrained to the user's home directory. It removes
 unchanged managed content, restores recorded backups, preserves modified or

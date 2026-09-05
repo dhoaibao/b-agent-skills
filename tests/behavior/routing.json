@@ -165,8 +165,8 @@
       "forbidden_skills": ["b-implement", "b-debug"]
     },
     {
-      "id": "linear-issue-plan-routing",
-      "prompt": "LIN-123: use this issue to prepare an implementation plan; do not change code yet.",
+      "id": "issue-like-plan-routing",
+      "prompt": "A user-provided work item describes a change; use it to prepare an implementation plan without changing code yet.",
       "expected_skill": "b-plan",
       "forbidden_skills": ["b-implement", "b-research"]
     }

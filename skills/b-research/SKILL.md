@@ -28,14 +28,12 @@ Fetch outside truth at the lightest reliable depth, with sourced evidence and a 
 - Planning/sequencing is needed -> use **b-plan**.
 - Changed-code review is needed -> use **b-review**.
 - In a two-role workflow, the planner owns external research; workers ask the assigning planner rather than researching independently.
-- Mobbin is not a general factual-research source; do not use it for ordinary documentation, API, or current-facts research, UI implementation, or visual QA.
 
 ## Tool guidance
 
 - `context7` - versioned official library/framework docs.
 - `firecrawl` - primary bounded public search (`firecrawl_search` limit ≤10), `firecrawl_developer_search` for programming/API/library questions, scrape/map/extract for known public URLs, and `research_search_papers` / `research_inspect_paper` / `research_read_paper` / `research_related_papers` / `research_search_github` for papers or prior-art/issue history.
 - `brave-search` - independent web corroboration; use `brave_news_search`, `brave_local_search`, `brave_image_search`, `brave_video_search`, `brave_place_search`, `brave_summarizer`, or `brave_llm_context` only when that modality is required.
-- `mobbin` - a deliberately narrow exception for an explicit standalone UI/UX precedent study or competitive UI comparison deliverable, not a general factual-research source. Choose `mobbin_search_screens` for screen, component, or state analysis; `mobbin_search_flows` for end-to-end journey analysis; or `mobbin_search_sections` for web-section analysis. Keep queries bounded and precise, use `task_intent` where useful, and inspect returned images rather than relying on metadata. Distinguish observed patterns from recommendations, and cite screen findings with the canonical `mobbin_url`. Do not use Mobbin for implementation or visual QA. If the findings need to become a durable design standard, `b-design` owns turning them into `DESIGN.md`.
 
 ## Steps
 
@@ -55,10 +53,6 @@ Fetch outside truth at the lightest reliable depth, with sourced evidence and a 
 ## Output format
 
 Direct answer, key evidence, limitations, sources, and confidence when not high. Include the next handoff only when it is naturally implied.
-
-## Mobbin exception
-
-Use Mobbin only when the requested output is an explicit standalone UI/UX precedent or competitive comparison deliverable. Choose the analysis unit deliberately: `mobbin_search_screens` for screens, components, or states; `mobbin_search_flows` for end-to-end journeys; and `mobbin_search_sections` for web sections. Keep queries bounded and precise, use `task_intent` where useful, inspect returned images rather than just metadata, and cite screen findings with the canonical `mobbin_url`. Label what is directly observed in the returned references separately from recommendations or implications. This exception does not cover ordinary docs/API/current-facts research, UI implementation, or visual QA. `b-design` owns turning any resulting design guidance into `DESIGN.md`.
 
 ## Rules
 

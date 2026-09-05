@@ -11,7 +11,7 @@
         "Make an explicit design read before drafting guidance, naming surface, audience, brand or repository evidence, hierarchy, density, layout variance, and motion posture",
         "Choose a product-appropriate direction and anti-default constraints instead of applying one visual template to both surfaces",
         "Preserve repository tokens and components and the docs/DESIGN.md-only scope",
-        "Keep any Mobbin use optional, bounded, and subordinate to local evidence"
+        "Keep external evidence optional, bounded, and subordinate to local evidence"
       ],
       "avoid": [
         "Apply a generic landing-page formula to the dashboard",

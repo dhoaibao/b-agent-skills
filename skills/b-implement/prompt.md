@@ -18,22 +18,16 @@ Make the scoped non-UI change in the smallest coherent step, and hand back to pl
 
 ## Tool guidance
 
-- `serena` - after native search/read, use only when a concrete exact-symbol,
-  reference, implementation, or diagnostic/refactor need remains and semantic
-  tooling materially improves safety or precision. Prefer native
-  `read`/`edit`/`write` for routine file work. Relevant onboarding and durable
-  project memories are explicit exceptions; serialize requests and never
-  parallelize or batch them.
-- `read`/`edit`/`write` - use Pi native file tools by default for routine inspection and changes; also use them for unsupported files or as a fallback when Serena precision work fails.
+- `read`/`edit`/`write` - use Pi native file tools by default for routine inspection and changes.
 - `bash` - `rtk git status --short`, verification commands, and modern discovery routed through `rtk` whenever that command family is supported.
-- `codegraph` - only for a concrete repository-wide architecture, dependency/call flows, impact, or affected-test question that native inspection cannot settle; do not initialize an absent local index merely because the task spans files.
+- `codegraph` - select when a concrete repository-wide architecture, dependency/call-flow, impact, or affected-test question is central to the task and likely valuable; use an available index for that question and initialize an absent index only for that qualifying question. Spanning files alone never justifies it.
 - `lsp_diagnostics` / `lsp_fix` - use diagnostics on changed source when Pi LSP and a relevant language server are ready; use source actions only when explicitly authorized, and fall back to repository checks when unsupported or unavailable.
 - `context7` - narrow versioned third-party API checks when needed.
 - `recall` - recover compacted observational-memory ids when present instead of guessing prior context.
 
 ## Capability activation
 
-Use the capability contract by trigger rather than by availability: use LSP diagnostics on supported changed source when its server is ready, then fall back to repository checks; use Serena only for concrete semantic precision after native inspection, CodeGraph only for the repository-wide questions above, and `recall` only when a supplied compacted-memory ID materially helps. In a two-role workflow use Intercom only for the explicit worker/planner handoff; use `ask_user_question` only for a material user-facing choice. Do not invoke usage reporting or authentication for unrelated implementation, and do not persist telemetry or session content.
+Use the capability contract by trigger rather than by availability: use LSP diagnostics on supported changed source when its server is ready, then fall back to repository checks; select CodeGraph for the qualifying repository-wide questions above, and use `recall` only when a supplied compacted-memory ID materially helps. In a two-role workflow use Intercom only for the explicit worker/planner handoff; use `ask_user_question` only for a material user-facing choice. Do not invoke usage reporting or authentication for unrelated implementation, and do not persist telemetry or session content.
 
 ## Steps
 
@@ -42,9 +36,9 @@ Use the capability contract by trigger rather than by availability: use LSP diag
 3. Use read for relevant repo context only when it materially affects the scoped change; use recall when compacted prior plan context is available. Before edits, consult applicable project standards, architecture boundaries, and relevant failure modes. For small obvious work, consult only the evidence needed and do not create ceremony.
 4. After relevant discovery, choose the smallest evidence-backed fit in this order: reuse an existing repository capability; use the standard library or native platform; use an already-installed dependency; then write direct new code. Descend to a later option only when the earlier one cannot satisfy the requested behavior or constraints, and record the material rationale. This preference does not relax requested behavior, compatibility, security, trust-boundary validation, error/data-loss handling, accessibility where relevant, or needed verification.
 5. State expected files/symbols, invariant behavior, and success criteria. Success criteria and verification must establish intended behavior plus relevant quality constraints, not merely command success. If material framework/API best-practice uncertainty remains after repository evidence, stop and route that specific question to targeted **b-research** rather than guessing.
-6. When native inspection leaves a concrete repository-wide architecture, impact, or affected-test question, initialize an absent CodeGraph index and use it for that question; do not initialize one merely because the task spans files. Use native tools or local search for routine work; use Serena separately only for a specific exact symbol, reference, diagnostic, or reference-aware refactor when that materially improves precision.
+6. Select CodeGraph when a concrete repository-wide architecture, impact, or affected-test question is central to the task and likely valuable; use an available index for that question and initialize an absent index only for that qualifying question. Spanning files alone never justifies initialization. Use native tools or local search for routine work.
 7. If a material blocker, new uncertainty, missing external fact, or scope drift cannot be resolved from the approved plan, direct request, and repository evidence, stop before the next edit. In delegated worker work, ask the assigning planner one focused question through Intercom and wait; keep worker→planner questions as Intercom coordination. In planner or solo/Off work, use the installed `ask_user_question` tool for the interactive, user-facing material decision or blocker: group 1–4 related questions, provide 2–4 concrete options with concise trade-offs, put the recommended option first with ` (Recommended)`, and rely on the automatic custom-answer row. If unavailable or noninteractive, ask one focused plain-text question; in planner mode, an actual `ask_user_question` tool call triggers a fixed privacy-safe desktop notification, while solo/Off workers emit no planner notifications. Do not use the questionnaire for normal updates or no-choice confirmations. Native tool-permission prompts remain for browser, external, or privileged actions. The planner owns external research and scope decisions. Re-evaluate each answer; hand back to **b-plan** or **b-research** only when it identifies that handoff.
-8. Edit the smallest coherent slice and match the existing local style. Use Pi native `edit`/`write` for routine changes; use Serena only for a reference-aware symbol refactor or another listed precision task, and keep its requests serialized.
+8. Edit the smallest coherent slice and match the existing local style. Use Pi native `edit`/`write` for routine changes.
 9. Run the narrowest useful verification (using Context7 for versioned third-party API checks if the implementation relies on them) that establishes the intended behavior and relevant quality constraints, not only command success.
 10. If verification exposes an in-scope defect without a material blocker, correct it and rerun the required check. Otherwise stop under step 7.
 11. Inspect changed paths with metadata-only Git output, then inspect diffs only for explicit non-protected paths and report changes, verification, and remaining gaps.

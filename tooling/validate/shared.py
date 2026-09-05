@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -468,23 +469,24 @@ for relative_path, markers in INTERACTIVE_DECISION_REGRESSION["anchors"].items()
 
 # Regression: MCPs were named but agents had no durable selection, sequencing, or
 # first-use bootstrap workflow, and broad cross-file tasks could trigger needless
-# CodeGraph setup or Serena symbol inspection. Keep the checks narrow so prompts
-# remain editable.
+# CodeGraph setup. Keep the checks narrow so prompts remain editable.
 MCP_WORKFLOW_REGRESSION = {
     "observed_failure": (
         "MCP capabilities lacked actionable roles and encouraged broad cross-file "
-        "CodeGraph setup or Serena symbol inspection."
+        "CodeGraph setup."
     ),
     "intended_behavior": (
-        "Every managed MCP has a distinct task-appropriate role; native inspection "
-        "is the default, while CodeGraph and Serena bootstrap only for concrete "
-        "architecture/impact or exact-symbol/diagnostic needs."
+        "Every managed MCP has a distinct task-appropriate role; CodeGraph is "
+        "selected affirmatively when a qualifying repository-wide question is "
+        "central and likely valuable, initializes only for that concrete "
+        "qualifying question, and never merely because work spans files; the "
+        "planner role never initializes an absent index."
     ),
     "anchors": {
         "b-plan": [
             "Do not initialize an absent index in planner mode",
-            "Outside planner mode, initialize an absent index only for that question; do not initialize one merely because the task spans files",
-            "In planner mode, do not initialize an absent index; fall back to native inspection and state the resulting gap. Outside planner mode, initialize one only for that question.",
+            "Spanning files alone never justifies selection or initialization",
+            "In planner mode, do not initialize an absent index; fall back to native inspection and state the resulting gap. Outside planner mode, initialize one only for that qualifying question.",
         ],
         "b-debug": ["versioned dependency suspects"],
         "b-test": ["versioned framework semantics"],
@@ -492,7 +494,7 @@ MCP_WORKFLOW_REGRESSION = {
         "b-research": ["independent corroboration", "research_*"],
         "b-review": [
             "specialized Brave tools",
-            "In planner mode, do not initialize an absent index;",
+            "Do not initialize an absent index in planner mode;",
         ],
     },
 }
@@ -506,46 +508,38 @@ for skill_name, markers in MCP_WORKFLOW_REGRESSION["anchors"].items():
             )
 
 # Regression: suite audit found skills under-specified Pi native file tools, optional
-# recall, targeted Serena semantic work, and specialized research/browser surfaces
-# that policy already classifies. Serena startup/tool calls can also hang or time out
-# under concurrency, so the prompts must make native-first and serialized use explicit.
+# recall, and specialized research/browser surfaces that policy already classifies.
+# The prompts must keep native-first file work explicit and select CodeGraph only
+# for its qualifying repository-wide task shape.
 PROMPT_TOOL_LEVERAGE_REGRESSION = {
     "observed_failure": (
-        "Skill prompts could prefer unreliable Serena calls for routine file work and "
-        "lacked explicit native-first/serialized guidance, alongside specialized MCP "
+        "Skill prompts could prefer indirect semantic tooling for routine file work "
+        "and lacked explicit native-first guidance, alongside specialized MCP "
         "leverage already classified by mcp_operations/permissions."
     ),
     "intended_behavior": (
-        "Skills teach Pi native file tools for routine work, reserve Serena for targeted "
-        "semantic precision, serialize Serena calls, teach optional recall, Firecrawl "
-        "research_*, specialized Brave modalities, ordered Playwright evidence, and "
-        "consistent rtk git usage where git is primary."
+        "Skills teach Pi native file tools for routine work, select CodeGraph "
+        "affirmatively for qualifying repository-wide questions, teach optional "
+        "recall, Firecrawl research_*, specialized Brave modalities, ordered "
+        "Playwright evidence, and consistent rtk git usage where git is primary."
     ),
     "anchors": {
         "b-implement": [
-            "Prefer native",
-            "`read`/`edit`/`write` for routine file work",
-            "materially improves safety or precision",
+            "use Pi native file tools by default",
+            "Select CodeGraph",
             "Use native tools or local search",
             "repository-wide architecture, impact, or affected-test question",
             "compacted observational-memory ids",
-            "serialize requests",
-            "parallelize or batch them",
         ],
         "b-refactor": [
-            "reference-aware refactor",
             "native search for routine discovery",
-            "symbol ops only",
-            "serialize requests",
-            "parallelize or batch them",
+            "Select CodeGraph",
+            "Prefer native edits",
         ],
         "b-debug": [
-            "materially improves safety or precision",
-            "native",
-            "`read`/`edit`/`write` for routine work",
+            "use Pi native tools by default",
+            "Select CodeGraph",
             "compacted repro",
-            "serialize requests",
-            "parallelize or batch Serena calls",
         ],
         "b-research": [
             "research_search_papers",
@@ -933,9 +927,69 @@ for required in ["authorized", "Diagnosis-only requests stop"]:
             f"authorization marker {required!r}"
         )
 
-MCP_SERVERS = {"serena", "codegraph", "context7", "linear", "mobbin", "brave-search", "firecrawl", "playwright"}
+MCP_SERVERS = {"codegraph", "context7", "brave-search", "firecrawl", "playwright"}
 LOCAL_TOOLS = {"bash", "read", "edit", "write", "recall", "lsp_diagnostics", "lsp_fix"}
 KNOWN_TOOLS = MCP_SERVERS | LOCAL_TOOLS
+RETIRED_MCP_REFERENCE_ALLOWLIST = {
+    "CHANGELOG.md",
+    "pi/tests/smoke.sh",
+    "tests/smoke/install.sh",
+    "tooling/validate/shared.py",
+}
+RETIRED_MCP_REFERENCE_PATTERN = re.compile(
+    r"(?<![A-Za-z0-9])(?:linear|mobbin)(?![A-Za-z0-9])",
+    re.IGNORECASE,
+)
+
+
+def tracked_product_files() -> list[Path]:
+    try:
+        result = subprocess.run(
+            ["git", "ls-files", "-z"],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        errors.append(f"git: unable to enumerate tracked product files: {exc}")
+        return []
+    return [ROOT / name for name in result.stdout.decode().split("\0") if name]
+
+
+# Keep the guard scoped to product-owned tracked files. User-owned untracked
+# notes, caches, plans, and indexes must not affect repository validation.
+for sample in [
+    "mcp__linear_get_issue",
+    "linear_get_issue",
+    "mobbin_search_screens",
+    "mcp.linear",
+    "Linear and Mobbin integrations",
+]:
+    if not RETIRED_MCP_REFERENCE_PATTERN.search(sample):
+        errors.append(f"retired MCP reference self-test missed {sample!r}")
+for sample in ["linearized", "mobbinx", "xlinear"]:
+    if RETIRED_MCP_REFERENCE_PATTERN.search(sample):
+        errors.append(f"retired MCP reference self-test matched embedded word {sample!r}")
+
+
+def validate_retired_mcp_references() -> None:
+    for path in tracked_product_files():
+        if not path.is_file():
+            continue
+        relative = rel(path)
+        if relative in RETIRED_MCP_REFERENCE_ALLOWLIST:
+            continue
+        try:
+            text = path.read_text()
+        except (OSError, UnicodeDecodeError):
+            continue
+        if RETIRED_MCP_REFERENCE_PATTERN.search(text):
+            errors.append(
+                f"{relative}: retired Linear/Mobbin reference is outside the compatibility/validator allowlist"
+            )
+
+
+validate_retired_mcp_references()
 
 
 def tool_guidance_tokens(prompt_text: str) -> list[str]:
@@ -958,11 +1012,8 @@ def tool_guidance_tokens(prompt_text: str) -> list[str]:
 
 
 TOKEN_TO_DISPLAY_NAME = {
-    "serena": "Serena",
     "codegraph": "CodeGraph",
     "context7": "Context7",
-    "linear": "Linear",
-    "mobbin": "Mobbin",
     "brave-search": "Brave",
     "firecrawl": "Firecrawl",
     "playwright": "Playwright",
@@ -1054,57 +1105,83 @@ if "RTK never bypasses these protections" not in kernel_template:
     errors.append(
         "references/kernel.template.md: RTK must not be described as bypassing protections"
     )
-SERENA_WORKFLOW_REGRESSION = {
+def _forbidden_codegraph_gates(text: str, markers: list[str]) -> list[str]:
+    normalized = text.lower()
+    return [marker for marker in markers if marker in normalized]
+
+
+MCP_PORTFOLIO_REGRESSION = {
     "observed_failure": (
-        "Serena startup and tool calls can hang or time out under concurrency, while "
-        "guidance preferred Serena for routine reads and edits."
+        "Removing a managed MCP server can leave stale default-portfolio references, "
+        "while repository-wide CodeGraph activation can regress to a files-changed heuristic."
     ),
     "intended_behavior": (
-        "Before the first Serena use in a coding task, agents call "
-        "serena_initial_instructions and follow it. The kernel and representative "
-        "skills prefer native file tools for routine work, reserve Serena for materially "
-        "safer or more precise semantic tasks, prohibit routine Serena reads/searches/edits, "
-        "and serialize calls without parallel or batched Serena requests."
+        "Serena is absent from the default and managed MCP portfolio. CodeGraph is selected "
+        "when repository-wide architecture, dependency/call-flow, route-to-handler, impact, "
+        "or affected-test analysis is central and likely valuable; spanning files alone does "
+        "not justify selection or initialization."
     ),
-    "anchors": {
-        "references/kernel.template.md": [
-            "Prefer Pi native `read`/`edit`/`write`",
-            "Before the first Serena use in a coding task, call `serena_initial_instructions` and follow it.",
-            "begin with native search/read",
-            "concrete exact-symbol",
-            "Do not use Serena for routine reads/searches/edits",
-            "Never parallelize or batch Serena calls",
-            "Use CodeGraph only for a concrete repository-wide architecture",
-            "do not initialize it merely because work spans files",
-            "Never duplicate questions",
-            "nested tools keep policy",
-        ],
-        "skills/b-implement/prompt.md": [
-            "Prefer native",
-            "serialize requests",
-            "parallelize or batch them",
-        ],
-        "skills/b-debug/prompt.md": [
-            "native",
-            "`read`/`edit`/`write` for routine work",
-            "serialize requests",
-            "parallelize or batch Serena calls",
-        ],
-        "skills/b-refactor/prompt.md": [
-            "native search for routine discovery",
-            "serialize requests",
-            "parallelize or batch them",
-        ],
-    },
+    "serena_free_paths": [
+        "references/kernel.template.md",
+        "references/mcp_operations.yaml",
+        "references/capabilities.yaml",
+        "pi/configs/mcp.user.template.json",
+        "pi/extensions/b-agentic-support/mcp.ts",
+        "pi/extensions/b-agentic-support/capabilities.ts",
+        *[f"skills/{path.name}/prompt.md" for path in sorted((ROOT / "skills").glob("*/prompt.md"))],
+        *[f"skills/{path.name}/SKILL.md" for path in sorted((ROOT / "skills").glob("*/SKILL.md"))],
+    ],
+    "codegraph_anchors": [
+        "Select CodeGraph when repository-wide architecture, dependency/call-flow, route-to-handler, impact, or affected-test analysis is central to the task",
+        "Spanning files alone never justifies selection or initialization",
+    ],
+    "forbidden_codegraph_gates": [
+        "native inspection leaves",
+        "native inspection cannot settle",
+        "only after native inspection",
+    ],
 }
-for relative_path, markers in SERENA_WORKFLOW_REGRESSION["anchors"].items():
-    text = read_text(ROOT / relative_path)
-    for marker in markers:
-        if marker not in text:
-            errors.append(
-                f"{relative_path}: missing Serena workflow anchor {marker!r}; "
-                f"observed failure: {SERENA_WORKFLOW_REGRESSION['observed_failure']}"
-            )
+for relative_path in MCP_PORTFOLIO_REGRESSION["serena_free_paths"]:
+    path = ROOT / relative_path
+    text = read_text(path)
+    if re.search(r"serena", text, re.IGNORECASE):
+        errors.append(
+            f"{relative_path}: removed Serena default/managed MCP reference remains; "
+            f"observed failure: {MCP_PORTFOLIO_REGRESSION['observed_failure']}"
+        )
+for marker in MCP_PORTFOLIO_REGRESSION["codegraph_anchors"]:
+    if marker not in kernel_template:
+        errors.append(
+            f"references/kernel.template.md: missing CodeGraph portfolio anchor {marker!r}; "
+            f"intended behavior: {MCP_PORTFOLIO_REGRESSION['intended_behavior']}"
+        )
+for marker in _forbidden_codegraph_gates(
+    kernel_template, MCP_PORTFOLIO_REGRESSION["forbidden_codegraph_gates"]
+):
+    errors.append(
+        f"references/kernel.template.md: forbidden legacy CodeGraph gate remains {marker!r}; "
+        f"intended behavior: {MCP_PORTFOLIO_REGRESSION['intended_behavior']}"
+    )
+
+for fixture in [
+    "Use CodeGraph only when native inspection leaves a concrete repository-wide question.",
+    "Use CodeGraph only for a concrete repository-wide question native inspection cannot settle.",
+    "Select CodeGraph only after native inspection fails for a repository-wide question.",
+]:
+    if not _forbidden_codegraph_gates(
+        fixture, MCP_PORTFOLIO_REGRESSION["forbidden_codegraph_gates"]
+    ):
+        errors.append(
+            "CodeGraph gate regression self-test failed to detect a legacy fixture"
+        )
+corrected_codegraph_fixture = (
+    "Select CodeGraph when repository-wide architecture analysis is central; "
+    "use an available index for that question."
+)
+if _forbidden_codegraph_gates(
+    corrected_codegraph_fixture, MCP_PORTFOLIO_REGRESSION["forbidden_codegraph_gates"]
+):
+    errors.append("CodeGraph gate regression self-test rejected corrected guidance")
 
 for intercom_marker in [
     "b-agentic defaults to Off", "external `b-research`", "sole worktree writer", "same-CWD roster",

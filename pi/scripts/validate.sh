@@ -155,17 +155,11 @@ if status_support.exists():
 if mcp.exists():
     data = json.loads(mcp.read_text())
     servers = data.get('mcpServers', {})
-    for server in ['serena', 'context7', 'codegraph', 'linear', 'mobbin', 'brave-search', 'firecrawl', 'playwright']:
+    for server in ['context7', 'codegraph', 'brave-search', 'firecrawl', 'playwright']:
         if server not in servers:
             errors.append(f'{mcp}: missing MCP server {server!r}')
         elif servers[server].get('lifecycle') != 'lazy':
             errors.append(f'{mcp}: {server} must use lifecycle lazy by default')
-    linear = servers.get('linear', {})
-    if linear.get('url') != 'https://mcp.linear.app/mcp/readonly' or linear.get('auth') != 'oauth' or linear.get('oauth', {}).get('scope') != 'read' or linear.get('includeTools') != ['get_issue']:
-        errors.append(f'{mcp}: linear must be a read-only OAuth get_issue server')
-    mobbin = servers.get('mobbin', {})
-    if mobbin.get('url') != 'https://api.mobbin.com/mcp' or mobbin.get('auth') != 'oauth' or mobbin.get('includeTools') != ['mobbin_search_screens', 'mobbin_search_flows', 'mobbin_search_sections']:
-        errors.append(f'{mcp}: mobbin must be a read-only OAuth server with the three documented search tools')
     settings = data.get('settings', {})
     if settings.get('directTools') not in (False, None):
         errors.append(f'{mcp}: default directTools must be false (proxy tool default)')
@@ -204,7 +198,7 @@ if extension.exists():
         'authoritative short ID is valid', 'never guess, reconstruct, extend, further abbreviate',
         'actual b-review', 'latest approved plan, handoff, and clarifications',
         'unchanged reviewed snapshot', 'isDirectClassifiedManagedTool',
-        'isSafeSerenaSymbolRead', 'mcpScript', 'serena_onboarding',
+        'CODEGRAPH_TRUSTED_TOOLS', 'mcpScript', 'codegraph_codegraph_explore',
         'Planner task delegation remains prompt-governed', 'Roles guide skill execution through their prompts'
     ]:
         if marker not in text:
@@ -223,7 +217,7 @@ if extension.exists():
         errors.append(f'{extension}: must be able to block tool calls')
     if 'custom/MCP tool' not in text and 'MCP' not in text:
         errors.append(f'{extension}: must gate MCP/custom tools')
-    for server in ['serena', 'codegraph', 'context7', 'linear', 'mobbin', 'brave-search', 'firecrawl', 'playwright']:
+    for server in ['codegraph', 'context7', 'brave-search', 'firecrawl', 'playwright']:
         if f'"{server}"' not in text:
             errors.append(f'{extension}: missing managed MCP server {server!r}')
     firecrawl_trusted = re.search(r'FIRECRAWL_TRUSTED_TOOLS = new Set\(\[(.*?)\]\)', text, re.DOTALL)

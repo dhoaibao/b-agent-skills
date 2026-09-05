@@ -211,8 +211,8 @@ EOF
 printf 'exit 0\n'
 EOF
 	chmod +x "$bin_dir/curl"
-	for name in uv serena codegraph; do
-		cat >"$bin_dir/$name" <<'EOF'
+	local name=codegraph
+	cat >"$bin_dir/$name" <<'EOF'
 #!/usr/bin/env bash
 log_dir="$(cd "$(dirname "$0")" && pwd)"
 if [ "${B_AGENTIC_VERBOSE_MOCK:-0}" -eq 1 ]; then
@@ -224,8 +224,7 @@ if [ "$(basename "$0")" = "codegraph" ] && [ -f "$log_dir/fail-codegraph" ]; the
 fi
 exit 0
 EOF
-		chmod +x "$bin_dir/$name"
-	done
+	chmod +x "$bin_dir/$name"
 	cat >"$bin_dir/bun" <<'EOF'
 #!/usr/bin/env bash
 log_dir="$(cd "$(dirname "$0")" && pwd)"

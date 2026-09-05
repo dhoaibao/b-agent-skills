@@ -78,11 +78,11 @@ Useful flags:
 - `--uninstall` removes managed files.
 - `--ref=<tag-or-commit>` checks out that b-agentic ref before installing managed files.
 - `--sync` pulls the installed checkout and syncs managed Pi skills, kernel, and first-party extensions only.
-- `--update` installs or updates RTK, Serena, CodeGraph, Bun, Pi, Dracula theme, and Pi extensions without pulling b-agentic.
+- `--update` installs or updates RTK, CodeGraph, Bun, Pi, Dracula theme, and Pi extensions without pulling b-agentic.
 
-Requirements: `bash`, `git`, and Python 3.11+. Bun, Pi, RTK, Serena, and
-CodeGraph are installed or updated automatically without dependency opt-in
-variables or prompts. Bun-backed MCP servers use `bunx`, which resolves and
+Requirements: `bash`, `git`, and Python 3.11+. Bun, Pi, RTK, and CodeGraph
+are installed or updated automatically without dependency opt-in variables or
+prompts. Bun-backed MCP servers use `bunx`, which resolves and
 caches their packages on first use. Modern shell tools are not
 installed or updated automatically because they generally require sudo; the
 readiness report provides a platform-specific install hint.
@@ -144,20 +144,6 @@ automatically.
 
 Verification: `rtk --version`, `rtk gain`, `which rtk`.
 
-## Serena MCP agent
-
-The installer installs or upgrades the Serena MCP agent automatically with uv.
-
-If `uv` is already installed, the installer runs:
-
-```bash
-uv tool install -p 3.13 serena-agent
-```
-
-If `uv` is missing, the installer installs it from
-`https://astral.sh/uv/install.sh` before proceeding with Serena. Only use a
-remote install script when you trust its source.
-
 ## CodeGraph MCP agent
 
 b-agentic writes a default [CodeGraph](https://github.com/colbymchenry/codegraph)
@@ -168,43 +154,40 @@ the installer installs CodeGraph with:
 curl -fsSL https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh | sh
 ```
 
-Existing CodeGraph installations are refreshed with `codegraph upgrade`. Run `codegraph init` only when a concrete repository-wide architecture or impact question requires it and the local index is absent; do not initialize merely because a task spans files.
+Existing CodeGraph installations are refreshed with `codegraph upgrade`. Select CodeGraph when repository-wide architecture, dependency/call-flow, route-to-handler, impact, or affected-test analysis is central to the task and likely valuable; use an available index for that question and initialize an absent index only for that concrete qualifying question. Do not select or initialize CodeGraph merely because a task spans files.
 
 ## Managed MCPs
 
-The installer writes recommended entries for Serena, CodeGraph, Context7,
-Linear, Mobbin, Firecrawl, Brave Search, and Playwright. Servers use lazy lifecycle through the
+The installer writes recommended entries for CodeGraph, Context7, Brave Search,
+Firecrawl, and Playwright. Servers use lazy lifecycle through the
 adapter's proxy tool, so they are not eagerly started or injected into context.
 The template sets a global `settings.requestTimeoutMs` of 30000 milliseconds
 (30 seconds). API keys are user-supplied and are written only to user config,
 never tracked templates.
 
-| MCP          | Use                                                                    | Local readiness                                                                                                                                                                 |
-| ------------ | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Serena       | Symbols, references, diagnostics, and semantic edits                   | `serena` CLI; onboarding only when useful                                                                                                                                       |
-| CodeGraph    | Architecture, dependency/call flows, impact, and affected tests        | `codegraph` CLI; initialize only for a concrete repository-wide architecture or impact question                                                                                 |
-| Context7     | Versioned framework and API facts                                      | `CONTEXT7_API_KEY`                                                                                                                                                              |
-| Linear       | Exact issue and linked-relation planning context                       | Configured read-only; authentication state is unverified, so run `/mcp-auth linear` if needed                                                                                   |
-| Mobbin       | Comparable shipped UI patterns for bounded design-reference evidence   | Configured read-only with `mobbin_search_screens`, `mobbin_search_flows`, and `mobbin_search_sections`; authentication state is unverified, so run `/mcp-auth mobbin` if needed |
-| Firecrawl    | Primary public research, bounded extraction, papers, and GitHub lookup | Bun (`bunx`) and `FIRECRAWL_API_KEY`                                                                                                                                            |
-| Brave Search | Independent corroboration and specialized current search               | Bun (`bunx`) and `BRAVE_API_KEY`                                                                                                                                                |
-| Playwright   | Live browser, visual, console/network, and e2e evidence                | Bun (`bunx`)                                                                                                                                                                    |
+| MCP          | Use                                                                    | Local readiness                                                                                                                                                    |
+| ------------ | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| CodeGraph    | Architecture, dependency/call flows, impact, and affected tests        | `codegraph` CLI; initialize only for a concrete qualifying repository-wide architecture, dependency/call-flow, route-to-handler, impact, or affected-test question |
+| Context7     | Versioned framework and API facts                                      | `CONTEXT7_API_KEY`                                                                                                                                                 |
+| Firecrawl    | Primary public research, bounded extraction, papers, and GitHub lookup | Bun (`bunx`) and `FIRECRAWL_API_KEY`                                                                                                                               |
+| Brave Search | Independent corroboration and specialized current search               | Bun (`bunx`) and `BRAVE_API_KEY`                                                                                                                                   |
+| Playwright   | Live browser, visual, console/network, and e2e evidence                | Bun (`bunx`)                                                                                                                                                       |
 
 The installer does not eagerly start MCP servers or initialize repositories;
 Bun is installed or refreshed automatically, while Bun-backed MCP packages are
-resolved and cached by `bunx` on first use. b-agentic initializes CodeGraph only when native inspection leaves a concrete
-repository-wide architecture or impact question and its local index is absent;
-it does not initialize merely because work spans files. Serena onboarding runs
-only when repository onboarding is useful. b-agentic automatically installs
-or updates RTK, Serena, CodeGraph, and Bun; modern shell tools remain
-user-installed. Use `scripts/mcp-doctor.sh --session-tools` to verify the active
+resolved and cached by `bunx` on first use. b-agentic selects CodeGraph when
+repository-wide architecture, dependency/call-flow, route-to-handler, impact,
+or affected-test analysis is central to the task and likely valuable; it uses
+an available index for that question and initializes an absent index only for
+that concrete qualifying question. It does not select or initialize CodeGraph
+merely because a task spans files. b-agentic automatically installs or updates
+RTK, CodeGraph, and Bun; modern shell tools remain user-installed. Use `scripts/mcp-doctor.sh --session-tools` to verify the active
 session has RTK. Use `--allow-degraded` to inspect status without failing.
 
 When live network/process activity is approved,
 `scripts/mcp-doctor.sh --probe-schemas` explicitly starts or connects to each
 configured server and compares its current tool inventory with the canonical
-operation policy. OAuth-backed Linear and Mobbin entries are skipped until an
-authenticated adapter probe path exists; the doctor never acquires OAuth tokens. Run it after MCP package updates and before release candidates. Add `--suggestions` for human-readable review records and
+operation policy. The doctor never acquires OAuth tokens. Run it after MCP package updates and before release candidates. Add `--suggestions` for human-readable review records and
 `--suggestions-json=<path>` for a machine-readable report; suggestion mode
 never edits policy or configuration.
 
@@ -264,8 +247,7 @@ user and trusted-project configuration owner-controlled. Validated
 `lsp_diagnostics` calls with project-confined, unprotected paths bypass generic
 custom-tool approval; for directory arguments and the project-root default,
 `.git`, `node_modules`, and `.venv` are not scanned, while protected files
-elsewhere still fail closed. Serena's write-side descendant guard remains
-exhaustive. `lsp_fix` actions (including read-only-looking calls), malformed or
+elsewhere still fail closed. The LSP path check remains bounded and fail-closed. `lsp_fix` actions (including read-only-looking calls), malformed or
 unsafe diagnostics calls, and other custom LSP calls retain the generic
 custom-tool approval behavior, and authoritative repository validation remains
 required.
@@ -409,9 +391,8 @@ Findings return to the same worker for a verified fix and another review.
 `/b-sync` confirms, pulls the installed b-agentic checkout, and syncs only
 managed Pi skills, kernel, and first-party extensions before reloading Pi. It
 does not install packages or change MCP configuration. `/b-update` runs without
-an additional confirmation and updates RTK, Serena, CodeGraph, Bun, and Pi
-extensions without pulling b-agentic; Bun-backed MCP packages are resolved by
-`bunx` on first use. It then reloads Pi.
+an additional confirmation and updates RTK, CodeGraph, Bun, and Pi extensions without pulling b-agentic;
+Bun-backed MCP packages are resolved by `bunx` on first use. It then reloads Pi.
 Both commands require an interactive session and take no arguments.
 
 ## Safety and approvals
@@ -423,21 +404,18 @@ The permission extension:
 - blocks prohibited destructive Git and Docker families and protected native writes/edits
 - inspects compound shell segments and strips `env`/`sudo`/`rtk` wrappers and `git -C` option prefixes before matching
 - fails closed for ambiguous expansion, opaque interpreters, outside-project executables, protected paths, and approval-required actions without UI; b-auto-mode is the only opt-in exception for `ask` decisions and never overrides `deny`
-- auto-allows classified Serena and CodeGraph operations, plus classified read-only and safe conditional-read MCP operations; other custom tools require approval
+- auto-allows classified CodeGraph operations, plus classified read-only and safe conditional-read MCP operations; other custom tools require approval
 
 This is a command-policy guard, not a process sandbox: approved build and test
 tools may execute repository-controlled code. Use Pi sandboxing or an isolated
 environment for genuinely untrusted code. b-agentic never pushes changes.
 
-Native `read`/`edit`/`write` is preferred for routine repository work. Serena
-starts after native search/read and is reserved for concrete exact-symbol,
-reference, implementation, diagnostic, or reference-aware refactor needs;
-relevant onboarding and durable project memories remain explicit exceptions.
-Serialize Serena requests because concurrent calls can hang or time out.
-CodeGraph owns repository-wide architecture, dependency/call flows, impact,
-route-to-handler discovery, and affected-test discovery only for concrete
-questions native inspection cannot settle. Do not initialize it merely because
-work spans files, and do not query both tools for the same question.
+Native `read`/`edit`/`write` is preferred for routine repository work. Select
+CodeGraph when repository-wide architecture, dependency/call-flow,
+route-to-handler, impact, or affected-test analysis is central to the task and
+likely valuable. Use an available index for that question and initialize an
+absent index only for that concrete qualifying question; do not initialize it
+merely because work spans files.
 
 ## Repository quality checks
 

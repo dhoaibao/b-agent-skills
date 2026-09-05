@@ -48,10 +48,8 @@ def load_jsonc(text: str) -> object:
     return module.loads(text)
 
 
-SUPPORTED_SERVERS = ("serena", "codegraph", "context7", "linear", "mobbin", "brave-search", "firecrawl", "playwright")
+SUPPORTED_SERVERS = ("codegraph", "context7", "brave-search", "firecrawl", "playwright")
 CONTEXT7_URL = "https://mcp.context7.com/mcp"
-LINEAR_URL = "https://mcp.linear.app/mcp/readonly"
-MOBBIN_URL = "https://api.mobbin.com/mcp"
 POLICY_PATH = ROOT / "references" / "mcp_operations.yaml"
 
 
@@ -127,17 +125,6 @@ def pi_server_status(server: str, config: dict) -> str:
     if not isinstance(entry, dict):
         return "missing: config entry not installed"
     normalized = normalize_server(entry)
-    if server == "serena":
-        valid = (
-            normalized.command == "serena" and normalized.args[:3] == ["start-mcp-server", "--context", "ide"]
-            if normalized.args
-            else False
-        )
-        return (
-            "ready: serena command found"
-            if valid and command_ready("serena")
-            else "blocked: invalid or unavailable serena launcher"
-        )
     if server == "codegraph":
         valid = normalized.command == "codegraph" and normalized.args == ["serve", "--mcp"]
         return (
@@ -150,33 +137,6 @@ def pi_server_status(server: str, config: dict) -> str:
             "ready: CONTEXT7_API_KEY available"
             if entry.get("url") == CONTEXT7_URL and credential_available(entry, "headers", "CONTEXT7_API_KEY")
             else "blocked: invalid context7 config or missing CONTEXT7_API_KEY"
-        )
-    if server == "linear":
-        oauth = entry.get("oauth")
-        valid = (
-            entry.get("url") == LINEAR_URL
-            and entry.get("auth") == "oauth"
-            and isinstance(oauth, dict)
-            and oauth.get("scope") == "read"
-            and entry.get("includeTools") == ["get_issue"]
-            and entry.get("lifecycle") == "lazy"
-        )
-        return (
-            "configured: authentication unverified; run /mcp-auth linear if needed"
-            if valid
-            else "blocked: invalid Linear OAuth read-only config"
-        )
-    if server == "mobbin":
-        valid = (
-            entry.get("url") == MOBBIN_URL
-            and entry.get("auth") == "oauth"
-            and entry.get("includeTools") == ["mobbin_search_screens", "mobbin_search_flows", "mobbin_search_sections"]
-            and entry.get("lifecycle") == "lazy"
-        )
-        return (
-            "configured: authentication unverified; run /mcp-auth mobbin if needed"
-            if valid
-            else "blocked: invalid Mobbin OAuth read-only config"
         )
     expected = {
         "brave-search": ["@brave/brave-search-mcp-server", "--transport", "stdio"],
@@ -289,19 +249,6 @@ def main() -> int:
                     print(f"schema-probe {server}: blocked: missing config or policy entry")
                     if suggestions_requested:
                         suggestion_failures.append({"server": server, "reason": "missing config or policy entry"})
-                    blocked = True
-                    continue
-                if server in {"linear", "mobbin"}:
-                    print(
-                        f"schema-probe {server}: blocked: OAuth authentication is required; doctor does not acquire tokens"
-                    )
-                    if suggestions_requested:
-                        suggestion_failures.append(
-                            {
-                                "server": server,
-                                "reason": "OAuth authentication required; doctor does not acquire tokens",
-                            }
-                        )
                     blocked = True
                     continue
                 try:

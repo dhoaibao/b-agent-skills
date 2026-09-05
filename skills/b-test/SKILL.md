@@ -32,22 +32,18 @@ Own code-level and simulated-DOM tests: add coverage, fix test-only failures, an
 ## Tool guidance
 
 - `bash` - run tests via `rtk` when supported (`rtk pytest`, `rtk vitest`, `rtk jest`, …) and inspect failure output.
-- `serena` - after native search/read, use only when a specific test/source
-  symbol, reference, or diagnostic materially improves safety or precision; use
-  native `read`/`edit`/`write` for routine inspection and edits, and serialize
-  requests rather than parallelizing or batching them.
 - `lsp_diagnostics` / `lsp_fix` - use diagnostics on changed source when the relevant server is ready; use source actions only with explicit authorization, and fall back to the selected repository checks when unsupported or unavailable.
 - `read`/`edit` - use Pi native tools for routine and unsupported file work.
-- `codegraph` - only for a concrete repository-wide source-to-test impact or affected-test question that native discovery cannot settle; do not initialize an absent local index merely because the change spans files.
+- `codegraph` - select when a concrete repository-wide source-to-test impact or affected-test question is central to the task and likely valuable; use an available index for that question and initialize an absent index only for that qualifying question. Spanning files alone never justifies it.
 - `context7` - versioned test-framework/API semantics only when local tests and contracts do not settle them.
 
 ## Capability activation
 
-Use LSP only when it has a ready route for the changed file; it does not replace the affected test run. Use Serena only for a concrete semantic test/source question, CodeGraph only for a concrete repository-wide affected-test question, and `recall` only when a supplied memory ID is relevant. Do not invoke usage, authentication, Intercom, or browser capabilities for test mechanics unless their task trigger is explicit.
+Use LSP only when it has a ready route for the changed file; it does not replace the affected test run. Select CodeGraph for a concrete repository-wide affected-test question that is central to the task, and use `recall` only when a supplied memory ID is relevant. Do not invoke usage, authentication, Intercom, or browser capabilities for test mechanics unless their task trigger is explicit.
 
 ## Steps
 
-1. Find the test framework and narrowest runnable command from manifests, CI, or existing tests (using Bash). Use native inspection and test discovery first. Use CodeGraph only when a concrete repository-wide source-to-test impact question remains; initialize an absent index only for that question, never merely because the change spans files. Use Serena separately only for a specific exact test/source symbol when it materially improves precision.
+1. Find the test framework and narrowest runnable command from manifests, CI, or existing tests (using Bash). Use native inspection and test discovery first. Select CodeGraph when a concrete repository-wide source-to-test impact question remains central and likely valuable; initialize an absent index only for that qualifying question, never because the change spans files.
 2. Confirm intended behavior from user intent, product contract, source change, existing passing tests, and materially relevant repo context. Use Context7 only for unresolved versioned framework semantics.
 3. For failing tests, run the narrow target, read the test and exercised source, edit tests only after classifying the failure.
 4. For new tests, cover requested or changed behavior through the highest practical public interface first; add edge cases only when risk requires them.

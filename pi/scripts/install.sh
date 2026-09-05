@@ -966,16 +966,10 @@ runtime_print_install_report() {
 		attention+=("activation: review $KERNEL_SNAPSHOT_DST, then rerun with --replace-memory if desired")
 	fi
 
-	status="$(serena_readiness_status)"
-	case "$status" in ready:*) ;; *) attention+=("serena: $status") ;; esac
 	status="$(codegraph_readiness_status)"
 	case "$status" in ready:*) ;; *) attention+=("codegraph: $status") ;; esac
 	status="$(context7_readiness_status)"
 	case "$status" in ready:*) ;; *) attention+=("context7: $status") ;; esac
-	status="$(linear_readiness_status)"
-	case "$status" in configured:*) attention+=("linear: $status") ;; ready:*) ;; *) attention+=("linear: $status") ;; esac
-	status="$(mobbin_readiness_status)"
-	case "$status" in configured:*) attention+=("mobbin: $status") ;; ready:*) ;; *) attention+=("mobbin: $status") ;; esac
 	status="$(brave_search_readiness_status)"
 	case "$status" in ready:*) ;; *) attention+=("brave-search: $status") ;; esac
 	status="$(firecrawl_readiness_status)"

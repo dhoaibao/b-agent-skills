@@ -51,11 +51,10 @@ prose semantics and never substitutes for changed-code `b-review`.
 - `context7` or bounded primary upstream documentation/release metadata - verify
   versioned package/API currentness only when needed; do not upload local files,
   repository content, credentials, or private URLs.
-- `codegraph` - use only for a concrete repository-wide architecture, impact, or
-  affected-test question that the audit evidence makes relevant.
-- `serena` - after native search/read, use only for a distinct exact-symbol or
-  diagnostic question that materially improves safety or precision; serialize
-  requests and never parallelize or batch them.
+- `codegraph` - select when a concrete repository-wide architecture, impact, or
+  affected-test question is central to the audit and likely valuable; use an
+  available index for that question and initialize an absent index only for
+  that qualifying question. Spanning files alone never justifies it.
 
 ## Steps
 
@@ -84,10 +83,11 @@ prose semantics and never substitutes for changed-code `b-review`.
    schema probe is an explicit operational step: obtain approval before running
    it, and if approval or a usable environment is missing, report the limitation
    rather than guessing or exposing raw errors.
-7. Use native inspection first. Use CodeGraph only for a distinct concrete
-   architecture/impact/affected-test question; do not initialize an absent
-   index merely because the audit spans files. Use Serena only for a distinct
-   exact-symbol or diagnostic question and keep calls serialized.
+7. Use native inspection first. Select CodeGraph when a distinct concrete
+   architecture/impact/affected-test question is central to the audit and
+   likely valuable; use an available index for that question and initialize an
+   absent index only for that qualifying question. Spanning files alone never
+   justifies initialization.
 8. Separate deterministic results from semantic findings. Order findings by
    severity and cite repository-relative paths, evidence, impact, and the
    smallest follow-up route. State what was not mechanically proven.

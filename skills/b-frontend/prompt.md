@@ -22,7 +22,7 @@ Implement clearly scoped frontend/UI code, visual refreshes, landing pages, and 
 
 ## Capability activation
 
-Use LSP for ready changed source before final checks when it can reduce implementation uncertainty; do not install or configure a server automatically. Use Serena only for a concrete exact-symbol or reference need after native inspection, and route browser evidence to `b-browser` only when requested. Mobbin is limited to an explicit standalone UI/UX precedent study; authentication, usage reporting, and Intercom are not implicit frontend steps.
+Use LSP for ready changed source before final checks when it can reduce implementation uncertainty; do not install or configure a server automatically. Route browser evidence to `b-browser` only when requested; authentication, usage reporting, and Intercom are not implicit frontend steps.
 
 ## Steps
 

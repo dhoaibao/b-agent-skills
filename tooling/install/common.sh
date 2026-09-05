@@ -440,19 +440,6 @@ def migrate_managed_values(data):
             if isinstance(current_command, list) and len(current_command) >= 3 and current_command[0] == incoming_command[0] and current_command[1] == 'dlx':
                 server['command'] = list(incoming_command)
 
-    def replace_managed_serena(server, incoming_server):
-        if not isinstance(server, dict) or not isinstance(incoming_server, dict):
-            return
-        if server.get('command') != 'serena' or incoming_server.get('command') != 'serena':
-            return
-        current_args = server.get('args')
-        incoming_args = incoming_server.get('args')
-        if (
-            isinstance(current_args, list) and len(current_args) >= 1 and current_args[0] == 'start-mcp-server'
-            and isinstance(incoming_args, list) and len(incoming_args) >= 1 and incoming_args[0] == 'start-mcp-server'
-        ):
-            server['args'] = list(incoming_args)
-
     for server_key in ('mcpServers', 'mcp'):
         servers = data.get(server_key)
         recommended_servers = recommended.get(server_key, {})
@@ -529,7 +516,6 @@ def migrate_managed_values(data):
             )
             for server_name in ('brave-search', 'firecrawl', 'playwright'):
                 replace_managed_package(server_name, servers.get(server_name), recommended_servers.get(server_name))
-            replace_managed_serena(servers.get('serena'), recommended_servers.get('serena'))
             continue
 
         migrate_managed_launcher(
@@ -584,7 +570,6 @@ def migrate_managed_values(data):
         )
         for server_name in ('brave-search', 'firecrawl', 'playwright'):
             replace_managed_package(server_name, servers.get(server_name), recommended_servers.get(server_name))
-        replace_managed_serena(servers.get('serena'), recommended_servers.get('serena'))
 
 if not isinstance(current, dict):
     raise SystemExit(f'{label} merge requires existing target to be a JSON object')
@@ -1110,17 +1095,9 @@ join_readiness_issues() {
   done
 }
 
-serena_readiness_status() {
-  if command -v serena >/dev/null 2>&1; then
-    printf 'ready: serena command found; safe project-local tools and trusted onboarding are auto-approved; outside-project, protected, unsafe, or unclassified operations remain gated'
-  else
-    printf 'blocked: install serena manually or rerun interactively and accept the prompt; b-agentic cannot onboard without the CLI'
-  fi
-}
-
 codegraph_readiness_status() {
   if command -v codegraph >/dev/null 2>&1; then
-    printf 'ready: codegraph command found; b-agentic initializes it only for a concrete repository-wide architecture or impact question'
+    printf 'ready: codegraph command found; b-agentic initializes it only for a qualifying repository-wide architecture, dependency/call-flow, route, impact, or affected-test question'
   else
     printf 'blocked: install codegraph manually or rerun interactively and accept the prompt; b-agentic cannot initialize without the CLI'
   fi
@@ -1164,80 +1141,6 @@ playwright_readiness_status() {
   fi
 }
 
-linear_configured() {
-  [ -f "$MCP_CONFIG_DST" ] || return 1
-  python3 - "$MCP_CONFIG_DST" "$MCP_ROOT_KEY" "$SOURCE_DIR" <<'PY'
-import sys
-from pathlib import Path
-
-path = Path(sys.argv[1])
-root_key = sys.argv[2]
-sys.path.insert(0, str(Path(sys.argv[3]) / 'tooling' / 'install'))
-from jsonc import loads as load_jsonc
-try:
-    data = load_jsonc(path.read_text())
-except Exception:
-    sys.exit(1)
-
-servers = data.get(root_key)
-entry = servers.get('linear') if isinstance(servers, dict) else None
-valid = (
-    isinstance(entry, dict)
-    and entry.get('url') == 'https://mcp.linear.app/mcp/readonly'
-    and entry.get('auth') == 'oauth'
-    and isinstance(entry.get('oauth'), dict)
-    and entry['oauth'].get('scope') == 'read'
-    and entry.get('includeTools') == ['get_issue']
-    and entry.get('lifecycle') == 'lazy'
-)
-sys.exit(0 if valid else 1)
-PY
-}
-
-linear_readiness_status() {
-  if linear_configured; then
-    printf 'configured: authentication unverified; run /mcp-auth linear if needed'
-  else
-    printf 'blocked: invalid Linear OAuth read-only config'
-  fi
-}
-
-mobbin_configured() {
-  [ -f "$MCP_CONFIG_DST" ] || return 1
-  python3 - "$MCP_CONFIG_DST" "$MCP_ROOT_KEY" "$SOURCE_DIR" <<'PY'
-import sys
-from pathlib import Path
-
-path = Path(sys.argv[1])
-root_key = sys.argv[2]
-sys.path.insert(0, str(Path(sys.argv[3]) / 'tooling' / 'install'))
-from jsonc import loads as load_jsonc
-try:
-    data = load_jsonc(path.read_text())
-except Exception:
-    sys.exit(1)
-
-servers = data.get(root_key)
-entry = servers.get('mobbin') if isinstance(servers, dict) else None
-valid = (
-    isinstance(entry, dict)
-    and entry.get('url') == 'https://api.mobbin.com/mcp'
-    and entry.get('auth') == 'oauth'
-    and entry.get('includeTools') == ['mobbin_search_screens', 'mobbin_search_flows', 'mobbin_search_sections']
-    and entry.get('lifecycle') == 'lazy'
-)
-sys.exit(0 if valid else 1)
-PY
-}
-
-mobbin_readiness_status() {
-  if mobbin_configured; then
-    printf 'configured: authentication unverified; run /mcp-auth mobbin if needed'
-  else
-    printf 'blocked: invalid Mobbin OAuth read-only config'
-  fi
-}
-
 rtk_readiness_status() {
   if command -v rtk >/dev/null 2>&1; then
     printf 'ready: rtk installed'
@@ -1259,11 +1162,8 @@ print_install_report_header() {
 
 print_install_report_readiness() {
   report_section "Readiness"
-  report_item "serena" "$(serena_readiness_status)"
   report_item "codegraph" "$(codegraph_readiness_status)"
   report_item "context7" "$(context7_readiness_status)"
-  report_item "linear" "$(linear_readiness_status)"
-  report_item "mobbin" "$(mobbin_readiness_status)"
   report_item "brave-search" "$(brave_search_readiness_status)"
   report_item "firecrawl" "$(firecrawl_readiness_status)"
   report_item "playwright" "$(playwright_readiness_status)"
@@ -1301,8 +1201,7 @@ print_install_report_next_steps() {
 
   report_item "manifest" "review $MANIFEST_DST for installed paths and backup metadata"
   report_item "keys" "add user-scope API keys only if you plan to use Context7, Brave Search, or Firecrawl"
-  report_item "serena" "Serena tools are auto-approved; onboarding runs only when repository onboarding is useful"
-  report_item "codegraph" "rerun interactively to accept the CodeGraph prompt, or install manually; b-agentic initializes its index only for a concrete repository-wide architecture or impact question"
+  report_item "codegraph" "rerun interactively to accept the CodeGraph prompt, or install manually; b-agentic initializes its index only for a qualifying repository-wide architecture, dependency/call-flow, route, impact, or affected-test question"
   report_item "rtk" "required; install manually or rerun the installer to install it"
 }
 

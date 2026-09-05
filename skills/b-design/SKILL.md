@@ -32,23 +32,18 @@ Create or refresh `docs/DESIGN.md`, the repo-local frontend design standard. Do 
 ## Tool guidance
 
 - `bash` - `rtk git status --short`, diffs, and modern discovery (`rg`, `fdfind`, `eza`).
-- `mobbin` - optional, bounded design-reference evidence: use only when local/user evidence is insufficient. Choose `mobbin_search_screens` for comparable component/state patterns, `mobbin_search_flows` for end-to-end journey patterns, or `mobbin_search_sections` for web-section patterns. Keep queries bounded and precise, and use `task_intent` when it usefully states the intended evidence. Inspect returned screen images rather than relying on metadata; cite screens with their canonical `mobbin_url`. Synthesize observed patterns rather than copying, keep local requirements and tokens authoritative, and do not use Mobbin for UI implementation or visual QA.
 - `read`/`edit`/`write` - inspect sources and update only `docs/DESIGN.md` unless broader docs were approved.
-- `serena` - after native search/read, inspect a specific exact symbol or
-  reference only when it materially improves precision about code ownership or
-  component patterns; use native `read`/`edit`/`write` for routine file work and
-  serialize requests.
 - `lsp_diagnostics` - use only when a changed supported source file has a ready language server; fall back to repository checks when it does not.
 
 ## Capability activation
 
-Use LSP diagnostics only for supported changed source when a relevant server is ready, with repository checks as fallback. Use Mobbin only for the explicit standalone precedent or competitive-comparison trigger, never as general research or visual QA. Use browser evidence only when requested and route it to `b-browser`; do not invoke authentication, usage reporting, or Intercom for an ordinary design-standard edit.
+Use LSP diagnostics only for supported changed source when a relevant server is ready, with repository checks as fallback. Use browser evidence only when requested and route it to `b-browser`; do not invoke authentication, usage reporting, or Intercom for an ordinary design-standard edit.
 
 ## Steps
 
 1. Confirm the source mode: user description, attached image/mockup, existing `docs/DESIGN.md`, design-token source, current frontend code, or a mix.
 2. Run `rtk git status --short` via Bash for repo work and preserve unrelated changes.
-3. Inspect the lightest useful evidence: existing design docs, frontend components, tokens, CSS, layout files, screenshots, and repo conventions. Use native `read` first; use Serena only after native search/read when a specific exact symbol or reference materially improves the code-structure evidence, and do not parallelize or batch Serena calls. Do not invent a design system when evidence is thin. Before drafting, make an explicit, task-conditional design read: identify the surface, audience, brand/repository evidence, hierarchy, density, layout variance, and motion posture; then state one product-appropriate art direction and its anti-default constraints. Treat marketing pages, product apps, dashboards, and trust/regulated surfaces differently. If evidence leaves materially different directions, ask one focused question rather than guessing.
+3. Inspect the lightest useful evidence: existing design docs, frontend components, tokens, CSS, layout files, screenshots, and repo conventions. Use native `read` first. Do not invent a design system when evidence is thin. Before drafting, make an explicit, task-conditional design read: identify the surface, audience, brand/repository evidence, hierarchy, density, layout variance, and motion posture; then state one product-appropriate art direction and its anti-default constraints. Treat marketing pages, product apps, dashboards, and trust/regulated surfaces differently. If evidence leaves materially different directions, ask one focused question rather than guessing.
 4. If analyzing images, separate observed facts from inferred rules. Treat exact dimensions, counts, colors, and spatial alignment as approximate unless supported by source files or browser evidence.
 5. Create or update only `docs/DESIGN.md` with edit/write unless the user explicitly approved a broader documentation change. Preserve useful existing content and remove generic filler. If an unresolved product choice is material and user-facing, use `ask_user_question` in planner or solo/Off work with 2–4 concrete options, the recommended option first, and the automatic custom-answer row; if unavailable or noninteractive, ask one focused plain-text question. In a two-role worker, ask the assigning planner through Intercom. In planner mode, an actual `ask_user_question` tool call triggers a fixed privacy-safe desktop notification; solo/Off workers emit no planner notifications. Otherwise, record the unresolved choice as an open question.
 6. Keep the document implementation-facing and concise. Prefer rules an agent can apply while coding over design theory.
@@ -72,8 +67,6 @@ Use the following as an adaptable checklist, not a required document outline:
 Omit YAML front matter when exact token values are not evidenced or when the repo already has a better token source.
 
 ## Content Rules
-
-Use optional Mobbin evidence only when local or user evidence is insufficient. Select the analysis unit deliberately: `mobbin_search_screens` for comparable component or state patterns, `mobbin_search_flows` for end-to-end journey patterns, and `mobbin_search_sections` for web-section patterns. Form bounded, precise queries and use `task_intent` where useful; inspect returned images, not just result metadata. Treat findings as observed reference evidence, cite screen findings with the canonical `mobbin_url`, and synthesize rather than copy. Local requirements and tokens remain authoritative. Mobbin is not for UI implementation or visual QA.
 
 - State durable standards for the product, not page-specific implementation notes.
 - Make the chosen art direction and anti-default constraints explicit without turning them into a one-style-fits-all prescription.

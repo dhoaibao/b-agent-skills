@@ -279,7 +279,7 @@ def probe_server(entry: dict[str, Any], timeout: float) -> dict[str, dict[str, A
 
 def policy_upstream_name(server: str, policy_tool: str) -> str:
     prefix = server.replace("-", "_") + "_"
-    if server in {"serena", "codegraph", "context7", "brave-search"} and policy_tool.startswith(prefix):
+    if server in {"codegraph", "context7", "brave-search"} and policy_tool.startswith(prefix):
         return policy_tool[len(prefix) :]
     return policy_tool
 
@@ -474,11 +474,11 @@ def compare_conditional_schemas(
 
 def self_test() -> int:
     policy = {
-        "serena_find_symbol": "read-only",
-        "serena_replace_content": "local-mutation",
+        "codegraph_codegraph_explore": "read-only",
+        "codegraph_codegraph_index": "local-mutation",
     }
-    new_tools, absent_tools = compare_inventory("serena", {"find_symbol", "new_tool"}, policy)
-    if new_tools != ["new_tool"] or absent_tools != ["replace_content"]:
+    new_tools, absent_tools = compare_inventory("codegraph", {"codegraph_explore", "new_tool"}, policy)
+    if new_tools != ["new_tool"] or absent_tools != ["codegraph_index"]:
         print("MCP inventory comparison fixture failed")
         return 1
     conditional_drift = compare_conditional_schemas(
