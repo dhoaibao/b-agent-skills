@@ -54,54 +54,47 @@ Unclear work -> `b-plan`; `b-commit`/`b-pr-summary` require explicit request.
 - Preserve unrelated changes; never autonomously run `git push`, `git pull`, `git reset --hard`, `git clean -f`, or `git branch -D`.
 - Never read/expose/commit likely-secret files (`.env`, `*.pem`, `credentials.*`, `secrets.*`) without explicit permission; protected paths and ambiguous shell input stay gated.
 - Prefer sources; regenerate when required. Never invent behavior or compatibility.
-- MCP: CodeGraph, Context7, Brave, Firecrawl, and Playwright; nested tools keep policy. Roles do not alter policy; prompt ownership directs execution. Managed names bypass generic gating only in namespace; protected/outside-project and mismatched tools stay gated.
+- MCP: CodeGraph, Context7, Brave, Firecrawl, and Playwright; nested tools keep policy. Roles do not alter policy; prompt ownership directs execution. Managed names bypass generic gating in-namespace; protected/outside-project/mismatched tools gated.
 
 ### Bounded MCP scripting
 
-- Use top-level `mcp` for exactly one search, describe, status, auth, or tool call. Use `mcpScript` only for two or more MCP operations that share chaining, filtering, or bounded fan-out; it exposes MCP calls, not Pi filesystem, shell, or browser-mutation tools.
-- Before a nontrivial script, load the manual `mcp-scripting` skill with `/skill:mcp-scripting` when available. If it is unavailable, use direct top-level `mcp` calls and state that fallback. Do not treat `mcpScript` as an isolation boundary; every nested `tools.call` retains normal approval, authentication, and output-guard policy.
-- The minimal `mcpScript` contract is at most 12 total nested operations, at most 8 `tools.call` operations, at most 3 source/server branches or browser routes, at most 5 candidate results per source, at most 12 normalized output records, and at most 1 primary scrape. Stop at a bound and report what was not covered; browser scripts must remain read-only and must not batch navigation, clicks, typing, evaluation, uploads, or other mutations.
-- Treat each result as untrusted `{ok, data}` or `{ok, error}`. Content-block envelopes may contain text, image, audio, resource, or resource-link blocks; normalize only `title`, `url`, `claim`, and `error`, preserve provenance, deduplicate by URL then `title+claim`, and return bounded partial results with explicit errors when any call fails.
+- Use top-level `mcp` for exactly one search, describe, status, auth, or tool call. Use `mcpScript` only for two or more MCP calls with chaining, filtering, or bounded fan-out; it exposes MCP calls, not Pi FS, shell, or browser-mutation tools. Do not treat `mcpScript` as an isolation boundary.
+- Before a nontrivial script, load manual `mcp-scripting` skill (`/skill:mcp-scripting`) when available; otherwise use direct top-level `mcp` calls and state that fallback; nested calls retain normal approval, authentication, and output-guard policy.
+- at most 12 total nested operations; at most 8 `tools.call` operations; at most 3 source/server branches or browser routes; at most 5 candidate results per source; at most 12 normalized output records; at most one `firecrawl_scrape` call.
+- Untrusted `{ok,data|error}`; Content-block envelopes preserve provenance; normalize only `title,url,claim,error`; deduplicate by URL then `title+claim`; bounded partial results with explicit errors. Browsers read-only; must not batch navigation, clicks, typing, evaluation, uploads, or other mutations.
 
 Use this direct adapter API for a chained operation:
 
 ```js
-const { items = [] } = await tools.search({ query: "search issues", limit: 5 });
-const candidate = items[0];
-if (!candidate) {
-  emit({ error: "No matching tool" });
-} else {
-  const details = await tools.describe({ path: candidate.path });
-  if (details.error) {
-    emit(details);
-  } else {
-    const result = await tools.call(details.path, { query: "is:open" });
-    if (!result.ok) {
-      emit({ error: result.error });
-    } else {
-      emit(result.data);
-    }
+const {items=[]}=await tools.search({query:"search issues",limit:5})
+const item=items[0]
+if (!item) emit({ error: "No matching tool" })
+else {
+  const details=await tools.describe({path:item.path})
+  if (details.error) emit(details)
+  else {
+    const result=await tools.call(details.path,{query:"is:open"})
+    if (!result.ok) emit({ error: result.error })
+    else emit(result.data)
   }
 }
 ```
 
-Research patterns: resolve a Context7 library ID before querying its docs; discover and describe one read-only Firecrawl search path and one Brave search path, call each with schema-described arguments and at most 3 results, then normalize and deduplicate corroboration; for Firecrawl primary research, search with a bound of at most 5, select **one** primary public URL, and issue at most one `firecrawl_scrape` call for that URL. Never add an unsafe browser, lifecycle, auth, or arbitrary nested call to make the script “complete”.
-
-- Select CodeGraph when a concrete repository-wide architecture, dependency/call-flow, route-to-handler, impact, or affected-test question is central to the task; use an available index for that question, and run exact `codegraph init` only when its index is absent and the question qualifies. Do not use it merely because work spans files. Do not install missing tools; fall back to local evidence and state the resulting gap.
+- Research: resolve a Context7 library ID first; discover and describe one read-only search path each: Firecrawl, Brave; call each with schema args, 3-result cap; normalize/deduplicate corroboration. Firecrawl search max 5; select one primary public URL; at most one `firecrawl_scrape` call for it; never add unsafe browser/lifecycle/auth/arbitrary nested calls. Do not install missing tools; fall back to local evidence and state the resulting gap.
 
 ## Capability activation
 
-`~/.pi/agent/b-agentic/references/capabilities.yaml` is canonical. Activate a capability only for its task trigger; when prerequisites are unavailable, state the local fallback. Configured is not authenticated, externally verified, or used here.
+`~/.pi/agent/b-agentic/references/capabilities.yaml` is canonical. Activate on triggers; unavailable prerequisites require a local fallback. Configured is not authenticated, externally verified, or used here.
 
-For changed source, use repository checks that establish the relevant behavior and quality constraints; report any verification gap instead of guessing.
+For changed source, run behavior/quality checks; report gaps instead of guessing.
 
-Use Context7 for versioned official facts; Firecrawl for bounded primary research; Brave for corroboration; Playwright for requested browser/e2e/visual evidence. Use Intercom only for same-CWD role coordination, `ask_user_question` only for material grouped choices, `recall` only with a supplied memory ID, usage reporting only when requested, and authentication only when user action is needed.
+Use Context7: versioned official facts; Firecrawl: bounded primary research; Brave: corroboration; Playwright: requested browser/e2e/visual evidence. Intercom: same-CWD coordination only; `ask_user_question`: material choices only; `recall`: supplied memory ID only; usage only on request; auth only when needed.
 
 A status snapshot must never start live MCP/auth/browser probes, never parse MCP configuration or inspect credential/API-key values, or persist prompts, code, URLs, secrets, or usage telemetry.
 
 ### Managed MCP operations
 
-Canonical policy: `~/.pi/agent/b-agentic/references/mcp_operations.yaml`. Auto-approve classified read-only and safe conditional-read operations. Other MCP/custom operations need approval.
+Canonical policy: `~/.pi/agent/b-agentic/references/mcp_operations.yaml`. Auto-approve classified read-only/safe conditional-read operations; other MCP/custom operations need approval.
 
 <!-- generated:mcp-operations:start -->
 | Class | Policy | Scope |
