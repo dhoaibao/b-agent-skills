@@ -56,10 +56,10 @@ def remove_file(path: Path) -> None:
 def has_symlink_ancestor(path: Path) -> bool:
     candidate = path.expanduser()
     while True:
-        # Stop at the supplied HOME spelling before inspecting ancestors
-        # outside it (for example macOS /tmp -> /private/tmp). A symlink below
-        # HOME must still be rejected even if it resolves back to HOME.
-        if candidate == home_spelling:
+        # Stop at either HOME spelling before inspecting ancestors outside it
+        # (for example macOS /tmp -> /private/tmp). A symlink below HOME must
+        # still be rejected even if it resolves back to HOME.
+        if candidate == home_spelling or candidate == home:
             return False
         if candidate.is_symlink():
             return True

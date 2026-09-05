@@ -94,7 +94,7 @@ run_manifest_only_mcp_symlink_preservation_case() {
 	local sandbox="$WORK_DIR/manifest-only-mcp-symlink"
 	local managed='{"mcpServers":{"managed":{"command":"synthetic"}},"unrelated":{"preserve":true}}'
 	local template='{"mcpServers":{"managed":{"command":"synthetic"}}}'
-	local case_name home metadata mcp_path target manifest_path
+	local case_name home home_alias metadata mcp_path target manifest_path
 
 	for case_name in external-target in-home-target; do
 		home="$sandbox/$case_name/home"
@@ -130,6 +130,22 @@ run_manifest_only_mcp_symlink_preservation_case() {
 	printf '%s\n' "{\"runtime\":\"pi\",\"paths\":{\"mcpConfig\":\"$sandbox/outside-mcp.json\"},\"skills\":[],\"mcpAction\":\"write\",\"backups\":{}}" >"$manifest_path"
 	HOME="$home" python3 "$ROOT_DIR/tooling/install/manifest_uninstall.py" "$manifest_path" >"$sandbox/invalid-fallback.log" 2>&1
 	assert_contains "$sandbox/invalid-fallback.log" 'ignoring manifest path outside home for mcpConfig'
+	assert_contains "$mcp_path" '"unrelated"'
+	assert_not_contains "$mcp_path" '"managed"'
+
+	# A symlinked HOME spelling must also clean the canonical default fallback.
+	home="$sandbox/invalid-fallback-alias/home"
+	home_alias="$sandbox/invalid-fallback-alias/home-alias"
+	metadata="$home/.pi/agent/b-agentic"
+	mcp_path="$home/.pi/agent/mcp.json"
+	mkdir -p "$metadata/templates"
+	ln -s "$home" "$home_alias"
+	printf '%s\n' "$managed" >"$mcp_path"
+	printf '%s\n' "$template" >"$metadata/templates/mcp.user.template.json"
+	manifest_path="$home_alias/.pi/agent/b-agentic/install.json"
+	printf '%s\n' "{\"runtime\":\"pi\",\"paths\":{\"mcpConfig\":\"$sandbox/outside-mcp.json\"},\"skills\":[],\"mcpAction\":\"write\",\"backups\":{}}" >"$manifest_path"
+	HOME="$home_alias" python3 "$ROOT_DIR/tooling/install/manifest_uninstall.py" "$manifest_path" >"$sandbox/invalid-fallback-alias.log" 2>&1
+	assert_contains "$sandbox/invalid-fallback-alias.log" 'ignoring manifest path outside home for mcpConfig'
 	assert_contains "$mcp_path" '"unrelated"'
 	assert_not_contains "$mcp_path" '"managed"'
 
