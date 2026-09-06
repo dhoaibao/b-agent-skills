@@ -21,6 +21,7 @@ section per date and same-day changes aggregated in that section.
 
 ### Fixed
 
+- Keep installer component-picker arrow keys working on shells that reject fractional read timeouts, so macOS Bash 3.2 no longer treats navigation as a cancel request, with smoke coverage guarding the portable escape window.
 - Restore opt-in repository labels in interactive TUI titles while keeping the basename privacy boundary and regression coverage.
 - Make commit prerequisites consistent with the active role: Off mode uses local verification unless review is requested, while implementer mode reviews the final candidate after repository-required changelog preparation and checks.
 - Keep PR-description review and rewriting in the PR-summary skill rather than the changed-code gate, with evidence-limited editorial feedback, synchronized routing, and cross-skill regression coverage for commit, prose, and privacy boundaries.

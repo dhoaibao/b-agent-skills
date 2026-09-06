@@ -702,6 +702,7 @@ run_component_picker_case() {
 	local rc=0
 
 	mkdir -p "$sandbox/home" "$cancel_sandbox/home" "$preserve_sandbox/home"
+	assert_picker_key_reader_portability
 	set +e
 	TERM=xterm B_AGENTIC_TTY_INPUT=$' \e[B \e[B \n' run_install_with_tty_log "$sandbox" "$snapshot_repo" "$install_log" --dry-run
 	rc=$?
@@ -748,6 +749,26 @@ for key in ('mcpAction', 'mcpState', 'mcpAdapterAction', 'mcpAdapterState', 'the
     assert actual.get(key) == before.get(key), key
 assert actual['backups'].get('mcpConfig') == before['backups'].get('mcpConfig')
 PY
+}
+
+# macOS system bash is 3.2 and rejects fractional `read -t` values, which would
+# make every arrow key read as a bare Escape and cancel the installer.
+assert_picker_key_reader_portability() {
+	local fractional_timeouts="" definition="" actual=""
+
+	fractional_timeouts="$(
+		grep -REn 'read( +-[A-Za-z]+)* +-t +[0-9]*\.[0-9]+' \
+			"$ROOT_DIR/install.sh" "$ROOT_DIR/tooling/install" "$ROOT_DIR/pi/scripts" || true
+	)"
+	[ -z "$fractional_timeouts" ] || fail "installer uses a fractional read timeout unsupported by bash 3.2: $fractional_timeouts"
+
+	definition="$(sed -n '/^ui_component_escape_timeout() {$/,/^}$/p' "$ROOT_DIR/install.sh")"
+	[ -n "$definition" ] || fail "install.sh does not define ui_component_escape_timeout"
+
+	actual="$(bash -c "$definition"$'\nui_component_escape_timeout 3')"
+	[ "$actual" = '1' ] || fail "expected a whole-second escape timeout on bash 3.x, got '$actual'"
+	actual="$(bash -c "$definition"$'\nui_component_escape_timeout 5')"
+	[ "$actual" = '0.1' ] || fail "expected a fractional escape timeout on bash 4+, got '$actual'"
 }
 
 run_optional_shell_tool_case() {

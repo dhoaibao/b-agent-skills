@@ -148,8 +148,25 @@ ui_component_draw() {
 	} > /dev/tty
 }
 
+# macOS ships bash 3.2, which rejects fractional `read -t` values with
+# "invalid timeout specification". Fall back to a whole-second escape window so
+# arrow-key sequences are never misread as a bare Escape (cancel) there.
+ui_component_escape_timeout() {
+	local major="${1:-${BASH_VERSINFO[0]:-0}}"
+	case "$major" in
+	'' | *[!0-9]*) printf '1' ;;
+	*)
+		if [ "$major" -ge 4 ]; then
+			printf '0.1'
+		else
+			printf '1'
+		fi
+		;;
+	esac
+}
+
 ui_component_read_key() {
-	local key="" sequence=""
+	local key="" sequence="" escape_timeout=""
 	IFS= read -r -s -n 1 key < /dev/tty || return 1
 	if [ -z "$key" ]; then
 		printf 'enter'
@@ -160,7 +177,8 @@ ui_component_read_key() {
 		printf 'toggle'
 		;;
 	$'\033')
-		if ! IFS= read -r -s -n 1 -t 0.1 sequence < /dev/tty; then
+		escape_timeout="$(ui_component_escape_timeout)"
+		if ! IFS= read -r -s -n 1 -t "$escape_timeout" sequence < /dev/tty; then
 			printf 'escape'
 			return 0
 		fi
