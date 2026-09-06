@@ -87,12 +87,16 @@ for marker in [
     "sole user-facing writer",
     "independent read-only gate",
     "roles never filter tools",
-    "freeze the candidate",
-    "tracked and relevant untracked/derived files",
+    "compact snapshot handoff",
+    "stop edits",
     "required checks",
     "exact unchanged snapshot",
     "READY WITH FOLLOW-UPS",
     "No automatic commit or push",
+    "automatically request independent b-review through intercom",
+    "automatically delegate the structured findings back",
+    "b_agentic_review_peer",
+    "B_AGENTIC_REVIEW_HANDOFF",
 # generated:role-prompt-markers:validate:end
 ]:
     if marker not in role_prompt:
@@ -187,8 +191,11 @@ if extension.exists():
         'tool_call', 'ask_user_question', 'User input needed', 'isAutoApprovedIntercomCall',
         'REVIEWER_PROMPT', 'implementerPrompt', 'reviewer profile', 'implementer profile',
         'SKILL_OWNERS', 'skillOwner', 'SKILL_OWNERSHIP_CRITERION',
-        'sole user-facing writer', 'independent read-only gate', 'freeze the candidate',
-        'tracked and relevant untracked/derived files', 'exact unchanged snapshot',
+        'sole user-facing writer', 'independent read-only gate', 'compact snapshot handoff',
+        'stop edits', 'exact unchanged snapshot',
+        'automatically request independent b-review through intercom',
+        'automatically delegate the structured findings back', 'b_agentic_review_peer', 'B_AGENTIC_REVIEW_HANDOFF',
+        'reviewHandoffOrigin', 'originSessionId', 'expectedSessionId', 'message.expectsReply',
         'ROLE_PROTOCOL_VERSION', 'isCompatibleRolePayload', 'createCandidateSnapshot',
         'isDirectClassifiedManagedTool', 'CODEGRAPH_TRUSTED_TOOLS', 'mcpScript',
         'roles never filter tools'

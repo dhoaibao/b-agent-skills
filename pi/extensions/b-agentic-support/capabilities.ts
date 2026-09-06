@@ -192,9 +192,9 @@ export const CAPABILITIES: readonly CapabilityDefinition[] = [
   {
     "id": "package.pi-intercom",
     "kind": "package",
-    "purpose": "Connect compatible same-CWD Pi sessions for explicit implementer and reviewer coordination.",
+    "purpose": "Connect compatible same-CWD Pi sessions for automatic implementer review requests and reviewer findings handbacks.",
     "owner": "Pi Intercom",
-    "trigger": "Use when the user explicitly selects implementer/reviewer roles or an independent review gate is required.",
+    "trigger": "Use when the user explicitly selects implementer/reviewer roles, an independent review gate is required, or a reviewer must return findings to the implementer.",
     "prerequisites": [
       "Pi CLI",
       "Same-CWD session coordination"
@@ -646,9 +646,9 @@ export const CAPABILITIES: readonly CapabilityDefinition[] = [
   {
     "id": "extension.b-agentic-role",
     "kind": "extension",
-    "purpose": "Select and persist explicit Off, implementer, or reviewer role preferences.",
+    "purpose": "Select and persist explicit roles and expose fail-closed compatible peers for automatic review handoffs.",
     "owner": "b-agentic role extension",
-    "trigger": "Use only when the user selects /b-role or a startup role flag; default behavior is Off.",
+    "trigger": "Use when the user selects /b-role, a startup role flag is active, or an automatic implementer/reviewer handoff needs a validated peer; default behavior is Off.",
     "prerequisites": [
       "Installed Pi extension entrypoint",
       "Explicit role selection"

@@ -247,7 +247,7 @@ purpose-specific `tool_call` extensions under `~/.pi/agent/extensions/`:
 - `b-agentic-auto-mode.ts` for confirmed automatic approval with explicit-deny protection.
 - `b-agentic-role.ts` for role selection and persistence.
 - Legacy-compatible `b-agentic-planner.ts` and `b-agentic-worker.ts` inject reviewer and implementer profiles without duplicate profile entrypoints.
-- `b-agentic-planner-notify.ts` emits privacy-safe implementer user-input and reviewer completion notifications.
+- `b-agentic-planner-notify.ts` emits privacy-safe implementer user-input and reviewer completion notifications; role prompts use `pi-intercom` for automatic review requests and findings handbacks.
 - `b-agentic-sync.ts` for in-session refresh commands.
 
 Role desktop notifications remain fixed and privacy-safe by default. To opt in to
@@ -295,13 +295,22 @@ Peer role payloads use a versioned compatible protocol. Unknown, legacy, or mixe
 same-CWD peers fail closed: an implementer does not claim writer status. The runtime
 does not provision, reset, or promise fresh reviewer sessions.
 
-An implementer directly asks material questions with `ask_user_question`. Before a
-changed-code gate it stops editing and supplies a compact candidate handoff: goal,
-acceptance, constraints, changed paths, exact snapshot identity covering tracked and
-relevant untracked/derived content, checks and outcomes, gaps, and risk. The reviewer
-independently reads that handoff and the diff. It may use bounded read-only research
-only to substantiate a finding; it cannot delegate, change scope, or become a research
-relay. No edits occur while a candidate is under review.
+An implementer directly asks material questions with `ask_user_question`. When a
+scoped task is complete and required checks pass, it uses the read-only
+`b_agentic_review_peer` selector to obtain exactly one validated compatible
+same-CWD reviewer session ID, then automatically uses `pi-intercom` to send a
+compact snapshot handoff containing `B_AGENTIC_REVIEW_HANDOFF` and request
+`b-review`; missing coordination stops the handoff. The implementer stops editing
+while the handoff is pending.
+
+The reviewer begins from that handoff without waiting for another prompt. It
+independently reads the handoff and diff, and may use bounded read-only research
+only to substantiate a finding. For `NEEDS FIXES`, it first uses
+`b_agentic_review_peer` to validate exactly one compatible same-CWD implementer matching the `B_AGENTIC_REVIEW_HANDOFF` origin, then
+automatically sends the structured findings back through `intercom` with that
+returned session ID as the target while remaining read-only; it does not
+delegate research or implementation. No edits occur while a candidate is under
+review.
 
 A candidate is eligible only when its exact snapshot remains unchanged, acceptance is
 met, required checks are fresh and passed, no blocker/material gap remains, and a

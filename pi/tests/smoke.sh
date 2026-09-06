@@ -676,14 +676,49 @@ expect(roleTest.isCompatibleRolePayload({ type: 'b-agentic-role', version: 2, ro
 const peers = [{ id: 'self', cwd: root, pid: process.pid, startedAt: 1 }, { id: 'mixed', cwd: root, pid: 202, startedAt: 2 }];
 expect(roleTest.hasCompatibleSameCwdPeerRoles(peers, root, process.pid, new Map()) === false, 'unknown or mixed peers must block an implementer claim');
 expect(roleTest.canClaimImplementer(peers, root, process.pid) === true && roleTest.canClaimImplementer([...peers, { id: 'third', cwd: root, pid: 303, startedAt: 3 }], root, process.pid) === false, 'only one peer can coexist with the sole writer');
+const reviewerPeer = { id: 'reviewer', cwd: root, pid: 202, startedAt: 2 };
+const knownReviewer = new Map([['reviewer', 'reviewer']]);
+expect(roleTest.compatibleSameCwdPeerForRole([peers[0], reviewerPeer], root, process.pid, knownReviewer, 'reviewer')?.id === 'reviewer', 'a known compatible reviewer must be selectable');
+expect(roleTest.compatibleSameCwdPeerForRole([peers[0], reviewerPeer], root, process.pid, new Map(), 'reviewer') === undefined, 'an unknown peer role must fail closed');
+expect(roleTest.compatibleSameCwdPeerForRole([peers[0], reviewerPeer], root, process.pid, new Map([['reviewer', 'off']]), 'reviewer') === undefined, 'an Off peer must not be selected as reviewer');
+expect(roleTest.compatibleSameCwdPeerForRole([peers[0], reviewerPeer], root, process.pid, new Map([['reviewer', 'implementer']]), 'reviewer') === undefined, 'an implementer peer must not be selected as reviewer');
+const offPeer = { id: 'off', cwd: root, pid: 203, startedAt: 3 };
+const wrongRolePeer = { id: 'wrong-role', cwd: root, pid: 204, startedAt: 4 };
+expect(roleTest.compatibleSameCwdPeerForRole([peers[0], reviewerPeer, offPeer], root, process.pid, new Map([['reviewer', 'reviewer'], ['off', 'off']]), 'reviewer') === undefined, 'a reviewer alongside an Off peer must fail closed');
+expect(roleTest.compatibleSameCwdPeerForRole([peers[0], reviewerPeer, wrongRolePeer], root, process.pid, new Map([['reviewer', 'reviewer'], ['wrong-role', 'implementer']]), 'reviewer') === undefined, 'a reviewer alongside a wrong-role peer must fail closed');
+expect(roleTest.compatibleSameCwdPeerForRole([...peers, reviewerPeer], root, process.pid, knownReviewer, 'reviewer') === undefined, 'mixed known and unknown peers must fail closed');
+const originPeer = { id: 'origin', cwd: root, pid: 205, startedAt: 5 };
+const nonOriginPeer = { id: 'non-origin', cwd: root, pid: 206, startedAt: 6 };
+expect(roleTest.compatibleSameCwdPeerForRole([peers[0], originPeer], root, process.pid, new Map([['origin', 'implementer']]), 'implementer', 'not-origin') === undefined, 'a valid but non-origin implementer must fail exact-origin validation');
 const publishedRoles = [];
-roleChannelRegistration.onReady({ publish(payload) { publishedRoles.push(payload); }, listSessions: async () => [{ id: 'self', cwd: root, pid: process.pid, startedAt: 1 }] });
+const peerSessions = [{ id: 'self', cwd: root, pid: process.pid, startedAt: 1 }, reviewerPeer];
+roleChannelRegistration.onReady({ publish(payload) { publishedRoles.push(payload); }, listSessions: async () => peerSessions });
 await roleChannelRegistration.onEvent({ type: 'connection', connected: true, supported: true });
+await roleChannelRegistration.onEvent({ type: 'message', fromSessionId: 'reviewer', payload: { type: 'b-agentic-role', version: 2, role: 'reviewer' } });
+const reviewPeerTool = tools.b_agentic_review_peer;
+expect(reviewPeerTool && reviewPeerTool.name === roleTest.REVIEW_PEER_TOOL, 'role extension must register the review-peer selector tool');
+const reviewPeerResult = await reviewPeerTool.execute('review-peer', { role: 'reviewer' }, undefined, undefined, roleContext);
+expect(reviewPeerResult.details?.available === true && reviewPeerResult.details?.sessionId === 'reviewer', 'review-peer selector must return the validated reviewer session ID');
+const noOriginResult = await reviewPeerTool.execute('no-origin', { role: 'implementer' }, undefined, undefined, roleContext);
+expect(noOriginResult.details?.available === false && noOriginResult.details?.reason === 'handoff-origin-missing', 'review-peer selector must require an active review handoff for implementer targeting');
+const handoffEntry = { type: 'custom_message', customType: 'intercom_message', details: { from: { id: 'origin', cwd: root }, message: { expectsReply: true, content: { text: `${roleTest.REVIEW_HANDOFF_SIGNAL}\nCandidate` } } } };
+branchEntries.push(handoffEntry);
+peerSessions.splice(1, 1, originPeer);
+await roleChannelRegistration.onEvent({ type: 'message', fromSessionId: 'origin', payload: { type: 'b-agentic-role', version: 2, role: 'implementer' } });
+expect(roleTest.reviewHandoffOrigin([handoffEntry], root) === 'origin', 'review handoff origin must come from the trusted intercom entry');
+const originResult = await reviewPeerTool.execute('origin', { role: 'implementer' }, undefined, undefined, roleContext);
+expect(originResult.details?.available === true && originResult.details?.sessionId === 'origin' && originResult.details?.originSessionId === 'origin', 'review-peer selector must validate the exact originating implementer');
+peerSessions.splice(1, 1, nonOriginPeer);
+await roleChannelRegistration.onEvent({ type: 'message', fromSessionId: 'non-origin', payload: { type: 'b-agentic-role', version: 2, role: 'implementer' } });
+const nonOriginResult = await reviewPeerTool.execute('non-origin', { role: 'implementer' }, undefined, undefined, roleContext);
+expect(nonOriginResult.details?.available === false, 'review-peer selector must reject a valid but non-origin implementer');
+peerSessions.splice(1, 1, reviewerPeer);
+await roleChannelRegistration.onEvent({ type: 'message', fromSessionId: 'reviewer', payload: { type: 'b-agentic-role', version: 2, role: 'reviewer' } });
 expect(publishedRoles.some((payload) => payload.type === 'b-agentic-role' && payload.version === 2 && payload.role === 'off'), 'role channel must publish versioned Off state');
 await commands['b-role'].handler('reviewer', roleContext);
 expect(roleStatuses.at(-1)?.value === '<success>b-agentic: reviewer</success>' && activeTools.includes('edit') && activeTools.includes('write'), 'reviewer selection preserves tools and applies only prompt guidance');
 const reviewerStart = await handlers.before_agent_start({ systemPrompt: 'base', systemPromptOptions: { skills: [] } }, roleContext);
-expect(reviewerStart.systemPrompt.includes('independent read-only gate') && reviewerStart.systemPrompt.includes('Bounded read-only research'), 'reviewer profile must own the read-only gate');
+expect(reviewerStart.systemPrompt.includes('independent read-only gate') && reviewerStart.systemPrompt.includes('Bounded read-only research') && reviewerStart.systemPrompt.includes('begin b-review automatically') && reviewerStart.systemPrompt.includes('automatically delegate the structured findings back'), 'reviewer profile must own the automatic read-only gate');
 for (const marker of [
   // generated:role-prompt-markers:planner:start
   "independent read-only gate",
@@ -692,15 +727,18 @@ for (const marker of [
 // generated:role-prompt-markers:planner:end
 ]) expect(reviewerStart.systemPrompt.includes(marker), `reviewer prompt must retain ${marker}`);
 await commands['b-role'].handler('off', roleContext);
+const offStart = await handlers.before_agent_start({ systemPrompt: 'base', systemPromptOptions: { skills: [] } }, roleContext);
+expect(offStart === undefined, 'Off role must not inject implementer or reviewer coordination guidance');
 await commands['b-role'].handler('implementer', roleContext);
 expect(roleStatuses.at(-1)?.value.includes('implementer') && activeTools.includes('edit') && activeTools.includes('write'), 'a compatible solo implementer request may claim the sole writer role without filtering tools');
 const implementerStart = await handlers.before_agent_start({ systemPrompt: 'base', systemPromptOptions: { skills: [] } }, roleContext);
-expect(implementerStart.systemPrompt.includes('sole user-facing writer') && implementerStart.systemPrompt.includes('freeze the candidate') && implementerStart.systemPrompt.includes('Do not edit while review is pending'), 'implementer profile must require the candidate gate');
+expect(implementerStart.systemPrompt.includes('sole user-facing writer') && implementerStart.systemPrompt.includes('compact snapshot handoff') && implementerStart.systemPrompt.includes('automatically request independent b-review through intercom') && implementerStart.systemPrompt.includes('Do not edit while review is pending'), 'implementer profile must require the automatic candidate gate');
 for (const marker of [
   // generated:role-prompt-markers:worker:start
   "sole user-facing writer",
   "Work directly with the user",
-  "freeze the candidate",
+  "explicit implementer role is active",
+  "compact snapshot handoff",
   "Do not edit while review is pending",
 // generated:role-prompt-markers:worker:end
 ]) expect(implementerStart.systemPrompt.includes(marker), `implementer prompt must retain ${marker}`);
@@ -1361,6 +1399,7 @@ for (const command of ['bun run untrusted.ts', 'bunx untrusted-package', 'deno r
 }
 expect(t.SPECIALIZED_TOOLS.has('recall'), 'recall must be a first-party specialized tool');
 expect(t.SPECIALIZED_TOOLS.has('ask_user_question'), 'ask_user_question must be a first-party specialized tool');
+expect(t.SPECIALIZED_TOOLS.has('b_agentic_review_peer'), 'b_agentic_review_peer must be a first-party specialized read-only tool');
 expect(t.SPECIALIZED_TOOLS.has('mcpScript'), 'mcpScript must be a trusted container whose nested calls retain policy');
 expect(t.isMcpOrCustomTool('recall', { id: 'aaaaaaaaaaaa' }) === false, 'recall must not require custom-tool approval');
 const genericApprovalToolCases = [

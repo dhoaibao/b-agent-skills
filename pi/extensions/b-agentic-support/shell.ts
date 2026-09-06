@@ -82,7 +82,7 @@ export const PROTECTED_PATH_MARKERS = [
 ];
 
 /**
- * Built-in Pi tools with specialized policy.
+ * Built-in and first-party Pi tools with specialized policy.
  * Legacy discovery tools (grep/find/ls) are blocked so agents use bash with
  * modern shell tools (rg/fdfind/eza) per the kernel. recall is first-party memory
  * lookup. Managed MCP operations are approved only when classified safe.
@@ -94,6 +94,7 @@ export const SPECIALIZED_TOOLS = new Set([
   "read",
   "recall",
   "ask_user_question",
+  "b_agentic_review_peer",
   "mcpScript",
   "grep",
   "find",

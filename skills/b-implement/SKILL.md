@@ -40,16 +40,18 @@ Make the scoped non-UI change in the smallest coherent step after an approved pl
 3. Ask the user directly with `ask_user_question` only for a material unresolved choice or blocker. Use the highest-impact blocker first and wait for its answer before raising another independent blocker. Do not relay normal clarification through a reviewer.
 4. Make the smallest coherent edit with native tools, matching the target module's local style. Remove imports/helpers made unused by it, but retain unrelated pre-existing dead code.
 5. Run the narrowest useful verification. If an unambiguous in-scope defect causes failure, correct it and rerun until required verification passes. If failure reveals ambiguity, scope drift, or an unrelated issue, stop and ask or route rather than guessing. Inspect explicit non-protected changed paths.
-6. Before review, freeze the candidate: stop edits and provide the reviewer a compact snapshot covering tracked and relevant untracked/derived content, required checks and outcomes, acceptance, constraints, gaps, and risk. Do not claim a reviewer is fresh, provision one, or reset a session.
-7. Do not edit while review is pending. A changed snapshot, skipped/failed required check, missing baseline, wrong reviewer, `NEEDS FIXES`, or unaccepted follow-up blocks shipping. Reverify and request another review after corrections. No review automatically commits or pushes.
+6. When the scoped task is complete and required checks pass, report the changed paths, verification, acceptance coverage, gaps, and risk. The shared explicit implementer-role profile owns any automatic frozen-candidate **b-review** handoff; standalone **Off** mode does not initiate intercom review.
+7. If the active implementer role initiates a handoff or review, do not edit while it is pending. A changed snapshot, skipped/failed required check, missing baseline, wrong reviewer, `NEEDS FIXES`, or unaccepted follow-up blocks shipping. For delegated `NEEDS FIXES`, correct only unambiguous in-scope findings, rerun the required checks, and let the implementer-role profile send a fresh snapshot and review request; stop and ask or route when a finding reveals ambiguity or scope drift. No review automatically commits or pushes.
 
 ## Output format
 
-Changes, verification, acceptance coverage, and deviations or gaps. For a changed candidate, request actual **b-review** from an explicitly selected compatible reviewer and pause edits.
+Changes, verification, acceptance coverage, and deviations or gaps. When the explicit implementer role is active, its shared profile handles the **b-review** handoff and pause; standalone **Off** mode remains solo.
 
 ## Rules
 
 - Stay within approved scope and use the smallest evidence-backed fit.
 - Roles govern prompts, not tools; shared approval policy remains authoritative.
+- Automatic review handoffs belong to the explicit implementer-role profile; standalone **Off** mode must not initiate intercom review.
+- When the implementer-role profile delegates **NEEDS FIXES**, correct only unambiguous in-scope findings, rerun checks, and let that profile request a fresh review; stop for ambiguity or scope drift.
 - Same-day changelog maintenance is required only when preparing a user-authorized commit. Include it in the reviewed candidate or reopen review.
-- Never claim completion when required verification or the independent review gate is absent.
+- Never claim shipping readiness when required verification or the independent review gate is absent.

@@ -76,6 +76,27 @@
       "avoid": ["Continue editing", "Hand off a full transcript"]
     },
     {
+      "id": "implementer-automatically-requests-review",
+      "role": "implementer",
+      "skill": "b-implement",
+      "observed_failure": "A completed implementation in the explicit implementer role waited for another user prompt instead of requesting its independent review.",
+      "intended_behavior": "After required checks pass in the explicit implementer role, the implementer automatically sends a compact frozen-candidate handoff through intercom to one compatible same-CWD reviewer and stops edits; missing coordination is reported as a gap.",
+      "prompt": "The explicit implementer role is active, the implementation is complete, and required checks pass. Explain the next action, including peer selection, the intercom message, and what happens if no compatible reviewer is available.",
+      "must": [
+        "Automatically request b-review",
+        "Use b_agentic_review_peer to validate one compatible same-CWD reviewer",
+        "Send a compact frozen-candidate handoff",
+        "Include the B_AGENTIC_REVIEW_HANDOFF marker",
+        "Stop edits while review is pending",
+        "Report a coordination gap when no peer is available"
+      ],
+      "avoid": [
+        "Wait for another user prompt",
+        "Invent or provision a reviewer",
+        "Claim review readiness without a reviewer"
+      ]
+    },
+    {
       "id": "stale-content-and-checks-block-shipping",
       "role": "implementer",
       "skill": "b-review",
@@ -122,15 +143,39 @@
       "role": "reviewer",
       "skill": "b-review",
       "observed_failure": "Reviewer research expanded scope, delegated work, or mutated source.",
-      "intended_behavior": "A reviewer may perform bounded read-only research only to substantiate a concrete finding.",
-      "prompt": "A review finding needs an API fact. Explain the permitted research and prohibited actions.",
+      "intended_behavior": "A reviewer may perform bounded read-only research only to substantiate a concrete finding, but must delegate review findings rather than research or implementation.",
+      "prompt": "A review finding needs an API fact. Explain the permitted research, how a NEEDS FIXES finding is returned to the implementer, and the prohibited actions.",
       "must": [
         "Use bounded read-only research",
         "Substantiate a concrete finding",
-        "Do not edit or delegate"
+        "Delegate NEEDS FIXES findings through intercom",
+        "Do not edit or delegate research or implementation"
       ],
-      "avoid": ["Implement the fix", "Expand scope"]
+      "avoid": ["Implement the fix", "Delegate research", "Expand scope"]
     },
+    {
+      "id": "reviewer-delegates-needs-fixes",
+      "role": "reviewer",
+      "skill": "b-review",
+      "observed_failure": "A reviewer reported NEEDS FIXES locally but did not return the findings to the implementer.",
+      "intended_behavior": "A reviewer starts from an implementer intercom handoff and automatically delegates structured NEEDS FIXES findings back to the originating compatible same-CWD implementer without editing.",
+      "prompt": "An implementer sends a frozen candidate through intercom and your independent review finds a real blocking defect. Explain how you return the finding and what you must not do.",
+      "must": [
+        "Start b-review from the implementer handoff",
+        "Return structured NEEDS FIXES findings through intercom",
+        "Use b_agentic_review_peer to validate the exact handoff origin",
+        "Target the originating compatible same-CWD implementer",
+        "Remain read-only and do not implement the fix"
+      ],
+      "avoid": [
+        "Wait for another prompt",
+        "Keep findings only in local output",
+        "Reply without validating the handoff origin",
+        "Edit the repository",
+        "Delegate to an unknown or non-origin peer"
+      ]
+    },
+
     {
       "id": "review-is-not-shipping",
       "role": "reviewer",

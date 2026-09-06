@@ -17,7 +17,9 @@
 
 ## Intercom roles
 
-- b-agentic defaults to Off; select `implementer` or `reviewer` with `/b-role` or `pi --b-role`. The implementer is the sole user-facing worktree writer; the reviewer is an independent prompt-governed read-only gate. Use only compatible same-CWD peers; legacy planner/worker state stays inactive until explicitly reselected.
+- b-agentic defaults to Off; select roles with `/b-role` or `pi --b-role`. The implementer is the sole user-facing worktree writer; reviewer is an independent prompt-governed read-only gate. Use compatible same-CWD peers; legacy planner/worker state stays inactive.
+- Checked completion in explicit implementer role automatically requests a frozen-candidate `b-review` via `b_agentic_review_peer` and `intercom`, marked `B_AGENTIC_REVIEW_HANDOFF`; missing peers stop handoff.
+- Reviewer starts b-review; validate the exact handoff origin with b_agentic_review_peer, target the returned session ID, then automatically delegate `NEEDS FIXES` findings back through `intercom`.
 <!-- generated:skill-ownership:start -->
 - Implementer-owned skills: `b-plan`, `b-research`, `b-design`, `b-frontend`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, `b-commit`, `b-pr-summary`. The implementer is the sole user-facing worktree writer.
 - Reviewer-owned skills: `b-agentic-audit`, `b-review`. The reviewer executes only the independent read-only gate.
@@ -80,7 +82,7 @@ else {
 
 `~/.pi/agent/b-agentic/references/capabilities.yaml` is canonical. Activate on triggers; unavailable prerequisites require a local fallback. Configured is not authenticated, externally verified, or used here.
 For changed source, run behavior/quality checks; report gaps instead of guessing.
-Use Context7: versioned official facts; Firecrawl: bounded primary research; Brave: corroboration; Playwright: requested browser/e2e/visual evidence. Intercom: compatible same-CWD coordination only; `ask_user_question`: material choices only; `recall`: supplied memory ID only; usage only on request; auth only when needed. Candidate review freezes implementer edits and requires an unchanged snapshot covering tracked and relevant untracked/derived content, fresh passing required checks, acceptance, no blockers/material gaps, and a valid reviewer disposition; it never auto-commits or pushes.
+Context7; Firecrawl/Brave; Playwright evidence. Automatic handoffs require `b_agentic_review_peer` and exact `B_AGENTIC_REVIEW_HANDOFF` origin; other Intercom is on request. `ask_user_question` covers choices; `recall` requires an ID. Candidate review freezes implementer edits; needs unchanged snapshot, fresh passing checks, acceptance, no blockers, and valid disposition; never auto-commits or pushes.
 A status snapshot must never start live MCP/auth/browser probes, never parse MCP configuration or inspect credential/API-key values, or persist prompts, code, URLs, secrets, or usage telemetry.
 
 ### Managed MCP operations

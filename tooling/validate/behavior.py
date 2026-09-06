@@ -66,24 +66,34 @@ SHELL_POLICY_REGRESSION = {
     # modern fallback availability, and scoped Git content reads.
 }
 
-# Regression: a mixed or stale peer could silently gain writer status, or a
-# reviewer verdict could be reused after candidate content changed.
+# Regression: a mixed or stale peer could silently gain writer status, a
+# completed implementation could stop before review, or review findings could
+# remain stranded instead of returning to the sole writer.
 INTERCOM_DELEGATION_REGRESSION = {
-    "observed_failure": "Role migration accepted legacy state or stale review evidence.",
-    "intended_behavior": "Off remains default; compatible peers and unchanged candidates are required.",
+    "observed_failure": "Role migration accepted legacy state or stale review evidence, and implementer/reviewer handoffs were not automatic.",
+    "intended_behavior": "Off remains default and solo; explicit implementer completion requests review, while compatible peers and unchanged candidates are required and NEEDS FIXES findings return to the implementer.",
     "required_clauses": (
         "b-agentic defaults to Off", "implementer is the sole user-facing worktree writer",
         "legacy planner/worker state stays inactive", "Candidate review freezes implementer edits",
+        "Checked completion in explicit implementer role automatically requests a frozen-candidate `b-review` via `b_agentic_review_peer` and `intercom`",
+        "automatically delegate `NEEDS FIXES` findings back through `intercom`",
     ),
     "role_required_clauses": (
         # generated:role-prompt-markers:behavior:start
         "sole user-facing writer",
         "independent read-only gate",
-        "freeze the candidate",
+        "compact snapshot handoff",
         "wrong reviewer",
         "skipped/failed checks",
         "Corrections require re-verification and re-review",
 # generated:role-prompt-markers:behavior:end
+        "explicit implementer role is active",
+        "automatically request independent b-review through intercom",
+        "After a reviewer delegates NEEDS FIXES",
+        "begin b-review automatically",
+        "automatically delegate the structured findings back",
+        "B_AGENTIC_REVIEW_HANDOFF",
+        "validate the exact originating",
     ),
 }
 

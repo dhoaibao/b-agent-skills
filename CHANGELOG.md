@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog 2.0.0](https://keepachangelog.com/en/2.
 and this project adheres to Calendar Versioning: `vYYYY.MM.DD`, with one release
 section per date and same-day changes aggregated in that section.
 
+## [v2026.09.06] - 2026-09-06
+
+### Changed
+
+- Keep the default Off workflow solo while enabling explicit implementer-role review handoffs with validated same-CWD peer/origin targeting and supporting Pi smoke and behavior coverage.
+
 ## [v2026.09.05] - 2026-09-05
 
 ### Removed
