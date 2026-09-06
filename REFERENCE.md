@@ -248,7 +248,7 @@ purpose-specific `tool_call` extensions under `~/.pi/agent/extensions/`:
 - `b-agentic-permissions.ts` for shell/filesystem policy.
 - `b-agentic-mcp-permissions.ts` for managed MCP and custom-tool approval.
 - `b-agentic-auto-mode.ts` for confirmed automatic approval with explicit-deny protection.
-- `b-agentic-role.ts` for role selection, session state, and durable per-project persistence.
+- `b-agentic-role.ts` for role selection, session state, and durable per-session/pane persistence.
 - Legacy-compatible `b-agentic-planner.ts` and `b-agentic-worker.ts` inject reviewer and implementer profiles without duplicate profile entrypoints.
 - `b-agentic-planner-notify.ts` emits privacy-safe implementer user-input and reviewer completion notifications; role prompts use `pi-intercom` for automatic review requests and findings handbacks.
 - `b-agentic-sync.ts` for in-session refresh commands.
@@ -287,14 +287,16 @@ symlinked files, and never removes installed packages, including `@gotgenes/pi-a
 
 b-agentic defaults to Off. Explicitly select `/b-role implementer`, `/b-role reviewer`,
 or `/b-role off` (and matching `pi --b-role` flags). Every explicit `/b-role`
-selection is recorded for the current project directory as an independent record
-under `~/.pi/agent/b-agentic/roles/`, so a later session in that project restores
-it instead of starting Off and concurrent sessions in other projects cannot drop
-it. A session's own recorded role still wins over that
-project default, and `pi --b-role` remains a one-session override that does not
-rewrite the stored selection. A restored implementer still passes through
-same-CWD claim arbitration and stays Off when a peer already holds the writer
-role. The implementer is the sole
+selection follows the session and the terminal pane it runs in, never the project
+as a whole. A new, forked, or resumed session continues the role recorded in the
+session it replaced; otherwise it restores the last explicit selection for that
+terminal pane and project, kept as an independent record under
+`~/.pi/agent/b-agentic/roles/`. A pane with no recorded selection starts Off, so
+an implementer pane and a reviewer pane in one project never adopt each other's
+role. A session's own recorded role wins over both, and `pi --b-role` remains a
+one-session override that does not rewrite the stored selection. A restored
+implementer still passes through same-CWD claim arbitration and stays Off when a
+peer already holds the writer role. The implementer is the sole
 user-facing writer and owns planning, research, design, build, validation, commit,
 and PR summary. The reviewer owns independent read-only `b-review` and
 `b-agentic-audit`. Roles govern prompts rather than filtering tools; shared shell,

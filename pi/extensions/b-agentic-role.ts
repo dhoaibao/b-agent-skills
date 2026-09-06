@@ -16,9 +16,11 @@ import {
   saveRoleModelPreference,
 } from "./b-agentic-support/role-models.ts";
 import {
-  loadProjectRole,
-  projectRolePath,
-  saveProjectRole,
+  loadPaneRole,
+  paneRolePath,
+  roleFromSessionFile,
+  savePaneRole,
+  terminalPaneId,
 } from "./b-agentic-support/role-store.ts";
 import { getRole, setRole } from "./b-agentic-support/state.ts";
 
@@ -203,13 +205,13 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
       role: getRole(),
       version: ROLE_PROTOCOL_VERSION,
     });
-  /** Explicit selections survive into later sessions of the same project. */
-  const persistProjectSelection = (
+  /** Explicit selections survive into later sessions of the same terminal pane. */
+  const persistPaneSelection = (
     role: BAgenticRole,
     ctx: ExtensionContext,
   ): void => {
     try {
-      saveProjectRole(ctx.cwd, role);
+      savePaneRole(ctx.cwd, role);
     } catch {
       // A session entry still preserves the choice when the durable file is unavailable.
     }
@@ -518,8 +520,8 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
       pendingImplementerClaim = next === "implementer";
       pendingImplementerModel = next === "implementer";
       // Record the explicit request itself, so a claim that loses same-CWD
-      // arbitration still retries in the project's next session.
-      persistProjectSelection(next, ctx);
+      // arbitration still retries in this pane's next session.
+      persistPaneSelection(next, ctx);
       applyRole(next === "implementer" ? "off" : next, ctx);
       if (next === "reviewer") await applySavedModel("reviewer", ctx);
       if (pendingImplementerClaim) {
@@ -558,12 +560,18 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
       /* Preference persistence cannot block selection. */
     }
   });
-  pi.on("session_start", async (_event, ctx) => {
+  pi.on("session_start", async (event, ctx) => {
     const persistedRole = latestRoleState(ctx.sessionManager.getBranch())?.role;
-    // A startup flag stays a one-session override; a session's own recorded role
-    // wins over the project default so resumed sessions keep their own state.
+    // A startup flag stays a one-session override. Otherwise a session keeps its
+    // own recorded role, then continues its predecessor's role, then this
+    // terminal pane's last explicit selection; an unrelated pane stays Off.
+    const inheritedRole = event.previousSessionFile
+      ? roleFromSessionFile(event.previousSessionFile)
+      : undefined;
     const flagRole = parseRole(pi.getFlag("b-role"));
-    const requestedRole = flagRole ?? persistedRole ?? loadProjectRole(ctx.cwd);
+    const requestedRole =
+      flagRole ?? persistedRole ?? inheritedRole ?? loadPaneRole(ctx.cwd);
+    const continuesLineage = !flagRole && persistedRole === undefined;
     pendingImplementerClaim = requestedRole === "implementer";
     pendingImplementerModel = pendingImplementerClaim;
     const selectedRole = pendingImplementerClaim
@@ -577,7 +585,12 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
           ? selectedRole
           : undefined;
     if (startupModelRole) await applySavedModel(startupModelRole, ctx);
-    if (flagRole && !pendingImplementerClaim) persist();
+    // Record a continued role in this session too, so its own successors keep
+    // inheriting it; a pending implementer claim records only once it wins.
+    const recordsSelection =
+      flagRole !== undefined ||
+      (continuesLineage && requestedRole !== undefined);
+    if (recordsSelection && !pendingImplementerClaim) persist();
     pi.events.emit("intercom:extension-register", {
       namespace: "b-agentic/roles/v2",
       ownerEligible: false,
@@ -606,9 +619,11 @@ export const __test__ = {
   preferredImplementerId,
   compatibleSameCwdPeerForRole,
   reviewHandoffOrigin,
-  loadProjectRole,
-  saveProjectRole,
-  projectRolePath,
+  loadPaneRole,
+  savePaneRole,
+  paneRolePath,
+  terminalPaneId,
+  roleFromSessionFile,
   REVIEW_PEER_TOOL,
   REVIEW_HANDOFF_SIGNAL,
   REVIEW_HANDOFF_PREFIX,
