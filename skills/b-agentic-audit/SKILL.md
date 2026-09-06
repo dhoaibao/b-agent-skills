@@ -33,6 +33,23 @@ Run a read-only, source-based b-agentic audit across four dimensions:
 This audit supplements deterministic checks; it does not mechanically prove all
 prose semantics and never substitutes for changed-code `b-review`.
 
+## Mandatory origin freshness gate
+
+Before any other audit step or repository read, establish that the current
+branch is synchronized with `origin`:
+
+1. Refresh the local remote-tracking metadata with `rtk git fetch origin`.
+   Do not pull, merge, rebase, or modify working-tree files.
+2. Resolve the current branch and its configured upstream. Require that the
+   upstream is an `origin/*` ref, then compare `HEAD` with that ref using
+   metadata-only Git commands (for example, `git rev-list --left-right --count
+   <origin-ref>...HEAD`). Proceed only when both counts are zero.
+3. If the branch is detached, the `origin` ref is missing, fetch or comparison
+   fails, or the branch is ahead, behind, or diverged, notify the user and stop:
+   `BLOCKED: current branch is not up to date with origin; synchronize it and
+   rerun the audit.` Do not read audit sources, run the audit script, perform
+   MCP/currentness probes, or issue findings or a verdict.
+
 ## When to use
 
 - The user requests a b-agentic repository audit, suite audit, maintainer audit,
@@ -55,7 +72,8 @@ prose semantics and never substitutes for changed-code `b-review`.
 
 ## Tool guidance
 
-- `bash` - run `rtk git status --short`, the existing
+- `bash` - run `rtk git fetch origin` and the mandatory metadata-only branch
+  freshness comparison before `rtk git status --short`, the existing
   `scripts/b-agentic-audit.sh` entrypoint, and narrow repository checks.
 - `read` - inspect `docs/decision_design.md` and the canonical source files it
   cites; prefer sources over generated assets when comparing behavior.
@@ -69,9 +87,10 @@ prose semantics and never substitutes for changed-code `b-review`.
 
 ## Steps
 
-1. Define the four-dimension audit surface from the user request and run
-   `rtk git status --short`; preserve unrelated changes and classify protected
-   paths before reading them.
+1. Complete the mandatory origin freshness gate above before defining the
+   four-dimension audit surface or reading repository files. After it passes,
+   run `rtk git status --short`; preserve unrelated changes and classify
+   protected paths before reading them.
 2. Read the decision record and identify relevant decisions, evidence markers,
    referenced sources, generated surfaces, explicit non-goals, and local pins.
 3. Use `bash` to run `scripts/b-agentic-audit.sh` and record structural, generated-sync,
@@ -111,7 +130,9 @@ prose semantics and never substitutes for changed-code `b-review`.
 
 Findings (ordered by severity), four-dimension source-based comparison,
 automated checks, checked-and-clean areas, currentness/live-evidence status,
-residual limitations, and follow-up. Verdict:
+residual limitations, and follow-up. If the freshness gate fails, report the
+blocked notification only and do not emit the normal findings or verdict.
+Verdict:
 
 - `NEEDS FIXES` when there is actual source, safety, or semantic drift.
 - `READY WITH FOLLOW-UPS` when no finding exists but required external,
@@ -120,10 +141,14 @@ residual limitations, and follow-up. Verdict:
 
 ## Rules
 
-- Keep the audit strictly read-only: do not edit, stage, commit, push, or apply
-  fixes. Route frontend/UI production fixes to **b-frontend**, other behavioral
-  fixes to **b-implement**, and named behavior-preserving transforms to
-  **b-refactor**; do not edit during the audit.
+- Keep the audit strictly read-only: the mandatory freshness gate may refresh
+  only local `origin` tracking metadata with `rtk git fetch origin`; do not edit,
+  stage, commit, push, or apply fixes. Route frontend/UI production fixes to
+  **b-frontend**, other behavioral fixes to **b-implement**, and named
+  behavior-preserving transforms to **b-refactor**; do not edit during the audit.
+- The origin freshness gate is mandatory and runs before every audit action. A
+  failed or non-zero comparison is a blocked audit, not a finding; notify the
+  user and stop without auditing or issuing a verdict.
 - Prefer repository evidence over assumptions and cite repository-relative paths.
 - Do not claim that passing structural or traceability checks proves all prose
   semantics, production readiness, health, currentness, or the absence of drift.
