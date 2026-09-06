@@ -2,6 +2,7 @@
 import type {
   AgentEndEvent,
   ExtensionAPI,
+  ExtensionContext,
   ToolCallEvent,
 } from "@earendil-works/pi-coding-agent";
 import { getRole } from "./b-agentic-support/state.ts";
@@ -52,6 +53,11 @@ function messageWithContext(message: string, cwd?: string): string {
   const repository = notificationRepositoryLabel(cwd);
   return repository ? `${message} — ${repository}` : message;
 }
+export function setInteractiveNotificationTitle(ctx: ExtensionContext): void {
+  if (ctx.mode !== "tui") return;
+  const repository = notificationRepositoryLabel(ctx.cwd);
+  if (repository) ctx.ui.setTitle(`pi — ${repository}`);
+}
 export async function notifyDesktop(
   exec: Exec,
   message: string,
@@ -101,6 +107,9 @@ export function hasReviewCompleteSignal(
 }
 export default function bAgenticRoleNotify(pi: ExtensionAPI): void {
   let reviewCompleted = false;
+  pi.on("session_start", (_event, ctx) => {
+    setInteractiveNotificationTitle(ctx);
+  });
   pi.on("agent_start", () => {
     reviewCompleted = false;
   });
@@ -142,4 +151,5 @@ export const __test__ = {
   hasReviewCompleteSignal,
   notificationRepositoryLabel,
   notifyDesktop,
+  setInteractiveNotificationTitle,
 };

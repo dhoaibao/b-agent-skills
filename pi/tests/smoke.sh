@@ -210,6 +210,7 @@ let activeModel = { provider: 'anthropic', id: 'claude-sonnet-4-5' };
 let activeThinkingLevel = 'high';
 const roleStatuses = [];
 const roleNotifications = [];
+const terminalTitles = [];
 const sentMessages = [];
 const sentUserMessages = [];
 let mcpApprovalHandler;
@@ -661,6 +662,7 @@ const roleContext = {
     confirm: async () => true,
     select: async (title) => { if (title === 'Select b-agentic role') { rolePickerCalls += 1; return 'implementer'; } return 'Allow once'; },
     notify(message, level) { roleNotifications.push({ message, level }); },
+    setTitle(title) { terminalTitles.push(title); },
     theme: { fg(color, text) { return `<${color}>${text}</${color}>`; }, getColorMode() { return roleColorMode; } },
     setStatus(key, value) { roleStatuses.push({ key, value }); },
   },
@@ -789,6 +791,25 @@ await new Promise((resolve) => setImmediate(resolve));
 delete flags['b-role'];
 expect(roleStatuses.at(-1)?.value.includes('implementer') && startupFlagRoles.some((payload) => payload.type === 'b-agentic-role-request'), 'a sole startup implementer flag claims after channel readiness without a later connection event');
 const notificationCommandStart = executedCommands.length;
+const notificationContextEnv = plannerNotifyTest.NOTIFICATION_CONTEXT_ENV;
+const previousNotificationContext = process.env[notificationContextEnv];
+const notificationCwd = '/private/workspace/notification-repo';
+delete process.env[notificationContextEnv];
+expect(typeof plannerNotifySessionStartHandler === 'function', 'notification extension must register session startup handling');
+const titleCountBeforeDefault = terminalTitles.length;
+await plannerNotifySessionStartHandler({}, { ...roleContext, mode: 'tui', cwd: notificationCwd });
+expect(terminalTitles.length === titleCountBeforeDefault, 'notification context must not set a terminal title without opt-in');
+process.env[notificationContextEnv] = '1';
+await plannerNotifySessionStartHandler({}, { ...roleContext, mode: 'tui', cwd: notificationCwd });
+expect(terminalTitles.at(-1) === 'pi — notification-repo' && !terminalTitles.at(-1).includes(notificationCwd), 'opt-in interactive sessions must set a title containing only the repository basename');
+const titleCountBeforeRpc = terminalTitles.length;
+await plannerNotifySessionStartHandler({}, { ...roleContext, mode: 'rpc', cwd: notificationCwd });
+expect(terminalTitles.length === titleCountBeforeRpc, 'non-TUI sessions must not set a terminal title');
+const titleCountBeforeUnusable = terminalTitles.length;
+await plannerNotifySessionStartHandler({}, { ...roleContext, mode: 'tui', cwd: '/' });
+expect(terminalTitles.length === titleCountBeforeUnusable, 'unusable repository basenames must omit the terminal title');
+if (previousNotificationContext === undefined) delete process.env[notificationContextEnv];
+else process.env[notificationContextEnv] = previousNotificationContext;
 await handlers.tool_call({ toolName: 'ask_user_question', toolCallId: 'implementer-input', input: {} }, roleContext);
 expect(executedCommands.length === notificationCommandStart + 1, 'implementer user input must notify once with UI');
 await handlers.tool_call({ toolName: 'ask_user_question', toolCallId: 'headless-input', input: {} }, { ...roleContext, hasUI: false });

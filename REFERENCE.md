@@ -253,7 +253,8 @@ purpose-specific `tool_call` extensions under `~/.pi/agent/extensions/`:
 Role desktop notifications remain fixed and privacy-safe by default. To opt in to
 repository context, set `B_AGENTIC_NOTIFICATION_CONTEXT=1`. On Linux and macOS,
 this adds only a sanitized basename of the current working directory to role
-notifications. Absolute paths, session details, task text, and unusable basenames
+notifications; in interactive TUI sessions it also sets the terminal title to
+`pi — <repo>`. Absolute paths, session details, task text, and unusable basenames
 are never included.
 
 Helpers under `pi/extensions/b-agentic-support/` are not discovered as

@@ -17,6 +17,7 @@ section per date and same-day changes aggregated in that section.
 
 ### Fixed
 
+- Restore opt-in repository labels in interactive TUI titles while keeping the basename privacy boundary and regression coverage.
 - Make commit prerequisites consistent with the active role: Off mode uses local verification unless review is requested, while implementer mode reviews the final candidate after repository-required changelog preparation and checks.
 - Keep PR-description review and rewriting in the PR-summary skill rather than the changed-code gate, with evidence-limited editorial feedback, synchronized routing, and cross-skill regression coverage for commit, prose, and privacy boundaries.
 - Distinguish task-authorized local proprietary-source reads from external disclosure while retaining explicit permission for protected material; add Off-mode prompt scenarios without injecting an active-role profile.
