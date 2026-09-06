@@ -74,7 +74,7 @@ def clean_output(value: str | bytes | None) -> str:
 
 def scenario_role_prompt(scenario: dict) -> str | None:
     role = scenario.get("role")
-    if role is None:
+    if role is None or role == "off":
         return None
     if role not in {"implementer", "reviewer"}:
         raise ValueError(f"invalid scenario role: {role!r}")
@@ -154,6 +154,10 @@ def validate_command_construction(args: argparse.Namespace, scenarios: list[dict
         role_prompt = scenario_role_prompt(scenario)
         if role_prompt and role_prompt not in addendum:
             raise ValueError(f"Pi command does not inject the {scenario['role']} role prompt")
+        if scenario.get("role") == "off":
+            expected_addendum = kernel_text if args.routing else "\n\n".join([kernel_text, skill_path.read_text()])
+            if addendum != expected_addendum:
+                raise ValueError("Off scenario must not inject an implementer or reviewer role prompt")
         if args.provider and command[command.index("--provider") + 1] != args.provider:
             raise ValueError("Pi command does not pin the requested provider")
         if args.routing:

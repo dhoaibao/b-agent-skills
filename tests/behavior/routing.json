@@ -141,6 +141,18 @@
       "forbidden_skills": ["b-commit", "b-review"]
     },
     {
+      "id": "review-pr-description",
+      "prompt": "Review my PR description before I submit it.",
+      "expected_skill": "b-pr-summary",
+      "forbidden_skills": ["b-commit", "b-review"]
+    },
+    {
+      "id": "rewrite-pr-prose",
+      "prompt": "Rewrite this PR title and description for clarity.",
+      "expected_skill": "b-pr-summary",
+      "forbidden_skills": ["b-commit", "b-review"]
+    },
+    {
       "id": "mechanical-refactor",
       "prompt": "Rename one symbol and all references without changing behavior.",
       "expected_skill": "b-refactor",

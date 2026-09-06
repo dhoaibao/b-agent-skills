@@ -2,9 +2,9 @@
 name: b-review
 description: >
   Pre-PR changed-code review for reviewer-style reads of a diff, commit
-  range, or checkpoint after implementation. Do NOT invoke for b-agentic
-  repository or design-conformance audits, UI/design review, plan review,
-  or research synthesis review.
+  range, or checkpoint after implementation. Do NOT invoke for PR-prose
+  review, b-agentic repository or design-conformance audits, UI/design
+  review, plan review, or research synthesis review.
 ---
 
 <!-- Generated from skills/registry.yaml and skills/b-review/prompt.md. Edit those sources, not this file. -->
@@ -22,6 +22,7 @@ Flags: `--skip-tests`, `--baseline=<path|url>`, `--range=<ref>..<ref>`.
 
 ## When NOT to use
 
+- PR title/description prose review or rewriting without changed-code review -> **b-pr-summary**.
 - A b-agentic repository/design-conformance audit -> **b-agentic-audit**.
 - Root-cause diagnosis -> **b-debug**.
 - Writing or fixing tests -> **b-test**.

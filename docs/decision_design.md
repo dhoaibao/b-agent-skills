@@ -61,7 +61,9 @@ Build, Validate, and Ship. `b-plan` resolves ambiguity; `b-research` supplies
 external or versioned facts; `b-frontend` owns UI implementation;
 `b-implement` handles scoped non-UI implementation; named refactors, runtime
 diagnosis, test mechanics, browser evidence, changed-code review, repository
-audit, commits, and PR summaries stay with their respective skills.
+audit, commits, and PR summaries stay with their respective skills. `b-pr-summary`
+also owns supplied PR-prose review/rewrite; editorial feedback does not require a
+frozen code candidate or confer a changed-code review disposition.
 
 Sessions default to `off`; `/b-role` or `pi --b-role` selects explicit
 implementer or reviewer roles. The implementer owns planning through commit and
@@ -90,7 +92,10 @@ stays inactive until explicitly reselected; old preferences map by role only.
   fresh passing required checks, no blockers/material gaps, and a valid review
   disposition. Follow-ups need explicit disposition and never waive safety
   evidence. Review does not commit or push; changelog changes for an authorized
-  commit are part of the reviewed candidate.
+  commit are part of the reviewed candidate. In default Off mode, commits require
+  local snapshot verification and required checks, not automatic independent
+  review, unless the user explicitly requires review first. In either mode,
+  repository-required commit preparation precedes the final candidate snapshot.
 
 Evidence: `references/kernel.template.md`, `skills/registry.yaml`,
 `skills/b-plan/prompt.md`, `skills/b-review/prompt.md`,
@@ -109,6 +114,9 @@ Evidence: `references/kernel.template.md`, `skills/registry.yaml`,
   Compound shell segments and wrappers such as `rtk`, `env`, `sudo`, and `git -C`
   are normalized before policy matching. Ambiguous expansion, opaque execution,
   unknown package options, and outside-project executables fail closed to ask.
+- User-authorized project work permits necessary local proprietary-source reads,
+  not external disclosure. Protected material still requires explicit permission;
+  private/proprietary external transmission is separately approval-gated.
 - Protect dotenv, credential, key, certificate, SSH/cloud configuration, Git
   internals, and other secret-like paths. Protected native reads ask; native
   writes and edits are denied. Symlink-resolved paths, directory-wide
@@ -265,7 +273,7 @@ Evidence: `tooling/generate/registry_sync.py`,
   persistence, or public research using private local material.
 - No workflow database, automatic reviewer provisioning/reset, repeated roster
   polling, reviewer-side implementation, or shipping claim before a valid
-  frozen-candidate `b-review` disposition.
+  frozen-candidate `b-review` disposition when the explicit implementer gate applies.
 - No automatic prompt-effectiveness model calls, live MCP checks, screenshot
   claims from simulated or unit tests, broad cleanup, or speculative
   compatibility work when a smaller evidence-backed change is sufficient.

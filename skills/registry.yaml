@@ -272,7 +272,7 @@
         ]
       },
       "prompt": {
-        "description": "Pre-PR changed-code review for reviewer-style reads of a diff, commit range, or checkpoint after implementation. Do NOT invoke for b-agentic repository or design-conformance audits, UI/design review, plan review, or research synthesis review."
+        "description": "Pre-PR changed-code review for reviewer-style reads of a diff, commit range, or checkpoint after implementation. Do NOT invoke for PR-prose review, b-agentic repository or design-conformance audits, UI/design review, plan review, or research synthesis review."
       }
     },
     {
@@ -289,10 +289,10 @@
       "name": "b-pr-summary",
       "owner": "implementer",
       "phase": "Ship",
-      "use": "Write general PR copy for recent commits or commits ahead of cached origin",
+      "use": "Write commit-backed PR copy or review and rewrite supplied PR prose",
       "routing": null,
       "prompt": {
-        "description": "Analyze a specified number of latest local commits, or commits ahead of the local cached origin branch ref when no count is given, and write evidence-backed PR title and description."
+        "description": "Write an evidence-backed PR title and description from a specified count of latest local commits or commits ahead of cached origin. Also review or rewrite supplied PR copy, titles, and descriptions for clarity and supported claims, without a changed-code review gate."
       }
     }
   ]

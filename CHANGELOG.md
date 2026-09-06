@@ -11,6 +11,13 @@ section per date and same-day changes aggregated in that section.
 ### Changed
 
 - Keep the default Off workflow solo while enabling explicit implementer-role review handoffs with validated same-CWD peer/origin targeting and supporting Pi smoke and behavior coverage.
+- Recover always-loaded kernel headroom by moving the detailed MCP adapter example into the research skill and consolidating duplicated guidance without raising size limits.
+
+### Fixed
+
+- Make commit prerequisites consistent with the active role: Off mode uses local verification unless review is requested, while implementer mode reviews the final candidate after repository-required changelog preparation and checks.
+- Keep PR-description review and rewriting in the PR-summary skill rather than the changed-code gate, with evidence-limited editorial feedback, synchronized routing, and cross-skill regression coverage for commit, prose, and privacy boundaries.
+- Distinguish task-authorized local proprietary-source reads from external disclosure while retaining explicit permission for protected material; add Off-mode prompt scenarios without injecting an active-role profile.
 
 ## [v2026.09.05] - 2026-09-05
 

@@ -493,23 +493,24 @@ for path, markers in (
                 f"observed failure: {MCP_SCRIPT_GUIDANCE_REGRESSION['observed_failure']}"
             )
 
-kernel_template_path = ROOT / "references" / "kernel.template.md"
-kernel_template = read_text(kernel_template_path)
+# The always-loaded kernel keeps limits and envelope semantics; the detailed
+# example lives with the research recipe to preserve kernel headroom.
+chained_example_path = ROOT / "skills" / "b-research" / "prompt.md"
 chained_example_match = re.search(
     r"Use this direct adapter API for a chained operation:\n\n```js\n(?P<code>.*?)\n```",
-    kernel_template,
+    read_text(chained_example_path),
     re.DOTALL,
 )
 if not chained_example_match:
     errors.append(
-        f"{rel(kernel_template_path)}: missing executable mcpScript chained example; "
+        f"{rel(chained_example_path)}: missing executable mcpScript chained example; "
         f"observed failure: {MCP_SCRIPT_GUIDANCE_REGRESSION['observed_failure']}"
     )
 else:
     chained_example = chained_example_match.group("code")
     if "emit(" not in chained_example or re.search(r"\breturn\b", chained_example):
         errors.append(
-            f"{rel(kernel_template_path)}: chained mcpScript example must emit terminal outcomes "
+            f"{rel(chained_example_path)}: chained mcpScript example must emit terminal outcomes "
             "and must not return an undocumented script value"
         )
     for marker in (
@@ -520,7 +521,7 @@ else:
     ):
         if marker not in chained_example:
             errors.append(
-                f"{rel(kernel_template_path)}: chained mcpScript example missing terminal emit {marker!r}"
+                f"{rel(chained_example_path)}: chained mcpScript example missing terminal emit {marker!r}"
             )
 
 # Regression: suite audit found skills under-specified Pi native file tools, optional
@@ -692,8 +693,8 @@ else:
                 errors.append(f"{label} {field} must be a non-empty string array")
     if len(role_ids) != len(set(role_ids)):
         errors.append(f"{rel(roles_path)}: scenario ids must be unique")
-    if covered_roles != {"implementer", "reviewer"}:
-        errors.append(f"{rel(roles_path)}: scenarios must cover implementer and reviewer")
+    if covered_roles != {"off", "implementer", "reviewer"}:
+        errors.append(f"{rel(roles_path)}: scenarios must cover Off, implementer, and reviewer")
 
 init_guidance_path = ROOT / "tests" / "behavior" / "init-guidance.json"
 init_guidance_fixture = load_json(init_guidance_path)

@@ -615,7 +615,7 @@ def render_routing(skills: list[dict]) -> str:
             lines.append("- Split and commit working-tree changes -> `b-commit` only on explicit user request.")
         elif skill["name"] == "b-pr-summary":
             lines.append(
-                "- PR summary for a commit count or commits ahead of cached origin -> `b-pr-summary` only on explicit user request."
+                "- Commit-backed PR summary or supplied PR-prose review/rewrite -> `b-pr-summary` only on explicit user request."
             )
     return "\n".join(lines)
 

@@ -39,6 +39,27 @@ Fetch outside truth at the lightest reliable depth, with sourced evidence and a 
 13. Synthesize only from gathered evidence and cite sources.
 14. When research points directly to a local change, hand frontend/UI production work to **b-frontend** and non-UI code/config work to **b-implement**; when uncertainty remains, say what is still unknown.
 
+## Chained adapter example
+
+Use this direct adapter API for a chained operation:
+
+```js
+const {items=[]}=await tools.search({query:"search issues",limit:5})
+const item=items[0]
+if (!item) emit({ error: "No matching tool" })
+else {
+  const details=await tools.describe({path:item.path})
+  if (details.error) emit(details)
+  else {
+    const result=await tools.call(details.path,{query:"is:open"})
+    if (!result.ok) emit({ error: result.error })
+    else emit(result.data)
+  }
+}
+```
+
+This illustrates adapter envelopes, not a ready-to-run source recipe: select a classified read-only tool, use its described arguments, and normalize/bound output under steps 8–10 before emitting research results. Never copy arbitrary tool output into the final evidence.
+
 ## Output format
 
 Direct answer, key evidence, limitations, sources, and confidence when not high. Include the next handoff only when it is naturally implied.

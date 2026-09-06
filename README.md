@@ -59,7 +59,7 @@ safety, MCP, and coordination behavior.
 | `b-agentic-audit` | Validate | Audit b-agentic repository conformance, health, skill/kernel quality, and currentness |
 | `b-review` | Validate | Review changed code |
 | `b-commit` | Ship | Split working-tree changes into cohesive commits from an explicit user request |
-| `b-pr-summary` | Ship | Write general PR copy for recent commits or commits ahead of cached origin |
+| `b-pr-summary` | Ship | Write commit-backed PR copy or review and rewrite supplied PR prose |
 <!-- generated:skills-table:end -->
 
 Invoke a skill explicitly with Pi's native `/skill:<name>` command. The usual

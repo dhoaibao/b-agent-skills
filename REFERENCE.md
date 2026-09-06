@@ -320,9 +320,18 @@ verdict, missing baseline, wrong reviewer/snapshot, untracked change, or skipped
 failed check blocks shipping. Corrections require re-verification and re-review.
 Review completion, task acceptance, and commit creation are distinct. No automatic
 commit or push occurs without an explicit user commit request; once requested,
-b-commit executes its snapshot-verified plan without a second confirmation. Prepare
-the same-day changelog only when preparing a user-authorized commit; include it in
-the reviewed snapshot or reopen review.
+b-commit executes its snapshot-verified plan without a second confirmation. In Off
+mode, required local checks and snapshot verification suffice unless the user
+explicitly requires review; no intercom review starts automatically. In explicit
+implementer mode, the exact candidate and commit plan require independent review.
+Complete repository-required commit preparation before freezing that candidate:
+prepare the same-day changelog only for a user-authorized commit when repository
+rules require it, run prescribed validation, and include it in the reviewed
+snapshot or reopen review.
+
+`b-pr-summary` also reviews or rewrites supplied PR prose without requiring Git
+history or a frozen code candidate. Editorial feedback is not a changed-code
+review disposition; commit-backed fact checking remains explicitly scoped.
 
 ## In-session refresh
 
