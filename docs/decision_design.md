@@ -82,13 +82,15 @@ stays inactive until explicitly reselected; old preferences map by role only.
   requests independent review through `intercom`, supplying a compact snapshot
   handoff marked `B_AGENTIC_REVIEW_HANDOFF` and covering tracked and relevant
   untracked/derived content, acceptance, required checks, gaps, and risk; missing
-  coordination stops the handoff.
+  coordination stops the handoff. The selector returns canonical ask metadata
+  with the reviewer target and exact marker prefix; use it verbatim.
 - A reviewer begins from that handoff without waiting for another prompt. On
   `NEEDS FIXES`, it first validates exactly one compatible same-CWD implementer
   matching the marked handoff origin with the same selector, then automatically
   delegates structured findings back through `intercom` to that returned session
-  ID while remaining read-only;
-  it does not delegate research or implement the fix. Shipping requires the exact unchanged snapshot, acceptance,
+  ID while remaining read-only; use the selector's structured `returnTarget.to`
+  value for that target. It does not delegate research or implement the fix.
+  Shipping requires the exact unchanged snapshot, acceptance,
   fresh passing required checks, no blockers/material gaps, and a valid review
   disposition. Follow-ups need explicit disposition and never waive safety
   evidence. Review does not commit or push; changelog changes for an authorized

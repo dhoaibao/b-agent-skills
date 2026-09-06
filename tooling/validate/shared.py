@@ -129,7 +129,7 @@ prompt_regression_contracts = {
     "b-plan": ["candidate-review gate", "tracked plus relevant untracked/derived snapshot"],
     "b-research": ["resolved lockfiles", "go.mod"],
     "b-implement": ["shared explicit implementer-role profile", "standalone **Off** mode does not initiate intercom review", "active implementer role initiates a handoff", "let the implementer-role profile send a fresh snapshot and review request"],
-    "b-review": ["frozen changed-code candidate", "begin **b-review** automatically", "B_AGENTIC_REVIEW_HANDOFF", "automatically delegate the structured findings back", "b_agentic_review_peer", "intercom", "coordination gap"],
+    "b-review": ["frozen changed-code candidate", "begin **b-review** automatically", "B_AGENTIC_REVIEW_HANDOFF", "automatically delegate the structured findings back", "b_agentic_review_peer", "intercom", "structured `returnTarget.to` value verbatim", "coordination gap"],
     "b-agentic-audit": [
         "Existing source/design conformance",
         "Whole-project and first-party-extension health",

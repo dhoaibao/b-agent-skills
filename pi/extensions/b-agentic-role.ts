@@ -39,6 +39,7 @@ type RoleChannelEvent =
 export type ReviewPeerRole = Exclude<BAgenticRole, "off">;
 export const REVIEW_PEER_TOOL = "b_agentic_review_peer";
 export const REVIEW_HANDOFF_SIGNAL = "B_AGENTIC_REVIEW_HANDOFF";
+export const REVIEW_HANDOFF_PREFIX = `${REVIEW_HANDOFF_SIGNAL}\n`;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
@@ -71,7 +72,7 @@ export function reviewHandoffOrigin(
       message.expectsReply === true &&
       message.replyTo === undefined &&
       typeof content?.text === "string" &&
-      content.text.includes(REVIEW_HANDOFF_SIGNAL)
+      content.text.startsWith(REVIEW_HANDOFF_PREFIX)
     )
       return from.id;
   }
@@ -289,11 +290,11 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
     name: REVIEW_PEER_TOOL,
     label: "Find b-agentic review peer",
     description:
-      "Return exactly one validated compatible same-CWD implementer or reviewer session for intercom targeting; for reviewer findings, validate the current B_AGENTIC_REVIEW_HANDOFF origin; never sends a message or mutates the worktree.",
+      "Return exactly one validated compatible same-CWD implementer or reviewer session for intercom targeting; successful lookups include canonical handoff or findings-return metadata; never sends a message or mutates the worktree.",
     promptSnippet:
-      "Find one compatible same-CWD b-agentic implementer or reviewer peer before an automatic handoff",
+      "Find one compatible same-CWD b-agentic peer and return canonical handoff metadata before an automatic handoff",
     promptGuidelines: [
-      "Use b_agentic_review_peer before automatic review or findings handoffs; it returns one validated session ID or a coordination gap and never sends a message. For reviewer findings, it validates the exact originating intercom handoff.",
+      "Use b_agentic_review_peer before automatic review or findings handoffs; successful reviewer lookups return handoff.action, handoff.to, and exact handoff.messagePrefix for the ask, while successful implementer lookups return returnTarget.to for the findings handback. Never send a message or mutate the worktree.",
     ],
     parameters: {
       type: "object",
@@ -354,18 +355,36 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
             ],
             details: { available: false, role, reason: "peer-unavailable" },
           };
+        const successMetadata = expectedOrigin
+          ? {
+              originSessionId: expectedOrigin,
+              returnTarget: {
+                to: peer.id,
+                originSessionId: expectedOrigin,
+              },
+            }
+          : {
+              handoff: {
+                action: "ask" as const,
+                to: peer.id,
+                messagePrefix: REVIEW_HANDOFF_PREFIX,
+              },
+            };
+        const successText = expectedOrigin
+          ? `Compatible same-CWD implementer peer: ${peer.id}; use the returned returnTarget metadata for the intercom findings handback.`
+          : `Compatible same-CWD reviewer peer: ${peer.id}; use the returned handoff metadata for the intercom ask.`;
         return {
           content: [
             {
               type: "text" as const,
-              text: `Compatible same-CWD ${role} peer: ${peer.id}`,
+              text: `${successText}\nCanonical intercom metadata: ${JSON.stringify(successMetadata)}`,
             },
           ],
           details: {
             available: true,
             role,
             sessionId: peer.id,
-            ...(expectedOrigin ? { originSessionId: expectedOrigin } : {}),
+            ...successMetadata,
             protocolVersion: ROLE_PROTOCOL_VERSION,
           },
         };
@@ -568,4 +587,5 @@ export const __test__ = {
   reviewHandoffOrigin,
   REVIEW_PEER_TOOL,
   REVIEW_HANDOFF_SIGNAL,
+  REVIEW_HANDOFF_PREFIX,
 };

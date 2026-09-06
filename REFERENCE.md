@@ -300,8 +300,9 @@ scoped task is complete and required checks pass, it uses the read-only
 `b_agentic_review_peer` selector to obtain exactly one validated compatible
 same-CWD reviewer session ID, then automatically uses `pi-intercom` to send a
 compact snapshot handoff containing `B_AGENTIC_REVIEW_HANDOFF` and request
-`b-review`; missing coordination stops the handoff. The implementer stops editing
-while the handoff is pending.
+`b-review`; missing coordination stops the handoff. The selector also returns
+canonical ask metadata containing the reviewer target and exact marker prefix;
+use it verbatim. The implementer stops editing while the handoff is pending.
 
 The reviewer begins from that handoff without waiting for another prompt. It
 independently reads the handoff and diff, and may use bounded read-only research
@@ -309,7 +310,8 @@ only to substantiate a finding. For `NEEDS FIXES`, it first uses
 `b_agentic_review_peer` to validate exactly one compatible same-CWD implementer matching the `B_AGENTIC_REVIEW_HANDOFF` origin, then
 automatically sends the structured findings back through `intercom` with that
 returned session ID as the target while remaining read-only; it does not
-delegate research or implementation. No edits occur while a candidate is under
+delegate research or implementation. Use the selector's structured
+`returnTarget.to` value for that target. No edits occur while a candidate is under
 review.
 
 A candidate is eligible only when its exact snapshot remains unchanged, acceptance is
