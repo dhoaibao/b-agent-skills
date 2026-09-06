@@ -49,6 +49,7 @@ EXTENSION_NAMES=(
 	b-agentic-support/mcp.ts
 	b-agentic-support/role.ts
 	b-agentic-support/role-models.ts
+	b-agentic-support/role-store.ts
 	b-agentic-support/worker.ts
 	b-agentic-support/state.ts
 	b-agentic-support/auto.ts

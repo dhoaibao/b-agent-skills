@@ -138,6 +138,7 @@ for (const [name, module] of [["createUnixServer", shim], ["getUnixSocketPath", 
 		fail "unable to resolve Pi package dependency anchor"
 	fi
 	ROOT_DIR="$ROOT_DIR" PI_TEST_HOME="$sandbox/home" PI_CODING_AGENT_DIR="$sandbox/home/.pi/agent" PI_PACKAGE_ROOT="$pi_package_root" PI_PACKAGE_SOURCE="$pi_package_source" node "${node_loader_args[@]}" --experimental-strip-types --input-type=module - <<'NODE'
+import { spawn } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -178,7 +179,7 @@ const extensionModules = await Promise.all([
   'b-agentic-planner.ts', 'b-agentic-worker.ts', 'b-agentic-sync.ts', 'b-agentic-planner-notify.ts',
   'b-agentic-preview-markdown.ts', 'b-agentic-status.ts',
 ].map((name) => import(pathToFileURL(path.join(installedRoot, name)).href)));
-for (const name of ['shell.ts', 'mcp.ts', 'role.ts', 'role-models.ts', 'worker.ts', 'state.ts', 'auto.ts', 'capabilities.ts', 'candidate.ts', 'status.ts']) {
+for (const name of ['shell.ts', 'mcp.ts', 'role.ts', 'role-models.ts', 'role-store.ts', 'worker.ts', 'state.ts', 'auto.ts', 'capabilities.ts', 'candidate.ts', 'status.ts']) {
   await import(pathToFileURL(path.join(installedRoot, 'b-agentic-support', name)).href);
 }
 const autoStateTest = await import(pathToFileURL(path.join(installedRoot, 'b-agentic-support', 'state.ts')).href);
@@ -836,6 +837,57 @@ await roleChannelRegistration.onEvent({
 });
 expect(roleStatuses.at(-1)?.value === undefined && roleNotifications.at(-1)?.message.includes('claim won'), 'simultaneous compatible implementer claims deterministically leave the losing session Off');
 await commands['b-role'].handler('off', roleContext);
+const readProjectRole = () => JSON.parse(readFileSync(roleTest.projectRolePath(root), 'utf8')).role;
+const newSessionContext = { ...roleContext, sessionManager: { getBranch: () => [] } };
+const soloChannel = { publish() {}, listSessions: async () => [{ id: 'self', cwd: root, pid: process.pid, startedAt: 1 }] };
+const settle = () => new Promise((resolve) => setImmediate(resolve));
+expect(roleTest.projectRolePath(root).startsWith(path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic', 'roles') + path.sep), 'durable role selections must use the managed b-agentic preference directory');
+expect(roleTest.loadProjectRole(root, path.join(os.tmpdir(), 'b-agentic-absent-roles')) === undefined, 'a missing durable role record must not activate a role');
+const contentionDir = mkdtempSync(path.join(os.tmpdir(), 'b-agentic-role-contention-'));
+const projectA = path.join(contentionDir, 'project-a');
+const projectB = path.join(contentionDir, 'project-b');
+expect(roleTest.projectRolePath(projectA, contentionDir) !== roleTest.projectRolePath(projectB, contentionDir), 'each project must own an independent durable record');
+roleTest.saveProjectRole(projectA, 'reviewer', contentionDir);
+const projectARecord = readFileSync(roleTest.projectRolePath(projectA, contentionDir), 'utf8');
+// Deterministic contention: a writer for another project must not read, rewrite,
+// or drop an already-stored selection, whatever state it observed beforehand.
+roleTest.saveProjectRole(projectB, 'implementer', contentionDir);
+expect(readFileSync(roleTest.projectRolePath(projectA, contentionDir), 'utf8') === projectARecord, "a concurrent project's selection must be preserved byte-for-byte");
+expect(roleTest.loadProjectRole(projectA, contentionDir) === 'reviewer' && roleTest.loadProjectRole(projectB, contentionDir) === 'implementer', 'concurrent selections in different projects must both survive');
+const contendingWriter = (project, role) => new Promise((resolveWriter, rejectWriter) => {
+  const child = spawn(process.execPath, [...process.execArgv, '--input-type=module', '-e', `
+    const { saveProjectRole } = await import(${JSON.stringify(pathToFileURL(path.join(installedRoot, 'b-agentic-support', 'role-store.ts')).href)});
+    for (let index = 0; index < 40; index += 1) saveProjectRole(${JSON.stringify(project)}, ${JSON.stringify(role)}, ${JSON.stringify(contentionDir)});
+  `], { stdio: 'inherit' });
+  child.on('error', rejectWriter);
+  child.on('exit', (code) => (code === 0 ? resolveWriter() : rejectWriter(new Error(`contending writer exited with ${code}`))));
+});
+await Promise.all([contendingWriter(projectA, 'reviewer'), contendingWriter(projectB, 'implementer')]);
+expect(roleTest.loadProjectRole(projectA, contentionDir) === 'reviewer' && roleTest.loadProjectRole(projectB, contentionDir) === 'implementer', 'interleaved cross-project writers must not drop either durable selection');
+rmSync(contentionDir, { recursive: true, force: true });
+await commands['b-role'].handler('reviewer', roleContext);
+expect(readProjectRole() === 'reviewer', 'an explicit role selection must persist for the project directory');
+await roleSessionStartHandler({}, newSessionContext);
+expect(roleStatuses.at(-1)?.value === '<success>b-agentic: reviewer</success>', 'a new session in the project must restore the durably selected role');
+await roleSessionStartHandler({}, { ...roleContext, sessionManager: { getBranch: () => [{ type: 'custom', customType: 'b-agentic-role', data: { role: 'off' } }] } });
+expect(roleStatuses.at(-1)?.value === undefined, "a resumed session's own recorded role must win over the project default");
+await commands['b-role'].handler('implementer', roleContext);
+expect(readProjectRole() === 'implementer', 'an explicit implementer request must persist while its same-CWD claim is pending');
+roleChannelRegistration.onReady(soloChannel);
+await settle();
+await roleSessionStartHandler({}, newSessionContext);
+expect(roleStatuses.at(-1)?.value === undefined, 'a restored implementer must wait for same-CWD claim arbitration');
+roleChannelRegistration.onReady(soloChannel);
+await settle();
+expect(roleStatuses.at(-1)?.value.includes('implementer'), 'a restored implementer must claim the writer role once compatible discovery completes');
+flags['b-role'] = 'off';
+await roleSessionStartHandler({}, newSessionContext);
+delete flags['b-role'];
+expect(roleStatuses.at(-1)?.value === undefined && readProjectRole() === 'implementer', 'a startup flag must override one session without rewriting the durable project selection');
+await commands['b-role'].handler('off', roleContext);
+expect(readProjectRole() === 'off', 'an explicit Off selection must persist for the project directory');
+await roleSessionStartHandler({}, newSessionContext);
+expect(roleStatuses.at(-1)?.value === undefined, 'an explicit Off selection must not restore a role in a later session');
 expect(commands['b-sync'] && commands['b-update'], 'refresh extension must register /b-sync and /b-update');
 let refreshConfirmations = 0;
 let reloads = 0;
@@ -1865,7 +1917,7 @@ run_pi_smoke_cases() {
 		assert_file "$sandbox/home/.pi/agent/extensions/$extension"
 		assert_file "$sandbox/home/.pi/agent/b-agentic/extensions/$extension"
 	done
-	for support in shell.ts mcp.ts role.ts role-models.ts worker.ts state.ts auto.ts capabilities.ts candidate.ts status.ts; do
+	for support in shell.ts mcp.ts role.ts role-models.ts role-store.ts worker.ts state.ts auto.ts capabilities.ts candidate.ts status.ts; do
 		assert_file "$sandbox/home/.pi/agent/extensions/b-agentic-support/$support"
 		assert_file "$sandbox/home/.pi/agent/b-agentic/extensions/b-agentic-support/$support"
 	done

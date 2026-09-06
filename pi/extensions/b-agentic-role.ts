@@ -15,6 +15,11 @@ import {
   loadRoleModelPreferences,
   saveRoleModelPreference,
 } from "./b-agentic-support/role-models.ts";
+import {
+  loadProjectRole,
+  projectRolePath,
+  saveProjectRole,
+} from "./b-agentic-support/role-store.ts";
 import { getRole, setRole } from "./b-agentic-support/state.ts";
 
 type RoleSession = {
@@ -198,6 +203,17 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
       role: getRole(),
       version: ROLE_PROTOCOL_VERSION,
     });
+  /** Explicit selections survive into later sessions of the same project. */
+  const persistProjectSelection = (
+    role: BAgenticRole,
+    ctx: ExtensionContext,
+  ): void => {
+    try {
+      saveProjectRole(ctx.cwd, role);
+    } catch {
+      // A session entry still preserves the choice when the durable file is unavailable.
+    }
+  };
   const saveModel = (
     role: Exclude<BAgenticRole, "off">,
     model: { provider: string; id: string },
@@ -501,6 +517,9 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
       }
       pendingImplementerClaim = next === "implementer";
       pendingImplementerModel = next === "implementer";
+      // Record the explicit request itself, so a claim that loses same-CWD
+      // arbitration still retries in the project's next session.
+      persistProjectSelection(next, ctx);
       applyRole(next === "implementer" ? "off" : next, ctx);
       if (next === "reviewer") await applySavedModel("reviewer", ctx);
       if (pendingImplementerClaim) {
@@ -541,8 +560,10 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
   });
   pi.on("session_start", async (_event, ctx) => {
     const persistedRole = latestRoleState(ctx.sessionManager.getBranch())?.role;
+    // A startup flag stays a one-session override; a session's own recorded role
+    // wins over the project default so resumed sessions keep their own state.
     const flagRole = parseRole(pi.getFlag("b-role"));
-    const requestedRole = flagRole ?? persistedRole;
+    const requestedRole = flagRole ?? persistedRole ?? loadProjectRole(ctx.cwd);
     pendingImplementerClaim = requestedRole === "implementer";
     pendingImplementerModel = pendingImplementerClaim;
     const selectedRole = pendingImplementerClaim
@@ -585,6 +606,9 @@ export const __test__ = {
   preferredImplementerId,
   compatibleSameCwdPeerForRole,
   reviewHandoffOrigin,
+  loadProjectRole,
+  saveProjectRole,
+  projectRolePath,
   REVIEW_PEER_TOOL,
   REVIEW_HANDOFF_SIGNAL,
   REVIEW_HANDOFF_PREFIX,

@@ -54,6 +54,7 @@ extension_files = [
     root / 'pi/extensions/b-agentic-support/mcp.ts',
     root / 'pi/extensions/b-agentic-support/role.ts',
     root / 'pi/extensions/b-agentic-support/role-models.ts',
+    root / 'pi/extensions/b-agentic-support/role-store.ts',
     root / 'pi/extensions/b-agentic-support/worker.ts',
     root / 'pi/extensions/b-agentic-support/auto.ts',
     status_extension,
