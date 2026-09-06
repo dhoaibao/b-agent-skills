@@ -1,7 +1,7 @@
-import { existsSync, realpathSync, statSync } from "node:fs";
+import { realpathSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { isIP } from "node:net";
-import { dirname, isAbsolute, relative, resolve } from "node:path";
+import { isAbsolute, relative } from "node:path";
 
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { isProtectedPath, isProtectedLocalPath, SPECIALIZED_TOOLS } from "./shell.ts";
@@ -203,7 +203,8 @@ const FIRECRAWL_SCRAPE_OPTION_KEYS = new Set([
   "skipTlsVerification", "removeBase64Images", "location", "storeInCache", "zeroDataRetention",
   "maxAge", "lockdown", "proxy",
 ]);
-const PLAYWRIGHT_SNAPSHOT_KEYS = new Set(["target", "filename", "depth", "boxes"]);
+// `filename` writes a local artifact, so it stays approval-gated like screenshots.
+const PLAYWRIGHT_SNAPSHOT_KEYS = new Set(["target", "depth", "boxes"]);
 const PLAYWRIGHT_CONSOLE_MESSAGE_KEYS = new Set(["level", "all"]);
 const PLAYWRIGHT_NETWORK_REQUESTS_KEYS = new Set(["static", "filter"]);
 const PLAYWRIGHT_NETWORK_REQUEST_KEYS = new Set(["index", "part"]);
@@ -369,30 +370,6 @@ export function isProjectConfinedPath(pathValue: unknown, requireFile = false): 
   }
 }
 
-export function isProjectConfinedOutputPath(pathValue: unknown): boolean {
-  if (typeof pathValue !== "string" || !pathValue || isProtectedLocalPath(pathValue)) return false;
-  try {
-    const projectRoot = realpathSync(process.cwd());
-    const target = resolve(projectRoot, pathValue);
-    const projectRelative = relative(projectRoot, target);
-    if (isAbsolute(projectRelative) || projectRelative === ".." ||
-      projectRelative.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) return false;
-
-    let existingAncestor = target;
-    while (!existsSync(existingAncestor)) {
-      const parent = dirname(existingAncestor);
-      if (parent === existingAncestor) return false;
-      existingAncestor = parent;
-    }
-    const resolvedAncestor = realpathSync(existingAncestor);
-    const ancestorRelative = relative(projectRoot, resolvedAncestor);
-    return !isAbsolute(ancestorRelative) && ancestorRelative !== ".." &&
-      !ancestorRelative.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`);
-  } catch {
-    return false;
-  }
-}
-
 export function isSafeFirecrawlScrapeOptions(input: Record<string, unknown>): boolean {
   return hasOnlyKeys(input, FIRECRAWL_SCRAPE_OPTION_KEYS) &&
     input.storeInCache !== true &&
@@ -442,8 +419,7 @@ export function isConditionallyTrustedTool(server: string, base: string, input: 
   }
 
   if (server === "playwright" && base === "browser_snapshot") {
-    return hasOnlyKeys(input, PLAYWRIGHT_SNAPSHOT_KEYS) &&
-      (input.filename === undefined || isProjectConfinedOutputPath(input.filename));
+    return hasOnlyKeys(input, PLAYWRIGHT_SNAPSHOT_KEYS);
   }
 
   if (server === "playwright" && base === "browser_console_messages") {

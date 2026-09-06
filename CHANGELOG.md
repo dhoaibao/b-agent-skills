@@ -22,6 +22,9 @@ section per date and same-day changes aggregated in that section.
 
 ### Fixed
 
+- Require approval before a browser snapshot writes a local artifact file, so snapshot output paths are gated like screenshots instead of being auto-approved whenever they stayed inside the project.
+- Reconcile the conflicting freshness instructions between the kernel and the audit skill by allowing a skill to mandate a stricter origin check, so an audit's required fetch no longer contradicts the stale-only rule.
+- Narrow the browser skill's visual and screenshot routing keywords to evidence-specific phrases so visual work is no longer pulled away from design-standard authoring and frontend implementation.
 - Keep installer component-picker arrow keys working on shells that reject fractional read timeouts, so macOS Bash 3.2 no longer treats navigation as a cancel request, with smoke coverage guarding the portable escape window.
 - Restore opt-in repository labels in interactive TUI titles while keeping the basename privacy boundary and regression coverage.
 - Make commit prerequisites consistent with the active role: Off mode uses local verification unless review is requested, while implementer mode reviews the final candidate after repository-required changelog preparation and checks.

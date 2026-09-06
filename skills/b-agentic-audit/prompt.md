@@ -135,9 +135,11 @@ Verdict:
   stage, commit, push, or apply fixes. Route frontend/UI production fixes to
   **b-frontend**, other behavioral fixes to **b-implement**, and named
   behavior-preserving transforms to **b-refactor**; do not edit during the audit.
-- The origin freshness gate is mandatory and runs before every audit action. A
-  failed or non-zero comparison is a blocked audit, not a finding; notify the
-  user and stop without auditing or issuing a verdict.
+- The origin freshness gate is mandatory and runs before every audit action. It
+  is the stricter skill-mandated gate the kernel freshness rule allows, so the
+  `rtk git fetch origin` refresh is required even when cached `origin` metadata
+  looks current. A failed or non-zero comparison is a blocked audit, not a
+  finding; notify the user and stop without auditing or issuing a verdict.
 - Prefer repository evidence over assumptions and cite repository-relative paths.
 - Do not claim that passing structural or traceability checks proves all prose
   semantics, production readiness, health, currentness, or the absence of drift.

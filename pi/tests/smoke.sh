@@ -1849,8 +1849,10 @@ expect(t.isMcpOrCustomTool('browser_click') === true, 'direct managed Playwright
 expect(t.isMcpOrCustomTool('browser_snapshot') === true, 'direct trusted-looking Playwright names retain the top-level approval gate');
 expect(t.isMcpOrCustomTool('some-extension-tool') === true, 'unknown tool is custom');
 expect(t.isTrustedManagedTool('playwright', 'browser_snapshot', { depth: 2 }) === true, 'safe Playwright snapshots are trusted');
-expect(t.isTrustedManagedTool('playwright', 'browser_snapshot', { filename: 'artifacts/snapshot.md' }) === true, 'project-confined snapshot filenames are trusted');
+expect(t.isTrustedManagedTool('playwright', 'browser_snapshot', { filename: 'artifacts/snapshot.md' }) === false, 'project-confined snapshot filenames still require approval as local artifacts');
 expect(t.isTrustedManagedTool('playwright', 'browser_snapshot', { filename: '/tmp/snapshot.md' }) === false, 'outside-project snapshot filenames require approval');
+expect(t.isTrustedManagedTool('playwright', 'browser_snapshot', { target: 'main', depth: 1, filename: 'docs/snapshot.md' }) === false, 'snapshot artifact output requires approval alongside safe arguments');
+expect(t.isTrustedManagedTool('playwright', 'browser_snapshot', { target: 'main', depth: 1, boxes: true }) === true, 'snapshots without an output path stay trusted');
 expect(t.isTrustedManagedTool('playwright', 'browser_close') === false, 'browser close requires approval');
 expect(t.isTrustedManagedTool('playwright', 'browser_resize') === false, 'browser resize requires approval');
 expect(t.isTrustedManagedTool('playwright', 'browser_hover') === false, 'browser hover requires approval');
