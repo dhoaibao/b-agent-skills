@@ -42,9 +42,14 @@ UI_STAGE_CURRENT=0
 UI_STAGE_TOTAL=0
 UI_STAGE_ACTIVE=0
 UI_STAGE_LABEL=""
+UI_COMPONENT_CURSOR=2
+B_AGENTIC_COMPONENT_MCP=Y
+B_AGENTIC_COMPONENT_PI_INTEGRATIONS=Y
+B_AGENTIC_COMPONENT_THEME=Y
 readonly UI_STAGE_BAR_WIDTH=20
 readonly UI_STAGE_LABEL_WIDTH=52
 readonly UI_STAGE_LINE_WIDTH=82
+readonly UI_COMPONENT_COUNT=5
 # shellcheck disable=SC2034
 INSTALL_PI_CLI_DECISION=""
 
@@ -58,6 +63,169 @@ ui_init() {
 
 ui_tty_enabled() {
 	[ "${UI_ENABLED:-0}" -eq 1 ] && [ -t 1 ] && [ "${TERM:-}" != "dumb" ]
+}
+
+component_enabled() {
+	local component="$1" value=""
+	case "$component" in
+	mcp) value="${B_AGENTIC_COMPONENT_MCP:-Y}" ;;
+	pi-integrations) value="${B_AGENTIC_COMPONENT_PI_INTEGRATIONS:-Y}" ;;
+	theme) value="${B_AGENTIC_COMPONENT_THEME:-Y}" ;;
+	*) return 1 ;;
+	esac
+	case "$value" in
+	n | N | no | NO | No | false | FALSE | 0) return 1 ;;
+	*) return 0 ;;
+	esac
+}
+
+ui_component_enabled_at() {
+	case "$1" in
+	0 | 1) return 0 ;;
+	2) component_enabled mcp ;;
+	3) component_enabled pi-integrations ;;
+	4) component_enabled theme ;;
+	*) return 1 ;;
+	esac
+}
+
+ui_component_toggle() {
+	case "$1" in
+	2)
+		if component_enabled mcp; then B_AGENTIC_COMPONENT_MCP=N; else B_AGENTIC_COMPONENT_MCP=Y; fi
+		;;
+	3)
+		if component_enabled pi-integrations; then B_AGENTIC_COMPONENT_PI_INTEGRATIONS=N; else B_AGENTIC_COMPONENT_PI_INTEGRATIONS=Y; fi
+		;;
+	4)
+		if component_enabled theme; then B_AGENTIC_COMPONENT_THEME=N; else B_AGENTIC_COMPONENT_THEME=Y; fi
+		;;
+	esac
+}
+
+ui_component_move() {
+	local direction="$1"
+	local next=$((UI_COMPONENT_CURSOR + direction))
+	[ "$next" -lt 2 ] && next=$((UI_COMPONENT_COUNT - 1))
+	[ "$next" -ge "$UI_COMPONENT_COUNT" ] && next=2
+	UI_COMPONENT_CURSOR="$next"
+}
+
+ui_component_draw() {
+	local index marker cursor selected_separator=""
+	{
+		printf '\033[2J\033[H'
+		printf 'b-agentic installer\n\n'
+		printf 'Select optional components. Required items are always installed.\n'
+		printf 'Use Up/Down to move, Space to toggle, Enter to continue, Esc to cancel.\n\n'
+		for index in 0 1 2 3 4; do
+			marker=' '
+			ui_component_enabled_at "$index" && marker='x'
+			cursor=' '
+			[ "$UI_COMPONENT_CURSOR" -eq "$index" ] && cursor='>'
+			case "$index" in
+			0) printf '%s [%s] Pi and b-agentic core files (required)\n' "$cursor" "$marker" ;;
+			1) printf '%s [%s] RTK, CodeGraph, and Bun (required)\n' "$cursor" "$marker" ;;
+			2) printf '%s [%s] MCP support (adapter, config, and API keys)\n' "$cursor" "$marker" ;;
+			3) printf '%s [%s] Pi integrations (memory, usage, auth, roles, prompts, and todo)\n' "$cursor" "$marker" ;;
+			4) printf '%s [%s] Dracula theme\n' "$cursor" "$marker" ;;
+			esac
+		done
+		printf '\nSelected optional groups: '
+		for index in 2 3 4; do
+			if ui_component_enabled_at "$index"; then
+				[ -n "$selected_separator" ] && printf '%s' "$selected_separator"
+				case "$index" in
+				2) printf 'MCP support' ;;
+				3) printf 'Pi integrations' ;;
+				4) printf 'Dracula theme' ;;
+				esac
+				selected_separator=', '
+			fi
+		done
+		[ -n "$selected_separator" ] || printf 'none'
+		printf '\n'
+	} > /dev/tty
+}
+
+ui_component_read_key() {
+	local key="" sequence=""
+	IFS= read -r -s -n 1 key < /dev/tty || return 1
+	if [ -z "$key" ]; then
+		printf 'enter'
+		return 0
+	fi
+	case "$key" in
+	' ')
+		printf 'toggle'
+		;;
+	$'\033')
+		if ! IFS= read -r -s -n 1 -t 0.1 sequence < /dev/tty; then
+			printf 'escape'
+			return 0
+		fi
+		if [ "$sequence" != '[' ]; then
+			printf 'escape'
+			return 0
+		fi
+		IFS= read -r -s -n 1 sequence < /dev/tty || return 1
+		case "$sequence" in
+		A) printf 'up' ;;
+		B) printf 'down' ;;
+		C) printf 'right' ;;
+		D) printf 'left' ;;
+		*) printf 'noop' ;;
+		esac
+		;;
+	*)
+		printf 'noop'
+		;;
+	esac
+}
+
+ui_component_close() {
+	ui_tty_enabled || return 0
+	printf '\033[2J\033[H' > /dev/tty
+}
+
+ui_component_picker() {
+	[ "$OPERATION" = "install" ] || return 0
+	uninstall_enabled && return 0
+	ui_tty_enabled || return 0
+	[ -r /dev/tty ] && [ -w /dev/tty ] || return 0
+
+	UI_COMPONENT_CURSOR=2
+	while :; do
+		ui_component_draw || return 1
+		local key=""
+		key="$(ui_component_read_key)" || {
+			ui_component_close
+			return 1
+		}
+		case "$key" in
+		up) ui_component_move -1 ;;
+		down) ui_component_move 1 ;;
+		toggle) ui_component_toggle "$UI_COMPONENT_CURSOR" ;;
+		enter)
+			ui_component_close
+			{
+				printf 'Selected components:\n'
+				printf '  Pi and b-agentic core files\n'
+				printf '  RTK, CodeGraph, and Bun\n'
+				component_enabled mcp && printf '  MCP support\n'
+				component_enabled pi-integrations && printf '  Pi integrations\n'
+				component_enabled theme && printf '  Dracula theme\n'
+				printf '\n'
+			} > /dev/tty
+			return 0
+			;;
+		escape)
+			ui_component_close
+			printf 'Installation cancelled.\n' > /dev/tty
+			return 130
+			;;
+		esac
+	done
 }
 
 ui_clear_stage() {
@@ -779,6 +947,8 @@ main() {
 	if try_manifest_only_uninstall; then
 		return 0
 	fi
+
+	ui_component_picker || return $?
 
 	ui_set_stage_total 5
 	run_ui_stage "Checking prerequisites" check_dependencies || return 1

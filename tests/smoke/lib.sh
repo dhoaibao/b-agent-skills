@@ -390,6 +390,7 @@ import errno, os, pty, select, sys
 
 sandbox, repo_snapshot, log_path, smoke_path, install_script = sys.argv[1:6]
 args = sys.argv[6:]
+input_data = os.environ.get("B_AGENTIC_TTY_INPUT", "\n")
 
 env = dict(os.environ)
 env["HOME"] = os.path.join(sandbox, "home")
@@ -402,6 +403,9 @@ pid, fd = pty.fork()
 if pid == 0:
     os.environ.update(env)
     os.execv("/bin/bash", ["bash", install_script] + args)
+
+if input_data:
+    os.write(fd, input_data.encode())
 
 status = None
 with open(log_path, "wb") as log:

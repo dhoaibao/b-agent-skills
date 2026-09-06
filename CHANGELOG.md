@@ -8,6 +8,10 @@ section per date and same-day changes aggregated in that section.
 
 ## [v2026.09.06] - 2026-09-06
 
+### Added
+
+- Add an interactive curl-installer component picker for optional MCP support, Pi integrations, and the Dracula theme, with non-interactive fallbacks and state-preserving reconciliation.
+
 ### Changed
 
 - Expose validated review-handoff targets and marker metadata directly to agents, tighten handoff-origin matching, and cover the streamlined protocol in Pi smoke tests and guidance.

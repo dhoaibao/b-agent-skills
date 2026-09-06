@@ -16,7 +16,7 @@ Default install for Pi:
 curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agentic/main/install.sh | bash
 ```
 
-Default install writes b-agentic files and Pi configuration only. Pi CLI installation and upgrade run automatically without prompts.
+Default install writes b-agentic files and Pi configuration only. Pi CLI installation and upgrade run automatically without prompts. In an interactive TTY, the default install opens a dependency-free component picker with all optional groups selected: MCP support, Pi integrations, and the Dracula theme. Core files and required tooling remain selected. Use Up/Down, Space, Enter, or Escape to navigate, toggle, continue, or cancel. Redirected, CI, `TERM=dumb`, and explicit `--update`, `--sync`, or `--uninstall` runs remain non-interactive.
 
 ### Standalone Markdown preview install
 
@@ -88,8 +88,11 @@ installed or updated automatically because they generally require sudo; the
 readiness report provides a platform-specific install hint.
 
 Installer output stays newline-based for redirected and CI runs. On an interactive
-TTY it uses a dependency-free ASCII stage indicator (disabled for `TERM=dumb`),
-then prints a concise success and attention summary.
+TTY the default install uses a dependency-free ASCII component picker followed by
+its stage indicator (both disabled for `TERM=dumb`), then prints a concise success
+and attention summary. A later picker run reconciles checked groups and leaves
+unchecked managed groups untouched; explicit uninstall is still required to remove
+those groups.
 
 ## RTK (Rust Token Killer)
 

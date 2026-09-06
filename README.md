@@ -21,6 +21,11 @@ services, authenticating providers, or claiming session usage.
 curl -fsSL https://raw.githubusercontent.com/dhoaibao/b-agentic/main/install.sh | bash
 ```
 
+In an interactive terminal, the installer opens a component picker with the
+current optional features selected by default; redirected and CI runs keep the
+non-interactive install path. See [REFERENCE.md](REFERENCE.md) for the picker
+controls and lifecycle behavior.
+
 For reviewed pins, flags, package lifecycle, readiness, the standalone
 Markdown preview install, and the preview package route, see
 [REFERENCE.md](REFERENCE.md). The preview package also has its own

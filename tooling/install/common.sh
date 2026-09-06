@@ -14,6 +14,25 @@ INSTALL_STAGE_CURRENT=0
 INSTALL_STAGE_TOTAL=0
 INSTALL_STAGE_LABEL=""
 
+installer_component_enabled() {
+  local component="$1" value=""
+  if declare -F component_enabled >/dev/null 2>&1; then
+    component_enabled "$component"
+    return $?
+  fi
+
+  case "$component" in
+    mcp) value="${B_AGENTIC_COMPONENT_MCP:-Y}" ;;
+    pi-integrations) value="${B_AGENTIC_COMPONENT_PI_INTEGRATIONS:-Y}" ;;
+    theme) value="${B_AGENTIC_COMPONENT_THEME:-Y}" ;;
+    *) return 1 ;;
+  esac
+  case "$value" in
+    n | N | no | NO | No | false | FALSE | 0) return 1 ;;
+    *) return 0 ;;
+  esac
+}
+
 set_install_stage_total() {
   INSTALL_STAGE_CURRENT=0
   INSTALL_STAGE_TOTAL="${1:-0}"
@@ -853,6 +872,7 @@ PY
 }
 
 collect_api_keys() {
+  installer_component_enabled mcp || return 0
   can_prompt_api_keys || return 0
 
   printf '\nOptional MCP API keys. Values are written to %s and never to tracked templates.\n' "$MCP_CONFIG_DST" > /dev/tty

@@ -656,9 +656,12 @@ PY
 from pathlib import Path
 import sys
 output = Path(sys.argv[1]).read_bytes()
+picker_control = b'\x1b[2J\x1b[H'
 assert b'\r' in output
 assert b'[1/5] [' in output
-assert b'\x1b' not in output
+assert output.count(picker_control) >= 2
+assert output.replace(picker_control, b'').find(b'\x1b') == -1
+assert b'Selected components:\r\n' in output
 assert b'b-agentic install complete for Pi\r\n' in output
 assert output.endswith(b'\n')
 PY
@@ -675,11 +678,76 @@ PY
 	git -C "$failure_sandbox/source-repo" add -A
 	git -C "$failure_sandbox/source-repo" -c user.name='b-agentic smoke' -c user.email='smoke@example.test' commit -qm 'remove generated Pi skill payload'
 	set +e
-	run_install_with_tty_log "$failure_sandbox" "$failure_sandbox/source-repo" "$failure_sandbox/install.log" --dry-run
+	TERM=xterm run_install_with_tty_log "$failure_sandbox" "$failure_sandbox/source-repo" "$failure_sandbox/install.log" --dry-run
 	rc=$?
 	set -e
 	[ "$rc" -ne 0 ] || fail "expected TTY failure output contract to fail"
 	assert_contains "$failure_sandbox/install.log" 'error:'
+}
+
+run_component_picker_case() {
+	local snapshot_repo="$1"
+	local sandbox="$WORK_DIR/component-picker"
+	local cancel_sandbox="$WORK_DIR/component-picker-cancel"
+	local preserve_sandbox="$WORK_DIR/component-picker-preserve"
+	local install_log="$sandbox/install.log"
+	local cancel_log="$cancel_sandbox/install.log"
+	local preserve_log="$preserve_sandbox/rerun.log"
+	local mcp_path="$preserve_sandbox/home/.pi/agent/mcp.json"
+	local theme_cache="$preserve_sandbox/home/.pi/agent/b-agentic/themes/dracula.json"
+	local manifest_path="$preserve_sandbox/home/.pi/agent/b-agentic/install.json"
+	local mcp_before="$preserve_sandbox/mcp.before"
+	local theme_before="$preserve_sandbox/theme.before"
+	local manifest_before="$preserve_sandbox/manifest.before"
+	local rc=0
+
+	mkdir -p "$sandbox/home" "$cancel_sandbox/home" "$preserve_sandbox/home"
+	set +e
+	TERM=xterm B_AGENTIC_TTY_INPUT=$' \e[B \e[B \n' run_install_with_tty_log "$sandbox" "$snapshot_repo" "$install_log" --dry-run
+	rc=$?
+	set -e
+	[ "$rc" -eq 0 ] || fail "expected component picker dry-run exit 0, got $rc"
+	assert_contains "$install_log" 'Select optional components.'
+	assert_contains "$install_log" 'Selected components:'
+	assert_contains "$install_log" 'MCP support skipped'
+	assert_contains "$install_log" 'Pi integrations skipped'
+	assert_contains "$install_log" 'Dracula theme skipped'
+	assert_contains "$install_log" '[dry-run] curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh'
+	assert_not_contains "$install_log" '[dry-run] pi install npm:pi-mcp-adapter'
+	assert_not_contains "$install_log" '[dry-run] pi install npm:pi-observational-memory'
+	assert_not_contains "$install_log" '[dry-run] git clone --depth 1 https://github.com/dracula/pi-coding-agent.git'
+
+	set +e
+	TERM=xterm B_AGENTIC_TTY_INPUT=$'\e' run_install_with_tty_log "$cancel_sandbox" "$snapshot_repo" "$cancel_log" --dry-run
+	rc=$?
+	set -e
+	[ "$rc" -eq 130 ] || fail "expected Escape to cancel the component picker, got $rc"
+	assert_contains "$cancel_log" 'Installation cancelled.'
+	assert_no_path "$cancel_sandbox/source"
+	assert_no_path "$cancel_sandbox/home/.pi/agent"
+
+	expect_install_status 0 "$preserve_sandbox" "$snapshot_repo"
+	cp "$mcp_path" "$mcp_before"
+	cp "$theme_cache" "$theme_before"
+	cp "$manifest_path" "$manifest_before"
+	set +e
+	TERM=xterm B_AGENTIC_TTY_INPUT=$' \e[B \e[B \n' run_install_with_tty_log "$preserve_sandbox" "$snapshot_repo" "$preserve_log"
+	rc=$?
+	set -e
+	[ "$rc" -eq 0 ] || fail "expected component picker reconcile exit 0, got $rc"
+	assert_equal_files "$mcp_path" "$mcp_before"
+	assert_equal_files "$theme_cache" "$theme_before"
+	python3 - "$manifest_path" "$manifest_before" <<'PY' || fail "component picker changed skipped component manifest state"
+import json
+import sys
+from pathlib import Path
+
+actual = json.loads(Path(sys.argv[1]).read_text())
+before = json.loads(Path(sys.argv[2]).read_text())
+for key in ('mcpAction', 'mcpState', 'mcpAdapterAction', 'mcpAdapterState', 'themeAction', 'themeState'):
+    assert actual.get(key) == before.get(key), key
+assert actual['backups'].get('mcpConfig') == before['backups'].get('mcpConfig')
+PY
 }
 
 run_optional_shell_tool_case() {
@@ -979,6 +1047,7 @@ if pid == 0:
     os.environ.update(env)
     os.execv("/bin/bash", ["bash", install_script])
 
+os.write(fd, b"\n")
 status = None
 with open(log_path, "wb") as log:
     while True:
@@ -1062,6 +1131,7 @@ if pid == 0:
     os.environ.update(env)
     os.execv("/bin/bash", ["bash", install_script])
 
+os.write(fd, b"\n")
 status = None
 with open(log_path, "wb") as log:
     while True:
@@ -2178,6 +2248,7 @@ run_base_smoke_cases() {
 		run_skill_collision_smoke_case
 		run_readiness_report_case
 		run_output_contract_case
+		run_component_picker_case
 		run_optional_shell_tool_case
 		run_prompted_mcp_key_pipe_case
 		run_playwright_mcp_migration_case

@@ -105,6 +105,9 @@ CONTEXT7_API_KEY_INPUT=""
 BRAVE_API_KEY_INPUT=""
 FIRECRAWL_API_KEY_INPUT=""
 FIRECRAWL_API_URL_INPUT=""
+INSTALL_MCP_ACTION="skip"
+INSTALL_MCP_STATE="none"
+INSTALL_MCP_BACKUP="none"
 INSTALL_EXTENSION_ACTION="skip"
 INSTALL_EXTENSION_STATE="none"
 INSTALL_EXTENSION_BACKUP="none"
@@ -129,23 +132,25 @@ runtime_warn_missing_cli() {
 	command -v pi >/dev/null 2>&1 || warn "Pi CLI 'pi' not found; files will still be installed for Pi to discover later."
 	command -v codegraph >/dev/null 2>&1 || warn "codegraph CLI not found; CodeGraph MCP will not start until CodeGraph is installed."
 	command -v bunx >/dev/null 2>&1 || warn "bunx not found; MCP servers that use bunx (Brave, Firecrawl, Playwright) will not start until Bun is installed."
-	if command -v pi >/dev/null 2>&1 && ! pi_mcp_adapter_installed; then
+	if installer_component_enabled mcp && command -v pi >/dev/null 2>&1 && ! pi_mcp_adapter_installed; then
 		warn "pi-mcp-adapter not installed; MCP servers will not load until the adapter is installed."
 	fi
-	if command -v pi >/dev/null 2>&1 && ! pi_observational_memory_installed; then
-		warn "pi-observational-memory not installed; long-session compaction continuity is unavailable."
-	fi
-	if command -v pi >/dev/null 2>&1 && ! pi_usage_installed; then
-		warn "@sreetej510/pi-usage not installed; Pi usage reporting is unavailable."
-	fi
-	if command -v pi >/dev/null 2>&1 && ! pi_anthropic_auth_installed; then
-		warn "@gotgenes/pi-anthropic-auth not installed; Anthropic authentication support is unavailable."
-	fi
-	if command -v pi >/dev/null 2>&1 && ! pi_ask_user_question_installed; then
-		warn "@juicesharp/rpiv-ask-user-question not installed; interactive user questions are unavailable."
-	fi
-	if command -v pi >/dev/null 2>&1 && ! pi_todo_installed; then
-		warn "@juicesharp/rpiv-todo not installed; the Pi todo tool, /todos command, and persistent overlay are unavailable."
+	if installer_component_enabled pi-integrations && command -v pi >/dev/null 2>&1; then
+		if ! pi_observational_memory_installed; then
+			warn "pi-observational-memory not installed; long-session compaction continuity is unavailable."
+		fi
+		if ! pi_usage_installed; then
+			warn "@sreetej510/pi-usage not installed; Pi usage reporting is unavailable."
+		fi
+		if ! pi_anthropic_auth_installed; then
+			warn "@gotgenes/pi-anthropic-auth not installed; Anthropic authentication support is unavailable."
+		fi
+		if ! pi_ask_user_question_installed; then
+			warn "@juicesharp/rpiv-ask-user-question not installed; interactive user questions are unavailable."
+		fi
+		if ! pi_todo_installed; then
+			warn "@juicesharp/rpiv-todo not installed; the Pi todo tool, /todos command, and persistent overlay are unavailable."
+		fi
 	fi
 }
 
@@ -485,8 +490,62 @@ maybe_install_pi_observational_memory() {
 	fi
 }
 
-runtime_install_config_stage_count() { # extension update + permission extension + MCP merge + prompted keys + Dracula theme
-	printf '6'
+install_selected_pi_packages() {
+	if installer_component_enabled mcp; then
+		maybe_install_pi_mcp_adapter || return $?
+	fi
+	if installer_component_enabled pi-integrations; then
+		maybe_install_pi_observational_memory || return $?
+		maybe_install_pi_usage || return $?
+		maybe_install_pi_anthropic_auth || return $?
+		maybe_install_pi_intercom || return $?
+		maybe_install_pi_ask_user_question || return $?
+		maybe_install_pi_todo || return $?
+	fi
+}
+
+preserve_skipped_component_state() {
+	if ! installer_component_enabled mcp; then
+		INSTALL_MCP_ACTION="$(manifest_action_value mcpAction "$INSTALL_MCP_ACTION")"
+		INSTALL_MCP_STATE="$(manifest_action_value mcpState "$INSTALL_MCP_STATE")"
+		INSTALL_MCP_BACKUP="$(manifest_backup_value mcpConfig "$INSTALL_MCP_BACKUP")"
+		INSTALL_PI_MCP_ADAPTER_ACTION="$(manifest_action_value mcpAdapterAction "$INSTALL_PI_MCP_ADAPTER_ACTION")"
+		INSTALL_PI_MCP_ADAPTER_STATE="$(manifest_action_value mcpAdapterState "$INSTALL_PI_MCP_ADAPTER_STATE")"
+	fi
+
+	if ! installer_component_enabled pi-integrations; then
+		INSTALL_PI_OBSERVATIONAL_MEMORY_ACTION="$(manifest_action_value piObservationalMemoryAction "$INSTALL_PI_OBSERVATIONAL_MEMORY_ACTION")"
+		INSTALL_PI_OBSERVATIONAL_MEMORY_STATE="$(manifest_action_value piObservationalMemoryState "$INSTALL_PI_OBSERVATIONAL_MEMORY_STATE")"
+		INSTALL_PI_USAGE_ACTION="$(manifest_action_value piUsageAction "$INSTALL_PI_USAGE_ACTION")"
+		INSTALL_PI_USAGE_STATE="$(manifest_action_value piUsageState "$INSTALL_PI_USAGE_STATE")"
+		INSTALL_PI_ANTHROPIC_AUTH_ACTION="$(manifest_action_value piAnthropicAuthAction "$INSTALL_PI_ANTHROPIC_AUTH_ACTION")"
+		INSTALL_PI_ANTHROPIC_AUTH_STATE="$(manifest_action_value piAnthropicAuthState "$INSTALL_PI_ANTHROPIC_AUTH_STATE")"
+		INSTALL_PI_INTERCOM_ACTION="$(manifest_action_value piIntercomAction "$INSTALL_PI_INTERCOM_ACTION")"
+		INSTALL_PI_INTERCOM_STATE="$(manifest_action_value piIntercomState "$INSTALL_PI_INTERCOM_STATE")"
+		INSTALL_PI_ASK_USER_QUESTION_ACTION="$(manifest_action_value piAskUserQuestionAction "$INSTALL_PI_ASK_USER_QUESTION_ACTION")"
+		INSTALL_PI_ASK_USER_QUESTION_STATE="$(manifest_action_value piAskUserQuestionState "$INSTALL_PI_ASK_USER_QUESTION_STATE")"
+		INSTALL_PI_TODO_ACTION="$(manifest_action_value piTodoAction "$INSTALL_PI_TODO_ACTION")"
+		INSTALL_PI_TODO_STATE="$(manifest_action_value piTodoState "$INSTALL_PI_TODO_STATE")"
+	fi
+
+	if ! installer_component_enabled theme; then
+		INSTALL_THEME_ACTION="$(manifest_action_value themeAction "$INSTALL_THEME_ACTION")"
+		INSTALL_THEME_STATE="$(manifest_action_value themeState "$INSTALL_THEME_STATE")"
+	fi
+}
+
+runtime_install_config_stage_count() {
+	local count=2
+	if installer_component_enabled mcp || installer_component_enabled pi-integrations; then
+		count=$((count + 1))
+	fi
+	if installer_component_enabled mcp; then
+		count=$((count + 2))
+	fi
+	if installer_component_enabled theme; then
+		count=$((count + 1))
+	fi
+	printf '%s' "$count"
 }
 
 install_dracula_theme() {
@@ -697,20 +756,22 @@ update_pi_extensions() {
 }
 
 runtime_install_configs() {
-	maybe_install_pi_mcp_adapter || return $?
-	maybe_install_pi_observational_memory || return $?
-	maybe_install_pi_usage || return $?
-	maybe_install_pi_anthropic_auth || return $?
-	maybe_install_pi_intercom || return $?
-	maybe_install_pi_ask_user_question || return $?
-	maybe_install_pi_todo || return $?
+	preserve_skipped_component_state
+
+	if installer_component_enabled mcp || installer_component_enabled pi-integrations; then
+		run_stage "Installing selected Pi packages" install_selected_pi_packages || return $?
+	fi
 	run_stage "Updating Pi extensions" update_pi_extensions || return $?
 	run_install_triplet_stage "Installing Pi permission extension" install_permissions_extension "skip" "none" "none" \
 		INSTALL_EXTENSION_ACTION INSTALL_EXTENSION_STATE INSTALL_EXTENSION_BACKUP || return $?
-	run_install_triplet_stage "Merging MCP config" install_mcp_config "skip" "none" "none" \
+	if installer_component_enabled mcp; then
+		run_install_triplet_stage "Merging MCP config" install_mcp_config "skip" "none" "none" \
 		INSTALL_MCP_ACTION INSTALL_MCP_STATE INSTALL_MCP_BACKUP || return $?
-	apply_prompted_mcp_keys_stage INSTALL_MCP_ACTION INSTALL_MCP_BACKUP || return $?
-	run_stage "Installing Dracula theme" install_dracula_theme || return $?
+		apply_prompted_mcp_keys_stage INSTALL_MCP_ACTION INSTALL_MCP_BACKUP || return $?
+	fi
+	if installer_component_enabled theme; then
+		run_stage "Installing Dracula theme" install_dracula_theme || return $?
+	fi
 }
 
 runtime_write_manifest() {
@@ -893,8 +954,26 @@ PY
 runtime_print_install_report() {
 	local -a attention=()
 	local status shell_status summary_label="Installed"
+	local component_summary="core and required tooling"
+
+	if installer_component_enabled mcp; then
+		component_summary="$component_summary; MCP support"
+	else
+		component_summary="$component_summary; MCP support skipped"
+	fi
+	if installer_component_enabled pi-integrations; then
+		component_summary="$component_summary; Pi integrations"
+	else
+		component_summary="$component_summary; Pi integrations skipped"
+	fi
+	if installer_component_enabled theme; then
+		component_summary="$component_summary; Dracula theme"
+	else
+		component_summary="$component_summary; Dracula theme skipped"
+	fi
 
 	installer_summary_log "b-agentic install complete for Pi"
+	installer_summary_log "Components: $component_summary"
 	if dry_run_enabled; then
 		summary_label="Planned"
 	fi
@@ -911,24 +990,29 @@ runtime_print_install_report() {
 
 	status="$(codegraph_readiness_status)"
 	case "$status" in ready:*) ;; *) attention+=("codegraph: $status") ;; esac
-	status="$(context7_readiness_status)"
-	case "$status" in ready:*) ;; *) attention+=("context7: $status") ;; esac
-	status="$(brave_search_readiness_status)"
-	case "$status" in ready:*) ;; *) attention+=("brave-search: $status") ;; esac
-	status="$(firecrawl_readiness_status)"
-	case "$status" in ready:*) ;; *) attention+=("firecrawl: $status") ;; esac
-	status="$(playwright_readiness_status)"
-	case "$status" in ready:*) ;; *) attention+=("playwright: $status") ;; esac
 	status="$(rtk_readiness_status)"
 	case "$status" in ready:*) ;; *) attention+=("rtk: $status") ;; esac
 
-	[ "$INSTALL_PI_MCP_ADAPTER_STATE" = "ready" ] || attention+=("mcp-adapter: install $PI_MCP_ADAPTER_PACKAGE with 'pi install $PI_MCP_ADAPTER_SPEC'")
-	[ "$INSTALL_PI_OBSERVATIONAL_MEMORY_STATE" = "ready" ] || attention+=("observational-memory: install $PI_OBSERVATIONAL_MEMORY_PACKAGE with 'pi install $PI_OBSERVATIONAL_MEMORY_SPEC'")
-	[ "$INSTALL_PI_USAGE_STATE" = "ready" ] || attention+=("pi-usage: install $PI_USAGE_PACKAGE with 'pi install $PI_USAGE_SPEC'")
-	[ "$INSTALL_PI_ANTHROPIC_AUTH_STATE" = "ready" ] || attention+=("anthropic-auth: install $PI_ANTHROPIC_AUTH_PACKAGE with 'pi install $PI_ANTHROPIC_AUTH_SPEC'")
-	[ "$INSTALL_PI_INTERCOM_STATE" = "ready" ] || attention+=("pi-intercom: install $PI_INTERCOM_PACKAGE with 'pi install $PI_INTERCOM_SPEC'")
-	[ "$INSTALL_PI_ASK_USER_QUESTION_STATE" = "ready" ] || attention+=("ask-user-question: install $PI_ASK_USER_QUESTION_PACKAGE with 'pi install $PI_ASK_USER_QUESTION_SPEC'")
-	[ "$INSTALL_PI_TODO_STATE" = "ready" ] || attention+=("pi-todo: install $PI_TODO_PACKAGE with 'pi install $PI_TODO_SPEC'")
+	if installer_component_enabled mcp; then
+		status="$(context7_readiness_status)"
+		case "$status" in ready:*) ;; *) attention+=("context7: $status") ;; esac
+		status="$(brave_search_readiness_status)"
+		case "$status" in ready:*) ;; *) attention+=("brave-search: $status") ;; esac
+		status="$(firecrawl_readiness_status)"
+		case "$status" in ready:*) ;; *) attention+=("firecrawl: $status") ;; esac
+		status="$(playwright_readiness_status)"
+		case "$status" in ready:*) ;; *) attention+=("playwright: $status") ;; esac
+		[ "$INSTALL_PI_MCP_ADAPTER_STATE" = "ready" ] || attention+=("mcp-adapter: install $PI_MCP_ADAPTER_PACKAGE with 'pi install $PI_MCP_ADAPTER_SPEC'")
+	fi
+
+	if installer_component_enabled pi-integrations; then
+		[ "$INSTALL_PI_OBSERVATIONAL_MEMORY_STATE" = "ready" ] || attention+=("observational-memory: install $PI_OBSERVATIONAL_MEMORY_PACKAGE with 'pi install $PI_OBSERVATIONAL_MEMORY_SPEC'")
+		[ "$INSTALL_PI_USAGE_STATE" = "ready" ] || attention+=("pi-usage: install $PI_USAGE_PACKAGE with 'pi install $PI_USAGE_SPEC'")
+		[ "$INSTALL_PI_ANTHROPIC_AUTH_STATE" = "ready" ] || attention+=("anthropic-auth: install $PI_ANTHROPIC_AUTH_PACKAGE with 'pi install $PI_ANTHROPIC_AUTH_SPEC'")
+		[ "$INSTALL_PI_INTERCOM_STATE" = "ready" ] || attention+=("pi-intercom: install $PI_INTERCOM_PACKAGE with 'pi install $PI_INTERCOM_SPEC'")
+		[ "$INSTALL_PI_ASK_USER_QUESTION_STATE" = "ready" ] || attention+=("ask-user-question: install $PI_ASK_USER_QUESTION_PACKAGE with 'pi install $PI_ASK_USER_QUESTION_SPEC'")
+		[ "$INSTALL_PI_TODO_STATE" = "ready" ] || attention+=("pi-todo: install $PI_TODO_PACKAGE with 'pi install $PI_TODO_SPEC'")
+	fi
 
 	shell_status="$(shell_tool_readiness_status)"
 	case "$shell_status" in
