@@ -18,6 +18,7 @@ section per date and same-day changes aggregated in that section.
 - Require b-agentic audits to verify branch synchronization with origin before inspecting repository sources, blocking stale or unverifiable branches so findings remain accurate.
 - Keep the default Off workflow solo while enabling explicit implementer-role review handoffs with validated same-CWD peer/origin targeting and supporting Pi smoke and behavior coverage.
 - Recover always-loaded kernel headroom by moving the detailed MCP adapter example into the research skill and consolidating duplicated guidance without raising size limits.
+- Check the current branch against its cached origin ref before non-trivial work begins, fetching only when that ref is missing or stale and surfacing behind or diverged counts for confirmation instead of silently building on outdated code.
 
 ### Fixed
 

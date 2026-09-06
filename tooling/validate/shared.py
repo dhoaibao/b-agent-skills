@@ -1128,6 +1128,20 @@ if "RTK never bypasses these protections" not in kernel_template:
     errors.append(
         "references/kernel.template.md: RTK must not be described as bypassing protections"
     )
+
+# Regression: work could start on a branch that silently trailed its origin ref,
+# so edits were built on outdated code and produced avoidable conflicts.
+BRANCH_FRESHNESS_REGRESSION = [
+    "compare `HEAD` against the cached `origin/<branch>` ref",
+    "fetch only when that ref is missing or stale",
+    "report the counts and ask before building on outdated code",
+]
+for marker in BRANCH_FRESHNESS_REGRESSION:
+    if marker not in kernel_template:
+        errors.append(
+            f"references/kernel.template.md: missing branch-freshness anchor {marker!r}; "
+            "non-trivial work must check the current branch against origin before acting"
+        )
 def _forbidden_codegraph_gates(text: str, markers: list[str]) -> list[str]:
     normalized = text.lower()
     return [marker for marker in markers if marker in normalized]
