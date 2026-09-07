@@ -16,6 +16,10 @@ section per date and same-day changes aggregated in that section.
 
 - Clarify that active implementer status already reflects compatible-peer arbitration, so role-less Intercom session listings identify the review target without blocking its handoff.
 
+### Fixed
+
+- Resolve simultaneous same-CWD implementer claims deterministically, retaining the preferred claimant while the losing session reports the collision instead of a missing-reviewer error.
+
 ### Removed
 
 - Remove the review-peer selector and marker protocol, using direct same-CWD Intercom routing with role-arbitration safeguards instead.

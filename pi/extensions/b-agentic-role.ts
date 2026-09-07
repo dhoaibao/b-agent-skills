@@ -255,6 +255,7 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
       const self = sessions.find(
         (session) => session.cwd === ctx.cwd && session.pid === process.pid,
       );
+      const peers = sameCwdPeers(sessions, ctx.cwd, process.pid);
       if (
         !self ||
         !hasCompatibleSameCwdPeerRoles(
@@ -263,7 +264,7 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
           process.pid,
           peerRoles,
         ) ||
-        !canClaimImplementer(sessions, ctx.cwd, process.pid, peerRoles)
+        peers.length > 1
       ) {
         applyRole("off", ctx);
         ctx.ui.notify(
@@ -273,12 +274,29 @@ export default function bAgenticRole(pi: ExtensionAPI): void {
         return;
       }
       if (
-        preferredImplementerId(sessions, ctx.cwd, process.pid, peerRoles) !==
-        self.id
+        hasActiveSameCwdPeerImplementer(
+          sessions,
+          ctx.cwd,
+          process.pid,
+          peerRoles,
+        )
       ) {
+        if (
+          preferredImplementerId(sessions, ctx.cwd, process.pid, peerRoles) !==
+          self.id
+        ) {
+          applyRole("off", ctx);
+          ctx.ui.notify(
+            "A same-CWD implementer claim won; remaining Off",
+            "warning",
+          );
+        }
+        return;
+      }
+      if (!canClaimImplementer(sessions, ctx.cwd, process.pid, peerRoles)) {
         applyRole("off", ctx);
         ctx.ui.notify(
-          "A same-CWD implementer claim won; remaining Off",
+          "A same-CWD reviewer is required; remaining Off",
           "warning",
         );
       }
