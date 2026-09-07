@@ -33,6 +33,7 @@ python3 "$ROOT_DIR/pi/tests/prompt_effectiveness.py" --fixtures "$ROOT_DIR/tests
 python3 "$ROOT_DIR/pi/tests/prompt_effectiveness.py" --fixtures "$ROOT_DIR/tests/behavior/roles.json" --validate-inputs
 python3 "$ROOT_DIR/pi/tests/prompt_effectiveness.py" --fixtures "$ROOT_DIR/tests/behavior/init-guidance.json" --skill "$ROOT_DIR/skills/b-init/SKILL.md" --validate-inputs
 python3 "$ROOT_DIR/tooling/validate/browser_evidence.py" --self-test
+python3 "$ROOT_DIR/skills/b-diagram/diagram.py" self-test
 bash "$ROOT_DIR/pi/scripts/validate.sh"
 
 if [ "$run_release" -eq 1 ]; then

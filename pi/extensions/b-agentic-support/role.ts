@@ -16,6 +16,7 @@ export const SKILL_OWNERS: Readonly<Record<string, SkillOwner>> = {
   "b-research": "implementer",
   "b-design": "implementer",
   "b-frontend": "implementer",
+  "b-diagram": "implementer",
   "b-implement": "implementer",
   "b-init": "implementer",
   "b-refactor": "implementer",

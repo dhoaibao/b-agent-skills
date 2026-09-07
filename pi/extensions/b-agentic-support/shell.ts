@@ -916,6 +916,7 @@ export const B_AGENTIC_SKILL_NAMES = new Set([
   "b-research",
   "b-design",
   "b-frontend",
+  "b-diagram",
   "b-implement",
   "b-init",
   "b-refactor",

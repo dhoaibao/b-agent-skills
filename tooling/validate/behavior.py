@@ -127,6 +127,18 @@ FIXTURES = [
         not_expected=("b-browser", "b-plan"),
     ),
     Fixture(
+        name="technical diagram artifact",
+        prompt="Create an architecture diagram with the service boundaries and primary request path.",
+        expected="b-diagram",
+        not_expected=("b-frontend", "b-browser", "b-plan"),
+    ),
+    Fixture(
+        name="generic UI work stays frontend",
+        prompt="Implement frontend implementation and component styling for a responsive dashboard system map panel.",
+        expected="b-frontend",
+        not_expected=("b-diagram",),
+    ),
+    Fixture(
         name="approved implementation",
         prompt="Implement the approved plan and finish the next build step.",
         expected="b-implement",

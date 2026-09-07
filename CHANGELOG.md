@@ -8,6 +8,10 @@ section per date and same-day changes aggregated in that section.
 
 ## [v2026.09.07] - 2026-09-07
 
+### Added
+
+- Add the opt-in `b-diagram` skill for validating versioned technical-diagram sources and atomically delivering portable, self-contained HTML/SVG artifacts from explicit architecture and flow facts.
+
 ### Removed
 
 - Remove the review-peer selector and marker protocol, using direct same-CWD Intercom routing with role-arbitration safeguards instead.
