@@ -61,8 +61,8 @@ ROLE_PROMPT_MARKERS = {
         "No automatic commit or push",
         "automatically request independent b-review through intercom",
         "automatically delegate the structured findings back",
-        "b_agentic_review_peer",
-        "B_AGENTIC_REVIEW_HANDOFF",
+        "reviewer session in the same CWD",
+        "implementer session in the same CWD",
     ],
     "behavior": [
         "sole user-facing writer",

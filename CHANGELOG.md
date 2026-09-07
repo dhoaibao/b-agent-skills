@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog 2.0.0](https://keepachangelog.com/en/2.
 and this project adheres to Calendar Versioning: `vYYYY.MM.DD`, with one release
 section per date and same-day changes aggregated in that section.
 
+## [v2026.09.07] - 2026-09-07
+
+### Removed
+
+- Remove the review-peer selector and marker protocol, using direct same-CWD Intercom routing with role-arbitration safeguards instead.
+
 ## [v2026.09.06] - 2026-09-06
 
 ### Added

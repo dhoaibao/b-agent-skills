@@ -646,9 +646,9 @@ export const CAPABILITIES: readonly CapabilityDefinition[] = [
   {
     "id": "extension.b-agentic-role",
     "kind": "extension",
-    "purpose": "Select and persist explicit roles and expose fail-closed compatible peers for automatic review handoffs.",
+    "purpose": "Select and persist explicit roles while preserving single-writer arbitration for same-CWD sessions.",
     "owner": "b-agentic role extension",
-    "trigger": "Use when the user selects /b-role, a startup role flag is active, or an automatic implementer/reviewer handoff needs a validated peer; default behavior is Off.",
+    "trigger": "Use when the user selects /b-role or a startup role flag is active; default behavior is Off.",
     "prerequisites": [
       "Installed Pi extension entrypoint",
       "Explicit role selection"

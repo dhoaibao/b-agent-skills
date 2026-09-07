@@ -18,8 +18,8 @@
 ## Intercom roles
 
 - b-agentic defaults to Off; select roles with `/b-role` or `pi --b-role`. The implementer is the sole user-facing worktree writer; reviewer is an independent prompt-governed read-only gate. Use compatible same-CWD peers; legacy planner/worker state stays inactive.
-- Checked completion in explicit implementer role automatically requests a frozen-candidate `b-review` via `b_agentic_review_peer` and `intercom`, marked `B_AGENTIC_REVIEW_HANDOFF`; use the selector's returned handoff metadata for the ask target and exact marker prefix; missing peers stop handoff.
-- Reviewer starts b-review; validate the exact handoff origin with b_agentic_review_peer, target the returned session ID, then automatically delegate `NEEDS FIXES` findings back through `intercom`. Use the selector's structured `returnTarget.to` value for that target.
+- An implementer claim is allowed only with no peer or one active reviewer peer in the same CWD; unknown, Off, or implementer peers block the claim. Checked completion in explicit implementer role automatically requests a frozen-candidate `b-review` through `intercom` from the reviewer session in the same CWD, using `intercom list-cwd` to identify that sole reviewer; include a compact snapshot handoff, and stop edits while review is pending. Missing coordination stops the handoff.
+- Reviewer starts b-review from that intercom handoff and automatically returns structured `NEEDS FIXES` findings through `intercom` to the implementer session in the same CWD.
 <!-- generated:skill-ownership:start -->
 - Implementer-owned skills: `b-plan`, `b-research`, `b-design`, `b-frontend`, `b-implement`, `b-init`, `b-refactor`, `b-debug`, `b-test`, `b-browser`, `b-commit`, `b-pr-summary`. The implementer is the sole user-facing worktree writer.
 - Reviewer-owned skills: `b-agentic-audit`, `b-review`. The reviewer executes only the independent read-only gate.

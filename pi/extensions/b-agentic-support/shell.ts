@@ -94,7 +94,6 @@ export const SPECIALIZED_TOOLS = new Set([
   "read",
   "recall",
   "ask_user_question",
-  "b_agentic_review_peer",
   "mcpScript",
   "grep",
   "find",

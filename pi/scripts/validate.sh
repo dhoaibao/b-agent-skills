@@ -96,8 +96,8 @@ for marker in [
     "No automatic commit or push",
     "automatically request independent b-review through intercom",
     "automatically delegate the structured findings back",
-    "b_agentic_review_peer",
-    "B_AGENTIC_REVIEW_HANDOFF",
+    "reviewer session in the same CWD",
+    "implementer session in the same CWD",
 # generated:role-prompt-markers:validate:end
 ]:
     if marker not in role_prompt:
@@ -195,8 +195,7 @@ if extension.exists():
         'sole user-facing writer', 'independent read-only gate', 'compact snapshot handoff',
         'stop edits', 'exact unchanged snapshot',
         'automatically request independent b-review through intercom',
-        'automatically delegate the structured findings back', 'b_agentic_review_peer', 'B_AGENTIC_REVIEW_HANDOFF',
-        'reviewHandoffOrigin', 'originSessionId', 'expectedSessionId', 'message.expectsReply',
+        'automatically delegate the structured findings back', 'reviewer session in the same CWD', 'implementer session in the same CWD',
         'ROLE_PROTOCOL_VERSION', 'isCompatibleRolePayload', 'createCandidateSnapshot',
         'isDirectClassifiedManagedTool', 'CODEGRAPH_TRUSTED_TOOLS', 'mcpScript',
         'roles never filter tools'

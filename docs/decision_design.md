@@ -77,19 +77,16 @@ stays inactive until explicitly reselected; old preferences map by role only.
   fail closed and never grant an implementer writer claim. Roles preserve normal
   Pi tools and shared approval policy.
 - The implementer asks material user questions directly. When implementation is
-  complete and required checks pass, it uses the read-only `b_agentic_review_peer`
-  selector to obtain exactly one compatible same-CWD reviewer, then automatically
-  requests independent review through `intercom`, supplying a compact snapshot
-  handoff marked `B_AGENTIC_REVIEW_HANDOFF` and covering tracked and relevant
-  untracked/derived content, acceptance, required checks, gaps, and risk; missing
-  coordination stops the handoff. The selector returns canonical ask metadata
-  with the reviewer target and exact marker prefix; use it verbatim.
+  complete and required checks pass, it uses `intercom list-cwd` to identify the
+  sole reviewer session permitted by role arbitration, then requests independent
+  review through `intercom`, supplying a compact snapshot handoff covering tracked
+  and relevant untracked/derived content, acceptance, required checks, gaps, and
+  risk. An unknown, Off, or implementer peer blocks an implementer claim; missing
+  coordination stops the handoff.
 - A reviewer begins from that handoff without waiting for another prompt. On
-  `NEEDS FIXES`, it first validates exactly one compatible same-CWD implementer
-  matching the marked handoff origin with the same selector, then automatically
-  delegates structured findings back through `intercom` to that returned session
-  ID while remaining read-only; use the selector's structured `returnTarget.to`
-  value for that target. It does not delegate research or implement the fix.
+  `NEEDS FIXES`, it automatically delegates structured findings back through
+  `intercom` to the implementer session in the same CWD while remaining read-only.
+  It does not delegate research or implement the fix.
   Shipping requires the exact unchanged snapshot, acceptance,
   fresh passing required checks, no blockers/material gaps, and a valid review
   disposition. Follow-ups need explicit disposition and never waive safety

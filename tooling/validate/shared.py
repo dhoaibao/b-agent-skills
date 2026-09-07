@@ -129,7 +129,7 @@ prompt_regression_contracts = {
     "b-plan": ["candidate-review gate", "tracked plus relevant untracked/derived snapshot"],
     "b-research": ["resolved lockfiles", "go.mod"],
     "b-implement": ["shared explicit implementer-role profile", "standalone **Off** mode does not initiate intercom review", "active implementer role initiates a handoff", "let the implementer-role profile send a fresh snapshot and review request"],
-    "b-review": ["frozen changed-code candidate", "begin **b-review** automatically", "B_AGENTIC_REVIEW_HANDOFF", "automatically delegate the structured findings back", "b_agentic_review_peer", "intercom", "structured `returnTarget.to` value verbatim", "coordination gap"],
+    "b-review": ["frozen changed-code candidate", "begin **b-review** automatically", "automatically delegate the structured findings back", "implementer session in the same CWD", "intercom", "coordination gap"],
     "b-agentic-audit": [
         "Existing source/design conformance",
         "Whole-project and first-party-extension health",
@@ -1222,8 +1222,8 @@ if _forbidden_codegraph_gates(
 
 for intercom_marker in [
     "b-agentic defaults to Off", "select roles with `/b-role` or `pi --b-role`", "implementer is the sole user-facing worktree writer", "independent prompt-governed read-only gate", "compatible same-CWD peers",
-    "Checked completion in explicit implementer role automatically requests a frozen-candidate `b-review` via `b_agentic_review_peer` and `intercom`",
-    "automatically delegate `NEEDS FIXES` findings back through `intercom`",
+    "Checked completion in explicit implementer role automatically requests a frozen-candidate `b-review` through `intercom` from the reviewer session in the same CWD",
+    "automatically returns structured `NEEDS FIXES` findings through `intercom` to the implementer session in the same CWD",
 ]:
     if intercom_marker not in kernel_template:
         errors.append(
@@ -1244,8 +1244,8 @@ for intercom_marker in [
     "No automatic commit or push",
     "automatically request independent b-review through intercom",
     "automatically delegate the structured findings back",
-    "b_agentic_review_peer",
-    "B_AGENTIC_REVIEW_HANDOFF",
+    "reviewer session in the same CWD",
+    "implementer session in the same CWD",
 # generated:role-prompt-markers:shared:end
 ]:
     if intercom_marker not in role_prompt:
@@ -1254,18 +1254,6 @@ for intercom_marker in [
         )
 
 role_extension = read_text(ROOT / "pi/extensions/b-agentic-role.ts")
-for role_implementation_marker in [
-    "REVIEW_HANDOFF_SIGNAL",
-    "reviewHandoffOrigin",
-    "originSessionId",
-    "message.expectsReply",
-    "expectedSessionId",
-]:
-    if role_implementation_marker not in role_extension:
-        errors.append(
-            f"pi/extensions/b-agentic-role.ts: missing exact-origin marker {role_implementation_marker!r}"
-        )
-
 # The kernel owns the RTK requirement and modern shell-tool preferences.
 for required_tool in ["`rtk`", "`rg`", "`fdfind`", "`batcat`", "`eza`", "`sd`", "`jq`"]:
     if required_tool not in kernel_template:
