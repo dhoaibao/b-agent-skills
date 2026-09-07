@@ -96,6 +96,23 @@
       ]
     },
     {
+      "id": "active-role-addresses-unlabeled-peer",
+      "role": "implementer",
+      "skill": "b-implement",
+      "observed_failure": "An active implementer treated the missing peer-role label in intercom list-cwd as a coordination failure.",
+      "intended_behavior": "An active implementer trusts b-role's completed compatible-peer arbitration; list-cwd supplies the sole peer address but does not expose peer roles.",
+      "prompt": "The active implementer role is shown, required checks pass, and intercom list-cwd reports exactly one same-CWD peer without a role field. State whether you send the review handoff and why.",
+      "must": [
+        "Send the compact frozen-candidate b-review handoff to the sole peer",
+        "Treat active implementer status as evidence that b-role completed compatible-peer arbitration",
+        "Use list-cwd only to address the peer"
+      ],
+      "avoid": [
+        "Treat the absent list-cwd role label as a coordination gap",
+        "Infer or invent a peer role from the list output"
+      ]
+    },
+    {
       "id": "stale-content-and-checks-block-shipping",
       "role": "implementer",
       "skill": "b-review",

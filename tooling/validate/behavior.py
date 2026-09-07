@@ -76,6 +76,7 @@ INTERCOM_DELEGATION_REGRESSION = {
         "b-agentic defaults to Off", "implementer is the sole user-facing worktree writer",
         "legacy planner/worker state stays inactive", "Candidate review freezes implementer edits",
         "Checked completion in explicit implementer role automatically requests a frozen-candidate `b-review` through `intercom` from the reviewer session in the same CWD",
+        "An active implementer role confirms that b-role's internal compatible-peer arbitration has passed; `intercom list-cwd` supplies the sole peer's address, not its role.",
         "automatically returns structured `NEEDS FIXES` findings through `intercom` to the implementer session in the same CWD",
     ),
     "role_required_clauses": (
