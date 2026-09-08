@@ -790,7 +790,8 @@ await handlers.agent_start({});
 await handlers.agent_end({ messages: [{ role: 'assistant', content: [{ type: 'text', text: 'B_AGENTIC_TASK_COMPLETE\nTask passed b-review.' }], timestamp: 1 }] });
 await handlers.agent_settled({}, roleContext);
 await handlers.agent_settled({}, roleContext);
-expect(executedCommands.length === notificationCommandStart + 2 && executedCommands.at(-1)?.args.includes('Task complete'), 'post-review task completion must notify the implementer once');
+const taskCompletionCommand = executedCommands.at(-1);
+expect(executedCommands.length === notificationCommandStart + 2 && taskCompletionCommand?.args.some((arg) => String(arg).includes('Task complete')), 'post-review task completion must notify the implementer once');
 expect(plannerNotifyTest.hasTaskCompleteSignal([{ role: 'assistant', content: [{ type: 'text', text: 'B_AGENTIC_TASK_COMPLETE in prose' }], timestamp: 1 }]) === false, 'only standalone task-completion signals may notify');
 roleChannelRegistration.onReady({
   publish() {},

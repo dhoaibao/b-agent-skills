@@ -18,6 +18,7 @@ section per date and same-day changes aggregated in that section.
 - Require implementers to hand off completed frozen candidates before reporting task completion and reviewers to return every review disposition to the implementer, with synchronized guidance and regression coverage.
 - Restore the workflow kernel below its enforced size limit without weakening its validated safety, routing, review, or MCP guidance.
 - Restore the Validate structural audit after the review-handoff kernel exceeded its prior byte ceiling by documenting a scoped 12,500-byte limit while retaining the 120-line guard.
+- Make post-review notification smoke coverage portable across Linux and macOS `osascript` argument shapes while retaining exactly-once verification.
 
 ## [v2026.09.07] - 2026-09-07
 
