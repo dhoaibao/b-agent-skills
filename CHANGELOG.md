@@ -12,6 +12,10 @@ section per date and same-day changes aggregated in that section.
 
 - Allow explicit implementer roles to remain active without a same-CWD reviewer while retaining multi-peer and implementer-collision safeguards.
 
+### Fixed
+
+- Restore the workflow kernel below its enforced size limit without weakening its validated safety, routing, review, or MCP guidance.
+
 ## [v2026.09.07] - 2026-09-07
 
 ### Added
