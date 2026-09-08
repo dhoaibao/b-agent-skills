@@ -129,7 +129,7 @@ prompt_regression_contracts = {
     "b-plan": ["candidate-review gate", "tracked plus relevant untracked/derived snapshot"],
     "b-research": ["resolved lockfiles", "go.mod"],
     "b-implement": ["shared explicit implementer-role profile", "standalone **Off** mode does not initiate intercom review", "active implementer role initiates a handoff", "let the implementer-role profile send a fresh snapshot and review request"],
-    "b-review": ["frozen changed-code candidate", "begin **b-review** automatically", "automatically delegate the structured findings back", "implementer session in the same CWD", "intercom", "coordination gap"],
+    "b-review": ["frozen changed-code candidate", "begin **b-review** automatically", "automatically return the structured disposition and findings", "every disposition", "implementer session in the same CWD", "intercom", "coordination gap"],
     "b-agentic-audit": [
         "Existing source/design conformance",
         "Whole-project and first-party-extension health",
@@ -1222,8 +1222,8 @@ if _forbidden_codegraph_gates(
 
 for intercom_marker in [
     "b-agentic defaults to Off", "select roles with `/b-role` or `pi --b-role`", "implementer is the sole user-facing worktree writer", "independent prompt-governed read-only gate", "compatible same-CWD peers",
-    "Checked completion in explicit implementer role automatically requests a frozen-candidate `b-review` through `intercom` from the reviewer session in the same CWD",
-    "automatically returns structured `NEEDS FIXES` findings through `intercom` to the implementer session in the same CWD",
+    "After completing implementation and required checks in explicit implementer role, immediately and before any final task response, automatically request a frozen-candidate `b-review` through `intercom` from the reviewer session in the same CWD",
+    "before reporting review completion, automatically returns the structured disposition and findings (including `NEEDS FIXES`, `READY FOR PR`, or `READY WITH FOLLOW-UPS`) through `intercom` to the implementer session in the same CWD",
 ]:
     if intercom_marker not in kernel_template:
         errors.append(
@@ -1243,7 +1243,7 @@ for intercom_marker in [
     "READY WITH FOLLOW-UPS",
     "No automatic commit or push",
     "automatically request independent b-review through intercom",
-    "automatically delegate the structured findings back",
+    "automatically return the structured disposition and findings",
     "reviewer session in the same CWD",
     "implementer session in the same CWD",
 # generated:role-prompt-markers:shared:end

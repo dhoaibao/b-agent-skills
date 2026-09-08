@@ -690,7 +690,7 @@ expect(publishedRoles.some((payload) => payload.type === 'b-agentic-role' && pay
 await commands['b-role'].handler('reviewer', roleContext);
 expect(roleStatuses.at(-1)?.value === '<success>b-agentic: reviewer</success>' && activeTools.includes('edit') && activeTools.includes('write'), 'reviewer selection preserves tools and applies only prompt guidance');
 const reviewerStart = await handlers.before_agent_start({ systemPrompt: 'base', systemPromptOptions: { skills: [] } }, roleContext);
-expect(reviewerStart.systemPrompt.includes('independent read-only gate') && reviewerStart.systemPrompt.includes('Bounded read-only research') && reviewerStart.systemPrompt.includes('begin b-review automatically') && reviewerStart.systemPrompt.includes('automatically delegate the structured findings back') && reviewerStart.systemPrompt.includes('implementer session in the same CWD'), 'reviewer profile must own the automatic read-only gate and same-CWD findings return');
+expect(reviewerStart.systemPrompt.includes('independent read-only gate') && reviewerStart.systemPrompt.includes('Bounded read-only research') && reviewerStart.systemPrompt.includes('begin b-review automatically') && reviewerStart.systemPrompt.includes('automatically return the structured disposition and findings through intercom') && reviewerStart.systemPrompt.includes('every disposition') && reviewerStart.systemPrompt.includes('implementer session in the same CWD'), 'reviewer profile must return every review disposition to the same-CWD implementer before reporting completion');
 for (const marker of [
   // generated:role-prompt-markers:planner:start
   "independent read-only gate",

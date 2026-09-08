@@ -71,13 +71,13 @@ SHELL_POLICY_REGRESSION = {
 # remain stranded instead of returning to the sole writer.
 INTERCOM_DELEGATION_REGRESSION = {
     "observed_failure": "Role migration accepted legacy state or stale review evidence, and implementer/reviewer handoffs were not automatic.",
-    "intended_behavior": "Off remains default and solo; explicit implementer completion requests review, while compatible peers and unchanged candidates are required and NEEDS FIXES findings return to the implementer.",
+    "intended_behavior": "Off remains default and solo; explicit implementer completion sends a frozen candidate for review before any final response, while compatible peers and unchanged candidates are required and every review disposition returns to the implementer.",
     "required_clauses": (
         "b-agentic defaults to Off", "implementer is the sole user-facing worktree writer",
         "legacy planner/worker state stays inactive", "Candidate review freezes implementer edits",
-        "Checked completion in explicit implementer role automatically requests a frozen-candidate `b-review` through `intercom` from the reviewer session in the same CWD",
+        "After completing implementation and required checks in explicit implementer role, immediately and before any final task response, automatically request a frozen-candidate `b-review` through `intercom` from the reviewer session in the same CWD",
         "An active implementer role confirms that b-role's internal compatible-peer arbitration has passed; `intercom list-cwd` supplies the sole peer's address, not its role.",
-        "automatically returns structured `NEEDS FIXES` findings through `intercom` to the implementer session in the same CWD",
+        "before reporting review completion, automatically returns the structured disposition and findings (including `NEEDS FIXES`, `READY FOR PR`, or `READY WITH FOLLOW-UPS`) through `intercom` to the implementer session in the same CWD",
     ),
     "role_required_clauses": (
         # generated:role-prompt-markers:behavior:start
@@ -89,10 +89,11 @@ INTERCOM_DELEGATION_REGRESSION = {
         "Corrections require re-verification and re-review",
 # generated:role-prompt-markers:behavior:end
         "explicit implementer role is active",
+        "immediately and before any final task response",
         "automatically request independent b-review through intercom",
-        "After a reviewer delegates NEEDS FIXES",
+        "Before reporting review completion",
+        "automatically return the structured disposition and findings through intercom",
         "begin b-review automatically",
-        "automatically delegate the structured findings back",
         "reviewer session in the same CWD",
         "implementer session in the same CWD",
     ),

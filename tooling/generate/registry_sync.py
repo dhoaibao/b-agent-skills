@@ -60,7 +60,7 @@ ROLE_PROMPT_MARKERS = {
         "READY WITH FOLLOW-UPS",
         "No automatic commit or push",
         "automatically request independent b-review through intercom",
-        "automatically delegate the structured findings back",
+        "automatically return the structured disposition and findings",
         "reviewer session in the same CWD",
         "implementer session in the same CWD",
     ],
