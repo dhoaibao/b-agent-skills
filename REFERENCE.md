@@ -250,7 +250,7 @@ purpose-specific `tool_call` extensions under `~/.pi/agent/extensions/`:
 - `b-agentic-auto-mode.ts` for confirmed automatic approval with explicit-deny protection.
 - `b-agentic-role.ts` for role selection, session state, and durable per-session/pane persistence.
 - Legacy-compatible `b-agentic-planner.ts` and `b-agentic-worker.ts` inject reviewer and implementer profiles without duplicate profile entrypoints.
-- `b-agentic-planner-notify.ts` emits privacy-safe implementer user-input and reviewer completion notifications; role prompts use `pi-intercom` for automatic review requests and findings handbacks.
+- `b-agentic-planner-notify.ts` emits privacy-safe implementer user-input and post-review task-completion notifications; role prompts use `pi-intercom` for automatic review requests and findings handbacks.
 - `b-agentic-sync.ts` for in-session refresh commands.
 
 Role desktop notifications remain fixed and privacy-safe by default. To opt in to

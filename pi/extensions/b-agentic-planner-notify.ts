@@ -1,4 +1,4 @@
-/** Legacy filename retained; privacy-safe implementer/reviewer attention notifications. */
+/** Legacy filename retained; privacy-safe implementer attention notifications. */
 import type {
   AgentEndEvent,
   ExtensionAPI,
@@ -7,9 +7,9 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { getRole } from "./b-agentic-support/state.ts";
 
-export const REVIEW_ATTENTION_SIGNAL = "B_AGENTIC_REVIEW_COMPLETE";
+export const TASK_COMPLETE_SIGNAL = "B_AGENTIC_TASK_COMPLETE";
 export const USER_INPUT_NOTIFICATION = "User input needed";
-export const REVIEW_COMPLETE_NOTIFICATION = "Review complete";
+export const TASK_COMPLETE_NOTIFICATION = "Task complete";
 export const NOTIFICATION_CONTEXT_ENV = "B_AGENTIC_NOTIFICATION_CONTEXT";
 const NOTIFICATION_CONTEXT_OPT_IN = "1";
 export const NOTIFICATION_TIMEOUT_MS = 5_000;
@@ -98,24 +98,24 @@ function finalAssistantText(messages: AgentEndEvent["messages"]): string {
       .join("\n") ?? ""
   );
 }
-export function hasReviewCompleteSignal(
+export function hasTaskCompleteSignal(
   messages: AgentEndEvent["messages"],
 ): boolean {
   return finalAssistantText(messages)
     .split(/\r?\n/)
-    .some((line) => line.trim() === REVIEW_ATTENTION_SIGNAL);
+    .some((line) => line.trim() === TASK_COMPLETE_SIGNAL);
 }
 export default function bAgenticRoleNotify(pi: ExtensionAPI): void {
-  let reviewCompleted = false;
+  let taskCompleted = false;
   pi.on("session_start", (_event, ctx) => {
     setInteractiveNotificationTitle(ctx);
   });
   pi.on("agent_start", () => {
-    reviewCompleted = false;
+    taskCompleted = false;
   });
   pi.on("agent_end", ({ messages }) => {
-    reviewCompleted =
-      getRole() === "reviewer" && hasReviewCompleteSignal(messages);
+    taskCompleted =
+      getRole() === "implementer" && hasTaskCompleteSignal(messages);
   });
   pi.on("tool_call", async (event: ToolCallEvent, ctx) => {
     if (
@@ -132,23 +132,23 @@ export default function bAgenticRoleNotify(pi: ExtensionAPI): void {
     );
   });
   pi.on("agent_settled", async (_event, ctx) => {
-    if (!reviewCompleted || getRole() !== "reviewer" || !ctx.hasUI) return;
-    reviewCompleted = false;
+    if (!taskCompleted || getRole() !== "implementer" || !ctx.hasUI) return;
+    taskCompleted = false;
     await notifyDesktop(
       (command, args, options) => pi.exec(command, args, options),
-      REVIEW_COMPLETE_NOTIFICATION,
+      TASK_COMPLETE_NOTIFICATION,
       process.platform,
       ctx.cwd,
     );
   });
 }
 export const __test__ = {
-  REVIEW_ATTENTION_SIGNAL,
+  TASK_COMPLETE_SIGNAL,
   USER_INPUT_NOTIFICATION,
-  REVIEW_COMPLETE_NOTIFICATION,
+  TASK_COMPLETE_NOTIFICATION,
   NOTIFICATION_CONTEXT_ENV,
   NOTIFICATION_TIMEOUT_MS,
-  hasReviewCompleteSignal,
+  hasTaskCompleteSignal,
   notificationRepositoryLabel,
   notifyDesktop,
   setInteractiveNotificationTitle,

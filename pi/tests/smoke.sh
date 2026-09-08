@@ -704,7 +704,7 @@ expect(offStart === undefined, 'Off role must not inject implementer or reviewer
 await commands['b-role'].handler('implementer', roleContext);
 expect(roleStatuses.at(-1)?.value.includes('implementer') && activeTools.includes('edit') && activeTools.includes('write'), 'a compatible solo implementer request may claim the sole writer role without filtering tools');
 const implementerStart = await handlers.before_agent_start({ systemPrompt: 'base', systemPromptOptions: { skills: [] } }, roleContext);
-expect(implementerStart.systemPrompt.includes('sole user-facing writer') && implementerStart.systemPrompt.includes('compact snapshot handoff') && implementerStart.systemPrompt.includes('automatically request independent b-review through intercom') && implementerStart.systemPrompt.includes('reviewer session in the same CWD') && implementerStart.systemPrompt.includes('Do not edit while review is pending'), 'implementer profile must require the automatic same-CWD candidate gate');
+expect(implementerStart.systemPrompt.includes('sole user-facing writer') && implementerStart.systemPrompt.includes('compact snapshot handoff') && implementerStart.systemPrompt.includes('automatically request independent b-review through intercom') && implementerStart.systemPrompt.includes('reviewer session in the same CWD') && implementerStart.systemPrompt.includes('B_AGENTIC_TASK_COMPLETE') && implementerStart.systemPrompt.includes('Do not edit while review is pending'), 'implementer profile must require the automatic same-CWD candidate gate and post-review completion signal');
 for (const marker of [
   // generated:role-prompt-markers:worker:start
   "sole user-facing writer",
@@ -784,10 +784,14 @@ await commands['b-role'].handler('reviewer', roleContext);
 await handlers.agent_start({});
 await handlers.agent_end({ messages: [{ role: 'assistant', content: [{ type: 'text', text: 'B_AGENTIC_REVIEW_COMPLETE\nVerdict: READY FOR PR' }], timestamp: 1 }] });
 await handlers.agent_settled({}, roleContext);
-await handlers.agent_settled({}, roleContext);
-expect(executedCommands.length === notificationCommandStart + 2, 'review completion notifications must dedupe settled events');
-expect(plannerNotifyTest.hasReviewCompleteSignal([{ role: 'assistant', content: [{ type: 'text', text: 'B_AGENTIC_REVIEW_COMPLETE in prose' }], timestamp: 1 }]) === false, 'only standalone review signals may notify');
+expect(executedCommands.length === notificationCommandStart + 1, 'review completion must not notify the reviewer');
 await commands['b-role'].handler('implementer', roleContext);
+await handlers.agent_start({});
+await handlers.agent_end({ messages: [{ role: 'assistant', content: [{ type: 'text', text: 'B_AGENTIC_TASK_COMPLETE\nTask passed b-review.' }], timestamp: 1 }] });
+await handlers.agent_settled({}, roleContext);
+await handlers.agent_settled({}, roleContext);
+expect(executedCommands.length === notificationCommandStart + 2 && executedCommands.at(-1)?.args.includes('Task complete'), 'post-review task completion must notify the implementer once');
+expect(plannerNotifyTest.hasTaskCompleteSignal([{ role: 'assistant', content: [{ type: 'text', text: 'B_AGENTIC_TASK_COMPLETE in prose' }], timestamp: 1 }]) === false, 'only standalone task-completion signals may notify');
 roleChannelRegistration.onReady({
   publish() {},
   listSessions: async () => [

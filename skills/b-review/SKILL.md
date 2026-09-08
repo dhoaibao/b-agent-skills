@@ -46,7 +46,7 @@ Findings, checked-and-clean areas, snapshot/verification coverage, and residual 
 - `Verdict: READY WITH FOLLOW-UPS`
 - `Verdict: NEEDS FIXES`
 
-For either ready disposition, emit `B_AGENTIC_REVIEW_COMPLETE` on its own line immediately before the final verdict. `READY WITH FOLLOW-UPS` requires explicit disposition and never waives required safety evidence. A verdict is not task acceptance, commit creation, or shipping.
+`READY WITH FOLLOW-UPS` requires explicit disposition and never waives required safety evidence. A verdict is not task acceptance, commit creation, or shipping.
 
 ## Rules
 

@@ -720,9 +720,9 @@ export const CAPABILITIES: readonly CapabilityDefinition[] = [
   {
     "id": "extension.b-agentic-planner-notify",
     "kind": "extension",
-    "purpose": "Emit privacy-safe implementer user-input and reviewer completion attention signals.",
+    "purpose": "Emit privacy-safe implementer user-input and post-review task-completion attention signals.",
     "owner": "b-agentic role notification extension",
-    "trigger": "Use only for an implementer user-input call with UI or an explicit reviewer completion signal.",
+    "trigger": "Use only for an implementer user-input call with UI or an explicit implementer task-completion signal after ready b-review.",
     "prerequisites": [
       "Installed Pi extension entrypoint",
       "Supported desktop notifier"

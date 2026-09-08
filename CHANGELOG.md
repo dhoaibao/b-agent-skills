@@ -14,6 +14,7 @@ section per date and same-day changes aggregated in that section.
 
 ### Fixed
 
+- Notify the implementer when a completed task has passed b-review instead of notifying the reviewer that the review completed.
 - Require implementers to hand off completed frozen candidates before reporting task completion and reviewers to return every review disposition to the implementer, with synchronized guidance and regression coverage.
 - Restore the workflow kernel below its enforced size limit without weakening its validated safety, routing, review, or MCP guidance.
 
