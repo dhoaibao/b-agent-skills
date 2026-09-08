@@ -677,11 +677,10 @@ expect(roleStatuses.at(-1)?.value === undefined && roleTest.parseRole('planner')
 expect(roleTest.isCompatibleRolePayload({ type: 'b-agentic-role', version: 1, role: 'worker' }) === false, 'legacy peer payloads must fail closed');
 expect(roleTest.isCompatibleRolePayload({ type: 'b-agentic-role', version: 2, role: 'reviewer' }) === true, 'versioned reviewer payloads must be compatible');
 const peers = [{ id: 'self', cwd: root, pid: process.pid, startedAt: 1 }, { id: 'mixed', cwd: root, pid: 202, startedAt: 2 }];
-expect(roleTest.hasCompatibleSameCwdPeerRoles(peers, root, process.pid, new Map()) === false, 'unknown or mixed peers must block an implementer claim');
-expect(roleTest.canClaimImplementer(peers, root, process.pid, new Map()) === false && roleTest.canClaimImplementer([...peers, { id: 'third', cwd: root, pid: 303, startedAt: 3 }], root, process.pid, new Map()) === false, 'unknown or multiple peers must block an implementer claim');
+expect(roleTest.canClaimImplementer(peers, root, process.pid) === true && roleTest.canClaimImplementer([...peers, { id: 'third', cwd: root, pid: 303, startedAt: 3 }], root, process.pid) === false, 'a sole peer may coexist with an implementer claim, while multiple peers block it');
 const reviewerPeer = { id: 'reviewer', cwd: root, pid: 202, startedAt: 2 };
-expect(roleTest.canClaimImplementer([peers[0], reviewerPeer], root, process.pid, new Map([['reviewer', 'reviewer']])) === true, 'a sole reviewer peer permits an implementer claim');
-expect(roleTest.canClaimImplementer([peers[0], reviewerPeer], root, process.pid, new Map([['reviewer', 'off']])) === false, 'an Off peer blocks an implementer claim');
+expect(roleTest.canClaimImplementer([peers[0], reviewerPeer], root, process.pid) === true, 'a sole reviewer peer permits an implementer claim');
+expect(roleTest.canClaimImplementer([peers[0], reviewerPeer], root, process.pid) === true, 'an Off peer does not block an implementer claim');
 const publishedRoles = [];
 const peerSessions = [{ id: 'self', cwd: root, pid: process.pid, startedAt: 1 }, reviewerPeer];
 roleChannelRegistration.onReady({ publish(payload) { publishedRoles.push(payload); }, listSessions: async () => peerSessions });
@@ -716,10 +715,10 @@ for (const marker of [
 // generated:role-prompt-markers:worker:end
 ]) expect(implementerStart.systemPrompt.includes(marker), `implementer prompt must retain ${marker}`);
 await roleChannelRegistration.onEvent({ type: 'message', fromSessionId: 'reviewer', payload: { type: 'b-agentic-role', version: 2, role: 'off' } });
-expect(roleStatuses.at(-1)?.value === undefined, 'an active implementer must demote when its reviewer peer becomes Off');
+expect(roleStatuses.at(-1)?.value.includes('implementer'), 'an active implementer remains active when its sole peer becomes Off');
 await roleChannelRegistration.onEvent({ type: 'message', fromSessionId: 'reviewer', payload: { type: 'b-agentic-role', version: 2, role: 'reviewer' } });
 await commands['b-role'].handler('implementer', roleContext);
-expect(roleStatuses.at(-1)?.value.includes('implementer'), 'an implementer may reclaim only after the sole peer is a reviewer');
+expect(roleStatuses.at(-1)?.value.includes('implementer'), 'an implementer remains active with a sole peer');
 await handlers.model_select({ model: { provider: 'anthropic', id: 'claude-sonnet-4-5' } }, roleContext);
 const roleModelPreferences = JSON.parse(readFileSync(path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic', 'role-models.json'), 'utf8'));
 expect(roleModelPreferences.implementer.model === 'claude-sonnet-4-5' && !('planner' in roleModelPreferences), 'new model preferences persist by selected role only');

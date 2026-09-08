@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog 2.0.0](https://keepachangelog.com/en/2.
 and this project adheres to Calendar Versioning: `vYYYY.MM.DD`, with one release
 section per date and same-day changes aggregated in that section.
 
+## [v2026.09.08] - 2026-09-08
+
+### Changed
+
+- Allow explicit implementer roles to remain active without a same-CWD reviewer while retaining multi-peer and implementer-collision safeguards.
+
 ## [v2026.09.07] - 2026-09-07
 
 ### Added
