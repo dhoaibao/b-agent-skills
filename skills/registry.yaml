@@ -186,9 +186,9 @@
     },
     {
       "name": "b-debug",
-      "owner": "executor",
-      "phase": "Validate",
-      "use": "Find the real runtime root cause and fix it only when authorized",
+      "owner": "architect",
+      "phase": "Decide",
+      "use": "Confirm the runtime root cause and produce an evidence-backed fix handoff without editing product code",
       "routing": {
         "intent": "Runtime bug, error, \"not working\"",
         "triggers": [
@@ -204,7 +204,7 @@
         ]
       },
       "prompt": {
-        "description": "Systematic hypothesis-driven debugging for runtime bugs, errors, broken behavior, slow paths, memory issues, and stack traces. Traces execution and confirms root cause, then fixes minimally only when the user authorized a fix. Diagnosis-only requests stop after reporting the cause and evidence. When the issue is not yet a confirmed product bug, it should hand off cleanly instead of guessing. Unlike b-test, b-debug owns runtime behavior failures, not test-mechanic issues such as wrong assertions, mocks, or fixtures."
+        "description": "Systematic hypothesis-driven diagnosis for runtime bugs, errors, broken behavior, slow paths, memory issues, and stack traces. Confirms root cause and produces a handoff with the exact runnable repro command, observable to flip, and confirmed causal mechanism, without editing product code. When the issue is not yet a confirmed product bug, it hands off cleanly instead of guessing. Unlike b-test, b-debug owns runtime behavior failures, not test-mechanic issues such as wrong assertions, mocks, or fixtures."
       }
     },
     {

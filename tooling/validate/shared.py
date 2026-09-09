@@ -95,7 +95,7 @@ for skill_name in sorted(prompt_dirs):
 # into a broad exact-wording contract. These anchors correspond to behavior that
 # cannot be inferred from routing or structural validation alone.
 prompt_regression_contracts = {
-    "b-debug": ["asked only to diagnose, explain, or investigate"],
+    "b-debug": ["exact runnable repro command", "confirmed causal mechanism", "Do not include a product fix"],
     "b-test": ["explicitly requested a tightly scoped TDD red-green loop"],
     "b-design": [
         "explicit, task-conditional design read",
@@ -590,7 +590,7 @@ PROMPT_TOOL_LEVERAGE_REGRESSION = {
             "Prefer native edits",
         ],
         "b-debug": [
-            "use Pi native tools by default",
+            "OS-temporary scratch files",
             "Select CodeGraph",
             "compacted repro",
         ],
@@ -961,7 +961,7 @@ require_contains(
 )
 
 # Registry metadata is user-facing routing evidence. It must preserve the
-# diagnosis/fix authorization boundary enforced by the b-debug prompt.
+# diagnosis-only handoff contract enforced by the b-debug prompt.
 b_debug = next(
     (skill for skill in skills if isinstance(skill, dict) and skill.get("name") == "b-debug"),
     {},
@@ -973,10 +973,10 @@ b_debug_metadata = " ".join(
         (b_debug.get("prompt") or {}).get("description", ""),
     )
 )
-for required in ["authorized", "Diagnosis-only requests stop"]:
+for required in ["exact runnable repro command", "observable to flip", "confirmed causal mechanism", "without editing product code"]:
     if required not in b_debug_metadata:
         errors.append(
-            "skills/registry.yaml: b-debug metadata must preserve diagnosis/fix "
+            "skills/registry.yaml: b-debug metadata must preserve diagnosis-only "
             f"authorization marker {required!r}"
         )
 

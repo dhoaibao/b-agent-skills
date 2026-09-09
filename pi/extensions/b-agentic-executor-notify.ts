@@ -114,8 +114,7 @@ export default function bAgenticRoleNotify(pi: ExtensionAPI): void {
     taskCompleted = false;
   });
   pi.on("agent_end", ({ messages }) => {
-    taskCompleted =
-      getRole() === "executor" && hasTaskCompleteSignal(messages);
+    taskCompleted = getRole() === "executor" && hasTaskCompleteSignal(messages);
   });
   pi.on("tool_call", async (event: ToolCallEvent, ctx) => {
     if (

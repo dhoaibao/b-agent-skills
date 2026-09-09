@@ -692,7 +692,7 @@ expect(publishedRoles.some((payload) => payload.type === 'b-agentic-role' && pay
 await commands['b-role'].handler('architect', roleContext);
 expect(roleStatuses.at(-1)?.value === '<success>b-agentic: architect</success>' && activeTools.includes('edit') && activeTools.includes('write'), 'architect selection preserves tools and applies only prompt guidance');
 const architectStart = await handlers.before_agent_start({ systemPrompt: 'base', systemPromptOptions: { skills: [] } }, roleContext);
-expect(architectStart.systemPrompt.includes('independent read-only gate') && architectStart.systemPrompt.includes('Bounded read-only research') && architectStart.systemPrompt.includes('automatically send the user-approved plan handoff through intercom') && architectStart.systemPrompt.includes('executor session in the same CWD') && architectStart.systemPrompt.includes('begin b-review automatically') && architectStart.systemPrompt.includes('automatically return the structured disposition and findings through intercom') && architectStart.systemPrompt.includes('every disposition') && architectStart.systemPrompt.includes('executor session in the same CWD'), 'Architect profile must hand user-approved plans to the same-CWD Executor and return every review disposition to the same-CWD executor before reporting completion');
+expect(architectStart.systemPrompt.includes('independent read-only gate') && architectStart.systemPrompt.includes('Bounded read-only research') && architectStart.systemPrompt.includes('automatically send the user-approved plan handoff through intercom') && architectStart.systemPrompt.includes('executor session in the same CWD') && architectStart.systemPrompt.includes('begin the named Architect skill automatically') && architectStart.systemPrompt.includes('disposable diagnostic probes') && architectStart.systemPrompt.includes('begin b-review automatically') && architectStart.systemPrompt.includes('automatically return the structured disposition and findings through intercom') && architectStart.systemPrompt.includes('every disposition') && architectStart.systemPrompt.includes('executor session in the same CWD'), 'Architect profile must auto-begin inbound Architect work, constrain diagnostic scratch probes, hand approved plans to the same-CWD Executor, and return every review disposition before reporting completion');
 for (const marker of [
   // generated:role-prompt-markers:architect:start
   "independent read-only gate",
@@ -700,6 +700,8 @@ for (const marker of [
   "Bounded read-only research",
   "automatically send the user-approved plan handoff through intercom",
   "executor session in the same CWD",
+  "begin the named Architect skill automatically",
+  "disposable diagnostic probes",
 // generated:role-prompt-markers:architect:end
 ]) expect(architectStart.systemPrompt.includes(marker), `architect prompt must retain ${marker}`);
 await commands['b-role'].handler('off', roleContext);
@@ -708,7 +710,7 @@ expect(offStart === undefined, 'Off role must not inject executor or architect c
 await commands['b-role'].handler('executor', roleContext);
 expect(roleStatuses.at(-1)?.value.includes('executor') && activeTools.includes('edit') && activeTools.includes('write'), 'a compatible solo executor request may claim the sole writer role without filtering tools');
 const executorStart = await handlers.before_agent_start({ systemPrompt: 'base', systemPromptOptions: { skills: [] } }, roleContext);
-expect(executorStart.systemPrompt.includes('sole user-facing writer') && executorStart.systemPrompt.includes('user-approved plan handoff') && executorStart.systemPrompt.includes('compact snapshot handoff') && executorStart.systemPrompt.includes('automatically request independent b-review through intercom') && executorStart.systemPrompt.includes('architect session in the same CWD') && executorStart.systemPrompt.includes('B_AGENTIC_TASK_COMPLETE') && executorStart.systemPrompt.includes('Do not edit while review is pending'), 'Executor profile must receive user-approved plans, require the automatic same-CWD candidate gate, and emit the post-review completion signal');
+expect(executorStart.systemPrompt.includes('sole user-facing writer') && executorStart.systemPrompt.includes('user-approved plan handoff') && executorStart.systemPrompt.includes('diagnosis handoff') && executorStart.systemPrompt.includes('compact snapshot handoff') && executorStart.systemPrompt.includes('automatically request independent b-review through intercom') && executorStart.systemPrompt.includes('architect session in the same CWD') && executorStart.systemPrompt.includes('B_AGENTIC_TASK_COMPLETE') && executorStart.systemPrompt.includes('Do not edit while review is pending'), 'Executor profile must route diagnosis to the Architect, receive required handoffs, require the automatic same-CWD candidate gate, and emit the post-review completion signal');
 for (const marker of [
   // generated:role-prompt-markers:executor:start
   "sole user-facing writer",
@@ -716,6 +718,7 @@ for (const marker of [
   "user-approved plan handoff",
   "route to the Architect",
   "remain stopped",
+  "diagnosis handoff",
   "explicit executor role is active",
   "compact snapshot handoff",
   "Do not edit while review is pending",

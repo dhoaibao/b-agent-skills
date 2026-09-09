@@ -299,9 +299,9 @@ executor still passes through same-CWD claim arbitration and stays Off when a
 peer already holds the writer role. The executor is the sole
 user-facing Executor and owns design, build, validation, commit, and PR summary.
 The architect is the read-only Architect and owns `b-plan`, `b-research`,
-independent `b-review`, and `b-agentic-audit`. Roles govern prompts rather than
-filtering tools; shared shell, filesystem, MCP, and approval policy remains
-authoritative.
+`b-debug`, independent `b-review`, and `b-agentic-audit`. Roles govern prompts
+rather than filtering tools; shared shell, filesystem, MCP, and approval policy
+remains authoritative.
 
 Legacy v1 planner/worker and v2 implementer/reviewer session entries remain
 inactive until the user explicitly reselects a new role. Model/thinking preferences
@@ -317,7 +317,13 @@ sole Executor session permitted by role arbitration, then sends a compact
 approved-plan handoff with scope, acceptance, affected paths, invariants,
 verification, risks, and open items. The Executor begins the named skill without
 reopening settled decisions, but stops for new ambiguity or scope drift. Missing
-coordination is reported; the Architect never edits.
+coordination is reported. When an Executor requests `b-plan`, `b-research`, or
+`b-debug` through Intercom, the Architect begins that named skill automatically.
+For `b-debug`, it may create and remove only disposable probes or harnesses in an
+OS-temporary scratch path outside the worktree; it never edits product code. A
+confirmed diagnosis hands the Executor the exact runnable repro command, observable
+to flip, and confirmed causal mechanism, routing UI, non-UI, test-only, and unclear
+fixes to `b-frontend`, `b-implement`, `b-test`, and `b-plan` respectively.
 
 When a scoped task is complete and required checks pass, the Executor sends the
 architect/Architect a compact frozen-candidate `b-review` handoff covering tracked

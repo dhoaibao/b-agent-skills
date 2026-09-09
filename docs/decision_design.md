@@ -68,9 +68,9 @@ frozen code candidate or confer a changed-code review disposition.
 
 Sessions default to `off`; `/b-role` or `pi --b-role` selects explicit
 executor or architect protocol roles. The architect is the read-only Architect:
-it owns `b-plan`, `b-research`, independent `b-review`, and `b-agentic-audit`.
-The executor is the sole worktree-writing Executor and owns the remaining
-skills. Protocol v3 uses executor/architect identifiers: legacy v1 planner/worker
+it owns `b-plan`, `b-research`, diagnosis-only `b-debug`, independent `b-review`,
+and `b-agentic-audit`. The executor is the sole worktree-writing Executor and owns
+the remaining skills. Protocol v3 uses executor/architect identifiers: legacy v1 planner/worker
 and v2 implementer/reviewer state stays inactive until explicitly reselected, while
 legacy model preferences map to the corresponding v3 role only.
 
@@ -83,7 +83,13 @@ legacy model preferences map to the corresponding v3 role only.
   the user approves a `b-plan` result, it sends the Executor a compact Intercom
   handoff with scope, acceptance, paths, invariants, verification, risks, and open
   items; the Executor begins the named skill without reopening settled decisions.
-  Missing coordination is reported, and the Architect remains read-only.
+  Missing coordination is reported, and the Architect remains read-only. It also
+  automatically begins same-CWD Executor requests for `b-plan`, `b-research`, or
+  `b-debug`; `b-debug` may create and remove only disposable OS-temporary scratch
+  probes outside the worktree. Its confirmed diagnosis handoff names the next skill
+  and carries the exact runnable repro command, observable to flip, and confirmed
+  causal mechanism; the Executor owns the resulting product change and any
+  performance remeasurement.
 - When implementation is complete and required checks pass, the Executor sends a
   frozen candidate handoff for independent review. The Architect begins `b-review`
   without waiting for another prompt and, on `NEEDS FIXES`, returns structured

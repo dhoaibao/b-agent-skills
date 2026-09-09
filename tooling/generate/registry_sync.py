@@ -40,7 +40,7 @@ PROMPT_FRONTMATTER_FIELDS = [
 ALLOWED_PROMPT_KEYS = {"description", *[field for field, _ in PROMPT_FRONTMATTER_FIELDS]}
 SKILL_OWNERS = {"executor", "architect"}
 SKILL_OWNERSHIP_CRITERION = (
-    "Architect-owned skills perform read-only planning, research, audit, or changed-code review. "
+    "Architect-owned skills perform planning, research, diagnosis, audit, or changed-code review; diagnosis may use only disposable OS-temporary scratch probes outside the worktree. "
     "Executor-owned skills perform design, implementation, validation, commit, or PR-summary work. "
     "Mixed or uncertain skills are executor-owned."
 )
@@ -79,6 +79,8 @@ ROLE_PROMPT_MARKERS = {
         "Bounded read-only research",
         "automatically send the user-approved plan handoff through intercom",
         "executor session in the same CWD",
+        "begin the named Architect skill automatically",
+        "disposable diagnostic probes",
     ],
     "executor": [
         "sole user-facing writer",
@@ -86,6 +88,7 @@ ROLE_PROMPT_MARKERS = {
         "user-approved plan handoff",
         "route to the Architect",
         "remain stopped",
+        "diagnosis handoff",
         "explicit executor role is active",
         "compact snapshot handoff",
         "Do not edit while review is pending",
@@ -592,7 +595,7 @@ def render_skill_ownership(skills: list[dict]) -> str:
     return "\n".join(
         [
             f"- Executor-owned skills: {', '.join(f'`{name}`' for name in by_owner['executor'])}. The Executor is the sole user-facing worktree writer.",
-            f"- Architect-owned skills: {', '.join(f'`{name}`' for name in by_owner['architect'])}. The Architect performs the independent read-only planning, research, audit, and review gate.",
+            f"- Architect-owned skills: {', '.join(f'`{name}`' for name in by_owner['architect'])}. The Architect performs the independent read-only diagnosis, planning, research, audit, and review gate.",
             f"- Ownership governs execution, not inspection. {SKILL_OWNERSHIP_CRITERION} Unknown or ambiguous skill ownership is executor-owned; registry rejects missing or invalid ownership.",
         ]
     )

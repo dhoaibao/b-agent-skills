@@ -14,6 +14,7 @@ section per date and same-day changes aggregated in that section.
 
 ### Changed
 
+- Split runtime diagnosis from product fixes: the Architect now establishes an evidence-backed `b-debug` handoff while the Executor applies the surface-appropriate change and reruns performance measurements from its baseline.
 - Rename the coordinated roles to Executor and Architect, advancing their peer protocol to v3; older planner/worker and implementer/reviewer session state now stays inactive until reselection while saved model preferences migrate to the new roles.
 - Raise the workflow kernel's measured byte ceiling to 12,800 so the response-shape guidance fits, keeping the 120-line slimness guard and documenting the exception as bounded rather than a standing allowance.
 - Keep concise routing intents in the always-loaded kernel while rendering detailed trigger vocabulary into active skill descriptions, with validation that each routing signal remains runtime-visible.

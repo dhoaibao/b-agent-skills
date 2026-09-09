@@ -192,9 +192,9 @@ export const CAPABILITIES: readonly CapabilityDefinition[] = [
   {
     "id": "package.pi-intercom",
     "kind": "package",
-    "purpose": "Connect compatible same-CWD Architect/Executor sessions for approved-plan handoffs, review requests, and review-findings handbacks.",
+    "purpose": "Connect compatible same-CWD Architect/Executor sessions for approved-plan, research, diagnosis, review-request, and review-findings handoffs.",
     "owner": "Pi Intercom",
-    "trigger": "Use when the user explicitly selects executor/architect roles, an Architect hands an approved plan to an Executor, an independent review gate is required, or an Architect returns findings to the Executor.",
+    "trigger": "Use when the user explicitly selects executor/architect roles, an Executor routes b-plan, b-research, or b-debug to the Architect, an Architect hands an approved plan or diagnosis to an Executor, an independent review gate is required, or an Architect returns findings to the Executor.",
     "prerequisites": [
       "Pi CLI",
       "Same-CWD session coordination"

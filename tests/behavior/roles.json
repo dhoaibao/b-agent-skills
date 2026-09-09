@@ -113,19 +113,60 @@
       "id": "executor-routes-architect-work",
       "role": "executor",
       "skill": "b-implement",
-      "observed_failure": "After planning and research became Architect-owned, an Executor followed a route to b-plan or b-research itself or stalled without a handoff path.",
-      "intended_behavior": "When a request or skill route needs b-plan or b-research, the Executor does not execute that work; it routes to the Architect through same-CWD Intercom where available and remains stopped pending the result.",
-      "prompt": "You are the explicit Executor. A user brings an unclear request that must go to b-plan, then implementation requires an unresolved API best-practice question for b-research. One compatible same-CWD Architect is available. State your actions.",
+      "observed_failure": "After planning, research, and diagnosis became Architect-owned, an Executor followed a route itself or stalled without a handoff path.",
+      "intended_behavior": "When a request or skill route needs b-plan, b-research, or b-debug, the Executor does not execute that work; it routes to the Architect through same-CWD Intercom where available and remains stopped pending the result.",
+      "prompt": "You are the explicit Executor. A user brings an unclear request that must go to b-plan, then implementation requires an unresolved API best-practice question for b-research and a runtime regression for b-debug. One compatible same-CWD Architect is available. State your actions.",
       "must": [
-        "Route b-plan and b-research to the Architect",
+        "Route b-plan, b-research, and b-debug to the Architect",
         "Request the same-CWD Architect through intercom",
-        "Remain stopped until the approved plan or research result arrives",
-        "Do not execute Architect-owned planning or research"
+        "Remain stopped until the approved plan, research result, or diagnosis handoff arrives",
+        "Do not execute Architect-owned planning, research, or diagnosis"
       ],
       "avoid": [
         "Plan anyway",
-        "Research anyway",
+        "Research or diagnose anyway",
         "Continue implementation without the result"
+      ]
+    },
+    {
+      "id": "executor-routes-debug-to-architect",
+      "role": "executor",
+      "skill": "b-implement",
+      "observed_failure": "An Executor diagnosed or fixed a runtime bug after b-debug became Architect-owned.",
+      "intended_behavior": "The Executor routes b-debug to the compatible same-CWD Architect and remains stopped until it receives the diagnosis handoff.",
+      "prompt": "You are the explicit Executor. A runtime regression interrupts a scoped implementation, and one compatible same-CWD Architect is available. State what you send and whether you continue implementation before a diagnosis arrives.",
+      "must": [
+        "Route b-debug to the Architect through intercom",
+        "Request the same-CWD Architect",
+        "Remain stopped until the diagnosis handoff arrives",
+        "Do not diagnose or continue implementation"
+      ],
+      "avoid": [
+        "Debug the regression yourself",
+        "Edit product code before the diagnosis handoff"
+      ]
+    },
+    {
+      "id": "architect-auto-begins-diagnosis-only-debug",
+      "role": "architect",
+      "skill": "b-debug",
+      "observed_failure": "An Architect waited for another prompt after an Executor diagnostic request or applied the product fix itself.",
+      "intended_behavior": "The Architect automatically begins an inbound b-debug request, may use only removable OS-temporary scratch probes outside the worktree, and returns a diagnosis-only handoff.",
+      "prompt": "A compatible same-CWD Executor sends an Intercom request for b-debug. The diagnosis confirms a non-UI product defect. State when you begin, where a throwaway probe may be written, the required handoff contents, and whether you edit product code.",
+      "must": [
+        "Begin b-debug automatically",
+        "Use only disposable OS-temporary scratch probes outside the worktree",
+        "Remove scratch artifacts",
+        "Route the clear non-UI fix to b-implement",
+        "Include the exact runnable repro command",
+        "Include the observable to flip",
+        "Include the confirmed causal mechanism",
+        "Do not edit product code"
+      ],
+      "avoid": [
+        "Wait for another prompt",
+        "Write a probe in the worktree",
+        "Apply the fix"
       ]
     },
     {

@@ -41,9 +41,9 @@ safety, MCP, and coordination behavior.
 
 | Phase | Skills | Purpose |
 |---|---|---|
-| **Decide** | `b-plan`, `b-research`, `b-design` | Resolve ambiguity, gather outside facts, or define a frontend standard. |
+| **Decide** | `b-plan`, `b-research`, `b-design`, `b-debug` | Resolve ambiguity, gather outside facts, diagnose runtime causes, or define a frontend standard. |
 | **Build** | `b-frontend`, `b-implement`, `b-init`, `b-refactor` | Make the smallest approved change. |
-| **Validate** | `b-debug`, `b-test`, `b-browser`, `b-agentic-audit`, `b-review` | Confirm runtime behavior, tests, browser evidence, repository conformance, and changed-code quality. |
+| **Validate** | `b-test`, `b-browser`, `b-agentic-audit`, `b-review` | Confirm tests, browser evidence, repository conformance, and changed-code quality. |
 | **Ship** | `b-commit`, `b-pr-summary` | Create explicitly requested local commits or write PR copy from local history. |
 
 ## Skills
@@ -59,7 +59,7 @@ safety, MCP, and coordination behavior.
 | `b-implement` | Build | Make the scoped non-UI change from an approved plan or a small direct request |
 | `b-init` | Build | Initialize or refresh repo-local agent instruction docs |
 | `b-refactor` | Build | Rename, extract, move, inline, simplify, or delete behavior-preserving code |
-| `b-debug` | Validate | Find the real runtime root cause and fix it only when authorized |
+| `b-debug` | Decide | Confirm the runtime root cause and produce an evidence-backed fix handoff without editing product code |
 | `b-test` | Validate | Write or fix unit, integration, contract, and simulated-DOM tests |
 | `b-browser` | Validate | Collect real-browser, visual, screenshot, live UI, or e2e evidence |
 | `b-agentic-audit` | Validate | Audit b-agentic repository conformance, health, skill/kernel quality, and currentness |
