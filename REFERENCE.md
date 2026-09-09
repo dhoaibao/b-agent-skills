@@ -231,9 +231,9 @@ b-agentic installs `@gotgenes/pi-anthropic-auth` automatically for Anthropic aut
 
 b-agentic installs `@juicesharp/rpiv-todo` automatically at the latest release. This Pi package provides the todo tool, `/todos` command, and persistent overlay; the kernel guides lightweight task tracking for non-trivial multi-step work when available, without requiring it for small or routine tasks or imposing workflow orchestration, persistence, or telemetry.
 
-b-agentic installs `pi-intercom` automatically for compatible implementer/reviewer coordination and installs
-`@juicesharp/rpiv-ask-user-question` at the latest release for structured implementer decisions and blockers.
-Implementer questions group 1–4 related questions, offer 2–4 concrete options with
+b-agentic installs `pi-intercom` automatically for compatible Architect/Executor coordination and installs
+`@juicesharp/rpiv-ask-user-question` at the latest release for structured Architect planning and Executor execution decisions and blockers.
+Architect and Executor questions group 1–4 related questions, offer 2–4 concrete options with
 concise trade-offs, suffix the first recommended option with ` (Recommended)`,
 and rely on the extension's automatic custom-answer row. Do not author `Other`,
 `Type something.`, or `Next`. If the package or interactive UI is unavailable,
@@ -249,8 +249,8 @@ purpose-specific `tool_call` extensions under `~/.pi/agent/extensions/`:
 - `b-agentic-mcp-permissions.ts` for managed MCP and custom-tool approval.
 - `b-agentic-auto-mode.ts` for confirmed automatic approval with explicit-deny protection.
 - `b-agentic-role.ts` for role selection, session state, and durable per-session/pane persistence.
-- Legacy-compatible `b-agentic-planner.ts` and `b-agentic-worker.ts` inject reviewer and implementer profiles without duplicate profile entrypoints.
-- `b-agentic-planner-notify.ts` emits privacy-safe implementer user-input and post-review task-completion notifications; role prompts use `pi-intercom` for automatic review requests and findings handbacks.
+- `b-agentic-architect.ts` and `b-agentic-executor.ts` inject the Architect and Executor profiles without duplicate profile entrypoints.
+- `b-agentic-executor-notify.ts` emits privacy-safe Executor user-input and post-review task-completion notifications; role prompts use `pi-intercom` for approved-plan handoffs, automatic review requests, and findings handbacks.
 - `b-agentic-sync.ts` for in-session refresh commands.
 
 Role desktop notifications remain fixed and privacy-safe by default. To opt in to
@@ -285,57 +285,62 @@ symlinked files, and never removes installed packages, including `@gotgenes/pi-a
 
 ## Roles and coordination
 
-b-agentic defaults to Off. Explicitly select `/b-role implementer`, `/b-role reviewer`,
+b-agentic defaults to Off. Explicitly select `/b-role executor`, `/b-role architect`,
 or `/b-role off` (and matching `pi --b-role` flags). Every explicit `/b-role`
 selection follows the session and the terminal pane it runs in, never the project
 as a whole. A new, forked, or resumed session continues the role recorded in the
 session it replaced; otherwise it restores the last explicit selection for that
 terminal pane and project, kept as an independent record under
 `~/.pi/agent/b-agentic/roles/`. A pane with no recorded selection starts Off, so
-an implementer pane and a reviewer pane in one project never adopt each other's
+an Executor pane and an Architect pane in one project never adopt each other's
 role. A session's own recorded role wins over both, and `pi --b-role` remains a
 one-session override that does not rewrite the stored selection. A restored
-implementer still passes through same-CWD claim arbitration and stays Off when a
-peer already holds the writer role. The implementer is the sole
-user-facing writer and owns planning, research, design, build, validation, commit,
-and PR summary. The reviewer owns independent read-only `b-review` and
-`b-agentic-audit`. Roles govern prompts rather than filtering tools; shared shell,
-filesystem, MCP, and approval policy remains authoritative.
+executor still passes through same-CWD claim arbitration and stays Off when a
+peer already holds the writer role. The executor is the sole
+user-facing Executor and owns design, build, validation, commit, and PR summary.
+The architect is the read-only Architect and owns `b-plan`, `b-research`,
+independent `b-review`, and `b-agentic-audit`. Roles govern prompts rather than
+filtering tools; shared shell, filesystem, MCP, and approval policy remains
+authoritative.
 
-Legacy planner/worker session entries remain inactive until the user explicitly
-reselects a new role. Model/thinking preferences map by role only (worker to
-implementer, planner to reviewer); that compatibility never activates a role.
-Peer role payloads use a versioned compatible protocol. Unknown, legacy, or mixed
-same-CWD peers fail closed: an implementer does not claim writer status. The runtime
-does not provision, reset, or promise fresh reviewer sessions.
+Legacy v1 planner/worker and v2 implementer/reviewer session entries remain
+inactive until the user explicitly reselects a new role. Model/thinking preferences
+map legacy values by role only (implementer and worker to executor; reviewer and
+planner to architect); that compatibility never activates a role. Peer role payloads
+use protocol v3; unknown, v1, v2, legacy, or mixed same-CWD peers fail closed: an
+Executor does not claim writer status. The runtime
+does not provision, reset, or promise fresh architect sessions.
 
-An implementer directly asks material questions with `ask_user_question`. When a
-scoped task is complete and required checks pass, it uses `pi-intercom list-cwd`
-to identify the sole reviewer session permitted by role arbitration, then requests
-`b-review` through `pi-intercom`, sending a compact snapshot handoff that covers
-tracked and relevant untracked/derived content, acceptance, required checks, gaps,
-and risk. An unknown, Off, or implementer peer blocks an implementer claim; missing
-coordination stops the handoff. The implementer stops editing while review is pending.
+The Architect directly asks material planning questions with `ask_user_question`.
+After the user approves `b-plan`, it uses `pi-intercom list-cwd` to identify the
+sole Executor session permitted by role arbitration, then sends a compact
+approved-plan handoff with scope, acceptance, affected paths, invariants,
+verification, risks, and open items. The Executor begins the named skill without
+reopening settled decisions, but stops for new ambiguity or scope drift. Missing
+coordination is reported; the Architect never edits.
 
-The reviewer begins from that handoff without waiting for another prompt. It
-independently reads the handoff and diff, and may use bounded read-only research
-only to substantiate a finding. For `NEEDS FIXES`, it automatically returns the
-structured findings through `intercom` to the implementer session in the same CWD
-while remaining read-only; it does not delegate research or implementation. No
-edits occur while a candidate is under review.
+When a scoped task is complete and required checks pass, the Executor sends the
+architect/Architect a compact frozen-candidate `b-review` handoff covering tracked
+and relevant untracked/derived content, acceptance, required checks, gaps, and
+risk, then stops editing while review is pending. The Architect begins from that
+handoff without waiting for another prompt. It independently reads the handoff and
+diff; bounded read-only research may support its assigned work or substantiate a
+finding. For `NEEDS FIXES`, it automatically returns structured findings through
+`intercom` to the Executor session in the same CWD while remaining read-only; it
+does not implement the fix.
 
 A candidate is eligible only when its exact snapshot remains unchanged, acceptance is
 met, required checks are fresh and passed, no blocker/material gap remains, and a
-compatible reviewer gives a valid disposition. `READY WITH FOLLOW-UPS` requires an
+compatible architect gives a valid disposition. `READY WITH FOLLOW-UPS` requires an
 explicit accepted disposition and cannot waive safety evidence; `NEEDS FIXES`, a stale
-verdict, missing baseline, wrong reviewer/snapshot, untracked change, or skipped or
+verdict, missing baseline, wrong architect/snapshot, untracked change, or skipped or
 failed check blocks shipping. Corrections require re-verification and re-review.
 Review completion, task acceptance, and commit creation are distinct. No automatic
 commit or push occurs without an explicit user commit request; once requested,
 b-commit executes its snapshot-verified plan without a second confirmation. In Off
 mode, required local checks and snapshot verification suffice unless the user
 explicitly requires review; no intercom review starts automatically. In explicit
-implementer mode, the exact candidate and commit plan require independent review.
+executor mode, the exact candidate and commit plan require independent review.
 Complete repository-required commit preparation before freezing that candidate:
 prepare the same-day changelog only for a user-authorized commit when repository
 rules require it, run prescribed validation, and include it in the reviewed

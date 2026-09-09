@@ -21,10 +21,10 @@ Create cohesive commits from an explicit user request, or draft one message for 
 
 ## Review and commit gate
 
-`b-commit` is implementer-owned. An explicit user request to commit authorizes the smallest confident cohesive plan. Do not ask for a second approval prompt. Complete repository-required commit preparation and checks, then capture an exact candidate snapshot and commit plan before staging.
+`b-commit` is executor-owned. An explicit user request to commit authorizes the smallest confident cohesive plan. Do not ask for a second approval prompt. Complete repository-required commit preparation and checks, then capture an exact candidate snapshot and commit plan before staging.
 
 - In standalone **Off** mode, independent review is not a commit prerequisite and this skill does not initiate intercom review. Verify the candidate and checks locally. If the user explicitly requires review first, stop until that requirement is satisfied; never reuse stale review evidence.
-- In explicit **implementer** mode, require a valid independent **b-review** disposition for the exact candidate and commit plan. If absent or changed—including relevant untracked content or required changelog preparation—let the implementer-role profile request or reopen **b-review**, then pause without staging or editing. Missing peers, failed checks, or unresolved findings block committing. Resume only for the unchanged reviewed snapshot; never regroup silently or push.
+- In explicit **executor** mode, require a valid independent **b-review** disposition for the exact candidate and commit plan. If absent or changed—including relevant untracked content or required changelog preparation—let the executor-role profile request or reopen **b-review**, then pause without staging or editing. Missing peers, failed checks, or unresolved findings block committing. Resume only for the unchanged reviewed snapshot; never regroup silently or push.
 
 ## Steps
 
@@ -80,5 +80,5 @@ BLOCKED: commit staged changes before generating PR copy
 - Preserve unrelated worktree changes and the user-curated index.
 - Evidence-only messages; do not invent behavior, verification, or impact.
 - Require an explicit user commit request, but do not ask for a second approval after it; do not push or create a PR.
-- Commit only for the unchanged verified snapshot and plan. In explicit implementer mode, any candidate or plan change must reopen **b-review** before committing; Off mode remains solo unless the user requires review.
+- Commit only for the unchanged verified snapshot and plan. In explicit executor mode, any candidate or plan change must reopen **b-review** before committing; Off mode remains solo unless the user requires review.
 - Never use `git add -A`, `git add .`, `git commit --amend`, reset, or history-rewriting commands.

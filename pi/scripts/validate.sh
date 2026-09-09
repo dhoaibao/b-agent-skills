@@ -46,9 +46,9 @@ extension_files = [
     root / 'pi/extensions/b-agentic-mcp-permissions.ts',
     root / 'pi/extensions/b-agentic-auto-mode.ts',
     root / 'pi/extensions/b-agentic-role.ts',
-    root / 'pi/extensions/b-agentic-planner.ts',
-    root / 'pi/extensions/b-agentic-planner-notify.ts',
-    root / 'pi/extensions/b-agentic-worker.ts',
+    root / 'pi/extensions/b-agentic-architect.ts',
+    root / 'pi/extensions/b-agentic-executor-notify.ts',
+    root / 'pi/extensions/b-agentic-executor.ts',
     root / 'pi/extensions/b-agentic-sync.ts',
     root / 'pi/extensions/b-agentic-support/shell.ts',
     root / 'pi/extensions/b-agentic-support/mcp.ts',
@@ -72,10 +72,10 @@ for path in [kernel, mcp, capabilities, capabilities_module, *extension_files, c
 if kernel.exists():
     text = kernel.read_text()
     for marker in [
-        'Pi Workflow Kernel', 'b-agentic defaults to Off', 'Implementer-owned skills:',
-        'Reviewer-owned skills:', 'implementer is the sole user-facing worktree writer',
+        'Pi Workflow Kernel', 'b-agentic defaults to Off', 'Executor-owned skills:',
+        'Architect-owned skills:', 'Executor is the sole user-facing worktree writer',
         'ask_user_question', '2–4 concrete options', 'automatic custom-answer row',
-        'legacy planner/worker state stays inactive', 'Candidate review freezes implementer edits',
+        'legacy v1 planner/worker and v2 implementer/reviewer state stays inactive', 'Candidate review freezes executor edits',
         '~/.pi/agent/b-agentic/references/capabilities.yaml',
         'never parse MCP configuration or inspect credential/API-key values',
     ]:
@@ -94,10 +94,11 @@ for marker in [
     "exact unchanged snapshot",
     "READY WITH FOLLOW-UPS",
     "No automatic commit or push",
+    "automatically send the user-approved plan handoff through intercom",
     "automatically request independent b-review through intercom",
     "automatically return the structured disposition and findings",
-    "reviewer session in the same CWD",
-    "implementer session in the same CWD",
+    "architect session in the same CWD",
+    "executor session in the same CWD",
 # generated:role-prompt-markers:validate:end
 ]:
     if marker not in role_prompt:
@@ -190,19 +191,19 @@ if extension.exists():
                 errors.append(f'{preview_extension}: missing preview marker {marker!r}')
     for marker in [
         'tool_call', 'ask_user_question', 'User input needed', 'isAutoApprovedIntercomCall',
-        'REVIEWER_PROMPT', 'implementerPrompt', 'reviewer profile', 'implementer profile',
+        'ARCHITECT_PROMPT', 'executorPrompt', 'architect profile', 'executor profile',
         'SKILL_OWNERS', 'skillOwner', 'SKILL_OWNERSHIP_CRITERION',
         'sole user-facing writer', 'independent read-only gate', 'compact snapshot handoff',
         'stop edits', 'exact unchanged snapshot',
         'automatically request independent b-review through intercom',
-        'automatically return the structured disposition and findings', 'every disposition', 'reviewer session in the same CWD', 'implementer session in the same CWD',
+        'automatically return the structured disposition and findings', 'every disposition', 'architect session in the same CWD', 'executor session in the same CWD',
         'ROLE_PROTOCOL_VERSION', 'isCompatibleRolePayload', 'createCandidateSnapshot',
         'isDirectClassifiedManagedTool', 'CODEGRAPH_TRUSTED_TOOLS', 'mcpScript',
         'roles never filter tools'
     ]:
         if marker not in text:
             errors.append(f'{extension}: missing policy marker {marker!r}')
-    planner_extension = root / 'pi/extensions/b-agentic-planner.ts'
+    planner_extension = root / 'pi/extensions/b-agentic-architect.ts'
     planner_text = planner_extension.read_text() if planner_extension.exists() else ''
     planner_body = planner_text.split('export const __test__', 1)[0]
     if 'pi.on("tool_call"' in planner_body:
@@ -210,7 +211,7 @@ if extension.exists():
     if 'plannerCommandDecision(' in planner_body or 'isPlannerReadOnlyMcpCall(' in planner_body:
         errors.append(f'{planner_extension}: planner commands and MCP calls must use shared policy, not role-specific blocks')
     mcp_permissions = root / 'pi/extensions/b-agentic-mcp-permissions.ts'
-    if 'getRole() === "implementer"' in mcp_permissions.read_text() or 'getRole() === "reviewer"' in mcp_permissions.read_text():
+    if 'getRole() === "executor"' in mcp_permissions.read_text() or 'getRole() === "architect"' in mcp_permissions.read_text():
         errors.append(f'{mcp_permissions}: role MCP restrictions must not override shared policy')
     if 'return { block: true' not in text and 'block: true' not in text:
         errors.append(f'{extension}: must be able to block tool calls')
@@ -328,7 +329,7 @@ if config_readme.exists():
         '`~/.pi/agent/b-agentic/`',
         'ownership boundary',
         '[operational reference](../../REFERENCE.md)',
-        'Implementer/reviewer role selection and coordination',
+        'Architect/architect and Executor/executor role selection and coordination',
         'normal Pi tools',
         'shared approval policy',
     ]:

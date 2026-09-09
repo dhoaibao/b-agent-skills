@@ -21,7 +21,12 @@ export type RoleModelPreferences = Partial<
   Record<RoleModelKey, RoleModelPreference>
 >;
 type StoredRoleModelPreferences = RoleModelPreferences &
-  Partial<Record<"planner" | "worker", RoleModelPreference>>;
+  Partial<
+    Record<
+      "implementer" | "reviewer" | "planner" | "worker",
+      RoleModelPreference
+    >
+  >;
 const THINKING_LEVELS = new Set<ThinkingLevel>([
   "off",
   "minimal",
@@ -70,13 +75,17 @@ export function loadRoleModelPreferences(
   try {
     const parsed = JSON.parse(readFileSync(path, "utf8"));
     if (!isPlainObject(parsed)) return {};
-    const implementer =
-      parsePreference(parsed.implementer) ?? parsePreference(parsed.worker);
-    const reviewer =
-      parsePreference(parsed.reviewer) ?? parsePreference(parsed.planner);
+    const executor =
+      parsePreference(parsed.executor) ??
+      parsePreference(parsed.implementer) ??
+      parsePreference(parsed.worker);
+    const architect =
+      parsePreference(parsed.architect) ??
+      parsePreference(parsed.reviewer) ??
+      parsePreference(parsed.planner);
     return {
-      ...(implementer ? { implementer } : {}),
-      ...(reviewer ? { reviewer } : {}),
+      ...(executor ? { executor } : {}),
+      ...(architect ? { architect } : {}),
     };
   } catch {
     return {};

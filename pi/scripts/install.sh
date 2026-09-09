@@ -40,9 +40,9 @@ EXTENSION_NAMES=(
 	b-agentic-mcp-permissions.ts
 	b-agentic-auto-mode.ts
 	b-agentic-role.ts
-	b-agentic-planner.ts
-	b-agentic-planner-notify.ts
-	b-agentic-worker.ts
+	b-agentic-architect.ts
+	b-agentic-executor-notify.ts
+	b-agentic-executor.ts
 	b-agentic-sync.ts
 	b-agentic-status.ts
 	b-agentic-support/shell.ts
@@ -58,6 +58,9 @@ EXTENSION_NAMES=(
 	b-agentic-support/status.ts
 )
 LEGACY_EXTENSION_NAMES=(
+	b-agentic-planner.ts
+	b-agentic-planner-notify.ts
+	b-agentic-worker.ts
 	b-agentic-consult.ts
 	b-agentic-consultant.ts
 	b-agentic-rule-guard.ts

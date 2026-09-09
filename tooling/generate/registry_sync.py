@@ -38,11 +38,11 @@ PROMPT_FRONTMATTER_FIELDS = [
     ("user_invocable", "user-invocable"),
 ]
 ALLOWED_PROMPT_KEYS = {"description", *[field for field, _ in PROMPT_FRONTMATTER_FIELDS]}
-SKILL_OWNERS = {"implementer", "reviewer"}
+SKILL_OWNERS = {"executor", "architect"}
 SKILL_OWNERSHIP_CRITERION = (
-    "Implementer-owned skills perform planning, research, design, implementation, validation, commit, or PR-summary work. "
-    "Reviewer-owned skills perform independent read-only audit or changed-code review. "
-    "Mixed or uncertain skills are implementer-owned."
+    "Architect-owned skills perform read-only planning, research, audit, or changed-code review. "
+    "Executor-owned skills perform design, implementation, validation, commit, or PR-summary work. "
+    "Mixed or uncertain skills are executor-owned."
 )
 
 # Canonical role-prompt assertion markers. Consumer blocks below are generated
@@ -59,24 +59,34 @@ ROLE_PROMPT_MARKERS = {
         "exact unchanged snapshot",
         "READY WITH FOLLOW-UPS",
         "No automatic commit or push",
+        "automatically send the user-approved plan handoff through intercom",
         "automatically request independent b-review through intercom",
         "automatically return the structured disposition and findings",
-        "reviewer session in the same CWD",
-        "implementer session in the same CWD",
+        "architect session in the same CWD",
+        "executor session in the same CWD",
     ],
     "behavior": [
         "sole user-facing writer",
         "independent read-only gate",
         "compact snapshot handoff",
-        "wrong reviewer",
+        "wrong architect",
         "skipped/failed checks",
         "Corrections require re-verification and re-review",
     ],
-    "planner": ["independent read-only gate", "do not edit", "Bounded read-only research"],
-    "worker": [
+    "architect": [
+        "independent read-only gate",
+        "do not edit",
+        "Bounded read-only research",
+        "automatically send the user-approved plan handoff through intercom",
+        "executor session in the same CWD",
+    ],
+    "executor": [
         "sole user-facing writer",
         "Work directly with the user",
-        "explicit implementer role is active",
+        "user-approved plan handoff",
+        "route to the Architect",
+        "remain stopped",
+        "explicit executor role is active",
         "compact snapshot handoff",
         "Do not edit while review is pending",
     ],
@@ -88,10 +98,10 @@ ROLE_PROMPT_BEHAVIOR_START = "# generated:role-prompt-markers:behavior:start"
 ROLE_PROMPT_BEHAVIOR_END = "# generated:role-prompt-markers:behavior:end"
 ROLE_PROMPT_VALIDATE_START = "# generated:role-prompt-markers:validate:start"
 ROLE_PROMPT_VALIDATE_END = "# generated:role-prompt-markers:validate:end"
-ROLE_PROMPT_SMOKE_PLANNER_START = "// generated:role-prompt-markers:planner:start"
-ROLE_PROMPT_SMOKE_PLANNER_END = "// generated:role-prompt-markers:planner:end"
-ROLE_PROMPT_SMOKE_WORKER_START = "// generated:role-prompt-markers:worker:start"
-ROLE_PROMPT_SMOKE_WORKER_END = "// generated:role-prompt-markers:worker:end"
+ROLE_PROMPT_SMOKE_ARCHITECT_START = "// generated:role-prompt-markers:architect:start"
+ROLE_PROMPT_SMOKE_ARCHITECT_END = "// generated:role-prompt-markers:architect:end"
+ROLE_PROMPT_SMOKE_EXECUTOR_START = "// generated:role-prompt-markers:executor:start"
+ROLE_PROMPT_SMOKE_EXECUTOR_END = "// generated:role-prompt-markers:executor:end"
 
 
 def load_json_subset_yaml(path: Path) -> dict:
@@ -581,9 +591,9 @@ def render_skill_ownership(skills: list[dict]) -> str:
     by_owner = {owner: [skill["name"] for skill in skills if skill["owner"] == owner] for owner in sorted(SKILL_OWNERS)}
     return "\n".join(
         [
-            f"- Implementer-owned skills: {', '.join(f'`{name}`' for name in by_owner['implementer'])}. The implementer is the sole user-facing worktree writer.",
-            f"- Reviewer-owned skills: {', '.join(f'`{name}`' for name in by_owner['reviewer'])}. The reviewer executes only the independent read-only gate.",
-            f"- Ownership governs execution, not inspection. {SKILL_OWNERSHIP_CRITERION} Unknown or ambiguous skill ownership is implementer-owned; registry rejects missing or invalid ownership.",
+            f"- Executor-owned skills: {', '.join(f'`{name}`' for name in by_owner['executor'])}. The Executor is the sole user-facing worktree writer.",
+            f"- Architect-owned skills: {', '.join(f'`{name}`' for name in by_owner['architect'])}. The Architect performs the independent read-only planning, research, audit, and review gate.",
+            f"- Ownership governs execution, not inspection. {SKILL_OWNERSHIP_CRITERION} Unknown or ambiguous skill ownership is executor-owned; registry rejects missing or invalid ownership.",
         ]
     )
 
@@ -592,15 +602,15 @@ def render_role_skill_ownership(skills: list[dict]) -> str:
     ownership = {skill["name"]: skill["owner"] for skill in skills}
     return "\n".join(
         [
-            "/** Generated from skills/registry.yaml. Unknown skills fail closed to implementer ownership. */",
-            'export type SkillOwner = "implementer" | "reviewer";',
+            "/** Generated from skills/registry.yaml. Unknown skills fail closed to executor ownership. */",
+            'export type SkillOwner = "executor" | "architect";',
             f"export const SKILL_OWNERSHIP_CRITERION = {json.dumps(SKILL_OWNERSHIP_CRITERION)};",
             f"export const SKILL_OWNERS: Readonly<Record<string, SkillOwner>> = {json.dumps(ownership, indent=2)};",
             "export function skillOwner(skill: string): SkillOwner {",
-            '  return SKILL_OWNERS[skill] ?? "implementer";',
+            '  return SKILL_OWNERS[skill] ?? "executor";',
             "}",
-            'const IMPLEMENTER_OWNED_SKILLS = Object.entries(SKILL_OWNERS).filter(([, owner]) => owner === "implementer").map(([skill]) => "`" + skill + "`");',
-            'const REVIEWER_OWNED_SKILLS = Object.entries(SKILL_OWNERS).filter(([, owner]) => owner === "reviewer").map(([skill]) => "`" + skill + "`");',
+            'const EXECUTOR_OWNED_SKILLS = Object.entries(SKILL_OWNERS).filter(([, owner]) => owner === "executor").map(([skill]) => "`" + skill + "`");',
+            'const ARCHITECT_OWNED_SKILLS = Object.entries(SKILL_OWNERS).filter(([, owner]) => owner === "architect").map(([skill]) => "`" + skill + "`");',
         ]
     )
 
@@ -713,17 +723,24 @@ def render_outputs(skills: list[dict], capabilities: dict) -> dict[Path, str]:
     )
     smoke = ROOT / "pi" / "tests" / "smoke.sh"
     smoke_text = smoke.read_text()
+    for legacy, current in [
+        ("// generated:role-prompt-markers:planner:start", ROLE_PROMPT_SMOKE_ARCHITECT_START),
+        ("// generated:role-prompt-markers:planner:end", ROLE_PROMPT_SMOKE_ARCHITECT_END),
+        ("// generated:role-prompt-markers:worker:start", ROLE_PROMPT_SMOKE_EXECUTOR_START),
+        ("// generated:role-prompt-markers:worker:end", ROLE_PROMPT_SMOKE_EXECUTOR_END),
+    ]:
+        smoke_text = smoke_text.replace(legacy, current)
     smoke_text = replace_block(
         smoke_text,
-        ROLE_PROMPT_SMOKE_PLANNER_START,
-        ROLE_PROMPT_SMOKE_PLANNER_END,
-        render_role_prompt_markers(ROLE_PROMPT_MARKERS["planner"], "  "),
+        ROLE_PROMPT_SMOKE_ARCHITECT_START,
+        ROLE_PROMPT_SMOKE_ARCHITECT_END,
+        render_role_prompt_markers(ROLE_PROMPT_MARKERS["architect"], "  "),
     )
     smoke_text = replace_block(
         smoke_text,
-        ROLE_PROMPT_SMOKE_WORKER_START,
-        ROLE_PROMPT_SMOKE_WORKER_END,
-        render_role_prompt_markers(ROLE_PROMPT_MARKERS["worker"], "  "),
+        ROLE_PROMPT_SMOKE_EXECUTOR_START,
+        ROLE_PROMPT_SMOKE_EXECUTOR_END,
+        render_role_prompt_markers(ROLE_PROMPT_MARKERS["executor"], "  "),
     )
     outputs[smoke] = smoke_text
     extension = ROOT / "pi" / "extensions" / "b-agentic-support" / "mcp.ts"

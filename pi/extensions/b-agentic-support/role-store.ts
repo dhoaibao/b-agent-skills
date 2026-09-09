@@ -12,12 +12,18 @@ import { homedir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import {
   ROLE_ENTRY_TYPE,
+  ROLE_PROTOCOL_VERSION,
   latestRoleState,
   parseRole,
   type BAgenticRole,
 } from "./role.ts";
 
-type StoredPaneRole = { cwd?: unknown; pane?: unknown; role?: unknown };
+type StoredPaneRole = {
+  cwd?: unknown;
+  pane?: unknown;
+  role?: unknown;
+  version?: unknown;
+};
 
 /** Terminal identities that survive a pi restart in the same pane. */
 const PANE_ENVIRONMENT_KEYS = [
@@ -99,7 +105,11 @@ export function loadPaneRole(
     const parsed = JSON.parse(readFileSync(path, "utf8")) as unknown;
     if (!isPlainObject(parsed)) return undefined;
     const stored = parsed as StoredPaneRole;
-    if (stored.cwd !== projectKey(cwd) || stored.pane !== pane)
+    if (
+      stored.cwd !== projectKey(cwd) ||
+      stored.pane !== pane ||
+      stored.version !== ROLE_PROTOCOL_VERSION
+    )
       return undefined;
     return parseRole(stored.role);
   } catch {
@@ -115,7 +125,12 @@ export function savePaneRole(
   const path = paneRolePath(cwd, pane, dir);
   mkdirSync(dir, { recursive: true });
   const temporaryPath = `${path}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`;
-  const record: StoredPaneRole = { cwd: projectKey(cwd), pane, role };
+  const record: StoredPaneRole = {
+    cwd: projectKey(cwd),
+    pane,
+    role,
+    version: ROLE_PROTOCOL_VERSION,
+  };
   writeFileSync(temporaryPath, `${JSON.stringify(record, null, 2)}\n`, "utf8");
   renameSync(temporaryPath, path);
 }

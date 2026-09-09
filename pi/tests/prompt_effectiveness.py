@@ -76,13 +76,13 @@ def scenario_role_prompt(scenario: dict) -> str | None:
     role = scenario.get("role")
     if role is None or role == "off":
         return None
-    if role not in {"implementer", "reviewer"}:
+    if role not in {"executor", "architect"}:
         raise ValueError(f"invalid scenario role: {role!r}")
     source = ROLE_SOURCE.read_text()
     pattern = (
-        r"export const REVIEWER_PROMPT = `(.*?)`;"
-        if role == "reviewer"
-        else r"export function implementerPrompt\(\): string \{\s+return `(.*?)`;"
+        r"export const ARCHITECT_PROMPT = `(.*?)`;"
+        if role == "architect"
+        else r"export function executorPrompt\(\): string \{\s+return `(.*?)`;"
     )
     match = re.search(pattern, source, flags=re.DOTALL)
     if not match:
@@ -157,7 +157,7 @@ def validate_command_construction(args: argparse.Namespace, scenarios: list[dict
         if scenario.get("role") == "off":
             expected_addendum = kernel_text if args.routing else "\n\n".join([kernel_text, skill_path.read_text()])
             if addendum != expected_addendum:
-                raise ValueError("Off scenario must not inject an implementer or reviewer role prompt")
+                raise ValueError("Off scenario must not inject an executor or architect role prompt")
         if args.provider and command[command.index("--provider") + 1] != args.provider:
             raise ValueError("Pi command does not pin the requested provider")
         if args.routing:

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "format": "json-subset-of-yaml",
-  "description": "Canonical managed MCP operation classification. Classified read-only and safe conditional-read operations are auto-approved through adapter-owned calls and unambiguous top-level mcp gateway calls. Roles do not alter active tools or MCP approval policy; prompt-level skill ownership directs implementer and reviewer execution.",
+  "description": "Canonical managed MCP operation classification. Classified read-only and safe conditional-read operations are auto-approved through adapter-owned calls and unambiguous top-level mcp gateway calls. Roles do not alter active tools or MCP approval policy; prompt-level skill ownership directs executor and architect execution.",
   "classes": {
     "read-only": {
       "policy": "Auto-approved for managed servers",

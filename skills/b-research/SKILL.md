@@ -29,7 +29,7 @@ Fetch outside truth at the lightest reliable depth, with sourced evidence and a 
 - Runtime tracing is needed -> use **b-debug**.
 - Planning/sequencing is needed -> use **b-plan**.
 - Changed-code review is needed -> use **b-review**.
-- The implementer owns research. A reviewer may use bounded read-only research only to substantiate a concrete review finding.
+- The architect/Architect owns standalone research. Bounded read-only research within **b-review** remains limited to substantiating a concrete review finding.
 
 ## Tool guidance
 

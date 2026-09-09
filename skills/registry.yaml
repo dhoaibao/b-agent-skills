@@ -4,7 +4,7 @@
   "skills": [
     {
       "name": "b-plan",
-      "owner": "implementer",
+      "owner": "architect",
       "phase": "Decide",
       "use": "Figure out what to do when scope or approach is fuzzy, then produce an execution-ready plan",
       "routing": {
@@ -29,7 +29,7 @@
     },
     {
       "name": "b-research",
-      "owner": "implementer",
+      "owner": "architect",
       "phase": "Decide",
       "use": "Fetch outside truth: docs, API facts, comparisons, or recent evidence",
       "routing": {
@@ -49,7 +49,7 @@
     },
     {
       "name": "b-design",
-      "owner": "implementer",
+      "owner": "executor",
       "phase": "Decide",
       "use": "Create or refresh docs/DESIGN.md as a frontend design standard",
       "routing": {
@@ -75,7 +75,7 @@
     },
     {
       "name": "b-frontend",
-      "owner": "implementer",
+      "owner": "executor",
       "phase": "Build",
       "use": "Implement contextual frontend/UI code, styling, responsive behavior, interactions, visual refreshes, and landing pages",
       "routing": {
@@ -102,7 +102,7 @@
     },
     {
       "name": "b-diagram",
-      "owner": "implementer",
+      "owner": "executor",
       "phase": "Build",
       "use": "Create validated, portable technical architecture and flow diagrams from explicit facts",
       "routing": {
@@ -122,7 +122,7 @@
     },
     {
       "name": "b-implement",
-      "owner": "implementer",
+      "owner": "executor",
       "phase": "Build",
       "use": "Make the scoped non-UI change from an approved plan or a small direct request",
       "routing": {
@@ -142,7 +142,7 @@
     },
     {
       "name": "b-init",
-      "owner": "implementer",
+      "owner": "executor",
       "phase": "Build",
       "use": "Initialize or refresh repo-local agent instruction docs",
       "routing": {
@@ -163,7 +163,7 @@
     },
     {
       "name": "b-refactor",
-      "owner": "implementer",
+      "owner": "executor",
       "phase": "Build",
       "use": "Rename, extract, move, inline, simplify, or delete behavior-preserving code",
       "routing": {
@@ -186,7 +186,7 @@
     },
     {
       "name": "b-debug",
-      "owner": "implementer",
+      "owner": "executor",
       "phase": "Validate",
       "use": "Find the real runtime root cause and fix it only when authorized",
       "routing": {
@@ -209,7 +209,7 @@
     },
     {
       "name": "b-test",
-      "owner": "implementer",
+      "owner": "executor",
       "phase": "Validate",
       "use": "Write or fix unit, integration, contract, and simulated-DOM tests",
       "routing": {
@@ -232,7 +232,7 @@
     },
     {
       "name": "b-browser",
-      "owner": "implementer",
+      "owner": "executor",
       "phase": "Validate",
       "use": "Collect real-browser, visual, screenshot, live UI, or e2e evidence",
       "routing": {
@@ -257,7 +257,7 @@
     },
     {
       "name": "b-agentic-audit",
-      "owner": "reviewer",
+      "owner": "architect",
       "phase": "Validate",
       "use": "Audit b-agentic repository conformance, health, skill/kernel quality, and currentness",
       "routing": {
@@ -276,7 +276,7 @@
     },
     {
       "name": "b-review",
-      "owner": "reviewer",
+      "owner": "architect",
       "phase": "Validate",
       "use": "Review changed code",
       "routing": {
@@ -289,16 +289,16 @@
           "review these changes",
           "working tree diff",
           "pre-PR",
-          "\"what would a reviewer\""
+          "\"what would a architect\""
         ]
       },
       "prompt": {
-        "description": "Pre-PR changed-code review for reviewer-style reads of a diff, commit range, or checkpoint after implementation. Do NOT invoke for PR-prose review, b-agentic repository or design-conformance audits, UI/design review, plan review, or research synthesis review."
+        "description": "Pre-PR changed-code review for architect-style reads of a diff, commit range, or checkpoint after implementation. Do NOT invoke for PR-prose review, b-agentic repository or design-conformance audits, UI/design review, plan review, or research synthesis review."
       }
     },
     {
       "name": "b-commit",
-      "owner": "implementer",
+      "owner": "executor",
       "phase": "Ship",
       "use": "Split working-tree changes into cohesive commits from an explicit user request",
       "routing": null,
@@ -308,7 +308,7 @@
     },
     {
       "name": "b-pr-summary",
-      "owner": "implementer",
+      "owner": "executor",
       "phase": "Ship",
       "use": "Write commit-backed PR copy or review and rewrite supplied PR prose",
       "routing": null,

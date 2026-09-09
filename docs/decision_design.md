@@ -67,35 +67,35 @@ also owns supplied PR-prose review/rewrite; editorial feedback does not require 
 frozen code candidate or confer a changed-code review disposition.
 
 Sessions default to `off`; `/b-role` or `pi --b-role` selects explicit
-implementer or reviewer roles. The implementer owns planning through commit and
-PR summary as the sole user-facing worktree writer. The reviewer owns independent
-read-only `b-review` and `b-agentic-audit`. Legacy planner/worker session state
-stays inactive until explicitly reselected; old preferences map by role only.
+executor or architect protocol roles. The architect is the read-only Architect:
+it owns `b-plan`, `b-research`, independent `b-review`, and `b-agentic-audit`.
+The executor is the sole worktree-writing Executor and owns the remaining
+skills. Protocol v3 uses executor/architect identifiers: legacy v1 planner/worker
+and v2 implementer/reviewer state stays inactive until explicitly reselected, while
+legacy model preferences map to the corresponding v3 role only.
 
 ### Coordination
 
-- Compatible same-CWD peer payloads are versioned; unknown or mixed payloads
-  fail closed and never grant an implementer writer claim. Roles preserve normal
+- Compatible same-CWD peer payloads use protocol v3; unknown, v1, v2, or mixed
+  payloads fail closed and never grant an Executor writer claim. Roles preserve normal
   Pi tools and shared approval policy.
-- The implementer asks material user questions directly. When implementation is
-  complete and required checks pass, it uses `intercom list-cwd` to identify the
-  sole reviewer session permitted by role arbitration, then requests independent
-  review through `intercom`, supplying a compact snapshot handoff covering tracked
-  and relevant untracked/derived content, acceptance, required checks, gaps, and
-  risk. An unknown, Off, or implementer peer blocks an implementer claim; missing
-  coordination stops the handoff.
-- A reviewer begins from that handoff without waiting for another prompt. On
-  `NEEDS FIXES`, it automatically delegates structured findings back through
-  `intercom` to the implementer session in the same CWD while remaining read-only.
-  It does not delegate research or implement the fix.
-  Shipping requires the exact unchanged snapshot, acceptance,
-  fresh passing required checks, no blockers/material gaps, and a valid review
-  disposition. Follow-ups need explicit disposition and never waive safety
-  evidence. Review does not commit or push; changelog changes for an authorized
-  commit are part of the reviewed candidate. In default Off mode, commits require
-  local snapshot verification and required checks, not automatic independent
-  review, unless the user explicitly requires review first. In either mode,
-  repository-required commit preparation precedes the final candidate snapshot.
+- The Architect resolves material planning decisions directly with the user. Once
+  the user approves a `b-plan` result, it sends the Executor a compact Intercom
+  handoff with scope, acceptance, paths, invariants, verification, risks, and open
+  items; the Executor begins the named skill without reopening settled decisions.
+  Missing coordination is reported, and the Architect remains read-only.
+- When implementation is complete and required checks pass, the Executor sends a
+  frozen candidate handoff for independent review. The Architect begins `b-review`
+  without waiting for another prompt and, on `NEEDS FIXES`, returns structured
+  findings to the Executor while remaining read-only. Shipping requires the exact
+  unchanged snapshot, acceptance, fresh passing required checks, no
+  blockers/material gaps, and a valid review disposition. Follow-ups need explicit
+  disposition and never waive safety evidence. Review does not commit or push;
+  changelog changes for an authorized commit are part of the reviewed candidate.
+  In default Off mode, commits require local snapshot verification and required
+  checks, not automatic independent review, unless the user explicitly requires
+  review first. In either mode, repository-required commit preparation precedes
+  the final candidate snapshot.
 
 Evidence: `references/kernel.template.md`, `skills/registry.yaml`,
 `skills/b-plan/prompt.md`, `skills/b-review/prompt.md`,
@@ -109,7 +109,7 @@ multi-step instructions, and one concrete next step while work remains. Shape
 is kernel-owned because it applies to every skill; per-skill `Output format`
 sections stay content contracts and do not restate it. Skill output contracts,
 required final-line verdicts, and role markers outrank the shape rule, so
-`b-review` still ends with exactly one verdict line and the implementer marker
+`b-review` still ends with exactly one verdict line and the executor marker
 stays immediately before the final response.
 
 Evidence: `references/kernel.template.md`, `skills/b-review/prompt.md`,
@@ -285,9 +285,10 @@ Evidence: `tooling/generate/registry_sync.py`,
 - No automatic external/shared mutation, MCP authentication bootstrap, broad
   crawling, unsafe Firecrawl actions, Playwright navigation, screenshot
   persistence, or public research using private local material.
-- No workflow database, automatic reviewer provisioning/reset, repeated roster
-  polling, reviewer-side implementation, or shipping claim before a valid
-  frozen-candidate `b-review` disposition when the explicit implementer gate applies.
+- No workflow database, automatic Architect/Executor provisioning or reset,
+  repeated roster polling, Architect-side implementation, fragmentation of
+  `b-debug`, or shipping claim before a valid frozen-candidate `b-review`
+  disposition when the explicit Executor gate applies.
 - No automatic prompt-effectiveness model calls, live MCP checks, screenshot
   claims from simulated or unit tests, broad cleanup, or speculative
   compatibility work when a smaller evidence-backed change is sufficient.

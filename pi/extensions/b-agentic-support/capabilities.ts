@@ -192,9 +192,9 @@ export const CAPABILITIES: readonly CapabilityDefinition[] = [
   {
     "id": "package.pi-intercom",
     "kind": "package",
-    "purpose": "Connect compatible same-CWD Pi sessions for automatic implementer review requests and reviewer findings handbacks.",
+    "purpose": "Connect compatible same-CWD Architect/Executor sessions for approved-plan handoffs, review requests, and review-findings handbacks.",
     "owner": "Pi Intercom",
-    "trigger": "Use when the user explicitly selects implementer/reviewer roles, an independent review gate is required, or a reviewer must return findings to the implementer.",
+    "trigger": "Use when the user explicitly selects executor/architect roles, an Architect hands an approved plan to an Executor, an independent review gate is required, or an Architect returns findings to the Executor.",
     "prerequisites": [
       "Pi CLI",
       "Same-CWD session coordination"
@@ -681,17 +681,17 @@ export const CAPABILITIES: readonly CapabilityDefinition[] = [
     }
   },
   {
-    "id": "extension.b-agentic-planner",
+    "id": "extension.b-agentic-architect",
     "kind": "extension",
-    "purpose": "Inject the independent reviewer profile from a legacy-compatible extension filename.",
-    "owner": "b-agentic reviewer profile extension",
-    "trigger": "Use when the explicit active role is reviewer; it is prompt-governed read-only.",
+    "purpose": "Inject the independent Architect profile from the managed extension entrypoint.",
+    "owner": "b-agentic architect profile extension",
+    "trigger": "Use when the explicit active role is architect; it is prompt-governed read-only.",
     "prerequisites": [
       "Installed Pi extension entrypoint",
-      "Reviewer role selected"
+      "Architect role selected"
     ],
     "readiness": "The managed entrypoint exists in the local Pi extensions directory.",
-    "fallback": "Use the active role normal prompt and do not claim reviewer behavior.",
+    "fallback": "Use the active role normal prompt and do not claim architect behavior.",
     "status_signal": {
       "source": "local-extension-file",
       "states": [
@@ -703,11 +703,11 @@ export const CAPABILITIES: readonly CapabilityDefinition[] = [
     },
     "probe": {
       "type": "extension",
-      "name": "b-agentic-planner.ts"
+      "name": "b-agentic-architect.ts"
     },
     "extension": {
-      "name": "b-agentic-planner.ts",
-      "source": "pi/extensions/b-agentic-planner.ts"
+      "name": "b-agentic-architect.ts",
+      "source": "pi/extensions/b-agentic-architect.ts"
     },
     "install_state": {
       "action": "extensionAction",
@@ -718,11 +718,11 @@ export const CAPABILITIES: readonly CapabilityDefinition[] = [
     }
   },
   {
-    "id": "extension.b-agentic-planner-notify",
+    "id": "extension.b-agentic-executor-notify",
     "kind": "extension",
-    "purpose": "Emit privacy-safe implementer user-input and post-review task-completion attention signals.",
+    "purpose": "Emit privacy-safe executor user-input and post-review task-completion attention signals.",
     "owner": "b-agentic role notification extension",
-    "trigger": "Use only for an implementer user-input call with UI or an explicit implementer task-completion signal after ready b-review.",
+    "trigger": "Use only for an executor user-input call with UI or an explicit executor task-completion signal after ready b-review.",
     "prerequisites": [
       "Installed Pi extension entrypoint",
       "Supported desktop notifier"
@@ -740,11 +740,11 @@ export const CAPABILITIES: readonly CapabilityDefinition[] = [
     },
     "probe": {
       "type": "extension",
-      "name": "b-agentic-planner-notify.ts"
+      "name": "b-agentic-executor-notify.ts"
     },
     "extension": {
-      "name": "b-agentic-planner-notify.ts",
-      "source": "pi/extensions/b-agentic-planner-notify.ts"
+      "name": "b-agentic-executor-notify.ts",
+      "source": "pi/extensions/b-agentic-executor-notify.ts"
     },
     "install_state": {
       "action": "extensionAction",
@@ -755,17 +755,17 @@ export const CAPABILITIES: readonly CapabilityDefinition[] = [
     }
   },
   {
-    "id": "extension.b-agentic-worker",
+    "id": "extension.b-agentic-executor",
     "kind": "extension",
-    "purpose": "Inject the sole user-facing implementer profile from a legacy-compatible extension filename.",
-    "owner": "b-agentic implementer profile extension",
-    "trigger": "Use when the explicit active role is implementer.",
+    "purpose": "Inject the sole user-facing Executor profile from the managed extension entrypoint.",
+    "owner": "b-agentic executor profile extension",
+    "trigger": "Use when the explicit active role is executor.",
     "prerequisites": [
       "Installed Pi extension entrypoint",
-      "Implementer role selected"
+      "Executor role selected"
     ],
     "readiness": "The managed entrypoint exists in the local Pi extensions directory.",
-    "fallback": "Remain in the normal Off workflow and do not claim an implementer role.",
+    "fallback": "Remain in the normal Off workflow and do not claim an executor role.",
     "status_signal": {
       "source": "local-extension-file",
       "states": [
@@ -777,11 +777,11 @@ export const CAPABILITIES: readonly CapabilityDefinition[] = [
     },
     "probe": {
       "type": "extension",
-      "name": "b-agentic-worker.ts"
+      "name": "b-agentic-executor.ts"
     },
     "extension": {
-      "name": "b-agentic-worker.ts",
-      "source": "pi/extensions/b-agentic-worker.ts"
+      "name": "b-agentic-executor.ts",
+      "source": "pi/extensions/b-agentic-executor.ts"
     },
     "install_state": {
       "action": "extensionAction",

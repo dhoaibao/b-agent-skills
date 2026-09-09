@@ -176,7 +176,7 @@ if (process.env.PI_PACKAGE_ROOT) {
 }
 const extensionModules = await Promise.all([
   'b-agentic-permissions.ts', 'b-agentic-mcp-permissions.ts', 'b-agentic-auto-mode.ts', 'b-agentic-role.ts',
-  'b-agentic-planner.ts', 'b-agentic-worker.ts', 'b-agentic-sync.ts', 'b-agentic-planner-notify.ts',
+  'b-agentic-architect.ts', 'b-agentic-executor.ts', 'b-agentic-sync.ts', 'b-agentic-executor-notify.ts',
   'b-agentic-preview-markdown.ts', 'b-agentic-status.ts',
 ].map((name) => import(pathToFileURL(path.join(installedRoot, name)).href)));
 for (const name of ['shell.ts', 'mcp.ts', 'role.ts', 'role-models.ts', 'role-store.ts', 'worker.ts', 'state.ts', 'auto.ts', 'capabilities.ts', 'candidate.ts', 'status.ts']) {
@@ -661,7 +661,7 @@ const roleContext = {
   get model() { return activeModel; }, cwd: root, mode: 'rpc', hasUI: true,
   ui: {
     confirm: async () => true,
-    select: async (title) => { if (title === 'Select b-agentic role') { rolePickerCalls += 1; return 'implementer'; } return 'Allow once'; },
+    select: async (title) => { if (title === 'Select b-agentic role') { rolePickerCalls += 1; return 'executor'; } return 'Allow once'; },
     notify(message, level) { roleNotifications.push({ message, level }); },
     setTitle(title) { terminalTitles.push(title); },
     theme: { fg(color, text) { return `<${color}>${text}</${color}>`; }, getColorMode() { return roleColorMode; } },
@@ -674,79 +674,90 @@ expect(typeof roleSessionStartHandler === 'function', 'role extension must regis
 branchEntries.push({ type: 'custom', customType: 'b-agentic-role', data: { role: 'planner' } });
 await roleSessionStartHandler({}, roleContext);
 expect(roleStatuses.at(-1)?.value === undefined && roleTest.parseRole('planner') === undefined, 'legacy planner state must remain inactive until explicit reselection');
-expect(roleTest.isCompatibleRolePayload({ type: 'b-agentic-role', version: 1, role: 'worker' }) === false, 'legacy peer payloads must fail closed');
-expect(roleTest.isCompatibleRolePayload({ type: 'b-agentic-role', version: 2, role: 'reviewer' }) === true, 'versioned reviewer payloads must be compatible');
+expect(roleTest.isCompatibleRolePayload({ type: 'b-agentic-role', version: 1, role: 'worker' }) === false, 'legacy v1 peer payloads must fail closed');
+expect(roleTest.isCompatibleRolePayload({ type: 'b-agentic-role', version: 2, role: 'implementer' }) === false, 'legacy v2 implementer/reviewer peer payloads must fail closed');
+expect(roleTest.isCompatibleRolePayload({ type: 'b-agentic-role', version: 3, role: 'architect' }) === true, 'versioned Architect payloads must be compatible');
+expect(plannerTest.skillOwner('b-plan') === 'architect' && plannerTest.skillOwner('b-research') === 'architect' && plannerTest.skillOwner('b-design') === 'executor' && plannerTest.skillOwner('b-diagram') === 'executor', 'Architect owns only read-only planning and research while artifact-writing design and diagram work stay with the Executor');
 const peers = [{ id: 'self', cwd: root, pid: process.pid, startedAt: 1 }, { id: 'mixed', cwd: root, pid: 202, startedAt: 2 }];
-expect(roleTest.canClaimImplementer(peers, root, process.pid) === true && roleTest.canClaimImplementer([...peers, { id: 'third', cwd: root, pid: 303, startedAt: 3 }], root, process.pid) === false, 'a sole peer may coexist with an implementer claim, while multiple peers block it');
-const reviewerPeer = { id: 'reviewer', cwd: root, pid: 202, startedAt: 2 };
-expect(roleTest.canClaimImplementer([peers[0], reviewerPeer], root, process.pid) === true, 'a sole reviewer peer permits an implementer claim');
-expect(roleTest.canClaimImplementer([peers[0], reviewerPeer], root, process.pid) === true, 'an Off peer does not block an implementer claim');
+expect(roleTest.canClaimExecutor(peers, root, process.pid) === true && roleTest.canClaimExecutor([...peers, { id: 'third', cwd: root, pid: 303, startedAt: 3 }], root, process.pid) === false, 'a sole peer may coexist with an executor claim, while multiple peers block it');
+const architectPeer = { id: 'architect', cwd: root, pid: 202, startedAt: 2 };
+expect(roleTest.canClaimExecutor([peers[0], architectPeer], root, process.pid) === true, 'a sole architect peer permits an executor claim');
+expect(roleTest.canClaimExecutor([peers[0], architectPeer], root, process.pid) === true, 'an Off peer does not block an executor claim');
 const publishedRoles = [];
-const peerSessions = [{ id: 'self', cwd: root, pid: process.pid, startedAt: 1 }, reviewerPeer];
+const peerSessions = [{ id: 'self', cwd: root, pid: process.pid, startedAt: 1 }, architectPeer];
 roleChannelRegistration.onReady({ publish(payload) { publishedRoles.push(payload); }, listSessions: async () => peerSessions });
 await roleChannelRegistration.onEvent({ type: 'connection', connected: true, supported: true });
-await roleChannelRegistration.onEvent({ type: 'message', fromSessionId: 'reviewer', payload: { type: 'b-agentic-role', version: 2, role: 'reviewer' } });
-expect(publishedRoles.some((payload) => payload.type === 'b-agentic-role' && payload.version === 2 && payload.role === 'off'), 'role channel must publish versioned Off state');
-await commands['b-role'].handler('reviewer', roleContext);
-expect(roleStatuses.at(-1)?.value === '<success>b-agentic: reviewer</success>' && activeTools.includes('edit') && activeTools.includes('write'), 'reviewer selection preserves tools and applies only prompt guidance');
-const reviewerStart = await handlers.before_agent_start({ systemPrompt: 'base', systemPromptOptions: { skills: [] } }, roleContext);
-expect(reviewerStart.systemPrompt.includes('independent read-only gate') && reviewerStart.systemPrompt.includes('Bounded read-only research') && reviewerStart.systemPrompt.includes('begin b-review automatically') && reviewerStart.systemPrompt.includes('automatically return the structured disposition and findings through intercom') && reviewerStart.systemPrompt.includes('every disposition') && reviewerStart.systemPrompt.includes('implementer session in the same CWD'), 'reviewer profile must return every review disposition to the same-CWD implementer before reporting completion');
+await roleChannelRegistration.onEvent({ type: 'message', fromSessionId: 'architect', payload: { type: 'b-agentic-role', version: 3, role: 'architect' } });
+expect(publishedRoles.some((payload) => payload.type === 'b-agentic-role' && payload.version === 3 && payload.role === 'off'), 'role channel must publish versioned Off state');
+await commands['b-role'].handler('architect', roleContext);
+expect(roleStatuses.at(-1)?.value === '<success>b-agentic: architect</success>' && activeTools.includes('edit') && activeTools.includes('write'), 'architect selection preserves tools and applies only prompt guidance');
+const architectStart = await handlers.before_agent_start({ systemPrompt: 'base', systemPromptOptions: { skills: [] } }, roleContext);
+expect(architectStart.systemPrompt.includes('independent read-only gate') && architectStart.systemPrompt.includes('Bounded read-only research') && architectStart.systemPrompt.includes('automatically send the user-approved plan handoff through intercom') && architectStart.systemPrompt.includes('executor session in the same CWD') && architectStart.systemPrompt.includes('begin b-review automatically') && architectStart.systemPrompt.includes('automatically return the structured disposition and findings through intercom') && architectStart.systemPrompt.includes('every disposition') && architectStart.systemPrompt.includes('executor session in the same CWD'), 'Architect profile must hand user-approved plans to the same-CWD Executor and return every review disposition to the same-CWD executor before reporting completion');
 for (const marker of [
-  // generated:role-prompt-markers:planner:start
+  // generated:role-prompt-markers:architect:start
   "independent read-only gate",
   "do not edit",
   "Bounded read-only research",
-// generated:role-prompt-markers:planner:end
-]) expect(reviewerStart.systemPrompt.includes(marker), `reviewer prompt must retain ${marker}`);
+  "automatically send the user-approved plan handoff through intercom",
+  "executor session in the same CWD",
+// generated:role-prompt-markers:architect:end
+]) expect(architectStart.systemPrompt.includes(marker), `architect prompt must retain ${marker}`);
 await commands['b-role'].handler('off', roleContext);
 const offStart = await handlers.before_agent_start({ systemPrompt: 'base', systemPromptOptions: { skills: [] } }, roleContext);
-expect(offStart === undefined, 'Off role must not inject implementer or reviewer coordination guidance');
-await commands['b-role'].handler('implementer', roleContext);
-expect(roleStatuses.at(-1)?.value.includes('implementer') && activeTools.includes('edit') && activeTools.includes('write'), 'a compatible solo implementer request may claim the sole writer role without filtering tools');
-const implementerStart = await handlers.before_agent_start({ systemPrompt: 'base', systemPromptOptions: { skills: [] } }, roleContext);
-expect(implementerStart.systemPrompt.includes('sole user-facing writer') && implementerStart.systemPrompt.includes('compact snapshot handoff') && implementerStart.systemPrompt.includes('automatically request independent b-review through intercom') && implementerStart.systemPrompt.includes('reviewer session in the same CWD') && implementerStart.systemPrompt.includes('B_AGENTIC_TASK_COMPLETE') && implementerStart.systemPrompt.includes('Do not edit while review is pending'), 'implementer profile must require the automatic same-CWD candidate gate and post-review completion signal');
+expect(offStart === undefined, 'Off role must not inject executor or architect coordination guidance');
+await commands['b-role'].handler('executor', roleContext);
+expect(roleStatuses.at(-1)?.value.includes('executor') && activeTools.includes('edit') && activeTools.includes('write'), 'a compatible solo executor request may claim the sole writer role without filtering tools');
+const executorStart = await handlers.before_agent_start({ systemPrompt: 'base', systemPromptOptions: { skills: [] } }, roleContext);
+expect(executorStart.systemPrompt.includes('sole user-facing writer') && executorStart.systemPrompt.includes('user-approved plan handoff') && executorStart.systemPrompt.includes('compact snapshot handoff') && executorStart.systemPrompt.includes('automatically request independent b-review through intercom') && executorStart.systemPrompt.includes('architect session in the same CWD') && executorStart.systemPrompt.includes('B_AGENTIC_TASK_COMPLETE') && executorStart.systemPrompt.includes('Do not edit while review is pending'), 'Executor profile must receive user-approved plans, require the automatic same-CWD candidate gate, and emit the post-review completion signal');
 for (const marker of [
-  // generated:role-prompt-markers:worker:start
+  // generated:role-prompt-markers:executor:start
   "sole user-facing writer",
   "Work directly with the user",
-  "explicit implementer role is active",
+  "user-approved plan handoff",
+  "route to the Architect",
+  "remain stopped",
+  "explicit executor role is active",
   "compact snapshot handoff",
   "Do not edit while review is pending",
-// generated:role-prompt-markers:worker:end
-]) expect(implementerStart.systemPrompt.includes(marker), `implementer prompt must retain ${marker}`);
-await roleChannelRegistration.onEvent({ type: 'message', fromSessionId: 'reviewer', payload: { type: 'b-agentic-role', version: 2, role: 'off' } });
-expect(roleStatuses.at(-1)?.value.includes('implementer'), 'an active implementer remains active when its sole peer becomes Off');
-await roleChannelRegistration.onEvent({ type: 'message', fromSessionId: 'reviewer', payload: { type: 'b-agentic-role', version: 2, role: 'reviewer' } });
-await commands['b-role'].handler('implementer', roleContext);
-expect(roleStatuses.at(-1)?.value.includes('implementer'), 'an implementer remains active with a sole peer');
+// generated:role-prompt-markers:executor:end
+]) expect(executorStart.systemPrompt.includes(marker), `executor prompt must retain ${marker}`);
+await roleChannelRegistration.onEvent({ type: 'message', fromSessionId: 'architect', payload: { type: 'b-agentic-role', version: 3, role: 'off' } });
+expect(roleStatuses.at(-1)?.value.includes('executor'), 'an active executor remains active when its sole peer becomes Off');
+await roleChannelRegistration.onEvent({ type: 'message', fromSessionId: 'architect', payload: { type: 'b-agentic-role', version: 3, role: 'architect' } });
+await commands['b-role'].handler('executor', roleContext);
+expect(roleStatuses.at(-1)?.value.includes('executor'), 'an executor remains active with a sole peer');
 await handlers.model_select({ model: { provider: 'anthropic', id: 'claude-sonnet-4-5' } }, roleContext);
 const roleModelPreferences = JSON.parse(readFileSync(path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic', 'role-models.json'), 'utf8'));
-expect(roleModelPreferences.implementer.model === 'claude-sonnet-4-5' && !('planner' in roleModelPreferences), 'new model preferences persist by selected role only');
+expect(roleModelPreferences.executor.model === 'claude-sonnet-4-5' && !('planner' in roleModelPreferences), 'new model preferences persist by selected role only');
 const legacyRoleModels = path.join(process.env.PI_CODING_AGENT_DIR, 'legacy-role-models.json');
-writeFileSync(legacyRoleModels, JSON.stringify({ worker: { provider: 'anthropic', model: 'implementer-model' }, planner: { provider: 'anthropic', model: 'reviewer-model' } }));
+writeFileSync(legacyRoleModels, JSON.stringify({ implementer: { provider: 'anthropic', model: 'executor-model' }, reviewer: { provider: 'anthropic', model: 'architect-model' } }));
 const migratedPreferences = roleTest.loadRoleModelPreferences(legacyRoleModels);
-expect(migratedPreferences.implementer?.model === 'implementer-model' && migratedPreferences.reviewer?.model === 'reviewer-model' && roleTest.parseRole('worker') === undefined, 'legacy preferences map by role without activating a legacy role');
+expect(migratedPreferences.executor?.model === 'executor-model' && migratedPreferences.architect?.model === 'architect-model' && roleTest.parseRole('implementer') === undefined, 'legacy v2 preferences map by role without activating a role');
+const legacyV1RoleModels = path.join(process.env.PI_CODING_AGENT_DIR, 'legacy-v1-role-models.json');
+writeFileSync(legacyV1RoleModels, JSON.stringify({ worker: { provider: 'anthropic', model: 'executor-model' }, planner: { provider: 'anthropic', model: 'architect-model' } }));
+const migratedV1Preferences = roleTest.loadRoleModelPreferences(legacyV1RoleModels);
+expect(migratedV1Preferences.executor?.model === 'executor-model' && migratedV1Preferences.architect?.model === 'architect-model' && roleTest.parseRole('worker') === undefined, 'legacy v1 preferences remain mapped without activating a role');
 const candidateTest = await import(pathToFileURL(path.join(installedRoot, 'b-agentic-support', 'candidate.ts')).href);
 const passed = candidateTest.createCandidateSnapshot([{ path: 'src/a.ts', status: 'tracked', digest: 'one' }, { path: 'new.ts', status: 'untracked', digest: 'two' }], [{ name: 'test', required: true, outcome: 'passed' }]);
 const changed = candidateTest.createCandidateSnapshot([{ path: 'src/a.ts', status: 'tracked', digest: 'one' }, { path: 'new.ts', status: 'untracked', digest: 'changed' }], [{ name: 'test', required: true, outcome: 'passed' }]);
-expect(candidateTest.evaluateCandidateGate(undefined, passed, 'reviewer-1', 'reviewer-1', 'READY FOR PR').reason === 'missing-baseline', 'an absent baseline cannot ship');
-expect(candidateTest.evaluateCandidateGate(passed, changed, 'reviewer-1', 'reviewer-1', 'READY FOR PR').reason === 'snapshot-changed', 'untracked content changes stale a verdict');
+expect(candidateTest.evaluateCandidateGate(undefined, passed, 'architect-1', 'architect-1', 'READY FOR PR').reason === 'missing-baseline', 'an absent baseline cannot ship');
+expect(candidateTest.evaluateCandidateGate(passed, changed, 'architect-1', 'architect-1', 'READY FOR PR').reason === 'snapshot-changed', 'untracked content changes stale a verdict');
 const trackedChanged = candidateTest.createCandidateSnapshot([{ path: 'src/a.ts', status: 'tracked', digest: 'changed' }, { path: 'new.ts', status: 'untracked', digest: 'two' }], [{ name: 'test', required: true, outcome: 'passed' }]);
-expect(candidateTest.evaluateCandidateGate(passed, trackedChanged, 'reviewer-1', 'reviewer-1', 'READY FOR PR').reason === 'snapshot-changed', 'tracked content changes stale a verdict');
-expect(candidateTest.evaluateCandidateGate(passed, passed, 'wrong', 'reviewer-1', 'READY FOR PR').reason === 'wrong-reviewer', 'wrong reviewer identity cannot ship');
-expect(candidateTest.evaluateCandidateGate(passed, passed, 'reviewer-1', 'reviewer-1', 'READY WITH FOLLOW-UPS').reason === 'follow-ups-unaccepted', 'follow-ups require explicit disposition');
-expect(candidateTest.evaluateCandidateGate(passed, passed, 'reviewer-1', 'reviewer-1', 'READY WITH FOLLOW-UPS', true).eligible === true, 'accepted follow-ups retain the exact-check gate');
+expect(candidateTest.evaluateCandidateGate(passed, trackedChanged, 'architect-1', 'architect-1', 'READY FOR PR').reason === 'snapshot-changed', 'tracked content changes stale a verdict');
+expect(candidateTest.evaluateCandidateGate(passed, passed, 'wrong', 'architect-1', 'READY FOR PR').reason === 'wrong-architect', 'wrong architect identity cannot ship');
+expect(candidateTest.evaluateCandidateGate(passed, passed, 'architect-1', 'architect-1', 'READY WITH FOLLOW-UPS').reason === 'follow-ups-unaccepted', 'follow-ups require explicit disposition');
+expect(candidateTest.evaluateCandidateGate(passed, passed, 'architect-1', 'architect-1', 'READY WITH FOLLOW-UPS', true).eligible === true, 'accepted follow-ups retain the exact-check gate');
 const currentSkipped = candidateTest.createCandidateSnapshot(passed.files, [{ name: 'test', required: true, outcome: 'skipped' }]);
 const currentFailed = candidateTest.createCandidateSnapshot(passed.files, [{ name: 'test', required: true, outcome: 'failed' }]);
 const currentMissing = candidateTest.createCandidateSnapshot(passed.files, []);
-expect(candidateTest.evaluateCandidateGate(passed, currentSkipped, 'reviewer-1', 'reviewer-1', 'READY FOR PR').reason === 'required-check-missing', 'a skipped current check cannot reuse a matching-content verdict');
-expect(candidateTest.evaluateCandidateGate(passed, currentFailed, 'reviewer-1', 'reviewer-1', 'READY FOR PR').reason === 'required-check-failed', 'a failed current check cannot reuse a matching-content verdict');
-expect(candidateTest.evaluateCandidateGate(passed, currentMissing, 'reviewer-1', 'reviewer-1', 'READY FOR PR').reason === 'required-check-missing', 'a missing current check cannot reuse a matching-content verdict');
+expect(candidateTest.evaluateCandidateGate(passed, currentSkipped, 'architect-1', 'architect-1', 'READY FOR PR').reason === 'required-check-missing', 'a skipped current check cannot reuse a matching-content verdict');
+expect(candidateTest.evaluateCandidateGate(passed, currentFailed, 'architect-1', 'architect-1', 'READY FOR PR').reason === 'required-check-failed', 'a failed current check cannot reuse a matching-content verdict');
+expect(candidateTest.evaluateCandidateGate(passed, currentMissing, 'architect-1', 'architect-1', 'READY FOR PR').reason === 'required-check-missing', 'a missing current check cannot reuse a matching-content verdict');
 const skipped = candidateTest.createCandidateSnapshot([{ path: 'src/a.ts', status: 'tracked', digest: 'one' }], [{ name: 'test', required: true, outcome: 'skipped' }]);
-expect(candidateTest.evaluateCandidateGate(skipped, skipped, 'reviewer-1', 'reviewer-1', 'READY FOR PR').reason === 'required-check-missing', 'skipped required checks cannot ship');
+expect(candidateTest.evaluateCandidateGate(skipped, skipped, 'architect-1', 'architect-1', 'READY FOR PR').reason === 'required-check-missing', 'skipped required checks cannot ship');
 const failed = candidateTest.createCandidateSnapshot([{ path: 'src/a.ts', status: 'tracked', digest: 'one' }], [{ name: 'test', required: true, outcome: 'failed' }]);
-expect(candidateTest.evaluateCandidateGate(failed, failed, 'reviewer-1', 'reviewer-1', 'READY FOR PR').reason === 'required-check-failed', 'failed required checks cannot ship');
-flags['b-role'] = 'implementer';
+expect(candidateTest.evaluateCandidateGate(failed, failed, 'architect-1', 'architect-1', 'READY FOR PR').reason === 'required-check-failed', 'failed required checks cannot ship');
+flags['b-role'] = 'executor';
 await roleSessionStartHandler({}, roleContext);
 const startupFlagRoles = [];
 roleChannelRegistration.onReady({
@@ -755,7 +766,7 @@ roleChannelRegistration.onReady({
 });
 await new Promise((resolve) => setImmediate(resolve));
 delete flags['b-role'];
-expect(roleStatuses.at(-1)?.value.includes('implementer') && startupFlagRoles.some((payload) => payload.type === 'b-agentic-role-request'), 'a sole startup implementer flag claims after channel readiness without a later connection event');
+expect(roleStatuses.at(-1)?.value.includes('executor') && startupFlagRoles.some((payload) => payload.type === 'b-agentic-role-request'), 'a sole startup executor flag claims after channel readiness without a later connection event');
 const notificationCommandStart = executedCommands.length;
 const notificationContextEnv = plannerNotifyTest.NOTIFICATION_CONTEXT_ENV;
 const previousNotificationContext = process.env[notificationContextEnv];
@@ -776,22 +787,22 @@ await plannerNotifySessionStartHandler({}, { ...roleContext, mode: 'tui', cwd: '
 expect(terminalTitles.length === titleCountBeforeUnusable, 'unusable repository basenames must omit the terminal title');
 if (previousNotificationContext === undefined) delete process.env[notificationContextEnv];
 else process.env[notificationContextEnv] = previousNotificationContext;
-await handlers.tool_call({ toolName: 'ask_user_question', toolCallId: 'implementer-input', input: {} }, roleContext);
-expect(executedCommands.length === notificationCommandStart + 1, 'implementer user input must notify once with UI');
+await handlers.tool_call({ toolName: 'ask_user_question', toolCallId: 'executor-input', input: {} }, roleContext);
+expect(executedCommands.length === notificationCommandStart + 1, 'executor user input must notify once with UI');
 await handlers.tool_call({ toolName: 'ask_user_question', toolCallId: 'headless-input', input: {} }, { ...roleContext, hasUI: false });
 expect(executedCommands.length === notificationCommandStart + 1, 'headless user input must not open a notification UI');
-await commands['b-role'].handler('reviewer', roleContext);
+await commands['b-role'].handler('architect', roleContext);
 await handlers.agent_start({});
 await handlers.agent_end({ messages: [{ role: 'assistant', content: [{ type: 'text', text: 'B_AGENTIC_REVIEW_COMPLETE\nVerdict: READY FOR PR' }], timestamp: 1 }] });
 await handlers.agent_settled({}, roleContext);
-expect(executedCommands.length === notificationCommandStart + 1, 'review completion must not notify the reviewer');
-await commands['b-role'].handler('implementer', roleContext);
+expect(executedCommands.length === notificationCommandStart + 1, 'review completion must not notify the architect');
+await commands['b-role'].handler('executor', roleContext);
 await handlers.agent_start({});
 await handlers.agent_end({ messages: [{ role: 'assistant', content: [{ type: 'text', text: 'B_AGENTIC_TASK_COMPLETE\nTask passed b-review.' }], timestamp: 1 }] });
 await handlers.agent_settled({}, roleContext);
 await handlers.agent_settled({}, roleContext);
 const taskCompletionCommand = executedCommands.at(-1);
-expect(executedCommands.length === notificationCommandStart + 2 && taskCompletionCommand?.args.some((arg) => String(arg).includes('Task complete')), 'post-review task completion must notify the implementer once');
+expect(executedCommands.length === notificationCommandStart + 2 && taskCompletionCommand?.args.some((arg) => String(arg).includes('Task complete')), 'post-review task completion must notify the executor once');
 expect(plannerNotifyTest.hasTaskCompleteSignal([{ role: 'assistant', content: [{ type: 'text', text: 'B_AGENTIC_TASK_COMPLETE in prose' }], timestamp: 1 }]) === false, 'only standalone task-completion signals may notify');
 roleChannelRegistration.onReady({
   publish() {},
@@ -803,9 +814,9 @@ roleChannelRegistration.onReady({
 await roleChannelRegistration.onEvent({
   type: 'message',
   fromSessionId: 'a-peer',
-  payload: { type: 'b-agentic-role', version: 2, role: 'implementer' },
+  payload: { type: 'b-agentic-role', version: 3, role: 'executor' },
 });
-expect(roleStatuses.at(-1)?.value === undefined && roleNotifications.at(-1)?.message.includes('claim won'), 'simultaneous compatible implementer claims deterministically leave the losing session Off');
+expect(roleStatuses.at(-1)?.value === undefined && roleNotifications.at(-1)?.message.includes('claim won'), 'simultaneous compatible executor claims deterministically leave the losing session Off');
 await commands['b-role'].handler('off', roleContext);
 const newSessionContext = { ...roleContext, sessionManager: { getBranch: () => [] } };
 const soloChannel = { publish() {}, listSessions: async () => [{ id: 'self', cwd: root, pid: process.pid, startedAt: 1 }] };
@@ -824,13 +835,13 @@ expect(roleTest.paneRolePath(root, 'pane-a') !== roleTest.paneRolePath(path.join
 expect(roleTest.paneRolePath(root, 'pane-a').startsWith(path.join(process.env.PI_CODING_AGENT_DIR, 'b-agentic', 'roles') + path.sep), 'durable role selections must use the managed b-agentic preference directory');
 expect(roleTest.loadPaneRole(root, 'pane-a', path.join(os.tmpdir(), 'b-agentic-absent-roles')) === undefined, 'a missing durable role record must not activate a role');
 const contentionDir = mkdtempSync(path.join(os.tmpdir(), 'b-agentic-role-contention-'));
-roleTest.savePaneRole(root, 'implementer', 'pane-a', contentionDir);
+roleTest.savePaneRole(root, 'executor', 'pane-a', contentionDir);
 const paneARecord = readFileSync(roleTest.paneRolePath(root, 'pane-a', contentionDir), 'utf8');
 // Deterministic contention: a writer for another pane must not read, rewrite,
 // or drop an already-stored selection, whatever state it observed beforehand.
-roleTest.savePaneRole(root, 'reviewer', 'pane-b', contentionDir);
+roleTest.savePaneRole(root, 'architect', 'pane-b', contentionDir);
 expect(readFileSync(roleTest.paneRolePath(root, 'pane-a', contentionDir), 'utf8') === paneARecord, "a concurrent pane's selection must be preserved byte-for-byte");
-expect(roleTest.loadPaneRole(root, 'pane-a', contentionDir) === 'implementer' && roleTest.loadPaneRole(root, 'pane-b', contentionDir) === 'reviewer', 'same-project panes must keep independent durable selections');
+expect(roleTest.loadPaneRole(root, 'pane-a', contentionDir) === 'executor' && roleTest.loadPaneRole(root, 'pane-b', contentionDir) === 'architect', 'same-project panes must keep independent durable selections');
 expect(roleTest.loadPaneRole(root, 'pane-c', contentionDir) === undefined, 'an unrecorded pane must not inherit another pane selection');
 const contendingWriter = (pane, role) => new Promise((resolveWriter, rejectWriter) => {
   const child = spawn(process.execPath, [...process.execArgv, '--input-type=module', '-e', `
@@ -840,24 +851,24 @@ const contendingWriter = (pane, role) => new Promise((resolveWriter, rejectWrite
   child.on('error', rejectWriter);
   child.on('exit', (code) => (code === 0 ? resolveWriter() : rejectWriter(new Error(`contending writer exited with ${code}`))));
 });
-await Promise.all([contendingWriter('pane-a', 'implementer'), contendingWriter('pane-b', 'reviewer')]);
-expect(roleTest.loadPaneRole(root, 'pane-a', contentionDir) === 'implementer' && roleTest.loadPaneRole(root, 'pane-b', contentionDir) === 'reviewer', 'interleaved pane writers must not drop either durable selection');
+await Promise.all([contendingWriter('pane-a', 'executor'), contendingWriter('pane-b', 'architect')]);
+expect(roleTest.loadPaneRole(root, 'pane-a', contentionDir) === 'executor' && roleTest.loadPaneRole(root, 'pane-b', contentionDir) === 'architect', 'interleaved pane writers must not drop either durable selection');
 rmSync(contentionDir, { recursive: true, force: true });
-const implementerPane = usePane('%implementer-pane');
-await commands['b-role'].handler('implementer', roleContext);
-expect(readPaneRole(implementerPane) === 'implementer', 'an explicit implementer request must persist for its pane while the claim is pending');
-const reviewerPane = usePane('%reviewer-pane');
-await commands['b-role'].handler('reviewer', roleContext);
-expect(readPaneRole(reviewerPane) === 'reviewer' && readPaneRole(implementerPane) === 'implementer', "a later pane selection must not overwrite another pane's role");
-usePane('%implementer-pane');
+const executorPane = usePane('%executor-pane');
+await commands['b-role'].handler('executor', roleContext);
+expect(readPaneRole(executorPane) === 'executor', 'an explicit executor request must persist for its pane while the claim is pending');
+const architectPane = usePane('%architect-pane');
+await commands['b-role'].handler('architect', roleContext);
+expect(readPaneRole(architectPane) === 'architect' && readPaneRole(executorPane) === 'executor', "a later pane selection must not overwrite another pane's role");
+usePane('%executor-pane');
 await roleSessionStartHandler({}, newSessionContext);
-expect(roleStatuses.at(-1)?.value === undefined, 'a restored implementer must wait for same-CWD claim arbitration');
+expect(roleStatuses.at(-1)?.value === undefined, 'a restored executor must wait for same-CWD claim arbitration');
 roleChannelRegistration.onReady(soloChannel);
 await settle();
-expect(roleStatuses.at(-1)?.value.includes('implementer'), "a later session in the implementer pane must restore implementer, not another pane's reviewer selection");
-usePane('%reviewer-pane');
+expect(roleStatuses.at(-1)?.value.includes('executor'), "a later session in the executor pane must restore executor, not another pane's architect selection");
+usePane('%architect-pane');
 await roleSessionStartHandler({}, newSessionContext);
-expect(roleStatuses.at(-1)?.value === '<success>b-agentic: reviewer</success>', 'a later session in the reviewer pane must restore reviewer');
+expect(roleStatuses.at(-1)?.value === '<success>b-agentic: architect</success>', 'a later session in the architect pane must restore architect');
 usePane('%unrelated-pane');
 await roleSessionStartHandler({}, newSessionContext);
 expect(roleStatuses.at(-1)?.value === undefined, 'a pane without a recorded selection must start Off');
@@ -865,28 +876,28 @@ const lineageDir = mkdtempSync(path.join(os.tmpdir(), 'b-agentic-role-lineage-')
 const predecessorFile = path.join(lineageDir, 'predecessor.jsonl');
 writeFileSync(predecessorFile, `${[
   JSON.stringify({ type: 'session', id: 'predecessor' }),
-  JSON.stringify({ type: 'custom', customType: 'b-agentic-role', data: { role: 'implementer' } }),
-  JSON.stringify({ type: 'custom', customType: 'b-agentic-role', data: { role: 'reviewer' } }),
+  JSON.stringify({ type: 'custom', customType: 'b-agentic-role', data: { version: 3, role: 'executor' } }),
+  JSON.stringify({ type: 'custom', customType: 'b-agentic-role', data: { version: 3, role: 'architect' } }),
 ].join('\n')}\n`);
 const legacyPredecessorFile = path.join(lineageDir, 'legacy.jsonl');
-writeFileSync(legacyPredecessorFile, `${JSON.stringify({ type: 'custom', customType: 'b-agentic-role', data: { role: 'planner' } })}\n{ truncated\n`);
-expect(roleTest.roleFromSessionFile(predecessorFile) === 'reviewer', 'a predecessor session file must yield its latest recorded role');
-expect(roleTest.roleFromSessionFile(legacyPredecessorFile) === undefined, 'legacy or malformed predecessor entries must fail closed');
+writeFileSync(legacyPredecessorFile, `${JSON.stringify({ type: 'custom', customType: 'b-agentic-role', data: { version: 2, role: 'implementer' } })}\n{ truncated\n`);
+expect(roleTest.roleFromSessionFile(predecessorFile) === 'architect', 'a predecessor session file must yield its latest recorded role');
+expect(roleTest.roleFromSessionFile(legacyPredecessorFile) === undefined, 'legacy v2 or malformed predecessor entries must fail closed');
 expect(roleTest.roleFromSessionFile(path.join(lineageDir, 'absent.jsonl')) === undefined, 'a missing predecessor session file must not activate a role');
 const lineageEntryStart = persistedEntries.length;
 await roleSessionStartHandler({ previousSessionFile: predecessorFile }, newSessionContext);
-expect(roleStatuses.at(-1)?.value === '<success>b-agentic: reviewer</success>', 'a new session must continue the role of the session it replaced');
-expect(persistedEntries.slice(lineageEntryStart).some((entry) => entry.customType === 'b-agentic-role' && entry.data.role === 'reviewer'), 'a continued role must be recorded so the next session in the lineage inherits it');
-await roleSessionStartHandler({ previousSessionFile: predecessorFile }, { ...roleContext, sessionManager: { getBranch: () => [{ type: 'custom', customType: 'b-agentic-role', data: { role: 'off' } }] } });
+expect(roleStatuses.at(-1)?.value === '<success>b-agentic: architect</success>', 'a new session must continue the role of the session it replaced');
+expect(persistedEntries.slice(lineageEntryStart).some((entry) => entry.customType === 'b-agentic-role' && entry.data.role === 'architect'), 'a continued role must be recorded so the next session in the lineage inherits it');
+await roleSessionStartHandler({ previousSessionFile: predecessorFile }, { ...roleContext, sessionManager: { getBranch: () => [{ type: 'custom', customType: 'b-agentic-role', data: { version: 3, role: 'off' } }] } });
 expect(roleStatuses.at(-1)?.value === undefined, "a resumed session's own recorded role must win over its predecessor");
 rmSync(lineageDir, { recursive: true, force: true });
-usePane('%reviewer-pane');
+usePane('%architect-pane');
 flags['b-role'] = 'off';
 await roleSessionStartHandler({}, newSessionContext);
 delete flags['b-role'];
-expect(roleStatuses.at(-1)?.value === undefined && readPaneRole(reviewerPane) === 'reviewer', 'a startup flag must override one session without rewriting the pane selection');
+expect(roleStatuses.at(-1)?.value === undefined && readPaneRole(architectPane) === 'architect', 'a startup flag must override one session without rewriting the pane selection');
 await commands['b-role'].handler('off', roleContext);
-expect(readPaneRole(reviewerPane) === 'off', 'an explicit Off selection must persist for its pane');
+expect(readPaneRole(architectPane) === 'off', 'an explicit Off selection must persist for its pane');
 await roleSessionStartHandler({}, newSessionContext);
 expect(roleStatuses.at(-1)?.value === undefined, 'an explicit Off selection must not restore a role in a later session');
 if (previousTmuxPane === undefined) delete process.env.TMUX_PANE;
@@ -1918,7 +1929,7 @@ run_pi_smoke_cases() {
 	assert_file "$sandbox/home/.pi/agent/b-agentic/references/capabilities.yaml"
 	assert_no_path "$sandbox/home/.pi/agent/b-agentic/references/contract"
 	assert_file "$sandbox/home/.pi/agent/mcp.json"
-	for extension in b-agentic-permissions.ts b-agentic-mcp-permissions.ts b-agentic-auto-mode.ts b-agentic-role.ts b-agentic-planner.ts b-agentic-planner-notify.ts b-agentic-worker.ts b-agentic-sync.ts; do
+	for extension in b-agentic-permissions.ts b-agentic-mcp-permissions.ts b-agentic-auto-mode.ts b-agentic-role.ts b-agentic-architect.ts b-agentic-executor-notify.ts b-agentic-executor.ts b-agentic-sync.ts; do
 		assert_file "$sandbox/home/.pi/agent/extensions/$extension"
 		assert_file "$sandbox/home/.pi/agent/b-agentic/extensions/$extension"
 	done
@@ -1988,7 +1999,7 @@ run_pi_smoke_cases() {
 	assert_equal_files "$sandbox/home/.pi/agent/skills/b-plan/SKILL.md" "$sandbox/source/skills/b-plan/SKILL.md"
 	assert_equal_files "$sandbox/home/.pi/agent/AGENTS.md" "$sandbox/source/references/kernel.template.md"
 	assert_equal_files "$sandbox/home/.pi/agent/extensions/b-agentic-sync.ts" "$sandbox/source/pi/extensions/b-agentic-sync.ts"
-	assert_equal_files "$sandbox/home/.pi/agent/extensions/b-agentic-planner-notify.ts" "$sandbox/source/pi/extensions/b-agentic-planner-notify.ts"
+	assert_equal_files "$sandbox/home/.pi/agent/extensions/b-agentic-executor-notify.ts" "$sandbox/source/pi/extensions/b-agentic-executor-notify.ts"
 	assert_file "$sandbox/home/.pi/agent/b-agentic/themes/dracula.json"
 	[ -L "$sandbox/home/.pi/agent/themes/dracula.json" ] || fail "expected dracula.json to be a symlink"
 	assert_equal_files "$sandbox/home/.pi/agent/themes/dracula.json" "$sandbox/home/.pi/agent/b-agentic/themes/dracula.json"
@@ -2093,18 +2104,18 @@ EOF
 	# Uninstall restores pre-existing entrypoint and support files after reinstall and managed-file deletion.
 	mkdir -p "$sandbox_extension_restore/home/.pi/agent/extensions/b-agentic-support"
 	printf 'user-owned permission extension\n' >"$sandbox_extension_restore/home/.pi/agent/extensions/b-agentic-permissions.ts"
-	printf 'user-owned worker extension\n' >"$sandbox_extension_restore/home/.pi/agent/extensions/b-agentic-worker.ts"
+	printf 'user-owned worker extension\n' >"$sandbox_extension_restore/home/.pi/agent/extensions/b-agentic-executor.ts"
 	printf 'user-owned shell support\n' >"$sandbox_extension_restore/home/.pi/agent/extensions/b-agentic-support/shell.ts"
 	expect_install_status 0 "$sandbox_extension_restore" "$snapshot_repo"
 	assert_not_contains "$sandbox_extension_restore/home/.pi/agent/extensions/b-agentic-permissions.ts" 'user-owned permission extension'
 	expect_install_status 0 "$sandbox_extension_restore" "$snapshot_repo"
 	rm "$sandbox_extension_restore/home/.pi/agent/extensions/b-agentic-permissions.ts"
-	rm "$sandbox_extension_restore/home/.pi/agent/extensions/b-agentic-worker.ts"
+	rm "$sandbox_extension_restore/home/.pi/agent/extensions/b-agentic-executor.ts"
 	rm "$sandbox_extension_restore/home/.pi/agent/extensions/b-agentic-support/shell.ts"
 	expect_install_status 0 "$sandbox_extension_restore" "$snapshot_repo"
 	expect_install_status 0 "$sandbox_extension_restore" "$snapshot_repo" --uninstall
 	assert_contains "$sandbox_extension_restore/home/.pi/agent/extensions/b-agentic-permissions.ts" 'user-owned permission extension'
-	assert_contains "$sandbox_extension_restore/home/.pi/agent/extensions/b-agentic-worker.ts" 'user-owned worker extension'
+	assert_contains "$sandbox_extension_restore/home/.pi/agent/extensions/b-agentic-executor.ts" 'user-owned worker extension'
 	assert_contains "$sandbox_extension_restore/home/.pi/agent/extensions/b-agentic-support/shell.ts" 'user-owned shell support'
 
 	# Uninstall preserves symlink destinations instead of restoring through them.

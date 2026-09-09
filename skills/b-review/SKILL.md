@@ -1,12 +1,12 @@
 ---
 name: b-review
 description: >
-  Pre-PR changed-code review for reviewer-style reads of a diff, commit
+  Pre-PR changed-code review for architect-style reads of a diff, commit
   range, or checkpoint after implementation. Do NOT invoke for PR-prose
   review, b-agentic repository or design-conformance audits, UI/design
   review, plan review, or research synthesis review. Routing signals: code
   review, review diff, review my diff, review changes, review these
-  changes, working tree diff, pre-PR, "what would a reviewer".
+  changes, working tree diff, pre-PR, "what would a architect".
 ---
 
 <!-- Generated from skills/registry.yaml and skills/b-review/prompt.md. Edit those sources, not this file. -->
@@ -18,7 +18,7 @@ Independently review a frozen changed-code candidate for blockers, regressions, 
 ## When to use
 
 - The user requests changed-code review.
-- An implementer froze a candidate that needs its independent gate.
+- An executor froze a candidate that needs its independent gate.
 
 ## When NOT to use
 
@@ -33,10 +33,10 @@ Independently review a frozen changed-code candidate for blockers, regressions, 
 
 ## Steps
 
-1. Confirm the baseline, compatible reviewer identity, and exact candidate snapshot. It must cover tracked plus relevant untracked/derived content; do not claim requirements coverage without a baseline. When an implementer sends this candidate handoff through `intercom`, treat it as the review trigger and begin **b-review** automatically rather than waiting for another prompt.
+1. Confirm the baseline, compatible architect identity, and exact candidate snapshot. It must cover tracked plus relevant untracked/derived content; do not claim requirements coverage without a baseline. When an executor sends this candidate handoff through `intercom`, treat it as the review trigger and begin **b-review** automatically rather than waiting for another prompt.
 2. Use `rtk git status --short`, metadata-only path lists, and targeted non-protected diffs. Read repository context only when it materially affects a finding.
-3. Independently assess the actual diff, acceptance, required check outcomes and freshness, edge cases, security, operability, and residual risk. Check that the solution choice is proportionate to the plan's quality criteria and project conventions; do not turn every review into an architecture report. A skipped or failed required check, changed snapshot, wrong reviewer, or material gap cannot be ready.
-4. Bounded read-only research may substantiate a specific finding only. Keep the repository review read-only: do not edit, patch, run generators/fixers, or otherwise mutate the worktree. Before reporting review completion, automatically return the structured disposition and findings for every disposition (`NEEDS FIXES`, `READY FOR PR`, or `READY WITH FOLLOW-UPS`) through `intercom` to the implementer session in the same CWD: use `reply` for the active review request, or `send` to that session when no active request exists. Do not provision a session; report a coordination gap if the implementer session or intercom is unavailable.
+3. Independently assess the actual diff, acceptance, required check outcomes and freshness, edge cases, security, operability, and residual risk. Check that the solution choice is proportionate to the plan's quality criteria and project conventions; do not turn every review into an architecture report. A skipped or failed required check, changed snapshot, wrong architect, or material gap cannot be ready.
+4. Bounded read-only research may substantiate a specific finding only. Keep the repository review read-only: do not edit, patch, run generators/fixers, or otherwise mutate the worktree. Before reporting review completion, automatically return the structured disposition and findings for every disposition (`NEEDS FIXES`, `READY FOR PR`, or `READY WITH FOLLOW-UPS`) through `intercom` to the executor session in the same CWD: use `reply` for the active review request, or `send` to that session when no active request exists. Do not provision a session; report a coordination gap if the executor session or intercom is unavailable.
 5. Report blocking findings with location, evidence, impact, violated baseline, minimal correction, and regression check. For `NEEDS FIXES`, name the next owner (`b-frontend`, `b-implement`, `b-test`, or `b-refactor`) where applicable. Corrections must return as a reverified, frozen candidate for another review.
 
 ## Output format

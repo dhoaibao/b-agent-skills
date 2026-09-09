@@ -128,8 +128,8 @@ prompt_regression_contracts = {
     ],
     "b-plan": ["candidate-review gate", "tracked plus relevant untracked/derived snapshot"],
     "b-research": ["resolved lockfiles", "go.mod"],
-    "b-implement": ["shared explicit implementer-role profile", "standalone **Off** mode does not initiate intercom review", "active implementer role initiates a handoff", "let the implementer-role profile send a fresh snapshot and review request"],
-    "b-review": ["frozen changed-code candidate", "begin **b-review** automatically", "automatically return the structured disposition and findings", "every disposition", "implementer session in the same CWD", "intercom", "coordination gap"],
+    "b-implement": ["shared explicit executor-role profile", "standalone **Off** mode does not initiate intercom review", "active executor role initiates a handoff", "let the executor-role profile send a fresh snapshot and review request"],
+    "b-review": ["frozen changed-code candidate", "begin **b-review** automatically", "automatically return the structured disposition and findings", "every disposition", "executor session in the same CWD", "intercom", "coordination gap"],
     "b-agentic-audit": [
         "Existing source/design conformance",
         "Whole-project and first-party-extension health",
@@ -405,9 +405,9 @@ for relative_path, markers in B_INIT_GUIDANCE_REGRESSION["anchors"].items():
 INTERACTIVE_DECISION_REGRESSION = {
     "observed_failure": "Material questions or notifications could bypass the explicit role contract.",
     "anchors": {
-        "references/kernel.template.md": ["Interactive, user-facing material decisions or blockers use installed `ask_user_question`", "Implementer calls surface a fixed privacy-safe"],
+        "references/kernel.template.md": ["Interactive, user-facing material decisions or blockers use installed `ask_user_question`", "Executor calls surface a fixed privacy-safe"],
         "pi/extensions/b-agentic-support/role.ts": ["Work directly with the user", "ask_user_question", "No automatic commit or push"],
-        "pi/extensions/b-agentic-planner-notify.ts": ["tool_call", "ask_user_question", "User input needed", "getRole() !== \"implementer\""],
+        "pi/extensions/b-agentic-executor-notify.ts": ["tool_call", "ask_user_question", "User input needed", "getRole() !== \"executor\""],
     },
 }
 for relative_path, markers in INTERACTIVE_DECISION_REGRESSION["anchors"].items():
@@ -714,7 +714,7 @@ else:
         else:
             role_ids.append(scenario_id)
         role = scenario.get("role")
-        if role not in {"off", "implementer", "reviewer"}:
+        if role not in {"off", "executor", "architect"}:
             errors.append(f"{label} has unknown role {role!r}")
         else:
             covered_roles.add(role)
@@ -729,8 +729,8 @@ else:
                 errors.append(f"{label} {field} must be a non-empty string array")
     if len(role_ids) != len(set(role_ids)):
         errors.append(f"{rel(roles_path)}: scenario ids must be unique")
-    if covered_roles != {"off", "implementer", "reviewer"}:
-        errors.append(f"{rel(roles_path)}: scenarios must cover Off, implementer, and reviewer")
+    if covered_roles != {"off", "executor", "architect"}:
+        errors.append(f"{rel(roles_path)}: scenarios must cover Off, executor, and architect")
 
 init_guidance_path = ROOT / "tests" / "behavior" / "init-guidance.json"
 init_guidance_fixture = load_json(init_guidance_path)
@@ -1249,9 +1249,10 @@ if _forbidden_codegraph_gates(
     errors.append("CodeGraph gate regression self-test rejected corrected guidance")
 
 for intercom_marker in [
-    "b-agentic defaults to Off", "select roles with `/b-role` or `pi --b-role`", "implementer is the sole user-facing worktree writer", "independent prompt-governed read-only gate", "compatible same-CWD peers",
-    "After completing implementation and required checks in explicit implementer role, immediately and before any final task response, automatically request a frozen-candidate `b-review` through `intercom` from the reviewer session in the same CWD",
-    "before reporting review completion, automatically returns the structured disposition and findings (including `NEEDS FIXES`, `READY FOR PR`, or `READY WITH FOLLOW-UPS`) through `intercom` to the implementer session in the same CWD",
+    "b-agentic defaults to Off", "select roles with `/b-role` or `pi --b-role`", "Executor is the sole user-facing worktree writer", "independent prompt-governed read-only gate", "compatible same-CWD peers",
+    "After a user-approved `b-plan`, the Architect automatically sends the Executor a compact approved-plan handoff through `intercom`",
+    "After completing implementation and required checks in explicit executor role, immediately and before any final task response, automatically request a frozen-candidate `b-review` through `intercom` from the architect session in the same CWD",
+    "before reporting review completion, automatically returns the structured disposition and findings (including `NEEDS FIXES`, `READY FOR PR`, or `READY WITH FOLLOW-UPS`) through `intercom` to the executor session in the same CWD",
 ]:
     if intercom_marker not in kernel_template:
         errors.append(
@@ -1270,10 +1271,11 @@ for intercom_marker in [
     "exact unchanged snapshot",
     "READY WITH FOLLOW-UPS",
     "No automatic commit or push",
+    "automatically send the user-approved plan handoff through intercom",
     "automatically request independent b-review through intercom",
     "automatically return the structured disposition and findings",
-    "reviewer session in the same CWD",
-    "implementer session in the same CWD",
+    "architect session in the same CWD",
+    "executor session in the same CWD",
 # generated:role-prompt-markers:shared:end
 ]:
     if intercom_marker not in role_prompt:

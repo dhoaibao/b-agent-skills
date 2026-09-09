@@ -22,7 +22,7 @@ export type CandidateGateResult = {
   reason?:
     | "missing-baseline"
     | "snapshot-changed"
-    | "wrong-reviewer"
+    | "wrong-architect"
     | "required-check-missing"
     | "required-check-failed"
     | "needs-fixes"
@@ -56,16 +56,16 @@ export function createCandidateSnapshot(
 export function evaluateCandidateGate(
   baseline: CandidateSnapshot | undefined,
   current: CandidateSnapshot,
-  reviewerId: string | undefined,
-  expectedReviewerId: string | undefined,
+  architectId: string | undefined,
+  expectedArchitectId: string | undefined,
   disposition: ReviewDisposition | undefined,
   followUpsAccepted = false,
 ): CandidateGateResult {
   if (!baseline) return { eligible: false, reason: "missing-baseline" };
   if (baseline.identity !== current.identity)
     return { eligible: false, reason: "snapshot-changed" };
-  if (!reviewerId || reviewerId !== expectedReviewerId)
-    return { eligible: false, reason: "wrong-reviewer" };
+  if (!architectId || architectId !== expectedArchitectId)
+    return { eligible: false, reason: "wrong-architect" };
   const required = baseline.checks.filter((check) => check.required);
   if (required.length === 0)
     return { eligible: false, reason: "required-check-missing" };

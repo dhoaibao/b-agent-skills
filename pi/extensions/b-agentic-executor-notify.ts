@@ -1,4 +1,4 @@
-/** Legacy filename retained; privacy-safe implementer attention notifications. */
+/** Privacy-safe Executor attention notifications. */
 import type {
   AgentEndEvent,
   ExtensionAPI,
@@ -115,11 +115,11 @@ export default function bAgenticRoleNotify(pi: ExtensionAPI): void {
   });
   pi.on("agent_end", ({ messages }) => {
     taskCompleted =
-      getRole() === "implementer" && hasTaskCompleteSignal(messages);
+      getRole() === "executor" && hasTaskCompleteSignal(messages);
   });
   pi.on("tool_call", async (event: ToolCallEvent, ctx) => {
     if (
-      getRole() !== "implementer" ||
+      getRole() !== "executor" ||
       !ctx.hasUI ||
       event.toolName !== "ask_user_question"
     )
@@ -132,7 +132,7 @@ export default function bAgenticRoleNotify(pi: ExtensionAPI): void {
     );
   });
   pi.on("agent_settled", async (_event, ctx) => {
-    if (!taskCompleted || getRole() !== "implementer" || !ctx.hasUI) return;
+    if (!taskCompleted || getRole() !== "executor" || !ctx.hasUI) return;
     taskCompleted = false;
     await notifyDesktop(
       (command, args, options) => pi.exec(command, args, options),
