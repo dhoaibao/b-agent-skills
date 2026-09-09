@@ -18,7 +18,7 @@ b-agentic and Pi are one integrated personal workflow product with Pi as the shi
 - **Usable:** retain direct, predictable user paths.
   This decision applies to future b-agentic repository source, docs, tooling, and CI changes, including skills, installers, extensions, configuration, validators, and tests; it does not apply to the installed runtime kernel or create a generic runtime policy. Necessary compatibility/security fixes remain in scope, so slimness never demands cosmetic reduction.
   Evidence: `AGENTS.md`, `README.md`, `REFERENCE.md`, `tooling/validate/decision_design.py`.
-- **Measured kernel limit exception:** Set the kernel byte ceiling to 12,500 (from 12,000) so required frozen-review completion and disposition guidance remains intact. This scope is limited to the always-loaded `references/kernel.template.md`; the 120-line cap and byte check remain enforced by `tooling/validate/suite_audit.py`, and the current kernel is 95 lines/12,483 bytes.
+- **Measured kernel limit exception:** Set the kernel byte ceiling to 12,800 (from 12,500, previously 12,000) so required frozen-review completion and disposition guidance and the kernel-owned response-shape rule remain intact. This scope is limited to the always-loaded `references/kernel.template.md`; the 120-line cap and byte check remain enforced by `tooling/validate/suite_audit.py`, and the current kernel is 95 lines/12,714 bytes. Each raise is a measured exception for a guarantee that cannot be expressed elsewhere, not a standing allowance.
 
 ## Product boundary and architecture
 
@@ -100,6 +100,20 @@ stays inactive until explicitly reselected; old preferences map by role only.
 Evidence: `references/kernel.template.md`, `skills/registry.yaml`,
 `skills/b-plan/prompt.md`, `skills/b-review/prompt.md`,
 `pi/extensions/b-agentic-support/role.ts`, `pi/tests/smoke.sh`.
+
+### Response shape
+
+The kernel constrains response shape, not only length: answer or next action
+first, no preamble, self-narration, or closing pleasantries, numbered
+multi-step instructions, and one concrete next step while work remains. Shape
+is kernel-owned because it applies to every skill; per-skill `Output format`
+sections stay content contracts and do not restate it. Skill output contracts,
+required final-line verdicts, and role markers outrank the shape rule, so
+`b-review` still ends with exactly one verdict line and the implementer marker
+stays immediately before the final response.
+
+Evidence: `references/kernel.template.md`, `skills/b-review/prompt.md`,
+`tooling/validate/behavior.py`.
 
 ## Safety and approval design
 

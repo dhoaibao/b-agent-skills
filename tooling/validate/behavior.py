@@ -46,6 +46,21 @@ KERNEL_CONSOLIDATION_REGRESSION = {
     ),
 }
 
+# Regression: "Keep concise" constrained length but not shape, so responses
+# could bury the answer under preamble, narration, and closing pleasantries
+# while still passing every structural check.
+OUTPUT_SHAPE_REGRESSION = {
+    "observed_failure": "The kernel bounded response length but not response shape, and no clause outranked it for fixed skill output contracts.",
+    "intended_behavior": "The kernel requires answer-first, preamble-free, numbered multi-step output with one concrete next step, and yields to skill output contracts, final-line verdicts, and role markers.",
+    "required_clauses": (
+        "answer or next action first",
+        "no preamble, narration, or closers",
+        "Number multi-step instructions",
+        "end with one concrete next step while work remains",
+        "Skill output contracts, final-line verdicts, and role markers outrank this shape",
+    ),
+}
+
 # Regression: unscoped Git diffs could expose protected content without a
 # literal path token, and RTK guidance must not weaken that protection.
 SHELL_POLICY_REGRESSION = {
@@ -510,6 +525,14 @@ def validate_kernel_consolidation_regression(errors: list[str]) -> None:
     )
 
 
+def validate_output_shape_regression(errors: list[str]) -> None:
+    validate_clause_regression(
+        "output shape regression",
+        OUTPUT_SHAPE_REGRESSION,
+        errors,
+    )
+
+
 def validate_shell_policy_regression(errors: list[str]) -> None:
     validate_clause_regression(
         "shell policy regression",
@@ -605,6 +628,7 @@ def main() -> int:
 
     validate_runtime_contract(skills, errors)
     validate_kernel_consolidation_regression(errors)
+    validate_output_shape_regression(errors)
     validate_shell_policy_regression(errors)
     validate_intercom_delegation_regression(errors)
     validate_cross_skill_contracts(errors)

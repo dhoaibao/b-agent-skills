@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog 2.0.0](https://keepachangelog.com/en/2.
 and this project adheres to Calendar Versioning: `vYYYY.MM.DD`, with one release
 section per date and same-day changes aggregated in that section.
 
+## [v2026.09.09] - 2026-09-09
+
+### Added
+
+- Shape every agent response answer-first: no preamble, narration, or closing pleasantries, numbered multi-step instructions, and one concrete next step while work remains, with skill output contracts, final-line verdicts, and role markers still taking precedence.
+
+### Changed
+
+- Raise the workflow kernel's measured byte ceiling to 12,800 so the response-shape guidance fits, keeping the 120-line slimness guard and documenting the exception as bounded rather than a standing allowance.
+
 ## [v2026.09.08] - 2026-09-08
 
 ### Changed
