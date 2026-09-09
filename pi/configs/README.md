@@ -24,7 +24,10 @@ see the [operational reference](../../REFERENCE.md).
 The installer manages the b-agentic files and caches under the Pi agent
 directory while preserving unrelated files, configuration, and symlinks. User
 `~/.pi/agent/AGENTS.md`, `~/.pi/agent/mcp.json`, and Pi settings remain
-owner-controlled; MCP configuration is merged rather than replaced.
+owner-controlled; MCP configuration is merged rather than replaced. The template
+MCP configuration enables headless, isolated Playwright with the testing
+capability (`--caps=testing`), providing locator generation and state
+verification tools (`browser_generate_locator`, `browser_verify_*`).
 
 Architect/architect and Executor/executor role selection and coordination are
 prompt-governed; the role extensions preserve normal Pi tools and shared approval policy.

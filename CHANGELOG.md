@@ -11,6 +11,8 @@ section per date and same-day changes aggregated in that section.
 ### Added
 
 - Shape every agent response answer-first: no preamble, narration, or closing pleasantries, numbered multi-step instructions, and one concrete next step while work remains, with skill output contracts, final-line verdicts, and role markers still taking precedence.
+- Notify the executor when waiting on blocking extension UI prompts via `ui_prompt_start`, while coalescing nested prompts and suppressing redundant notifications for active `ask_user_question` tool calls.
+- Classify Playwright MCP testing capability tools: enable `--caps=testing` in the template launcher, trust `browser_generate_locator` as read-only, and permit `browser_verify_*` verification operations with validated arguments.
 
 ### Changed
 
@@ -19,10 +21,15 @@ section per date and same-day changes aggregated in that section.
 - Raise the workflow kernel's measured byte ceiling to 12,800 so the response-shape guidance fits, keeping the 120-line slimness guard and documenting the exception as bounded rather than a standing allowance.
 - Keep concise routing intents in the always-loaded kernel while rendering detailed trigger vocabulary into active skill descriptions, with validation that each routing signal remains runtime-visible.
 - Simplify and align canonical skill guidance, including browser evidence, review handback, capability activation, MCP scripting limits, and local repository Q&A routing.
+- Document that shell command decisions govern the `bash` tool while Windows `powershell` falls to fail-closed custom-tool handling, and note that schema probing covers only managed MCP servers while template specifications resolve latest via `bunx`.
+- Update `b-browser` guidance to reflect Playwright verification and locator-generation tools alongside existing snapshot and inspection commands.
 
 ### Fixed
 
 - Align repository documentation, skills, and validation with current architecture boundaries: record `b-diagram`'s executable payload boundary and include it in the build phase catalog, drop the stale measured kernel byte figure, correct role-article phrasing, prune obsolete writer rules from `b-debug`, and clean up unused script variables.
+- Allowlist the first-party `todo` task tool in specialized support policy so task list operations do not trigger generic custom-tool approval prompts or fail closed without UI.
+- Support `pi-intercom` 0.13.0 schema additions: permit `focus` and non-spawning `openProjectPaneIfMissing: false` in auto-approved Intercom calls while approval-gating session spawning.
+- Update pinned Pi developer dependencies `@earendil-works/pi-coding-agent` and `@earendil-works/pi-tui` to 0.85.1 and verify resolver compatibility.
 
 ## [v2026.09.08] - 2026-09-08
 

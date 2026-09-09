@@ -150,6 +150,10 @@ Evidence: `skills/registry.yaml`, `skills/b-diagram/prompt.md`,
   writes and edits are denied. Symlink-resolved paths, directory-wide
   operations, and outside-project paths retain the same project-confined,
   fail-closed boundary.
+- `commandDecision` governs the `bash` tool. Pi's optional Windows `powershell`
+  tool (included in Pi's `ToolName` union) is out of scope and falls to the
+  generic fail-closed custom-tool gate, so the Git deny-list does not apply to
+  it.
 
 Approval is a policy guard, not a process sandbox: repository-controlled build
 and test tools can execute code. Use Pi sandboxing or an isolated environment for
@@ -196,6 +200,11 @@ snapshot/find, focused console or network evidence, requested screenshots, and
 cleanup in that order. Evidence bundles stay below an explicitly approved
 directory and record requested state and cleanup; screenshots are reported only
 when collected. Unsafe browser mutations remain approval-gated.
+Playwright testing capability tools (`browser_verify_*`) are classified
+`conditional-read` rather than external mutations: although upstream flags them
+non-read-only because they auto-wait and perform assertion actions, their
+observable outcome is state verification without persistent side effects when
+constrained to safe argument schemas.
 
 UI direction is contextual rather than a generic preset. `b-design` and
 `b-frontend` make a task-conditional design read using repository and product

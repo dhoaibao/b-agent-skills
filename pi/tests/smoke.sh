@@ -647,6 +647,10 @@ expect(t.isAutoApprovedIntercomCall('intercom', { action: 'send', to: 'peer', me
 expect(t.isAutoApprovedIntercomCall('intercom', { action: 'unknown' }) === false, 'unknown Intercom actions remain approval-gated');
 expect(t.isAutoApprovedIntercomCall('intercom', { action: 'cancel', messageId: 1 }) === false, 'invalid Intercom optional field types remain approval-gated');
 expect(t.isAutoApprovedIntercomCall('intercom', { action: 'reply', replyTo: 'message-1' }) === true, 'targetless schema-valid Intercom replies remain auto-approved');
+expect(t.isAutoApprovedIntercomCall('intercom', { action: 'send', cwd: '/x', focus: true }) === true, 'focus:true on Intercom call must be auto-approved');
+expect(t.isAutoApprovedIntercomCall('intercom', { action: 'send', cwd: '/x', focus: false }) === true, 'focus:false on Intercom call must be auto-approved');
+expect(t.isAutoApprovedIntercomCall('intercom', { action: 'send', cwd: '/x', openProjectPaneIfMissing: false }) === true, 'openProjectPaneIfMissing:false on Intercom call must be auto-approved');
+expect(t.isAutoApprovedIntercomCall('intercom', { action: 'send', cwd: '/x', openProjectPaneIfMissing: true }) === false, 'openProjectPaneIfMissing:true on Intercom call must remain approval-gated');
 
 expect(typeof toolCallHandler === 'function', 'permission extension must register a tool_call handler');
 expect(typeof mcpApprovalHandler === 'function', 'permission extension must register the MCP approval broker');
@@ -807,6 +811,54 @@ await handlers.agent_settled({}, roleContext);
 const taskCompletionCommand = executedCommands.at(-1);
 expect(executedCommands.length === notificationCommandStart + 2 && taskCompletionCommand?.args.some((arg) => String(arg).includes('Task complete')), 'post-review task completion must notify the executor once');
 expect(plannerNotifyTest.hasTaskCompleteSignal([{ role: 'assistant', content: [{ type: 'text', text: 'B_AGENTIC_TASK_COMPLETE in prose' }], timestamp: 1 }]) === false, 'only standalone task-completion signals may notify');
+const promptNotificationStart = executedCommands.length;
+// Outside a turn (e.g. user-initiated slash-command prompt such as /b-role, /b-auto, /b-sync) must not notify
+await handlers.ui_prompt_start({ type: 'ui_prompt_start', reason: 'ui_prompt', kind: 'select', title: 'Select b-agentic role' }, roleContext);
+expect(executedCommands.length === promptNotificationStart, 'ui_prompt_start outside an agent turn must produce zero notifications');
+await handlers.ui_prompt_end({ type: 'ui_prompt_end', reason: 'ui_prompt', kind: 'select', title: 'Select b-agentic role' }, roleContext);
+
+// Start an agent turn
+await handlers.agent_start({});
+
+await handlers.ui_prompt_start({ type: 'ui_prompt_start', reason: 'ui_prompt', kind: 'confirm' }, roleContext);
+expect(executedCommands.length === promptNotificationStart + 1, 'permissions ui_prompt_start inside turn must notify once with UI');
+const promptNotificationCommand = executedCommands.at(-1);
+expect(promptNotificationCommand?.args.some((arg) => String(arg).includes('User input needed')), 'prompt notification must use User input needed');
+await handlers.ui_prompt_start({ type: 'ui_prompt_start', reason: 'ui_prompt', kind: 'confirm' }, roleContext);
+expect(executedCommands.length === promptNotificationStart + 1, 'nested ui_prompt_start within same waiting span must coalesce');
+await handlers.ui_prompt_end({ type: 'ui_prompt_end', reason: 'ui_prompt', kind: 'confirm' }, roleContext);
+
+await handlers.tool_call({ toolName: 'ask_user_question', toolCallId: 'executor-input-2', input: {} }, roleContext);
+expect(executedCommands.length === promptNotificationStart + 2, 'ask_user_question tool_call must notify');
+// Span 1 of questionnaire must be suppressed
+await handlers.ui_prompt_start({ type: 'ui_prompt_start', reason: 'ui_prompt', kind: 'custom' }, roleContext);
+expect(executedCommands.length === promptNotificationStart + 2, 'first ui_prompt_start during ask_user_question must be suppressed');
+await handlers.ui_prompt_end({ type: 'ui_prompt_end', reason: 'ui_prompt', kind: 'custom' }, roleContext);
+// Span 2 of questionnaire (e.g. multi-question RPC fallback) must also be suppressed
+await handlers.ui_prompt_start({ type: 'ui_prompt_start', reason: 'ui_prompt', kind: 'select' }, roleContext);
+expect(executedCommands.length === promptNotificationStart + 2, 'subsequent ui_prompt_start in same ask_user_question tool execution must remain suppressed');
+await handlers.ui_prompt_end({ type: 'ui_prompt_end', reason: 'ui_prompt', kind: 'select' }, roleContext);
+await handlers.tool_execution_end({}, roleContext);
+
+await handlers.ui_prompt_start({ type: 'ui_prompt_start', reason: 'ui_prompt', kind: 'confirm' }, { ...roleContext, hasUI: false });
+expect(executedCommands.length === promptNotificationStart + 2, 'headless ui_prompt_start must not notify');
+await handlers.ui_prompt_end({ type: 'ui_prompt_end', reason: 'ui_prompt', kind: 'confirm' }, { ...roleContext, hasUI: false });
+
+await commands['b-role'].handler('architect', roleContext);
+await handlers.ui_prompt_start({ type: 'ui_prompt_start', reason: 'ui_prompt', kind: 'confirm' }, roleContext);
+expect(executedCommands.length === promptNotificationStart + 2, 'architect ui_prompt_start must not notify');
+await handlers.ui_prompt_end({ type: 'ui_prompt_end', reason: 'ui_prompt', kind: 'confirm' }, roleContext);
+
+await commands['b-role'].handler('off', roleContext);
+await handlers.ui_prompt_start({ type: 'ui_prompt_start', reason: 'ui_prompt', kind: 'confirm' }, roleContext);
+expect(executedCommands.length === promptNotificationStart + 2, 'off role ui_prompt_start must not notify');
+await handlers.ui_prompt_end({ type: 'ui_prompt_end', reason: 'ui_prompt', kind: 'confirm' }, roleContext);
+
+await commands['b-role'].handler('executor', roleContext);
+await handlers.agent_end({ messages: [] });
+await handlers.ui_prompt_start({ type: 'ui_prompt_start', reason: 'ui_prompt', kind: 'confirm' }, roleContext);
+expect(executedCommands.length === promptNotificationStart + 2, 'ui_prompt_start after agent_end must produce zero notifications');
+await handlers.ui_prompt_end({ type: 'ui_prompt_end', reason: 'ui_prompt', kind: 'confirm' }, roleContext);
 roleChannelRegistration.onReady({
   publish() {},
   listSessions: async () => [
@@ -1498,11 +1550,14 @@ for (const command of ['bun run untrusted.ts', 'bunx untrusted-package', 'deno r
   expect(t.commandDecision(`rtk ${command}`, noModernTools).decision === 'ask', `rtk-wrapped ${command} must retain opaque-execution approval`);
 }
 expect(t.SPECIALIZED_TOOLS.has('recall'), 'recall must be a first-party specialized tool');
+expect(t.SPECIALIZED_TOOLS.has('todo'), 'todo must be a first-party specialized tool');
 expect(t.SPECIALIZED_TOOLS.has('ask_user_question'), 'ask_user_question must be a first-party specialized tool');
 expect(t.SPECIALIZED_TOOLS.has('mcpScript'), 'mcpScript must be a trusted container whose nested calls retain policy');
 expect(t.isMcpOrCustomTool('recall', { id: 'aaaaaaaaaaaa' }) === false, 'recall must not require custom-tool approval');
+expect(t.isMcpOrCustomTool('todo', { action: 'list' }) === false, 'todo must not require custom-tool approval');
 const genericApprovalToolCases = [
   { name: 'ask_user_question', input: { questions: [] }, gated: false },
+  { name: 'contact_supervisor', input: { message: 'status' }, gated: true },
   { name: 'lsp_diagnostics', input: { paths: ['README.md'] }, gated: true },
   { name: 'lsp_diagnostics', input: {}, gated: true },
   { name: 'lsp_fix', input: { path: 'README.md' }, gated: true },

@@ -39,7 +39,7 @@
     },
     "playwright": {
       "command": "bunx",
-      "args": ["@playwright/mcp", "--isolated", "--headless"],
+      "args": ["@playwright/mcp", "--isolated", "--headless", "--caps=testing"],
       "env": {},
       "lifecycle": "lazy"
     }

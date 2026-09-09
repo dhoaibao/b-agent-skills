@@ -107,13 +107,22 @@ export function hasTaskCompleteSignal(
 }
 export default function bAgenticRoleNotify(pi: ExtensionAPI): void {
   let taskCompleted = false;
+  let inTurn = false;
+  let promptSpanActive = false;
+  let askUserQuestionNotified = false;
   pi.on("session_start", (_event, ctx) => {
     setInteractiveNotificationTitle(ctx);
   });
   pi.on("agent_start", () => {
+    inTurn = true;
     taskCompleted = false;
+    promptSpanActive = false;
+    askUserQuestionNotified = false;
   });
   pi.on("agent_end", ({ messages }) => {
+    inTurn = false;
+    promptSpanActive = false;
+    askUserQuestionNotified = false;
     taskCompleted = getRole() === "executor" && hasTaskCompleteSignal(messages);
   });
   pi.on("tool_call", async (event: ToolCallEvent, ctx) => {
@@ -123,6 +132,7 @@ export default function bAgenticRoleNotify(pi: ExtensionAPI): void {
       event.toolName !== "ask_user_question"
     )
       return;
+    askUserQuestionNotified = true;
     await notifyDesktop(
       (command, args, options) => pi.exec(command, args, options),
       USER_INPUT_NOTIFICATION,
@@ -130,7 +140,28 @@ export default function bAgenticRoleNotify(pi: ExtensionAPI): void {
       ctx.cwd,
     );
   });
+  pi.on("ui_prompt_start", async (_event, ctx) => {
+    if (!inTurn || promptSpanActive || askUserQuestionNotified) return;
+    promptSpanActive = true;
+    if (getRole() !== "executor" || !ctx.hasUI) return;
+    await notifyDesktop(
+      (command, args, options) => pi.exec(command, args, options),
+      USER_INPUT_NOTIFICATION,
+      process.platform,
+      ctx.cwd,
+    );
+  });
+  pi.on("ui_prompt_end", () => {
+    promptSpanActive = false;
+  });
+  pi.on("tool_execution_end", () => {
+    promptSpanActive = false;
+    askUserQuestionNotified = false;
+  });
   pi.on("agent_settled", async (_event, ctx) => {
+    inTurn = false;
+    promptSpanActive = false;
+    askUserQuestionNotified = false;
     if (!taskCompleted || getRole() !== "executor" || !ctx.hasUI) return;
     taskCompleted = false;
     await notifyDesktop(

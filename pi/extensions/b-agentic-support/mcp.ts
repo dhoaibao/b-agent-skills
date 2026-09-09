@@ -8,7 +8,19 @@ import { isProtectedPath, isProtectedLocalPath, SPECIALIZED_TOOLS } from "./shel
 import { isAutoModeEnabled } from "./state.ts";
 
 export const INTERCOM_ACTIONS = new Set(["list", "list-cwd", "send", "ask", "reply", "pending", "status", "cancel"]);
-export const INTERCOM_FIELDS = new Set(["action", "to", "message", "attachments", "replyTo", "messageId", "supersedes", "retryOf", "cwd"]);
+export const INTERCOM_FIELDS = new Set([
+  "action",
+  "to",
+  "message",
+  "attachments",
+  "replyTo",
+  "messageId",
+  "supersedes",
+  "retryOf",
+  "cwd",
+  "focus",
+  "openProjectPaneIfMissing",
+]);
 export const INTERCOM_ATTACHMENT_TYPES = new Set(["file", "snippet", "context"]);
 const INTERCOM_ATTACHMENT_FIELDS = new Set(["type", "name", "content", "language"]);
 
@@ -24,6 +36,8 @@ export function isAutoApprovedIntercomCall(toolName: string, input: unknown): bo
     if (!INTERCOM_FIELDS.has(key)) return false;
     if (key === "action") return typeof value === "string" && INTERCOM_ACTIONS.has(value);
     if (key === "attachments") return Array.isArray(value) && value.every(isValidIntercomAttachment);
+    if (key === "focus") return typeof value === "boolean";
+    if (key === "openProjectPaneIfMissing") return value === false;
     return typeof value === "string";
   });
 }
@@ -60,7 +74,11 @@ export const MCP_CONDITIONAL_TOOLS = new Set([
   "playwright:browser_network_request",
   "playwright:browser_network_requests",
   "playwright:browser_snapshot",
-  "playwright:browser_tabs"
+  "playwright:browser_tabs",
+  "playwright:browser_verify_element_visible",
+  "playwright:browser_verify_list_visible",
+  "playwright:browser_verify_text_visible",
+  "playwright:browser_verify_value"
 ]);
 
 /** Known arguments for conditional operations, generated from the canonical policy. */
@@ -145,6 +163,24 @@ export const MCP_CONDITIONAL_ARGUMENTS: Record<string, readonly string[]> = {
     "action",
     "index",
     "url"
+  ],
+  "playwright:browser_verify_element_visible": [
+    "accessibleName",
+    "role"
+  ],
+  "playwright:browser_verify_list_visible": [
+    "element",
+    "items",
+    "target"
+  ],
+  "playwright:browser_verify_text_visible": [
+    "text"
+  ],
+  "playwright:browser_verify_value": [
+    "element",
+    "target",
+    "type",
+    "value"
   ]
 };
 
@@ -186,10 +222,15 @@ export const FIRECRAWL_TRUSTED_TOOLS = new Set([
 export const PLAYWRIGHT_TRUSTED_TOOLS = new Set([
   "browser_console_messages",
   "browser_find",
+  "browser_generate_locator",
   "browser_network_request",
   "browser_network_requests",
   "browser_snapshot",
   "browser_tabs",
+  "browser_verify_element_visible",
+  "browser_verify_list_visible",
+  "browser_verify_text_visible",
+  "browser_verify_value",
   "browser_wait_for"
 ]);
 // generated:mcp-runtime-policy:end
@@ -209,6 +250,10 @@ const PLAYWRIGHT_CONSOLE_MESSAGE_KEYS = new Set(["level", "all"]);
 const PLAYWRIGHT_NETWORK_REQUESTS_KEYS = new Set(["static", "filter"]);
 const PLAYWRIGHT_NETWORK_REQUEST_KEYS = new Set(["index", "part"]);
 const PLAYWRIGHT_TABS_KEYS = new Set(["action"]);
+const PLAYWRIGHT_VERIFY_ELEMENT_VISIBLE_KEYS = new Set(["accessibleName", "role"]);
+const PLAYWRIGHT_VERIFY_LIST_VISIBLE_KEYS = new Set(["element", "items", "target"]);
+const PLAYWRIGHT_VERIFY_TEXT_VISIBLE_KEYS = new Set(["text"]);
+const PLAYWRIGHT_VERIFY_VALUE_KEYS = new Set(["element", "target", "type", "value"]);
 
 export function normalizeServerId(value: string): string {
   return value.trim().toLowerCase().replace(/_/g, "-");
@@ -436,6 +481,22 @@ export function isConditionallyTrustedTool(server: string, base: string, input: 
 
   if (server === "playwright" && base === "browser_tabs") {
     return hasOnlyKeys(input, PLAYWRIGHT_TABS_KEYS) && input.action === "list";
+  }
+
+  if (server === "playwright" && base === "browser_verify_element_visible") {
+    return hasOnlyKeys(input, PLAYWRIGHT_VERIFY_ELEMENT_VISIBLE_KEYS);
+  }
+
+  if (server === "playwright" && base === "browser_verify_list_visible") {
+    return hasOnlyKeys(input, PLAYWRIGHT_VERIFY_LIST_VISIBLE_KEYS);
+  }
+
+  if (server === "playwright" && base === "browser_verify_text_visible") {
+    return hasOnlyKeys(input, PLAYWRIGHT_VERIFY_TEXT_VISIBLE_KEYS);
+  }
+
+  if (server === "playwright" && base === "browser_verify_value") {
+    return hasOnlyKeys(input, PLAYWRIGHT_VERIFY_VALUE_KEYS);
   }
 
   return false;

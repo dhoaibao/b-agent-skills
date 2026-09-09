@@ -141,7 +141,7 @@ def pi_server_status(server: str, config: dict) -> str:
     expected = {
         "brave-search": ["@brave/brave-search-mcp-server", "--transport", "stdio"],
         "firecrawl": ["firecrawl-mcp"],
-        "playwright": ["@playwright/mcp", "--isolated", "--headless"],
+        "playwright": ["@playwright/mcp", "--isolated", "--headless", "--caps=testing"],
     }[server]
     if normalized.command != "bunx" or normalized.args != expected:
         return f"blocked: invalid {server} launcher"

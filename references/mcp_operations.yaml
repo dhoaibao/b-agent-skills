@@ -116,7 +116,12 @@
         "browser_drag": "external-mutation",
         "browser_evaluate": "external-mutation",
         "browser_run_code_unsafe": "external-mutation",
-        "browser_handle_dialog": "external-mutation"
+        "browser_handle_dialog": "external-mutation",
+        "browser_generate_locator": "read-only",
+        "browser_verify_element_visible": "conditional-read",
+        "browser_verify_list_visible": "conditional-read",
+        "browser_verify_text_visible": "conditional-read",
+        "browser_verify_value": "conditional-read"
       }
     }
   },
@@ -166,6 +171,18 @@
     },
     "playwright:browser_tabs": {
       "known": ["action", "index", "url"]
+    },
+    "playwright:browser_verify_element_visible": {
+      "known": ["accessibleName", "role"]
+    },
+    "playwright:browser_verify_list_visible": {
+      "known": ["element", "items", "target"]
+    },
+    "playwright:browser_verify_text_visible": {
+      "known": ["text"]
+    },
+    "playwright:browser_verify_value": {
+      "known": ["element", "target", "type", "value"]
     }
   },
   "runtime_enforcement": {

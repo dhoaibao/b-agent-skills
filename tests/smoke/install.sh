@@ -901,7 +901,7 @@ legacy = {
 path.write_text(json.dumps({"mcpServers": {"playwright": legacy}}, indent=2) + "\n")
 PY
 		expect_install_status 0 "$sandbox" "$snapshot_repo"
-		assert_json_value "$mcp_path" "data['mcpServers']['playwright'] == {'command': 'bunx', 'args': ['@playwright/mcp', '--isolated', '--headless'], 'env': {}, 'lifecycle': 'lazy'}"
+		assert_json_value "$mcp_path" "data['mcpServers']['playwright'] == {'command': 'bunx', 'args': ['@playwright/mcp', '--isolated', '--headless', '--caps=testing'], 'env': {}, 'lifecycle': 'lazy'}"
 	done
 }
 
@@ -978,7 +978,7 @@ EOF
 	assert_contains "$doctor_log" 'brave-search: ready:'
 	assert_contains "$doctor_log" 'firecrawl: ready:'
 	assert_contains "$doctor_log" 'playwright: ready:'
-	assert_json_value "$sandbox/home/.pi/agent/mcp.json" "data['mcpServers']['playwright']['args'] == ['@playwright/mcp', '--isolated', '--headless']"
+	assert_json_value "$sandbox/home/.pi/agent/mcp.json" "data['mcpServers']['playwright']['args'] == ['@playwright/mcp', '--isolated', '--headless', '--caps=testing']"
 	assert_contains "$doctor_log" 'schema-probe: not run; live tool inventory is unverified'
 
 	python3 - "$sandbox/home/.pi/agent/mcp.json" <<'PY'

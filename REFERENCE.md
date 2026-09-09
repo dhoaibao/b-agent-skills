@@ -190,9 +190,16 @@ session has RTK. Use `--allow-degraded` to inspect status without failing.
 When live network/process activity is approved,
 `scripts/mcp-doctor.sh --probe-schemas` explicitly starts or connects to each
 configured server and compares its current tool inventory with the canonical
-operation policy. The doctor never acquires OAuth tokens. Run it after MCP package updates and before release candidates. Add `--suggestions` for human-readable review records and
-`--suggestions-json=<path>` for a machine-readable report; suggestion mode
-never edits policy or configuration.
+operation policy. The Playwright MCP server enables testing capabilities
+(`--caps=testing`), providing locator generation (`browser_generate_locator`)
+and state verification tools (`browser_verify_*`). The probe covers only the
+five managed servers; user-added servers (such as `serena` or other third-party
+tools) fail closed through generic custom-tool approval with no argument
+validation. Template MCP package specifications are unversioned, so `bunx`
+resolves latest at runtime. The doctor never acquires OAuth tokens. Run it
+after MCP package updates and before release candidates. Add `--suggestions`
+for human-readable review records and `--suggestions-json=<path>` for a
+machine-readable report; suggestion mode never edits policy or configuration.
 
 ## Capability contract and local status
 

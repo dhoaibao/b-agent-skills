@@ -18,7 +18,7 @@ Own real-browser, visual, screenshot, live UI, browser-session, and e2e evidence
 ## Tool guidance
 
 - `bash` - existing approved browser/e2e commands (`rtk playwright` when using the CLI runner).
-- `playwright` - approval-gated `browser_navigate` / interactions; then `browser_snapshot`, `browser_find`, `browser_console_messages`, `browser_network_requests` / `browser_network_request`; `browser_take_screenshot` only when requested (approval-gated local artifact).
+- `playwright` - approval-gated `browser_navigate` / interactions; then `browser_snapshot`, `browser_find`, `browser_generate_locator`, `browser_verify_element_visible` / `_list_visible` / `_text_visible` / `_value`, `browser_console_messages`, `browser_network_requests` / `browser_network_request`; `browser_take_screenshot` only when requested (approval-gated local artifact).
 - `codegraph` - select when a concrete repository-wide flow or impact question
   is central after a confirmed product failure and likely valuable; use an
   available index for that question and initialize an absent index only for

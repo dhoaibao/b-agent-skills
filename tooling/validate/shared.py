@@ -407,7 +407,7 @@ INTERACTIVE_DECISION_REGRESSION = {
     "anchors": {
         "references/kernel.template.md": ["Interactive, user-facing material decisions or blockers use installed `ask_user_question`", "Executor calls surface a fixed privacy-safe"],
         "pi/extensions/b-agentic-support/role.ts": ["Work directly with the user", "ask_user_question", "No automatic commit or push"],
-        "pi/extensions/b-agentic-executor-notify.ts": ["tool_call", "ask_user_question", "User input needed", "getRole() !== \"executor\""],
+        "pi/extensions/b-agentic-executor-notify.ts": ["tool_call", "ask_user_question", "ui_prompt_start", "User input needed", "getRole() !== \"executor\""],
     },
 }
 for relative_path, markers in INTERACTIVE_DECISION_REGRESSION["anchors"].items():
