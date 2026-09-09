@@ -40,7 +40,6 @@ Symptom, confirmed root cause, and evidence. Include the diagnosis handoff: targ
 ## Rules
 
 - Do not patch speculatively or edit product code.
-- When an edit anchor (oldText) fails to match, re-read the target region and re-anchor the edit from current content; never blind-retry the same anchor or widen context speculatively.
 - Do not bundle redesign or cleanup.
 - If no trustworthy feedback loop can be built, report what you tried and what artifact/access is needed instead of guessing.
 - Verify scratch cleanup before reporting success.

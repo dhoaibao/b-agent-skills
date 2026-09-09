@@ -19,7 +19,7 @@
       "skill": "b-implement",
       "observed_failure": "A writer relayed material questions or implementation through a coordinator.",
       "intended_behavior": "The executor is the sole user-facing writer and asks material questions directly.",
-      "prompt": "A scoped implementation has one material product decision. State who asks the user, who edits, and whether a architect implements it.",
+      "prompt": "A scoped implementation has one material product decision. State who asks the user, who edits, and whether an architect implements it.",
       "must": [
         "Executor asks the user directly",
         "Executor is the sole writer",
@@ -88,8 +88,8 @@
       ],
       "avoid": [
         "Wait for another user prompt",
-        "Invent or provision a architect",
-        "Claim review readiness without a architect"
+        "Invent or provision an architect",
+        "Claim review readiness without an architect"
       ]
     },
     {
@@ -336,7 +336,7 @@
       ],
       "avoid": [
         "Initiate intercom review in Off mode",
-        "Require a architect by default",
+        "Require an architect by default",
         "Ask for a redundant second commit approval"
       ]
     },

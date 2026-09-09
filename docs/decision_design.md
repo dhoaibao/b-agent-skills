@@ -18,7 +18,7 @@ b-agentic and Pi are one integrated personal workflow product with Pi as the shi
 - **Usable:** retain direct, predictable user paths.
   This decision applies to future b-agentic repository source, docs, tooling, and CI changes, including skills, installers, extensions, configuration, validators, and tests; it does not apply to the installed runtime kernel or create a generic runtime policy. Necessary compatibility/security fixes remain in scope, so slimness never demands cosmetic reduction.
   Evidence: `AGENTS.md`, `README.md`, `REFERENCE.md`, `tooling/validate/decision_design.py`.
-- **Measured kernel budget and routing metadata:** Keep the 12,800-byte ceiling and 120-line cap for the always-loaded `references/kernel.template.md`; `tooling/validate/suite_audit.py` enforces both. Registry routing intents remain in the kernel, while trigger vocabulary is rendered into each active skill description so routing detail does not consume global context. The current kernel is 95 lines/10,892 bytes. Any future limit raise remains a measured exception for a guarantee that cannot be expressed elsewhere, not a standing allowance.
+- **Measured kernel budget and routing metadata:** Keep the 12,800-byte ceiling and 120-line cap for the always-loaded `references/kernel.template.md`; `tooling/validate/suite_audit.py` enforces both. Registry routing intents remain in the kernel, while trigger vocabulary is rendered into each active skill description so routing detail does not consume global context. Any future limit raise remains a measured exception for a guarantee that cannot be expressed elsewhere, not a standing allowance.
 
 ## Product boundary and architecture
 
@@ -120,6 +120,14 @@ stays immediately before the final response.
 
 Evidence: `references/kernel.template.md`, `skills/b-review/prompt.md`,
 `tooling/validate/behavior.py`.
+
+### Skill payloads and diagram generation
+
+`b-diagram` is an executor-owned Build skill that produces validated, portable technical diagrams from explicit facts without inferring system topology or runtime behavior. It is the sole skill shipping an executable payload (`skills/b-diagram/diagram.py`) and schema (`skills/b-diagram/schema.json`) directly inside `skills/`, keeping artifact validation and self-contained HTML/SVG delivery local to the skill without external dependencies. Repository validation executes diagram self-tests alongside other skill and behavior checks.
+
+Evidence: `skills/registry.yaml`, `skills/b-diagram/prompt.md`,
+`skills/b-diagram/diagram.py`, `skills/b-diagram/schema.json`,
+`tooling/validate/run.sh`.
 
 ## Safety and approval design
 

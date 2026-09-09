@@ -219,7 +219,10 @@
         "Report the changes and verification directly",
         "Do not initiate automatic intercom review in Off mode"
       ],
-      "avoid": ["Select or invent a architect", "Claim a architect disposition"]
+      "avoid": [
+        "Select or invent an architect",
+        "Claim an architect disposition"
+      ]
     },
     {
       "id": "trivial-task-no-ceremony",

@@ -51,7 +51,6 @@ is_generator_coupled_source() {
 	esac
 }
 
-typescript_files=()
 typescript_lint_files=()
 python_files=()
 python_format_files=()
@@ -66,7 +65,6 @@ while IFS= read -r -d '' path; do
 	[ -f "$path" ] || continue
 	case "$path" in
 	*.ts|*.tsx)
-		typescript_files+=("$path")
 		if ! is_generated_delivery "$path"; then
 			typescript_lint_files+=("$path")
 			prettier_files+=("$path")

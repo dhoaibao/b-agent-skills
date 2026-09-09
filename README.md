@@ -42,7 +42,7 @@ safety, MCP, and coordination behavior.
 | Phase | Skills | Purpose |
 |---|---|---|
 | **Decide** | `b-plan`, `b-research`, `b-design`, `b-debug` | Resolve ambiguity, gather outside facts, diagnose runtime causes, or define a frontend standard. |
-| **Build** | `b-frontend`, `b-implement`, `b-init`, `b-refactor` | Make the smallest approved change. |
+| **Build** | `b-frontend`, `b-diagram`, `b-implement`, `b-init`, `b-refactor` | Make the smallest approved change. |
 | **Validate** | `b-test`, `b-browser`, `b-agentic-audit`, `b-review` | Confirm tests, browser evidence, repository conformance, and changed-code quality. |
 | **Ship** | `b-commit`, `b-pr-summary` | Create explicitly requested local commits or write PR copy from local history. |
 

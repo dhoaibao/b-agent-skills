@@ -6,7 +6,7 @@ description: >
   review, b-agentic repository or design-conformance audits, UI/design
   review, plan review, or research synthesis review. Routing signals: code
   review, review diff, review my diff, review changes, review these
-  changes, working tree diff, pre-PR, "what would a architect".
+  changes, working tree diff, pre-PR, "what would an architect".
 ---
 
 <!-- Generated from skills/registry.yaml and skills/b-review/prompt.md. Edit those sources, not this file. -->
