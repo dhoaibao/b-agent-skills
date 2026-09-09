@@ -4,7 +4,9 @@ description: >
   Four-dimension read-only b-agentic audit covering source/design
   conformance, whole-project and first-party-extension health, canonical
   skill/kernel quality, and currentness/MCP compatibility, with evidence
-  thresholds and approval-gated live probing.
+  thresholds and approval-gated live probing. Routing signals: b-agentic
+  audit, suite audit, maintainer audit, design-conformance audit,
+  decision-design drift.
 ---
 
 <!-- Generated from skills/registry.yaml and skills/b-agentic-audit/prompt.md. Edit those sources, not this file. -->
@@ -121,10 +123,7 @@ branch is synchronized with `origin`:
 8. Separate deterministic results from semantic findings. Order findings by
    severity and cite repository-relative paths, evidence, impact, and the
    smallest follow-up route. State what was not mechanically proven.
-9. Keep the audit read-only. If a finding needs a change, route frontend/UI
-   production fixes to **b-frontend**, other production fixes to
-   **b-implement**, and named behavior-preserving transforms to
-   **b-refactor**; do not edit during the audit.
+9. Keep the audit read-only. Record needed changes as follow-up; do not edit during the audit.
 
 ## Output format
 

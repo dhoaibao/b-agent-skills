@@ -4,7 +4,9 @@ description: >
   Initialize or refresh repo-local agent instruction docs: canonical
   AGENTS.md plus a minimal CLAUDE.md shim that routes readers to
   AGENTS.md. Grounds the docs in repo evidence, preserves user-owned
-  content, and keeps the output slim.
+  content, and keeps the output slim. Routing signals: /init, init agent
+  docs, initialize agent docs, create AGENTS.md, create CLAUDE.md, refresh
+  AGENTS.md, refresh agent docs.
 ---
 
 <!-- Generated from skills/registry.yaml and skills/b-init/prompt.md. Edit those sources, not this file. -->

@@ -150,10 +150,22 @@ FIXTURES = [
         not_expected=("b-frontend", "b-browser", "b-plan"),
     ),
     Fixture(
+        name="initialize repository guidance",
+        prompt="Initialize this repository's AGENTS.md and CLAUDE.md agent instruction docs.",
+        expected="b-init",
+        not_expected=("b-implement", "b-plan"),
+    ),
+    Fixture(
         name="generic UI work stays frontend",
         prompt="Implement frontend implementation and component styling for a responsive dashboard system map panel.",
         expected="b-frontend",
-        not_expected=("b-diagram",),
+        not_expected=("b-diagram", "b-implement"),
+    ),
+    Fixture(
+        name="confirmed UI defect stays debug",
+        prompt="The landing page hero overlaps the navigation in Safari and looks broken. Diagnose the rendering defect's root cause before changing it.",
+        expected="b-debug",
+        not_expected=("b-frontend", "b-implement"),
     ),
     Fixture(
         name="approved implementation",
@@ -500,10 +512,16 @@ def validate_runtime_contract(skills: list[dict], errors: list[str]) -> None:
             continue
         if f"`{name}`" not in text:
             errors.append(f"references/kernel.template.md: missing routing entry for {name}")
-        for trigger in skill.get("routing", {}).get("triggers", []):
-            if isinstance(trigger, str) and trigger.strip('"') not in text:
+        routing = skill.get("routing", {})
+        intent = routing.get("intent")
+        if isinstance(intent, str) and intent not in text:
+            errors.append(f"references/kernel.template.md: missing routing intent for {name}")
+        skill_text = normalize((ROOT / "skills" / name / "SKILL.md").read_text())
+        kernel_text = normalize(text)
+        for trigger in routing.get("triggers", []):
+            if isinstance(trigger, str) and normalize(trigger.strip('"')) not in kernel_text and normalize(trigger.strip('"')) not in skill_text:
                 errors.append(
-                    f"references/kernel.template.md: missing trigger {trigger!r} for {name}"
+                    f"runtime routing signal missing for {name}: {trigger!r} is absent from kernel and SKILL.md"
                 )
 
 
@@ -531,6 +549,12 @@ def validate_output_shape_regression(errors: list[str]) -> None:
         OUTPUT_SHAPE_REGRESSION,
         errors,
     )
+
+
+def validate_local_repository_qa_regression(errors: list[str]) -> None:
+    clause = "A local, factual repository question needing no phase work -> answer directly from evidence"
+    if clause not in routing_table_text():
+        errors.append("kernel local repository Q&A regression: missing direct evidence-backed answer route")
 
 
 def validate_shell_policy_regression(errors: list[str]) -> None:
@@ -629,6 +653,7 @@ def main() -> int:
     validate_runtime_contract(skills, errors)
     validate_kernel_consolidation_regression(errors)
     validate_output_shape_regression(errors)
+    validate_local_repository_qa_regression(errors)
     validate_shell_policy_regression(errors)
     validate_intercom_delegation_regression(errors)
     validate_cross_skill_contracts(errors)

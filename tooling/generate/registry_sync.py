@@ -610,7 +610,7 @@ def render_routing(skills: list[dict]) -> str:
     for skill in skills:
         routing = skill.get("routing")
         if isinstance(routing, dict):
-            lines.append(f"- {routing['intent']} -> `{skill['name']}` (triggers: {', '.join(routing['triggers'])}).")
+            lines.append(f"- {routing['intent']} -> `{skill['name']}`.")
         elif skill["name"] == "b-commit":
             lines.append("- Split and commit working-tree changes -> `b-commit` only on explicit user request.")
         elif skill["name"] == "b-pr-summary":
@@ -632,8 +632,12 @@ def render_skill_file(skill: dict) -> str:
     body = apply_template_tokens(
         prompt_path.read_text().rstrip() + "\n", {SKILL_SUPPORT_PATH_TOKEN: "."}, prompt_path
     ).rstrip()
+    routing = skill.get("routing")
+    description = skill["prompt"]["description"]
+    if isinstance(routing, dict):
+        description += f" Routing signals: {', '.join(routing['triggers'])}."
     lines = ["---", f"name: {skill['name']}"]
-    lines.extend(render_folded_yaml_block("description", skill["prompt"]["description"]))
+    lines.extend(render_folded_yaml_block("description", description))
     for field, yaml_key in PROMPT_FRONTMATTER_FIELDS:
         if field in skill["prompt"]:
             lines.append(f"{yaml_key}: {json.dumps(skill['prompt'][field], ensure_ascii=False)}")

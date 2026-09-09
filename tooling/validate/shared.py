@@ -432,7 +432,7 @@ MCP_WORKFLOW_REGRESSION = {
         "planner role never initializes an absent index."
     ),
     "anchors": {
-        "b-plan": ["Spanning files alone never justifies selection or initialization"],
+        "b-plan": ["Select CodeGraph only for a concrete repository-wide architecture, impact, or affected-test question"],
         "b-debug": ["versioned dependency suspects"],
         "b-test": ["versioned framework semantics"],
         "b-browser": ["existing CI/script evidence; approved navigation", "mcpScript", "browser mutations"],
@@ -474,7 +474,6 @@ MCP_SCRIPT_GUIDANCE_REGRESSION = {
     "research": [
         "manual `mcp-scripting` skill",
         "direct top-level `mcp` calls and state that fallback",
-        "at most 12 total nested operations",
         "resolve a Context7 library ID",
         "one primary public URL",
         "bounded partial results with explicit errors",
@@ -482,7 +481,6 @@ MCP_SCRIPT_GUIDANCE_REGRESSION = {
     "browser": [
         "top-level `mcp` for one browser observation",
         "manual `mcp-scripting` skill",
-        "at most 12 total nested operations",
         "Keep browser scripts read-only",
         "normal approval, authentication, and output-guard policy",
         "partial failures",
@@ -499,6 +497,36 @@ for path, markers in (
             errors.append(
                 f"{rel(path)}: missing bounded mcpScript guidance anchor {marker!r}; "
                 f"observed failure: {MCP_SCRIPT_GUIDANCE_REGRESSION['observed_failure']}"
+            )
+
+# Keep detailed skill copies synchronized with the kernel-owned numeric limits.
+MCP_SCRIPT_LIMIT_PATTERNS = {
+    "nested operations": r"at most (?P<value>\d+) total nested operations",
+    "tools.call operations": r"at most (?P<value>\d+) `tools\.call` operations",
+    "source/server branches or browser routes": r"at most (?P<value>\d+) source/server branches or browser routes",
+    "candidate results per source": r"at most (?P<value>\d+) candidate results per source",
+    "normalized output records": r"at most (?P<value>\d+) normalized output records",
+    "firecrawl scrapes": r"at most (?P<value>one|\d+) `firecrawl_scrape` call",
+}
+MCP_SCRIPT_SKILL_LIMITS = {
+    "skills/b-research/prompt.md": set(MCP_SCRIPT_LIMIT_PATTERNS),
+    "skills/b-browser/prompt.md": set(MCP_SCRIPT_LIMIT_PATTERNS) - {"firecrawl scrapes"},
+}
+kernel_mcp_guidance = read_text(ROOT / "references" / "kernel.template.md")
+for limit_name, pattern in MCP_SCRIPT_LIMIT_PATTERNS.items():
+    kernel_match = re.search(pattern, kernel_mcp_guidance)
+    if not kernel_match:
+        errors.append(f"references/kernel.template.md: missing mcpScript limit for {limit_name}")
+        continue
+    expected = kernel_match.group("value")
+    for relative_path, applicable_limits in MCP_SCRIPT_SKILL_LIMITS.items():
+        observed = re.search(pattern, read_text(ROOT / relative_path))
+        if limit_name not in applicable_limits:
+            if observed:
+                errors.append(f"{relative_path}: unrelated mcpScript limit {limit_name!r} must be omitted")
+        elif not observed or observed.group("value") != expected:
+            errors.append(
+                f"{relative_path}: mcpScript {limit_name} must match kernel value {expected!r}"
             )
 
 # The always-loaded kernel keeps limits and envelope semantics; the detailed

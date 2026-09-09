@@ -17,18 +17,14 @@ Run concrete behavior-preserving transforms: rename, extract, move, inline, simp
 ## Tool guidance
 
 - `bash` - `rtk git status --short`, checks, and modern discovery routed through `rtk` whenever supported.
-- `codegraph` - select when a concrete repository-wide impact or dependency-structure question is central to the transform and likely valuable; use an available index for that question and initialize an absent index only for that qualifying question. Spanning files alone never justifies it.
+- `codegraph` - select when a concrete repository-wide impact or dependency-structure question is central to the transform and likely valuable; use an available index for that question and initialize an absent index only for that qualifying question.
 - `read`/`edit` - routine file work, prose, comments, and config keys. Prefer native edits.
-
-## Capability activation
-
-Use only the semantic capability required by the named transform: CodeGraph is for a qualifying repository-wide impact question, while repository checks verify the changed source. `recall` is optional and requires a supplied compacted-memory ID. Intercom, authentication, and usage reporting are not part of a mechanical refactor unless their explicit task trigger is present.
 
 ## Steps
 
 1. Lock the exact target and state the behavior that must remain unchanged.
 2. Use read for relevant repo context only when it materially affects the transform.
-3. Select CodeGraph when a concrete repository-wide impact question is central to the transform and likely valuable; use an available index and map that impact. Initialize an absent index only for that qualifying question. Spanning files alone never justifies initialization. Use native search for routine discovery and bash with `rg`/`fdfind` for exports, routes, config keys, docs, and generated consumers.
+3. Select CodeGraph when a concrete repository-wide impact question is central to the transform and likely valuable; use an available index and map that impact. Initialize an absent index only for that qualifying question. Use native search for routine discovery and bash with `rg`/`fdfind` for exports, routes, config keys, docs, and generated consumers.
 4. When practical, run the narrowest risk-appropriate check to establish a passing behavioral baseline.
 5. Apply the smallest matching transform via Pi native `edit`.
 6. Re-check references with native search and rerun the baseline check or equivalent narrow verification.

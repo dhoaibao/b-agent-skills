@@ -20,10 +20,6 @@ Create or refresh `docs/DESIGN.md`, the repo-local frontend design standard. Do 
 - `bash` - `rtk git status --short`, diffs, and modern discovery (`rg`, `fdfind`, `eza`).
 - `read`/`edit`/`write` - inspect sources and update only `docs/DESIGN.md` unless broader docs were approved.
 
-## Capability activation
-
-Use repository checks to verify the changed design guidance. Use browser evidence only when requested and route it to `b-browser`; do not invoke authentication, usage reporting, or Intercom for an ordinary design-standard edit.
-
 ## Steps
 
 1. Confirm the source mode: user description, attached image/mockup, existing `docs/DESIGN.md`, design-token source, current frontend code, or a mix.
@@ -51,7 +47,7 @@ Use the following as an adaptable checklist, not a required document outline:
 
 Omit YAML front matter when exact token values are not evidenced or when the repo already has a better token source.
 
-## Content Rules
+## Content rules
 
 - State durable standards for the product, not page-specific implementation notes.
 - Make the chosen art direction and anti-default constraints explicit without turning them into a one-style-fits-all prescription.

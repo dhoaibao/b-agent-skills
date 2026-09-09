@@ -7,7 +7,8 @@ description: >
   owns test-specific failures and simulated-DOM/component-test work: wrong
   assertions, missing mocks, fixture or setup issues, and coverage gaps.
   Real-browser, visual, browser-session, and e2e verification belongs to
-  b-browser.
+  b-browser. Routing signals: tests, coverage, failing test, snapshot,
+  mock, component test, jsdom, happy-dom, React Testing Library.
 ---
 
 <!-- Generated from skills/registry.yaml and skills/b-test/prompt.md. Edit those sources, not this file. -->
@@ -34,16 +35,12 @@ Own code-level and simulated-DOM tests: add coverage, fix test-only failures, an
 - `bash` - run tests via `rtk` when supported (`rtk pytest`, `rtk vitest`, `rtk jest`, …) and inspect failure output.
 
 - `read`/`edit` - use Pi native tools for routine and unsupported file work.
-- `codegraph` - select when a concrete repository-wide source-to-test impact or affected-test question is central to the task and likely valuable; use an available index for that question and initialize an absent index only for that qualifying question. Spanning files alone never justifies it.
+- `codegraph` - select when a concrete repository-wide source-to-test impact or affected-test question is central to the task and likely valuable; use an available index for that question and initialize an absent index only for that qualifying question.
 - `context7` - versioned test-framework/API semantics only when local tests and contracts do not settle them.
-
-## Capability activation
-
-Use repository checks when useful for the changed source; they do not replace the affected test run. Select CodeGraph for a concrete repository-wide affected-test question that is central to the task, and use `recall` only when a supplied memory ID is relevant. Do not invoke usage, authentication, Intercom, or browser capabilities for test mechanics unless their task trigger is explicit.
 
 ## Steps
 
-1. Find the test framework and narrowest runnable command from manifests, CI, or existing tests (using Bash). Use native inspection and test discovery first. Select CodeGraph when a concrete repository-wide source-to-test impact question remains central and likely valuable; initialize an absent index only for that qualifying question, never because the change spans files.
+1. Find the test framework and narrowest runnable command from manifests, CI, or existing tests (using Bash). Use native inspection and test discovery first. Select CodeGraph when a concrete repository-wide source-to-test impact question remains central and likely valuable; initialize an absent index only for that qualifying question.
 2. Confirm intended behavior from user intent, product contract, source change, existing passing tests, and materially relevant repo context. Use Context7 only for unresolved versioned framework semantics.
 3. For failing tests, run the narrow target, read the test and exercised source, edit tests only after classifying the failure.
 4. For new tests, cover requested or changed behavior through the highest practical public interface first; add edge cases only when risk requires them.

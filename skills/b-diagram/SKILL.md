@@ -4,7 +4,9 @@ description: >
   Create validated, portable architecture, workflow, sequence, data-flow,
   and lifecycle diagrams from explicit facts. Produces versioned JSON
   source and self-contained HTML/SVG without inferring topology,
-  ownership, runtime behavior, impact, or merge safety.
+  ownership, runtime behavior, impact, or merge safety. Routing signals:
+  architecture diagram, system map, workflow diagram, sequence diagram,
+  data-flow diagram, lifecycle diagram.
 ---
 
 <!-- Generated from skills/registry.yaml and skills/b-diagram/prompt.md. Edit those sources, not this file. -->

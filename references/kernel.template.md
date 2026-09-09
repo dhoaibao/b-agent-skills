@@ -29,23 +29,23 @@
 
 ## Routing
 <!-- generated:kernel-routing:start -->
-- Clarify fuzzy work, compare approaches, decompose execution -> `b-plan` (triggers: plan, decompose, approach, explore, not sure, figure out, "how should I", implementation plan, clarify, requirements, scope).
-- External docs, API facts, versions, comparisons -> `b-research` (triggers: library docs, API docs, look up, compare APIs, versioned docs, external documentation).
-- Frontend design standard and docs/DESIGN.md authoring -> `b-design` (triggers: DESIGN.md, frontend design standard, design guidelines, style guide, visual style, visual design rules, design rules, design guidance from screenshot, design guidance from mockup, document mockup design, document screenshot design, design system docs).
-- Clearly scoped frontend/UI code implementation or visual refresh (pages, layouts, components, responsiveness, interactions) -> `b-frontend` (triggers: frontend implementation, UI implementation, page implementation, layout implementation, component implementation, component styling, responsive behavior, responsive layout, UI interaction, interaction state, visual refresh, landing page, landing-page).
-- Create a technical architecture, system map, workflow, sequence, data-flow, or lifecycle diagram -> `b-diagram` (triggers: architecture diagram, system map, workflow diagram, sequence diagram, data-flow diagram, lifecycle diagram).
-- Implement approved or clearly scoped non-UI work (general fallback) -> `b-implement` (triggers: implement, make the change, apply the plan, code the fix, finish the implementation, build the feature).
-- Initialize repo-local agent instruction files -> `b-init` (triggers: /init, init agent docs, initialize agent docs, create AGENTS.md, create CLAUDE.md, refresh AGENTS.md, refresh agent docs).
-- Mechanical rename, extract, move, inline, simplify, delete dead code -> `b-refactor` (triggers: rename, extract function, extract method, move symbol, inline, simplify code, delete dead code, remove dead code, behavior-preserving).
-- Runtime bug, error, "not working" -> `b-debug` (triggers: bug, broken, stack trace, "not working", runtime error, regression, product regression, product bug, diagnose).
-- Unit/integration/component tests, coverage, failing tests -> `b-test` (triggers: tests, coverage, failing test, snapshot, mock, component test, jsdom, happy-dom, React Testing Library).
-- Real-browser, visual, and e2e verification -> `b-browser` (triggers: browser, e2e, visual verification, visual check, screenshot evidence, browser session, live UI, Playwright, Cypress e2e, Puppeteer, WebDriver).
-- b-agentic repository and design-conformance audit -> `b-agentic-audit` (triggers: b-agentic audit, suite audit, maintainer audit, design-conformance audit, decision-design drift).
-- Pre-PR changed-code review -> `b-review` (triggers: code review, review diff, review my diff, review changes, review these changes, working tree diff, pre-PR, "what would a reviewer").
+- Clarify fuzzy work, compare approaches, decompose execution -> `b-plan`.
+- External docs, API facts, versions, comparisons -> `b-research`.
+- Frontend design standard and docs/DESIGN.md authoring -> `b-design`.
+- Clearly scoped frontend/UI code implementation or visual refresh (pages, layouts, components, responsiveness, interactions) -> `b-frontend`.
+- Create a technical architecture, system map, workflow, sequence, data-flow, or lifecycle diagram -> `b-diagram`.
+- Implement approved or clearly scoped non-UI work (general fallback) -> `b-implement`.
+- Initialize repo-local agent instruction files -> `b-init`.
+- Mechanical rename, extract, move, inline, simplify, delete dead code -> `b-refactor`.
+- Runtime bug, error, "not working" -> `b-debug`.
+- Unit/integration/component tests, coverage, failing tests -> `b-test`.
+- Real-browser, visual, and e2e verification -> `b-browser`.
+- b-agentic repository and design-conformance audit -> `b-agentic-audit`.
+- Pre-PR changed-code review -> `b-review`.
 - Split and commit working-tree changes -> `b-commit` only on explicit user request.
 - Commit-backed PR summary or supplied PR-prose review/rewrite -> `b-pr-summary` only on explicit user request.
 <!-- generated:kernel-routing:end -->
-Unclear work -> `b-plan`; `b-commit`/`b-pr-summary` require explicit request.
+A local, factual repository question needing no phase work -> answer directly from evidence. Unclear work -> `b-plan`; `b-commit`/`b-pr-summary` require explicit request.
 
 ## Safety and tools
 

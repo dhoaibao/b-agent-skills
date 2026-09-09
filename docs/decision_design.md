@@ -18,7 +18,7 @@ b-agentic and Pi are one integrated personal workflow product with Pi as the shi
 - **Usable:** retain direct, predictable user paths.
   This decision applies to future b-agentic repository source, docs, tooling, and CI changes, including skills, installers, extensions, configuration, validators, and tests; it does not apply to the installed runtime kernel or create a generic runtime policy. Necessary compatibility/security fixes remain in scope, so slimness never demands cosmetic reduction.
   Evidence: `AGENTS.md`, `README.md`, `REFERENCE.md`, `tooling/validate/decision_design.py`.
-- **Measured kernel limit exception:** Set the kernel byte ceiling to 12,800 (from 12,500, previously 12,000) so required frozen-review completion and disposition guidance and the kernel-owned response-shape rule remain intact. This scope is limited to the always-loaded `references/kernel.template.md`; the 120-line cap and byte check remain enforced by `tooling/validate/suite_audit.py`, and the current kernel is 95 lines/12,714 bytes. Each raise is a measured exception for a guarantee that cannot be expressed elsewhere, not a standing allowance.
+- **Measured kernel budget and routing metadata:** Keep the 12,800-byte ceiling and 120-line cap for the always-loaded `references/kernel.template.md`; `tooling/validate/suite_audit.py` enforces both. Registry routing intents remain in the kernel, while trigger vocabulary is rendered into each active skill description so routing detail does not consume global context. The current kernel is 95 lines/10,892 bytes. Any future limit raise remains a measured exception for a guarantee that cannot be expressed elsewhere, not a standing allowance.
 
 ## Product boundary and architecture
 

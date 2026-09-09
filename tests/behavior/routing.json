@@ -34,6 +34,12 @@
       "forbidden_skills": ["b-frontend"]
     },
     {
+      "id": "technical-diagram-artifact",
+      "prompt": "Create a versioned architecture diagram that maps the service boundaries and request flow from explicit repository facts.",
+      "expected_skill": "b-diagram",
+      "forbidden_skills": ["b-plan", "b-frontend", "b-browser"]
+    },
+    {
       "id": "initialize-agent-docs",
       "prompt": "Initialize this repository's agent instruction docs with a canonical AGENTS.md and a minimal CLAUDE.md shim.",
       "expected_skill": "b-init",

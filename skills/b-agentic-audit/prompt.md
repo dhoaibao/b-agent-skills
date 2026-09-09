@@ -110,10 +110,7 @@ branch is synchronized with `origin`:
 8. Separate deterministic results from semantic findings. Order findings by
    severity and cite repository-relative paths, evidence, impact, and the
    smallest follow-up route. State what was not mechanically proven.
-9. Keep the audit read-only. If a finding needs a change, route frontend/UI
-   production fixes to **b-frontend**, other production fixes to
-   **b-implement**, and named behavior-preserving transforms to
-   **b-refactor**; do not edit during the audit.
+9. Keep the audit read-only. Record needed changes as follow-up; do not edit during the audit.
 
 ## Output format
 

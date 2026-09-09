@@ -5,7 +5,11 @@ description: >
   styling, responsive behavior, interactions, and visual refreshes. Uses
   existing product tokens, components, assets, and design guidance without
   inventing a generic aesthetic, and hands browser/visual proof to
-  b-browser.
+  b-browser. Routing signals: frontend implementation, UI implementation,
+  page implementation, layout implementation, component implementation,
+  component styling, responsive behavior, responsive layout, UI
+  interaction, interaction state, visual refresh, landing page,
+  landing-page.
 ---
 
 <!-- Generated from skills/registry.yaml and skills/b-frontend/prompt.md. Edit those sources, not this file. -->
@@ -24,16 +28,13 @@ Implement clearly scoped frontend/UI code, visual refreshes, landing pages, and 
 - The user wants reusable frontend standards or `docs/DESIGN.md` created or refreshed -> use **b-design**.
 - The user wants browser sessions, screenshots, live UI checks, or e2e/visual evidence -> use **b-browser**.
 - The request is broad or the implementation approach is unclear -> use **b-plan**; unresolved external framework/API facts belong to **b-research**.
+- A confirmed runtime or rendering defect needing root-cause diagnosis -> use **b-debug**.
 - The change is not frontend/UI work -> use **b-implement**.
 
 ## Tool guidance
 
 - Use native repository reads and edits plus the existing project commands. Inspect the package manifest and relevant lockfile before adding imports; do not assume React, Tailwind, GSAP, an icon library, or any other framework/library.
 - Use the repository's existing tokens, components, assets, content, and `docs/DESIGN.md` when present as the visual authority. Do not generate or fetch external assets as a prerequisite; use real repo assets/data only.
-
-## Capability activation
-
-Use repository checks on changed source before final checks when they can reduce implementation uncertainty. Route browser evidence to `b-browser` only when requested; authentication, usage reporting, and Intercom are not implicit frontend steps.
 
 ## Steps
 

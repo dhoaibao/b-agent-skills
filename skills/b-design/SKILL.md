@@ -7,7 +7,11 @@ description: >
   needs to extract, normalize, or rewrite shared UI style guidance for
   future `b-frontend` implementation. Unlike `b-frontend`, it writes
   design guidance rather than UI code; unlike b-browser, it does not
-  collect final browser evidence.
+  collect final browser evidence. Routing signals: DESIGN.md, frontend
+  design standard, design guidelines, style guide, visual style, visual
+  design rules, design rules, design guidance from screenshot, design
+  guidance from mockup, document mockup design, document screenshot
+  design, design system docs.
 ---
 
 <!-- Generated from skills/registry.yaml and skills/b-design/prompt.md. Edit those sources, not this file. -->
@@ -33,10 +37,6 @@ Create or refresh `docs/DESIGN.md`, the repo-local frontend design standard. Do 
 
 - `bash` - `rtk git status --short`, diffs, and modern discovery (`rg`, `fdfind`, `eza`).
 - `read`/`edit`/`write` - inspect sources and update only `docs/DESIGN.md` unless broader docs were approved.
-
-## Capability activation
-
-Use repository checks to verify the changed design guidance. Use browser evidence only when requested and route it to `b-browser`; do not invoke authentication, usage reporting, or Intercom for an ordinary design-standard edit.
 
 ## Steps
 
@@ -65,7 +65,7 @@ Use the following as an adaptable checklist, not a required document outline:
 
 Omit YAML front matter when exact token values are not evidenced or when the repo already has a better token source.
 
-## Content Rules
+## Content rules
 
 - State durable standards for the product, not page-specific implementation notes.
 - Make the chosen art direction and anti-default constraints explicit without turning them into a one-style-fits-all prescription.

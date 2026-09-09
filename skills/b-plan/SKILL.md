@@ -4,7 +4,9 @@ description: >
   Turn goals into execution-ready plans. Handles both underspecified
   requests and fuzzy problem statements by investigating enough to compare
   options, choose a path, and write ordered steps. Unlike b-implement,
-  b-plan does not change code.
+  b-plan does not change code. Routing signals: plan, decompose, approach,
+  explore, not sure, figure out, "how should I", implementation plan,
+  clarify, requirements, scope.
 ---
 
 <!-- Generated from skills/registry.yaml and skills/b-plan/prompt.md. Edit those sources, not this file. -->
@@ -27,7 +29,7 @@ Turn an unclear goal into the smallest execution-ready plan. Do not implement.
 
 ## Tool guidance
 
-- Use Pi native `read` and local search for routine evidence. Select CodeGraph only for a concrete repository-wide architecture, impact, or affected-test question; Spanning files alone never justifies selection or initialization. Recover compacted prior planning context only from a supplied memory ID.
+- Use Pi native `read` and local search for routine evidence. Select CodeGraph only for a concrete repository-wide architecture, impact, or affected-test question. Recover compacted prior planning context only from a supplied memory ID.
 
 ## Steps
 

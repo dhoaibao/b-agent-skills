@@ -16,7 +16,7 @@ Turn an unclear goal into the smallest execution-ready plan. Do not implement.
 
 ## Tool guidance
 
-- Use Pi native `read` and local search for routine evidence. Select CodeGraph only for a concrete repository-wide architecture, impact, or affected-test question; Spanning files alone never justifies selection or initialization. Recover compacted prior planning context only from a supplied memory ID.
+- Use Pi native `read` and local search for routine evidence. Select CodeGraph only for a concrete repository-wide architecture, impact, or affected-test question. Recover compacted prior planning context only from a supplied memory ID.
 
 ## Steps
 

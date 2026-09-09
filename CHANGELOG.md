@@ -15,6 +15,8 @@ section per date and same-day changes aggregated in that section.
 ### Changed
 
 - Raise the workflow kernel's measured byte ceiling to 12,800 so the response-shape guidance fits, keeping the 120-line slimness guard and documenting the exception as bounded rather than a standing allowance.
+- Keep concise routing intents in the always-loaded kernel while rendering detailed trigger vocabulary into active skill descriptions, with validation that each routing signal remains runtime-visible.
+- Simplify and align canonical skill guidance, including browser evidence, review handback, capability activation, MCP scripting limits, and local repository Q&A routing.
 
 ## [v2026.09.08] - 2026-09-08
 
